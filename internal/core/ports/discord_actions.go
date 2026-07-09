@@ -74,6 +74,12 @@ type MessageRef struct {
 	MessageID string
 }
 
+type MessageCleanupRequest struct {
+	ChannelID string
+	Limit     int
+	UserID    string
+}
+
 type PermissionOverwrite struct {
 	ID    string
 	Type  int
@@ -117,6 +123,10 @@ type DiscordMessagePort interface {
 	SendMessage(ctx context.Context, channelID string, msg OutboundMessage) (MessageRef, error)
 	EditMessage(ctx context.Context, ref MessageRef, msg OutboundMessage) error
 	DeleteMessage(ctx context.Context, ref MessageRef) error
+}
+
+type DiscordMessageCleaner interface {
+	CleanupMessages(ctx context.Context, req MessageCleanupRequest) (int, error)
 }
 
 type DiscordDirectMessagePort interface {

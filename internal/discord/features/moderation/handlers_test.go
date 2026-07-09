@@ -2,6 +2,7 @@ package moderation
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -431,6 +432,137 @@ func TestWarningRemoveAllMissingUsesLegacyErrorWithoutExclamation(t *testing.T) 
 	}
 }
 
+func TestCleanupRequiresManageMessages(t *testing.T) {
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewCleanupModule(sideEffects, nil)
+	responder := fakediscord.NewResponder()
+	interaction := cleanupInteraction("5", "")
+	interaction.Actor.PermissionBits = 0
+
+	if err := module.CleanupHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral {
+		t.Fatalf("defers = %#v", responder.Defers)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, cleanupPermissionLabel) {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(sideEffects.CleanupRequests) != 0 {
+		t.Fatalf("cleanup should not be requested: %#v", sideEffects.CleanupRequests)
+	}
+}
+
+func TestCleanupRequiresAdministratorAboveLegacyThreshold(t *testing.T) {
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewCleanupModule(sideEffects, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.CleanupHandler()(context.Background(), cleanupInteraction("201", ""), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, cleanupPermissionLabel) {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(sideEffects.CleanupRequests) != 0 {
+		t.Fatalf("cleanup should not be requested: %#v", sideEffects.CleanupRequests)
+	}
+}
+
+func TestCleanupRejectsMoreThanLegacyMaximum(t *testing.T) {
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewCleanupModule(sideEffects, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.CleanupHandler()(context.Background(), cleanupInteraction("1001", ""), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "不可刪除超過1000則消息!!!!!") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(sideEffects.CleanupRequests) != 0 {
+		t.Fatalf("cleanup should not be requested: %#v", sideEffects.CleanupRequests)
+	}
+}
+
+func TestCleanupRejectsNonPositiveCount(t *testing.T) {
+	for _, count := range []string{"0", "-1"} {
+		sideEffects := fakediscord.NewSideEffects()
+		module := NewCleanupModule(sideEffects, nil)
+		responder := fakediscord.NewResponder()
+
+		if err := module.CleanupHandler()(context.Background(), cleanupInteraction(count, ""), responder); err != nil {
+			t.Fatalf("handler count %s: %v", count, err)
+		}
+		if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "未知的錯誤") {
+			t.Fatalf("edits count %s = %#v", count, responder.Edits)
+		}
+		if len(sideEffects.CleanupRequests) != 0 {
+			t.Fatalf("cleanup should not be requested for count %s: %#v", count, sideEffects.CleanupRequests)
+		}
+	}
+}
+
+func TestCleanupCleanerErrorUsesGenericLegacyError(t *testing.T) {
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.CleanupErr = errors.New("discord unavailable")
+	module := NewCleanupModule(sideEffects, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.CleanupHandler()(context.Background(), cleanupInteraction("5", ""), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "未知的錯誤") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestCleanupRequestsMessagesAndRendersLegacyCompletion(t *testing.T) {
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.CleanupDeleted = 7
+	usage := &fakeusage.Tracker{}
+	module := NewCleanupModule(sideEffects, usage)
+	responder := fakediscord.NewResponder()
+	interaction := cleanupInteraction("", "user-2")
+	interaction.CommandOptions = map[string]interactions.CommandOptionValue{
+		cleanupOptionCount: {
+			Type: interactions.CommandOptionInteger,
+			Int:  10,
+		},
+		cleanupOptionUser: {
+			Type:   interactions.CommandOptionUser,
+			String: "user-2",
+		},
+	}
+
+	if err := module.CleanupHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral {
+		t.Fatalf("defers = %#v", responder.Defers)
+	}
+	if len(sideEffects.CleanupRequests) != 1 {
+		t.Fatalf("cleanup requests = %#v", sideEffects.CleanupRequests)
+	}
+	request := sideEffects.CleanupRequests[0]
+	if request.ChannelID != "channel-1" || request.Limit != 10 || request.UserID != "user-2" {
+		t.Fatalf("cleanup request = %#v", request)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	embed := responder.Edits[0].Embeds[0]
+	if embed.Title != "<a:green_tick:994529015652163614> | 清理完成!" || embed.Color != cleanupSuccessColor {
+		t.Fatalf("embed = %#v", embed)
+	}
+	if !strings.Contains(embed.Description, "**成功清除:**`7`/`10`") || !strings.Contains(embed.Description, "代表可能超過14天或沒這麼多訊息給清") {
+		t.Fatalf("description = %q", embed.Description)
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != CleanupCommandName || usage.Events[0].Feature != "message-cleanup" {
+		t.Fatalf("usage events = %#v", usage.Events)
+	}
+}
+
 func warningHistoryInteraction(userID string) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(WarningHistoryCommandName, "", map[string]string{"使用者": userID})
 	interaction.Actor.PermissionBits = warningManageMessagesPermission
@@ -478,5 +610,16 @@ func (c moderationFixedClock) Now() time.Time {
 func warningRemoveAllInteraction(userID string) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(WarningRemoveAllCommandName, "", map[string]string{warningOptionUser: userID})
 	interaction.Actor.PermissionBits = warningManageMessagesPermission
+	return interaction
+}
+
+func cleanupInteraction(count string, userID string) interactions.Interaction {
+	options := map[string]string{cleanupOptionCount: count}
+	if strings.TrimSpace(userID) != "" {
+		options[cleanupOptionUser] = userID
+	}
+	interaction := fakediscord.SlashInteractionWithOptions(CleanupCommandName, "", options)
+	interaction.Actor.PermissionBits = warningManageMessagesPermission
+	interaction.ChannelID = "channel-1"
 	return interaction
 }

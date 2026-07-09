@@ -23,6 +23,11 @@ const (
 	warningRemovalDMColor           = 0x00DB00
 	warningIssueSuccessColor        = 0x57F287
 	warningIssueDMColor             = 0xEA0000
+	cleanupAdminPermission          = int64(8)
+	cleanupMaxMessages              = 1000
+	cleanupAdminThreshold           = 200
+	cleanupPermissionLabel          = "訊息管理(刪除超過200則需要有權限)"
+	cleanupSuccessColor             = 0x57F287
 )
 
 func (m Module) WarningHistoryHandler() interactions.Handler {
@@ -163,6 +168,45 @@ func (m Module) WarningIssueHandler() interactions.Handler {
 		}
 		m.sendWarningIssueDM(ctx, interaction, userID, reason)
 		return m.track(ctx, interaction, WarningIssueCommandName, "warning-issue")
+	}
+}
+
+func (m Module) CleanupHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{Ephemeral: true}); err != nil {
+			return err
+		}
+		if !interaction.Actor.HasPermission(warningManageMessagesPermission) {
+			return responder.EditOriginal(ctx, cleanupErrorMessage(fmt.Sprintf("你需要有`%s`才能使用此指令", cleanupPermissionLabel)))
+		}
+		count, ok := warningIntegerOption(interaction, cleanupOptionCount)
+		if !ok {
+			return responder.EditOriginal(ctx, cleanupErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+		}
+		if count <= 0 {
+			return responder.EditOriginal(ctx, cleanupErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+		}
+		if count > cleanupMaxMessages {
+			return responder.EditOriginal(ctx, cleanupErrorMessage("不可刪除超過1000則消息!!!!!"))
+		}
+		if count > cleanupAdminThreshold && !interaction.Actor.HasPermission(cleanupAdminPermission) {
+			return responder.EditOriginal(ctx, cleanupErrorMessage(fmt.Sprintf("你需要有`%s`才能使用此指令", cleanupPermissionLabel)))
+		}
+		if m.cleaner == nil {
+			return responder.EditOriginal(ctx, cleanupErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+		}
+		deleted, err := m.cleaner.CleanupMessages(ctx, ports.MessageCleanupRequest{
+			ChannelID: interaction.ChannelID,
+			Limit:     int(count),
+			UserID:    warningStringOption(interaction, cleanupOptionUser),
+		})
+		if err != nil {
+			return responder.EditOriginal(ctx, cleanupErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+		}
+		if err := responder.EditOriginal(ctx, cleanupSuccessMessage(deleted, int(count))); err != nil {
+			return err
+		}
+		return m.track(ctx, interaction, CleanupCommandName, "message-cleanup")
 	}
 }
 
@@ -366,6 +410,18 @@ func warningRemovalSuccessMessage() responses.Message {
 	}
 }
 
+func cleanupSuccessMessage(deleted int, requested int) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       "<a:green_tick:994529015652163614> | 清理完成!",
+			Description: fmt.Sprintf("**成功清除:**`%d`/`%d`\n**<:deletebutton:981971559679950848> 如果沒有成功清完全\n代表可能超過14天或沒這麼多訊息給清**", deleted, requested),
+			Color:       cleanupSuccessColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+		Ephemeral:       true,
+	}
+}
+
 func (m Module) sendWarningRemovalDM(ctx context.Context, interaction interactions.Interaction, userID string, all bool) {
 	if m.direct == nil || strings.TrimSpace(userID) == "" {
 		return
@@ -419,6 +475,12 @@ func warningErrorMessage(content string) responses.Message {
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
+}
+
+func cleanupErrorMessage(content string) responses.Message {
+	message := warningErrorMessage(content)
+	message.Ephemeral = true
+	return message
 }
 
 func warningStringOption(interaction interactions.Interaction, name string) string {

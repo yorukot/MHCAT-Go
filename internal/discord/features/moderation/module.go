@@ -18,6 +18,7 @@ type Module struct {
 	memberActions ports.DiscordMemberPort
 	hierarchy     ports.DiscordMemberHierarchyInspector
 	messages      ports.DiscordMessagePort
+	cleaner       ports.DiscordMessageCleaner
 	clock         ports.Clock
 	usage         ports.UsageTracker
 }
@@ -61,6 +62,13 @@ func NewSettingsModule(repo ports.WarningSettingsRepository, usage ports.UsageTr
 	}
 }
 
+func NewCleanupModule(cleaner ports.DiscordMessageCleaner, usage ports.UsageTracker) Module {
+	return Module{
+		cleaner: cleaner,
+		usage:   usage,
+	}
+}
+
 func (m Module) Name() string {
 	return "warnings"
 }
@@ -79,6 +87,9 @@ func (m Module) Commands() []commands.Definition {
 	if m.issue.Repository != nil {
 		definitions = append(definitions, IssueDefinitions()...)
 	}
+	if m.cleaner != nil {
+		definitions = append(definitions, CleanupDefinitions()...)
+	}
 	if len(definitions) > 0 {
 		return definitions
 	}
@@ -86,6 +97,7 @@ func (m Module) Commands() []commands.Definition {
 	definitions = append(definitions, SettingsDefinitions()...)
 	definitions = append(definitions, RemovalDefinitions()...)
 	definitions = append(definitions, IssueDefinitions()...)
+	definitions = append(definitions, CleanupDefinitions()...)
 	return definitions
 }
 
@@ -110,6 +122,11 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 	}
 	if m.issue.Repository != nil {
 		if err := router.RegisterSlash(WarningIssueCommandName, m.WarningIssueHandler()); err != nil {
+			return err
+		}
+	}
+	if m.cleaner != nil {
+		if err := router.RegisterSlash(CleanupCommandName, m.CleanupHandler()); err != nil {
 			return err
 		}
 	}

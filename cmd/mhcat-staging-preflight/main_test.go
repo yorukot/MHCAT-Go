@@ -479,6 +479,43 @@ func TestPreflightWarnsWhenWarningIssueRuntimeEnabledWithoutCommandSync(t *testi
 	}
 }
 
+func TestPreflightRejectsMessageCleanupCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "message-cleanup-runtime-pairing status=fail") {
+		t.Fatalf("expected message cleanup pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsMessageCleanupCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP"] = "true"
+	env["MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "message-cleanup-command-sync status=pass") || !strings.Contains(stdout, "message-cleanup-runtime-pairing status=pass") {
+		t.Fatalf("expected message cleanup pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenMessageCleanupRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "message-cleanup-runtime-pairing status=warn") {
+		t.Fatalf("expected message cleanup runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsTranslateCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE"] = "true"

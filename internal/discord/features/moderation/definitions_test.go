@@ -103,3 +103,27 @@ func TestWarningRemovalDefinitionsMatchLegacyShape(t *testing.T) {
 		t.Fatalf("validate registry: %v", err)
 	}
 }
+
+func TestCleanupDefinitionMatchesLegacyShape(t *testing.T) {
+	definition := CleanupDefinition()
+	if definition.Name != "刪除訊息" || definition.Description != "刪除大量訊息" {
+		t.Fatalf("definition = %#v", definition)
+	}
+	if len(definition.Options) != 2 {
+		t.Fatalf("options = %#v", definition.Options)
+	}
+	count := definition.Options[0]
+	if count.Type != commands.OptionTypeInteger || count.Name != cleanupOptionCount || count.Description != "設定要刪除幾個訊息(最高1000超過200需要管理者權限)(只能刪除14天內的消息)" || !count.Required {
+		t.Fatalf("count option = %#v", count)
+	}
+	user := definition.Options[1]
+	if user.Type != commands.OptionTypeUser || user.Name != cleanupOptionUser || user.Description != "選擇是否要刪除某個特定的使用者的訊息(如填選這項，第一項代表的將是檢測訊息數量)" || user.Required {
+		t.Fatalf("user option = %#v", user)
+	}
+	if !commands.IsManagedForScope(definition, commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}) {
+		t.Fatal("cleanup command should be managed for guild staging")
+	}
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, CleanupDefinitions())); err != nil {
+		t.Fatalf("validate registry: %v", err)
+	}
+}

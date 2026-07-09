@@ -138,6 +138,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureWarningIssueEnabled {
 		t.Fatal("warning issue feature must be disabled by default")
 	}
+	if cfg.FeatureMessageCleanupEnabled {
+		t.Fatal("message cleanup feature must be disabled by default")
+	}
 	if cfg.FeatureTranslateEnabled {
 		t.Fatal("translate feature must be disabled by default")
 	}
@@ -803,6 +806,21 @@ func TestFeatureWarningIssueConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureWarningIssueEnabled {
 		t.Fatal("expected warning issue feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureMessageCleanupConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                   "token",
+		"MHCAT_MONGODB_URI":                     "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                "mhcat",
+		"MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureMessageCleanupEnabled {
+		t.Fatal("expected message cleanup feature to be enabled explicitly")
 	}
 }
 

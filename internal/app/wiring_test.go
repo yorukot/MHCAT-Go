@@ -609,6 +609,41 @@ func TestBuildRuntimeRoutesWarningIssueOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesMessageCleanupOnlyWithCleaner(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), MessageCleanupFeatureEnabled: true})
+	if err != nil {
+		t.Fatalf("build runtime with message cleanup feature: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("刪除訊息", "", map[string]string{"刪除數量": "5"})
+	interaction.Actor.PermissionBits = 8192
+	interaction.ChannelID = "channel-1"
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("message cleanup route should not be available without cleaner")
+	}
+
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.CleanupDeleted = 3
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                       validTestConfig(),
+		MessageCleanupFeatureEnabled: true,
+		MessageCleaner:               sideEffects,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with message cleanup cleaner: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch message cleanup: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "`3`/`5`") {
+		t.Fatalf("cleanup response = %#v", responder.Edits)
+	}
+	if len(sideEffects.CleanupRequests) != 1 || sideEffects.CleanupRequests[0].ChannelID != "channel-1" || sideEffects.CleanupRequests[0].Limit != 5 {
+		t.Fatalf("cleanup requests = %#v", sideEffects.CleanupRequests)
+	}
+}
+
 func TestBuildRuntimeRoutesLoggingConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

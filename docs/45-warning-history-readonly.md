@@ -40,9 +40,11 @@ The repository is read-only. It performs no warning writes, no warning deletes, 
 
 `/警告` is implemented separately behind `MHCAT_FEATURE_WARNING_ISSUE_ENABLED=false` and `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=false` by default. It appends legacy `warndbs.content` entries, sends best-effort legacy-style DMs, preserves the moderator/target role hierarchy check, and reads `errors_sets` to run configured `停權`/`踢出` threshold actions for existing warning records.
 
+`/刪除訊息` is implemented separately behind `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=false` and `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=false` by default. It deletes recent Discord messages only and writes no Mongo data.
+
 ## Not Implemented
 
-- Bulk message clear/delete.
+- `/刪除資料` destructive data deletion.
 - Usage count writes.
 - Unique indexes on `warndbs`.
 
@@ -58,3 +60,4 @@ The repository is read-only. It performs no warning writes, no warning deletes, 
 - App runtime wiring gate.
 - Command-sync and staging-preflight flag pairing.
 - Warning issue append, DM, timestamp, role hierarchy, and threshold kick/ban behavior.
+- Message cleanup permission gates, request mapping, and legacy completion embed.

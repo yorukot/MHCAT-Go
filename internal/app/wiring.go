@@ -62,10 +62,12 @@ type RuntimeOptions struct {
 	WarningIssueMemberPort        ports.DiscordMemberPort
 	WarningIssueHierarchy         ports.DiscordMemberHierarchyInspector
 	WarningIssueMessagePort       ports.DiscordMessagePort
+	MessageCleaner                ports.DiscordMessageCleaner
 	WarningsFeatureEnabled        bool
 	WarningSettingsFeatureEnabled bool
 	WarningRemovalFeatureEnabled  bool
 	WarningIssueFeatureEnabled    bool
+	MessageCleanupFeatureEnabled  bool
 	TranslateProvider             ports.Translator
 	TranslateFeatureEnabled       bool
 	BalanceRepository             ports.BalanceRepository
@@ -141,6 +143,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.WarningIssueFeatureEnabled {
 		definitions = append(definitions, featuremoderation.IssueDefinitions()...)
+	}
+	if opts.MessageCleanupFeatureEnabled && opts.MessageCleaner != nil {
+		definitions = append(definitions, featuremoderation.CleanupDefinitions()...)
 	}
 	if opts.TranslateFeatureEnabled && opts.TranslateProvider != nil {
 		definitions = append(definitions, commands.TranslateDefinition())
@@ -301,6 +306,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.WarningIssueFeatureEnabled && opts.WarningIssueRepository != nil {
 		warningIssueModule := featuremoderation.NewIssueModule(opts.WarningIssueRepository, opts.WarningSettingsRepository, opts.WarningIssueDirectMessage, concreteDiscord, opts.WarningIssueHierarchy, opts.WarningIssueMemberPort, opts.WarningIssueMessagePort, clockOrSystem(opts.Clock), opts.UsageTracker)
 		if err := warningIssueModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.MessageCleanupFeatureEnabled && opts.MessageCleaner != nil {
+		cleanupModule := featuremoderation.NewCleanupModule(opts.MessageCleaner, opts.UsageTracker)
+		if err := cleanupModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

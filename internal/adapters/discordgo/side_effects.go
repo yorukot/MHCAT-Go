@@ -82,6 +82,84 @@ func (c SideEffectClient) DeleteMessage(ctx context.Context, ref ports.MessageRe
 	return ctx.Err()
 }
 
+func (c SideEffectClient) CleanupMessages(ctx context.Context, req ports.MessageCleanupRequest) (int, error) {
+	session, err := c.session()
+	if err != nil {
+		return 0, err
+	}
+	if req.Limit <= 0 {
+		return 0, ctx.Err()
+	}
+	remaining := req.Limit
+	deleted := 0
+	iterations := (req.Limit + 99) / 100
+	if req.UserID != "" {
+		iterations = 10
+	}
+	cutoff := time.Now().Add(-14 * 24 * time.Hour)
+	beforeID := ""
+	for i := 0; i < iterations && remaining > 0; i++ {
+		if err := ctx.Err(); err != nil {
+			return deleted, err
+		}
+		limit := remaining
+		if limit > 100 {
+			limit = 100
+		}
+		messages, err := session.ChannelMessages(req.ChannelID, limit, beforeID, "", "", dgo.WithContext(ctx))
+		if err != nil {
+			return deleted, fmt.Errorf("fetch discord messages for cleanup: %w", err)
+		}
+		if len(messages) == 0 {
+			break
+		}
+		ids := make([]string, 0, len(messages))
+		lastID := ""
+		hasRecentMessage := false
+		for _, message := range messages {
+			if message == nil || message.ID == "" {
+				continue
+			}
+			lastID = message.ID
+			if message.Timestamp.IsZero() || !message.Timestamp.Before(cutoff) {
+				hasRecentMessage = true
+			}
+			if req.UserID != "" {
+				if message.Author == nil || message.Author.ID != req.UserID {
+					continue
+				}
+			}
+			if !message.Timestamp.IsZero() && message.Timestamp.Before(cutoff) {
+				continue
+			}
+			ids = append(ids, message.ID)
+		}
+		if len(ids) == 0 {
+			if req.UserID != "" && hasRecentMessage && lastID != "" {
+				beforeID = lastID
+				continue
+			}
+			break
+		}
+		if len(ids) == 1 {
+			if err := session.ChannelMessageDelete(req.ChannelID, ids[0], dgo.WithContext(ctx)); err != nil {
+				return deleted, fmt.Errorf("delete discord message for cleanup: %w", err)
+			}
+		} else if err := session.ChannelMessagesBulkDelete(req.ChannelID, ids, dgo.WithContext(ctx)); err != nil {
+			return deleted, fmt.Errorf("bulk delete discord messages: %w", err)
+		}
+		deleted += len(ids)
+		remaining = req.Limit - deleted
+		if req.UserID != "" {
+			beforeID = lastID
+		}
+		if len(messages) < limit {
+			break
+		}
+	}
+	return deleted, ctx.Err()
+}
+
 func (c SideEffectClient) FindChannelByName(ctx context.Context, guildID string, name string, channelType int) (ports.ChannelRef, error) {
 	session, err := c.session()
 	if err != nil {
@@ -584,6 +662,7 @@ func coreAllowedMentions(allowed ports.AllowedMentions) *dgo.MessageAllowedMenti
 
 var _ ports.DiscordChannelPort = SideEffectClient{}
 var _ ports.DiscordMessagePort = SideEffectClient{}
+var _ ports.DiscordMessageCleaner = SideEffectClient{}
 var _ ports.DiscordDirectMessagePort = SideEffectClient{}
 var _ ports.DiscordGuildMemberReader = SideEffectClient{}
 var _ ports.DiscordRoleInspector = SideEffectClient{}

@@ -273,6 +273,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		WarningSettingsFeatureEnabled: cfg.FeatureWarningSettingsEnabled,
 		WarningRemovalFeatureEnabled:  cfg.FeatureWarningRemovalEnabled,
 		WarningIssueFeatureEnabled:    cfg.FeatureWarningIssueEnabled,
+		MessageCleanupFeatureEnabled:  cfg.FeatureMessageCleanupEnabled,
 		TranslateFeatureEnabled:       cfg.FeatureTranslateEnabled,
 		LotteryDisabledCommandEnabled: cfg.FeatureLotteryDisabledCommandEnabled,
 		StatsQueryEnabled:             cfg.FeatureStatsQueryEnabled,
@@ -383,6 +384,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		opts.WarningIssueMemberPort = sideEffects
 		opts.WarningIssueHierarchy = sideEffects
 		opts.WarningIssueMessagePort = sideEffects
+	}
+	if cfg.FeatureMessageCleanupEnabled {
+		sideEffects, err := messageSideEffectsFromSession(session, "message cleanup feature")
+		if err != nil {
+			return nil, err
+		}
+		opts.MessageCleaner = sideEffects
 	}
 	if cfg.FeatureTranslateEnabled {
 		translator := externaladapter.NewGoogleTranslateClient()

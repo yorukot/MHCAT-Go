@@ -208,6 +208,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeWarningIssue {
 		definitions = append(definitions, featuremoderation.IssueDefinitions()...)
 	}
+	if cfg.IncludeMessageCleanup {
+		definitions = append(definitions, featuremoderation.CleanupDefinitions()...)
+	}
 	if cfg.IncludeTranslate {
 		definitions = append(definitions, commands.TranslateDefinition())
 	}
@@ -311,6 +314,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeWarningIssue {
 		expected = append(expected, featuremoderation.WarningIssueCommandName)
+	}
+	if cfg.IncludeMessageCleanup {
+		expected = append(expected, featuremoderation.CleanupCommandName)
 	}
 	if cfg.IncludeTranslate {
 		expected = append(expected, "翻譯")

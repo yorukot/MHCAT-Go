@@ -18,6 +18,7 @@ type SideEffects struct {
 	DirectMessages    []DirectMessage
 	Edited            []EditedMessage
 	DeletedMessage    []ports.MessageRef
+	CleanupRequests   []ports.MessageCleanupRequest
 	AddedRoles        []RoleChange
 	RemovedRoles      []RoleChange
 	Nicknames         []NicknameChange
@@ -31,6 +32,8 @@ type SideEffects struct {
 	Err               error
 	KickErr           error
 	BanErr            error
+	CleanupErr        error
+	CleanupDeleted    int
 	ModerationErr     error
 	nextChannel       int
 	nextMessage       int
@@ -309,6 +312,25 @@ func (s *SideEffects) DeleteMessage(ctx context.Context, ref ports.MessageRef) e
 	return nil
 }
 
+func (s *SideEffects) CleanupMessages(ctx context.Context, req ports.MessageCleanupRequest) (int, error) {
+	if err := s.ready(ctx); err != nil {
+		return 0, err
+	}
+	if s.CleanupErr != nil {
+		return 0, s.CleanupErr
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.CleanupRequests = append(s.CleanupRequests, req)
+	if s.CleanupDeleted > 0 {
+		return s.CleanupDeleted, nil
+	}
+	if req.Limit < 0 {
+		return 0, nil
+	}
+	return req.Limit, nil
+}
+
 func (s *SideEffects) ready(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -321,6 +343,7 @@ func (s *SideEffects) ready(ctx context.Context) error {
 
 var _ ports.DiscordChannelPort = (*SideEffects)(nil)
 var _ ports.DiscordMessagePort = (*SideEffects)(nil)
+var _ ports.DiscordMessageCleaner = (*SideEffects)(nil)
 var _ ports.DiscordDirectMessagePort = (*SideEffects)(nil)
 var _ ports.DiscordRolePort = (*SideEffects)(nil)
 var _ ports.DiscordMemberPort = (*SideEffects)(nil)

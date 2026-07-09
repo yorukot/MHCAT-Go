@@ -146,6 +146,7 @@ func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
 	var foundWarningSettings bool
 	var foundWarningRemove bool
 	var foundWarningRemoveAll bool
+	var foundCleanup bool
 	for _, definition := range CurrentGoDefinitions() {
 		if definition.Name == "警告設定" {
 			foundWarningSettings = true
@@ -156,12 +157,18 @@ func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
 		if definition.Name == "警告全部清除" {
 			foundWarningRemoveAll = true
 		}
+		if definition.Name == "刪除訊息" {
+			foundCleanup = true
+		}
 	}
 	if !foundWarningSettings {
 		t.Fatal("current Go definitions should include warning settings")
 	}
 	if !foundWarningRemove || !foundWarningRemoveAll {
 		t.Fatal("current Go definitions should include warning removal commands")
+	}
+	if !foundCleanup {
+		t.Fatal("current Go definitions should include message cleanup")
 	}
 }
 

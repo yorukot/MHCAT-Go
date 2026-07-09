@@ -99,6 +99,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=true
 
 Set both together only when testing `/警告` against isolated staging warning fixtures and disposable test members. This path appends `warndbs`, sends best-effort DMs, and can kick or ban when `errors_sets` thresholds are met.
 
+Optional message-cleanup smoke flags:
+
+```bash
+export MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true
+```
+
+Set both together only when testing `/刪除訊息` in disposable staging channels. This path deletes recent Discord messages, requires Manage Messages, requires Administrator above 200 requested messages, refuses more than 1000, and writes no Mongo data.
+
 Optional translate smoke flags:
 
 ```bash
@@ -324,6 +333,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=true`, confirm `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true` and the staging database is isolated because `/警告設定` writes `errors_sets`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=true`, confirm `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=true` and the staging database has disposable `warndbs` fixtures for warning-removal commands.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=true`, confirm `MHCAT_FEATURE_WARNING_ISSUE_ENABLED=true`, the staging database has disposable `warndbs` fixtures, and target test members can safely receive warning DMs/kick/ban actions.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true`, confirm `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`, the target channel is disposable, and test messages can be safely deleted.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`, confirm `MHCAT_FEATURE_TRANSLATE_ENABLED=true` and external translate calls are allowed for the staging bot.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true` and the staging database has only disposable `codes` fixtures for `/兌換`.
@@ -435,6 +445,13 @@ For warning-issue staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=true`;
 - `MHCAT_FEATURE_WARNING_ISSUE_ENABLED=true`;
 - plan includes managed `警告`;
+- plan still performs no create/update/delete during dry-run.
+
+For message-cleanup staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true`;
+- `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`;
+- plan includes managed `刪除訊息`;
 - plan still performs no create/update/delete during dry-run.
 
 For translate staging smoke, expected additionally:
@@ -624,6 +641,13 @@ If warning-issue inclusion is enabled, expected:
 - no bulk overwrite;
 - no global command mutation.
 
+If message-cleanup inclusion is enabled, expected:
+
+- create/update managed `刪除訊息` only in addition to the utility commands;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
 If translate inclusion is enabled, expected:
 
 - create/update managed `翻譯` only in addition to the utility commands;
@@ -741,6 +765,15 @@ If translate flags were enabled and command sync apply was reviewed:
 - `/翻譯 要的翻譯:你好 目標語言:en`;
 - verify the loading embed appears before the final translated embed;
 - verify provider failures return a safe red error embed and do not expose raw provider details.
+
+If message-cleanup flags were enabled and command sync apply was reviewed:
+
+- use a disposable staging text channel containing only test messages;
+- run `/刪除訊息 刪除數量:1` and verify the ephemeral legacy `清理完成!` embed appears;
+- run `/刪除訊息 刪除數量:1001` and verify the legacy maximum-count error appears without deleting messages;
+- with a non-Administrator test moderator, run `/刪除訊息 刪除數量:201` and verify the legacy permission error appears;
+- optionally run `/刪除訊息 刪除數量:10 使用者:<test user>` and verify only that user's recent test messages are targeted;
+- verify no Mongo feature data or indexes changed.
 
 If auto-notification config flags were enabled and command sync apply was reviewed:
 

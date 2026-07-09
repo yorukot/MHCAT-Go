@@ -103,6 +103,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		warningRemovalRuntimePairing(lookup),
 		warningIssueCommandSync(lookup),
 		warningIssueRuntimePairing(lookup),
+		messageCleanupCommandSync(lookup),
+		messageCleanupRuntimePairing(lookup),
 		translateCommandSync(lookup),
 		translateRuntimePairing(lookup),
 		balanceQueryCommandSync(lookup),
@@ -533,6 +535,38 @@ func warningIssueRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "warning-issue-runtime-pairing", Status: statusWarn, Message: "warning issue runtime is enabled but warning issue command sync include is disabled"}
 	}
 	return checkResult{Name: "warning-issue-runtime-pairing", Status: statusSkipped, Message: "warning issue runtime and command sync include are disabled"}
+}
+
+func messageCleanupCommandSync(lookup lookupFunc) checkResult {
+	includeCleanup, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP")
+	if err != nil {
+		return checkResult{Name: "message-cleanup-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeCleanup {
+		return checkResult{Name: "message-cleanup-command-sync", Status: statusPass, Message: "message cleanup command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "message-cleanup-command-sync", Status: statusSkipped, Message: "message cleanup command sync include is disabled"}
+}
+
+func messageCleanupRuntimePairing(lookup lookupFunc) checkResult {
+	includeCleanup, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP")
+	if err != nil {
+		return checkResult{Name: "message-cleanup-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	cleanupEnabled, err := boolValue(lookup, "MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED")
+	if err != nil {
+		return checkResult{Name: "message-cleanup-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeCleanup && !cleanupEnabled {
+		return checkResult{Name: "message-cleanup-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true requires MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true in the staging runtime"}
+	}
+	if includeCleanup && cleanupEnabled {
+		return checkResult{Name: "message-cleanup-runtime-pairing", Status: statusPass, Message: "message cleanup command sync and runtime feature flag are paired"}
+	}
+	if cleanupEnabled {
+		return checkResult{Name: "message-cleanup-runtime-pairing", Status: statusWarn, Message: "message cleanup runtime is enabled but message cleanup command sync include is disabled"}
+	}
+	return checkResult{Name: "message-cleanup-runtime-pairing", Status: statusSkipped, Message: "message cleanup runtime and command sync include are disabled"}
 }
 
 func translateCommandSync(lookup lookupFunc) checkResult {

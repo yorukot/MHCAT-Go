@@ -79,6 +79,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeWarningIssue {
 		t.Fatal("include warning issue must default false")
 	}
+	if cfg.IncludeMessageCleanup {
+		t.Fatal("include message cleanup must default false")
+	}
 	if cfg.IncludeBalanceQuery {
 		t.Fatal("include balance query must default false")
 	}
@@ -1113,6 +1116,48 @@ func TestCommandSyncIncludeWarningIssueStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeWarningIssue {
 		t.Fatal("expected include warning issue to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeMessageCleanupRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include message cleanup without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeMessageCleanupRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                   "global",
+		"MHCAT_STAGING_MODE":                         "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include message cleanup with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeMessageCleanupStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                "guild",
+		"MHCAT_STAGING_MODE":                         "true",
+		"MHCAT_STAGING_GUILD_ID":                     "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeMessageCleanup {
+		t.Fatal("expected include message cleanup to be enabled explicitly")
 	}
 }
 

@@ -65,6 +65,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE:-false}" = "true" ] && [ "${MHC
   echo "refusing apply: warning issue command apply requires MHCAT_FEATURE_WARNING_ISSUE_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP:-false}" = "true" ] && [ "${MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: message cleanup command apply requires MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ] && [ "${MHCAT_FEATURE_TRANSLATE_ENABLED:-false}" != "true" ]; then
   echo "refusing apply: translate command apply requires MHCAT_FEATURE_TRANSLATE_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -212,6 +216,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE:-false}" = "true" ]; then
   echo "staging command sync apply: including warning issue command" >&2
 else
   echo "staging command sync apply: warning issue command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP:-false}" = "true" ]; then
+  echo "staging command sync apply: including message cleanup command" >&2
+else
+  echo "staging command sync apply: message cleanup command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ]; then
   echo "staging command sync apply: including translate command" >&2

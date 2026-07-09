@@ -48,6 +48,7 @@ This module currently provides:
 - gated `/警告設定` warning escalation config command with rollback-compatible `errors_sets` writes.
 - gated `/警告清除` and `/警告全部清除` warning-removal commands with legacy embeds, best-effort DMs, and `warndbs` mutations.
 - gated `/警告` warning-issue command with legacy embeds/DMs, `warndbs` appends, role hierarchy checks, and configured kick/ban threshold actions.
+- gated `/刪除訊息` message cleanup command with legacy permission gates, ephemeral embeds, 1000-message cap, and 14-day Discord delete cutoff handling.
 - gated `/翻譯` utility command with legacy loading/final embed shape and safe external-provider error handling.
 - gated `/兌換` redeem-code command with legacy ephemeral success/error embeds and rollback-compatible `codes`/`chatgpt_gets` writes.
 - gated `/自動通知列表` and `/自動通知刪除` config-maintenance commands with rollback-compatible `cron_sets` reads/deletes.
@@ -77,7 +78,7 @@ Not implemented yet:
 - ticket and poll runtime commands/components unless their explicit feature flags are enabled.
 - economy query/sign-in/settings runtime and command sync unless their explicit feature flags are enabled.
 - recurring scheduler loops for daily reset, work payout, and automatic notifications; the lease primitive exists but is not wired into bot startup.
-- destructive moderation commands such as clear/delete data.
+- destructive `/刪除資料` moderation command.
 - message/channel/voice logging event emitters.
 - announcement relay tag pings; relay messages suppress mentions by default.
 
@@ -97,6 +98,7 @@ Implemented utility commands:
 - `/警告設定` when explicitly enabled with `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true`
 - `/警告清除` and `/警告全部清除` when explicitly enabled with `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=true`
 - `/警告` when explicitly enabled with `MHCAT_FEATURE_WARNING_ISSUE_ENABLED=true`
+- `/刪除訊息` when explicitly enabled with `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`
 - `/翻譯` when explicitly enabled with `MHCAT_FEATURE_TRANSLATE_ENABLED=true`
 - `/兌換` when explicitly enabled with `MHCAT_FEATURE_REDEEM_ENABLED=true`
 - `/自動通知列表` and `/自動通知刪除` when explicitly enabled with `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true`
@@ -134,7 +136,7 @@ Implemented event features:
 
 Not implemented yet:
 
-- role button, most economy writes, text/voice XP accrual, rank cards, gacha draw/add/edit/delete/shop, gift, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats channel creation/deletion/rename worker, recurring work scheduler ownership, cron, destructive moderation, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
+- role button, most economy writes, text/voice XP accrual, rank cards, gacha draw/add/edit/delete/shop, gift, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats channel creation/deletion/rename worker, recurring work scheduler ownership, cron, destructive delete-data moderation, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete, and the daily reset is either run by the explicit one-shot tool under an operator process or owned by a future lease-backed scheduler.
 
@@ -177,6 +179,7 @@ Safe defaults:
 - `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=false`
 - `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=false`
 - `MHCAT_FEATURE_WARNING_ISSUE_ENABLED=false`
+- `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=false`
 - `MHCAT_FEATURE_TRANSLATE_ENABLED=false`
 - `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=false`
 - `MHCAT_FEATURE_REDEEM_ENABLED=false`
@@ -248,6 +251,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=false`
@@ -489,6 +493,8 @@ The `/警告設定` command is available only when `MHCAT_FEATURE_WARNING_SETTIN
 The `/警告清除` and `/警告全部清除` commands are available only when `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=true`; staging preflight and scripts reject unpaired sync/runtime flags. These commands mutate only `warndbs`, preserve the legacy public success/error embeds, and send legacy-style best-effort DMs. They do not create warnings, delete messages, kick, ban, or run escalation.
 
 The `/警告` command is available only when `MHCAT_FEATURE_WARNING_ISSUE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command appends legacy `warndbs.content` entries with Asia/Taipei timestamps, preserves the legacy public success/error embeds and target DM, enforces Manage Messages and moderator-vs-target role hierarchy, and reads `errors_sets` to run configured `停權`/`踢出` threshold actions for existing warning records. Test only against disposable staging warning data because it can kick or ban members when thresholds are met.
+
+The `/刪除訊息` command is available only when `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command deletes recent Discord messages only, requires Manage Messages, requires Administrator above 200 requested messages, refuses more than 1000, uses ephemeral legacy completion/error embeds, and does not write Mongo data. Test only in disposable staging channels.
 
 The `/翻譯` command is available only when `MHCAT_FEATURE_TRANSLATE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`; staging preflight rejects unpaired sync/runtime flags. This command calls an external Google Translate-compatible endpoint through a provider port, does not require Message Content intent, and does not touch Mongo feature data.
 

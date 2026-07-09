@@ -7,6 +7,7 @@ const WarningSettingsCommandName = "警告設定"
 const WarningRemoveCommandName = "警告清除"
 const WarningRemoveAllCommandName = "警告全部清除"
 const WarningIssueCommandName = "警告"
+const CleanupCommandName = "刪除訊息"
 
 const (
 	warningSettingsOptionAction    = "執行的動作"
@@ -14,6 +15,8 @@ const (
 	warningOptionUser              = "使用者"
 	warningIssueOptionReason       = "原因"
 	warningRemoveOptionIndex       = "第幾項"
+	cleanupOptionCount             = "刪除數量"
+	cleanupOptionUser              = "使用者"
 )
 
 func Definitions() []commands.Definition {
@@ -30,6 +33,10 @@ func RemovalDefinitions() []commands.Definition {
 
 func IssueDefinitions() []commands.Definition {
 	return []commands.Definition{WarningIssueDefinition()}
+}
+
+func CleanupDefinitions() []commands.Definition {
+	return []commands.Definition{CleanupDefinition()}
 }
 
 func WarningHistoryDefinition() commands.Definition {
@@ -132,5 +139,28 @@ func WarningRemoveAllDefinition() commands.Definition {
 			Description: "要清除資料的使用者!",
 			Required:    true,
 		}},
+	}
+}
+
+func CleanupDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        CleanupCommandName,
+		Description: "刪除大量訊息",
+		Ownership:   commands.ManagedOwnership("message-cleanup", commands.ScopeGuild),
+		Options: []commands.Option{
+			{
+				Type:        commands.OptionTypeInteger,
+				Name:        cleanupOptionCount,
+				Description: "設定要刪除幾個訊息(最高1000超過200需要管理者權限)(只能刪除14天內的消息)",
+				Required:    true,
+			},
+			{
+				Type:        commands.OptionTypeUser,
+				Name:        cleanupOptionUser,
+				Description: "選擇是否要刪除某個特定的使用者的訊息(如填選這項，第一項代表的將是檢測訊息數量)",
+				Required:    false,
+			},
+		},
 	}
 }
