@@ -109,6 +109,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeVoiceXPConfig {
 		t.Fatal("include voice XP config must default false")
 	}
+	if cfg.IncludeXPProfileDisabled {
+		t.Fatal("include XP profile disabled commands must default false")
+	}
 	if cfg.IncludeJoinRoleConfig {
 		t.Fatal("include join-role config must default false")
 	}
@@ -210,6 +213,48 @@ func TestCommandSyncIncludeVoiceXPConfigStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeVoiceXPConfig {
 		t.Fatal("expected include voice XP config to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeXPProfileDisabledRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                            "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                             "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include XP profile disabled commands without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeXPProfileDisabledRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                            "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                                "global",
+		"MHCAT_STAGING_MODE":                                      "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include XP profile disabled commands with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeXPProfileDisabledStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                            "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                             "guild",
+		"MHCAT_STAGING_MODE":                                      "true",
+		"MHCAT_STAGING_GUILD_ID":                                  "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeXPProfileDisabled {
+		t.Fatal("expected include XP profile disabled commands to be enabled explicitly")
 	}
 }
 

@@ -242,6 +242,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeVoiceXPConfig {
 		definitions = append(definitions, featurexp.VoiceDefinitions()...)
 	}
+	if cfg.IncludeXPProfileDisabled {
+		definitions = append(definitions, featurexp.DisabledProfileDefinitions()...)
+	}
 	if cfg.IncludeJoinRoleConfig {
 		definitions = append(definitions, featureonboarding.JoinRoleDefinitions()...)
 	}
@@ -327,6 +330,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeVoiceXPConfig {
 		expected = append(expected, featurexp.VoiceXPSetCommandName, featurexp.VoiceXPDeleteCommandName)
+	}
+	if cfg.IncludeXPProfileDisabled {
+		expected = append(expected, featurexp.TextXPProfileCommandName, featurexp.VoiceXPProfileCommandName)
 	}
 	if cfg.IncludeJoinRoleConfig {
 		expected = append(expected, featureonboarding.JoinRoleSetCommandName, featureonboarding.JoinRoleDeleteCommandName)

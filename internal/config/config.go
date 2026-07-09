@@ -39,6 +39,7 @@ const (
 	DefaultFeatureAnnouncementRelayEnabled      = false
 	DefaultFeatureTextXPConfigEnabled           = false
 	DefaultFeatureVoiceXPConfigEnabled          = false
+	DefaultFeatureXPProfileDisabledEnabled      = false
 	DefaultFeatureJoinRoleConfigEnabled         = false
 	DefaultFeatureJoinRoleAssignmentEnabled     = false
 	DefaultFeatureWelcomeMessageConfigEnabled   = false
@@ -92,6 +93,7 @@ type Config struct {
 	FeatureAnnouncementRelayEnabled      bool
 	FeatureTextXPConfigEnabled           bool
 	FeatureVoiceXPConfigEnabled          bool
+	FeatureXPProfileDisabledEnabled      bool
 	FeatureJoinRoleConfigEnabled         bool
 	FeatureJoinRoleAssignmentEnabled     bool
 	FeatureWelcomeMessageConfigEnabled   bool

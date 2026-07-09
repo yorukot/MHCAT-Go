@@ -461,6 +461,39 @@ func TestCommandSyncIncludeVoiceXPConfigStagingDryRunIncludesDefinitions(t *test
 	}
 }
 
+func TestCommandSyncIncludeXPProfileDisabledRequiresStagingMode(t *testing.T) {
+	env := baseCommandSyncEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS"] = "true"
+	exitCode, _, stderr, fake := runWithFakeClient(t, nil, env, &fakediscord.CommandSyncClient{}, defaultCommandRegistry)
+	if exitCode == 0 {
+		t.Fatal("expected include XP profile disabled commands without staging mode to fail")
+	}
+	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
+		t.Fatalf("unsafe include XP profile disabled commands performed writes: %#v", fake)
+	}
+	if !strings.Contains(stderr, "MHCAT_STAGING_MODE") {
+		t.Fatalf("expected staging mode error, stderr=%q", stderr)
+	}
+}
+
+func TestCommandSyncIncludeXPProfileDisabledStagingDryRunIncludesDefinitions(t *testing.T) {
+	env := stagingCommandSyncEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS"] = "true"
+	fake := &fakediscord.CommandSyncClient{}
+	exitCode, stdout, stderr, _ := runWithFakeClient(t, nil, env, fake, defaultCommandRegistry)
+	if exitCode != 0 {
+		t.Fatalf("expected XP profile disabled dry-run to pass, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
+		t.Fatalf("dry-run performed writes: %#v", fake)
+	}
+	for _, name := range []string{"聊天經驗", "語音經驗"} {
+		if !strings.Contains(stdout, name) {
+			t.Fatalf("XP profile disabled command %q missing from dry-run output: %q", name, stdout)
+		}
+	}
+}
+
 func TestCommandSyncIncludeJoinRoleConfigRequiresStagingMode(t *testing.T) {
 	env := baseCommandSyncEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG"] = "true"

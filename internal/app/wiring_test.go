@@ -1035,6 +1035,41 @@ func TestBuildRuntimeRoutesVoiceXPConfigOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesDisabledXPProfilesOnlyWhenEnabled(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteraction("聊天經驗")
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("disabled XP profile route should not be available by default")
+	}
+
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		XPProfileDisabledEnabled: true,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with disabled XP profiles: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch text XP profile: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "該指令即將被移除") {
+		t.Fatalf("text XP profile response = %#v", responder.Edits)
+	}
+
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction("語音經驗"), responder); err != nil {
+		t.Fatalf("dispatch voice XP profile: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "/我的檔案") {
+		t.Fatalf("voice XP profile response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesJoinRoleConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

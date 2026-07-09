@@ -128,6 +128,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		textXPConfigRuntimePairing(lookup),
 		voiceXPConfigCommandSync(lookup),
 		voiceXPConfigRuntimePairing(lookup),
+		xpProfileDisabledCommandSync(lookup),
+		xpProfileDisabledRuntimePairing(lookup),
 		joinRoleConfigCommandSync(lookup),
 		joinRoleConfigRuntimePairing(lookup),
 		joinRoleAssignmentRuntimeReadiness(lookup),
@@ -947,6 +949,38 @@ func voiceXPConfigRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "voice-xp-config-runtime-pairing", Status: statusWarn, Message: "voice XP config runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "voice-xp-config-runtime-pairing", Status: statusSkipped, Message: "voice XP config runtime and command sync include are disabled"}
+}
+
+func xpProfileDisabledCommandSync(lookup lookupFunc) checkResult {
+	includeXPProfile, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS")
+	if err != nil {
+		return checkResult{Name: "xp-profile-disabled-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeXPProfile {
+		return checkResult{Name: "xp-profile-disabled-command-sync", Status: statusPass, Message: "XP profile disabled command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "xp-profile-disabled-command-sync", Status: statusSkipped, Message: "XP profile disabled command sync include is disabled"}
+}
+
+func xpProfileDisabledRuntimePairing(lookup lookupFunc) checkResult {
+	includeXPProfile, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS")
+	if err != nil {
+		return checkResult{Name: "xp-profile-disabled-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	xpProfileEnabled, err := boolValue(lookup, "MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED")
+	if err != nil {
+		return checkResult{Name: "xp-profile-disabled-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeXPProfile && !xpProfileEnabled {
+		return checkResult{Name: "xp-profile-disabled-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true requires MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true in the staging runtime"}
+	}
+	if includeXPProfile && xpProfileEnabled {
+		return checkResult{Name: "xp-profile-disabled-runtime-pairing", Status: statusPass, Message: "XP profile disabled command sync and runtime feature flag are paired"}
+	}
+	if xpProfileEnabled {
+		return checkResult{Name: "xp-profile-disabled-runtime-pairing", Status: statusWarn, Message: "XP profile disabled runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "xp-profile-disabled-runtime-pairing", Status: statusSkipped, Message: "XP profile disabled runtime and command sync include are disabled"}
 }
 
 func joinRoleConfigCommandSync(lookup lookupFunc) checkResult {

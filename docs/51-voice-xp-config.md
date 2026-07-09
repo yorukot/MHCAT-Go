@@ -57,7 +57,7 @@ This slice is config-only. It does not enable voice-state XP accrual, rank cards
 ## Not Implemented
 
 - `events/voice_xp.js` / voice XP accrual.
-- `/語音經驗`, `/語音排行榜`, rank image rendering, and rank buttons.
+- `/語音排行榜`, rank image rendering, rank buttons, and the old XP profile card lookup behind `/語音經驗`; the current `/語音經驗` command is implemented separately as a disabled replacement response only.
 - voice level-role config.
 - XP-to-coin rewards.
 - Voice State intent enablement.

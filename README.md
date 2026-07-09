@@ -52,6 +52,7 @@ This module currently provides:
 - gated config-only `/公告頻道設置` command with legacy subcommands, embeds, and rollback-compatible `guilds`/`ann_all_sets` writes.
 - gated bound announcement message relay from legacy `ann_message.js`, disabled by default and requiring explicit gateway/message-content flags.
 - gated config-only `/聊天經驗設定` and `/聊天經驗刪除` commands with legacy embed/preview UI and rollback-compatible `text_xp_channels` writes.
+- gated disabled-response `/聊天經驗` and `/語音經驗` commands that preserve the legacy replacement message pointing users to `/我的檔案`.
 - gated `guildMemberAdd` join-role assignment from legacy `join_roles`, disabled by default and requiring explicit Gateway + Guild Members intent.
 - gated `guildMemberRemove` leave-message delivery from legacy `leave_messages`, disabled by default and requiring explicit Gateway + Guild Members intent.
 - dry-run-first `mhcat-economy-reset` one-shot operational tool for the legacy Asia/Taipei daily `coins.today` reset and `work_users.energi` refill/clamp path.
@@ -98,6 +99,7 @@ Implemented utility commands:
 - `/公告發送` modal preview/confirm/send flow when explicitly enabled with `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true`
 - `/聊天經驗設定` and `/聊天經驗刪除` when explicitly enabled with `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`
 - `/語音經驗設定` and `/語音經驗刪除` when explicitly enabled with `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`
+- `/聊天經驗` and `/語音經驗` disabled-command replacement responses when explicitly enabled with `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true`
 - `/加入身份組設置` and `/加入身份組刪除` when explicitly enabled with `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true`
 - `/加入訊息設置` and `/退出訊息設置` when explicitly enabled with `MHCAT_FEATURE_WELCOME_MESSAGE_CONFIG_ENABLED=true`
 - `/驗證設置` when explicitly enabled with `MHCAT_FEATURE_VERIFICATION_CONFIG_ENABLED=true`
@@ -171,6 +173,7 @@ Safe defaults:
 - `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=false`
 - `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=false`
+- `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=false`
 - `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_JOIN_ROLE_ASSIGNMENT_ENABLED=false`
 - `MHCAT_FEATURE_WELCOME_MESSAGE_CONFIG_ENABLED=false`
@@ -234,6 +237,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_SEND=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_WELCOME_MESSAGE_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_CONFIG=false`
@@ -475,6 +479,8 @@ The bound announcement relay is available only when `MHCAT_FEATURE_ANNOUNCEMENT_
 The `/聊天經驗設定` and `/聊天經驗刪除` commands are available only when `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `text_xp_channels` config and do not enable text XP accrual, rank cards, voice XP, Message Content intent, or XP reward behavior.
 
 The `/語音經驗設定` and `/語音經驗刪除` commands are available only when `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `voice_xp_channels` config, preserve the old visible `背景` option without saving it, and do not enable Voice State intent, voice XP accrual, rank cards, or XP reward behavior.
+
+The `/聊天經驗` and `/語音經驗` disabled-command replacement responses are available only when `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true`; staging preflight and scripts reject unpaired sync/runtime flags. These commands only preserve the legacy red embed telling users to use `/我的檔案`; they do not read XP collections, render rank cards, award XP, or write Mongo data.
 
 The `/加入身份組設置` and `/加入身份組刪除` commands are available only when `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `join_roles` config and preserve the legacy visible embeds. Automatic member-add role assignment is a separate event path and requires `MHCAT_FEATURE_JOIN_ROLE_ASSIGNMENT_ENABLED=true`, gateway enabled, and Guild Members intent enabled. It does not enable welcome messages, leave messages, verification, or account-age kick behavior.
 

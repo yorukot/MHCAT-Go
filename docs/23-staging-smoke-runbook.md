@@ -164,6 +164,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true
 
 Set both together only in an isolated staging database when testing `/語音經驗設定` and `/語音經驗刪除`. This path writes `voice_xp_channels`; it does not enable Voice State intent, voice XP accrual, rank cards, or XP rewards. The legacy `背景` option is visible for command UI parity, but the legacy command did not save it.
 
+Optional disabled XP profile smoke flags:
+
+```bash
+export MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true
+```
+
+Set both together when testing `/聊天經驗` and `/語音經驗`. This path only returns the legacy replacement embed pointing users to `/我的檔案`; it does not read XP collections, render rank cards, write Mongo, enable accrual, or require gateway intents.
+
 Optional join-role config smoke flags:
 
 ```bash
@@ -278,6 +287,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, the staging bound channel is safe for message deletion tests, and tag pings are expected to be suppressed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true`, confirm `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true` and the staging database can safely write `text_xp_channels`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true`, confirm `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true` and the staging database can safely write `voice_xp_channels`.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true`, confirm `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true` and that the expected result is only the replacement embed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=true`, confirm `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true`, the staging database can safely write `join_roles`, and the test role is below the bot's highest role.
 - If `MHCAT_FEATURE_JOIN_ROLE_ASSIGNMENT_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`, the staging database has safe `join_roles` rows, and the target roles are below the bot's highest role.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WELCOME_MESSAGE_CONFIG=true`, confirm `MHCAT_FEATURE_WELCOME_MESSAGE_CONFIG_ENABLED=true` and the staging database can safely write `leave_messages`.
@@ -418,6 +428,13 @@ For voice-XP config staging smoke, expected additionally:
 - `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`;
 - plan includes managed `語音經驗設定` and `語音經驗刪除`;
 - plan still performs no create/update/delete during dry-run.
+
+For disabled XP profile staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true`;
+- `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true`;
+- plan includes managed `聊天經驗` and `語音經驗`;
+- `/聊天經驗` and `/語音經驗` return the red replacement embed and perform no Mongo writes.
 
 For welcome-message config staging smoke, expected additionally:
 

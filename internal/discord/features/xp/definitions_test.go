@@ -53,6 +53,35 @@ func TestVoiceDefinitionsMatchLegacy(t *testing.T) {
 	}
 }
 
+func TestDisabledProfileDefinitionsMatchLegacy(t *testing.T) {
+	text := TextXPProfileDefinition()
+	if text.Name != TextXPProfileCommandName || text.Description != "查詢聊天經驗" {
+		t.Fatalf("text profile definition = %#v", text)
+	}
+	voice := VoiceXPProfileDefinition()
+	if voice.Name != VoiceXPProfileCommandName || voice.Description != "查詢語音經驗" {
+		t.Fatalf("voice profile definition = %#v", voice)
+	}
+	for _, definition := range DisabledProfileDefinitions() {
+		if definition.DefaultMemberPermissions != nil {
+			t.Fatalf("profile command should not set Discord-side permissions: %#v", definition.DefaultMemberPermissions)
+		}
+		if definition.Ownership == nil || definition.Ownership.Owner != commands.OwnerMHCATRefactor || definition.Ownership.SinceWave != "xp-profile-disabled" {
+			t.Fatalf("profile ownership = %#v", definition.Ownership)
+		}
+		if len(definition.Options) != 1 {
+			t.Fatalf("profile options = %#v", definition.Options)
+		}
+		option := definition.Options[0]
+		if option.Type != commands.OptionTypeUser || option.Name != "玩家" || option.Description != "輸入玩家!" || option.Required {
+			t.Fatalf("profile user option = %#v", option)
+		}
+	}
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, DisabledProfileDefinitions())); err != nil {
+		t.Fatalf("validate disabled profiles: %v", err)
+	}
+}
+
 func TestTextAndVoiceDefinitionsAreSeparateGates(t *testing.T) {
 	for _, definition := range TextDefinitions() {
 		if definition.Name == VoiceXPSetCommandName || definition.Name == VoiceXPDeleteCommandName {
@@ -62,6 +91,12 @@ func TestTextAndVoiceDefinitionsAreSeparateGates(t *testing.T) {
 	for _, definition := range VoiceDefinitions() {
 		if definition.Name == TextXPSetCommandName || definition.Name == TextXPDeleteCommandName {
 			t.Fatalf("voice definitions leaked text command: %#v", definition)
+		}
+	}
+	for _, definition := range DisabledProfileDefinitions() {
+		switch definition.Name {
+		case TextXPSetCommandName, TextXPDeleteCommandName, VoiceXPSetCommandName, VoiceXPDeleteCommandName:
+			t.Fatalf("disabled profile definitions leaked config command: %#v", definition)
 		}
 	}
 }

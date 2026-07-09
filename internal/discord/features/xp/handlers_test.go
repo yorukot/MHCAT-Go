@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
@@ -200,5 +201,49 @@ func TestVoiceDeleteHandlerSuccessAndMissing(t *testing.T) {
 	}
 	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你本來就沒有對語音經驗設定喔!") {
 		t.Fatalf("missing response = %#v", responder.Edits)
+	}
+}
+
+func TestDisabledProfileHandlersReturnLegacyRemovalMessage(t *testing.T) {
+	usage := &fakeusage.Tracker{}
+	module := NewDisabledProfileModule(usage)
+
+	for _, tc := range []struct {
+		name    string
+		handler func() interactions.Handler
+	}{
+		{name: TextXPProfileCommandName, handler: module.TextHandler},
+		{name: VoiceXPProfileCommandName, handler: module.VoiceHandler},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			interaction := fakediscord.SlashInteraction(tc.name)
+			responder := fakediscord.NewResponder()
+			if err := tc.handler()(context.Background(), interaction, responder); err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+			if len(responder.Defers) != 1 {
+				t.Fatalf("defers = %#v", responder.Defers)
+			}
+			if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
+				t.Fatalf("edits = %#v", responder.Edits)
+			}
+			embed := responder.Edits[0].Embeds[0]
+			if embed.Title != "<a:Discord_AnimatedNo:1015989839809757295> | "+disabledProfileMessage || embed.Color != textXPErrorColor {
+				t.Fatalf("embed = %#v", embed)
+			}
+			if responder.Edits[0].AllowedMentions == nil {
+				t.Fatalf("allowed mentions should be explicitly empty: %#v", responder.Edits[0])
+			}
+		})
+	}
+
+	if len(usage.Events) != 2 {
+		t.Fatalf("usage = %#v", usage.Events)
+	}
+	if usage.Events[0].CommandName != TextXPProfileCommandName || usage.Events[0].Feature != "xp-profile-disabled" {
+		t.Fatalf("text usage = %#v", usage.Events[0])
+	}
+	if usage.Events[1].CommandName != VoiceXPProfileCommandName || usage.Events[1].Feature != "xp-profile-disabled" {
+		t.Fatalf("voice usage = %#v", usage.Events[1])
 	}
 }

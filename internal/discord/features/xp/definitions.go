@@ -3,11 +3,13 @@ package xp
 import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 
 const (
-	TextXPSetCommandName     = "聊天經驗設定"
-	TextXPDeleteCommandName  = "聊天經驗刪除"
-	VoiceXPSetCommandName    = "語音經驗設定"
-	VoiceXPDeleteCommandName = "語音經驗刪除"
-	manageMessagesPermission = "8192"
+	TextXPProfileCommandName  = "聊天經驗"
+	TextXPSetCommandName      = "聊天經驗設定"
+	TextXPDeleteCommandName   = "聊天經驗刪除"
+	VoiceXPProfileCommandName = "語音經驗"
+	VoiceXPSetCommandName     = "語音經驗設定"
+	VoiceXPDeleteCommandName  = "語音經驗刪除"
+	manageMessagesPermission  = "8192"
 )
 
 func Definitions() []commands.Definition {
@@ -20,6 +22,18 @@ func TextDefinitions() []commands.Definition {
 
 func VoiceDefinitions() []commands.Definition {
 	return []commands.Definition{VoiceXPSetDefinition(), VoiceXPDeleteDefinition()}
+}
+
+func DisabledProfileDefinitions() []commands.Definition {
+	return []commands.Definition{TextXPProfileDefinition(), VoiceXPProfileDefinition()}
+}
+
+func TextXPProfileDefinition() commands.Definition {
+	return xpProfileDefinition(TextXPProfileCommandName, "查詢聊天經驗")
+}
+
+func VoiceXPProfileDefinition() commands.Definition {
+	return xpProfileDefinition(VoiceXPProfileCommandName, "查詢語音經驗")
 }
 
 func TextXPSetDefinition() commands.Definition {
@@ -106,6 +120,22 @@ func VoiceXPDeleteDefinition() commands.Definition {
 		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
 		DocsURL:                  "https://docsmhcat.yorukot.me/docs/voice_xp_delete",
 		Ownership:                commands.ManagedOwnership("voice-xp-config", commands.ScopeGuild),
+	}
+}
+
+func xpProfileDefinition(name string, description string) commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        name,
+		Description: description,
+		Ownership:   commands.ManagedOwnership("xp-profile-disabled", commands.ScopeGuild),
+		Options: []commands.Option{
+			{
+				Type:        commands.OptionTypeUser,
+				Name:        "玩家",
+				Description: "輸入玩家!",
+			},
+		},
 	}
 }
 

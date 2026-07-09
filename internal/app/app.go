@@ -442,6 +442,9 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		opts.VoiceXPConfigRepository = voiceXPRepo
 		opts.VoiceXPMessagePort = sideEffects
 	}
+	if cfg.FeatureXPProfileDisabledEnabled {
+		opts.XPProfileDisabledEnabled = true
+	}
 	if cfg.FeatureJoinRoleConfigEnabled {
 		joinRoleRepo, err := joinRoleConfigRepositoryFromMongo(mongoClient)
 		if err != nil {

@@ -55,7 +55,7 @@ This slice is config-only. It does not enable message-create XP accrual, rank ca
 ## Not Implemented
 
 - `events/LevelSystem.js` / text XP accrual.
-- `/聊天經驗`, `/聊天排行榜`, rank image rendering, and rank buttons.
+- `/聊天排行榜`, rank image rendering, rank buttons, and the old XP profile card lookup behind `/聊天經驗`; the current `/聊天經驗` command is implemented separately as a disabled replacement response only.
 - XP-to-coin rewards.
 - chat level-role config.
 - voice XP and voice level-role behavior.

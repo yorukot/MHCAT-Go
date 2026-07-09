@@ -17,6 +17,7 @@ const (
 	textXPErrorColor         = 0xED4245
 	textXPSuccessColor       = 0x57F287
 	legacyLineEmoji          = "<:line:992363971803881493>"
+	disabledProfileMessage   = "該指令即將被移除，請使用`/我的檔案`進行替代"
 )
 
 func (m Module) SetHandler() interactions.Handler {
@@ -133,6 +134,26 @@ func (m VoiceModule) DeleteHandler() interactions.Handler {
 	}
 }
 
+func (m DisabledProfileModule) TextHandler() interactions.Handler {
+	return m.disabledProfileHandler(TextXPProfileCommandName)
+}
+
+func (m DisabledProfileModule) VoiceHandler() interactions.Handler {
+	return m.disabledProfileHandler(VoiceXPProfileCommandName)
+}
+
+func (m DisabledProfileModule) disabledProfileHandler(commandName string) interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		if err := responder.EditOriginal(ctx, textXPErrorMessage(disabledProfileMessage)); err != nil {
+			return err
+		}
+		return m.track(ctx, interaction, commandName)
+	}
+}
+
 func textXPSuccessMessage(channelID string) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
@@ -244,5 +265,17 @@ func (m VoiceModule) track(ctx context.Context, interaction interactions.Interac
 		UserID:      interaction.Actor.UserID,
 		GuildID:     interaction.Actor.GuildID,
 		Feature:     "voice-xp-config",
+	})
+}
+
+func (m DisabledProfileModule) track(ctx context.Context, interaction interactions.Interaction, commandName string) error {
+	if m.usage == nil {
+		return nil
+	}
+	return m.usage.TrackCommand(ctx, ports.UsageEvent{
+		CommandName: commandName,
+		UserID:      interaction.Actor.UserID,
+		GuildID:     interaction.Actor.GuildID,
+		Feature:     "xp-profile-disabled",
 	})
 }
