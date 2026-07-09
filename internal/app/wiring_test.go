@@ -352,6 +352,34 @@ func TestBuildRuntimeRoutesEconomyCoinAdminWithoutPublishingQueryOrSignIn(t *tes
 	}
 }
 
+func TestBuildRuntimeRoutesEconomyCoinRankWithoutPublishingOtherEconomyCommands(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	viewerID := "123456789012345678"
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: viewerID, Coins: 42})
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                    validTestConfig(),
+		EconomyCoinRankRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with economy coin-rank repo: %v", err)
+	}
+	for _, commandName := range []string{"代幣查詢", "簽到", "coin-related-settings", "代幣增加"} {
+		responder := fakediscord.NewResponder()
+		if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction(commandName), responder); err == nil {
+			t.Fatalf("%s route should not be available with coin-rank repository alone", commandName)
+		}
+	}
+	interaction := fakediscord.SlashInteraction("代幣排行榜")
+	interaction.Actor.UserID = viewerID
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch coin rank: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Files) != 1 {
+		t.Fatalf("coin rank response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesWorkOnlyWhenEnabled(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

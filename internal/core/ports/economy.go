@@ -29,6 +29,10 @@ type EconomySignInRepository interface {
 	ListCoinBalances(ctx context.Context, guildID string) ([]domain.CoinBalance, error)
 }
 
+type EconomyCoinRankRepository interface {
+	ListCoinBalances(ctx context.Context, guildID string) ([]domain.CoinBalance, error)
+}
+
 type EconomySettingsRepository interface {
 	SaveEconomyConfig(ctx context.Context, config domain.EconomyConfig) (domain.EconomyConfig, error)
 }

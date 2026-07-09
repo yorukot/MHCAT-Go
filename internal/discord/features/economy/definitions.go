@@ -8,6 +8,7 @@ import (
 const (
 	CoinQueryCommandName       = "代幣查詢"
 	CoinAdminCommandName       = "代幣增加"
+	CoinRankCommandName        = "代幣排行榜"
 	SignInCommandName          = "簽到"
 	SignInListCommandName      = "簽到列表"
 	EconomySettingsCommandName = "coin-related-settings"
@@ -32,6 +33,10 @@ func CoinAdminDefinitions() []commands.Definition {
 	return []commands.Definition{CoinAdminDefinition()}
 }
 
+func CoinRankDefinitions() []commands.Definition {
+	return []commands.Definition{CoinRankDefinition()}
+}
+
 func CoinQueryDefinition() commands.Definition {
 	return commands.Definition{
 		Type:        commands.CommandTypeChatInput,
@@ -47,6 +52,15 @@ func CoinQueryDefinition() commands.Definition {
 				Required:    false,
 			},
 		},
+	}
+}
+
+func CoinRankDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        CoinRankCommandName,
+		Description: "查詢代幣的排行榜",
+		Ownership:   commands.ManagedOwnership("economy-coin-rank", commands.ScopeGuild),
 	}
 }
 

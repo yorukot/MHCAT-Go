@@ -331,6 +331,43 @@ func TestPreflightWarnsWhenEconomyCoinAdminRuntimeEnabledWithoutCommandSync(t *t
 	}
 }
 
+func TestPreflightRejectsEconomyCoinRankCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "economy-coin-rank-runtime-pairing status=fail") {
+		t.Fatalf("expected economy coin-rank pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsEconomyCoinRankCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK"] = "true"
+	env["MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "economy-coin-rank-command-sync status=pass") || !strings.Contains(stdout, "economy-coin-rank-runtime-pairing status=pass") {
+		t.Fatalf("expected economy coin-rank pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenEconomyCoinRankRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "economy-coin-rank-runtime-pairing status=warn") {
+		t.Fatalf("expected economy coin-rank runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsWorkCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_WORK"] = "true"

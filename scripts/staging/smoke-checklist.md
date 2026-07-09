@@ -18,6 +18,7 @@
 - For anti-scam config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG=true` with `MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED=true`.
 - For anti-scam report smoke, use a safe staging webhook endpoint and pair `MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT=true` with `MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED=true` plus `MHCAT_REPORT_WEBHOOK_URL` or `REPORT_WEBHOOK`.
 - For economy sign-in smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true` with `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`.
+- For economy coin-rank smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true` with `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`.
 - For economy coin-admin smoke, use only disposable staging `coins` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true` with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`.
 - For balance query smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true` with `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true`.
 - For redeem smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true` with `MHCAT_FEATURE_REDEEM_ENABLED=true`; seed only disposable `codes` rows.
@@ -46,6 +47,7 @@
 - If anti-scam config smoke is enabled, run `/防詐騙網址` twice and verify `good_webs.open` toggles true then false.
 - If anti-scam report smoke is enabled, run `/詐騙網址回報` with a safe staging URL, verify the webhook payload, then seed `not_a_good_webs.web` with the same URL and verify the duplicate error.
 - If economy sign-in smoke is enabled, run `/簽到`, then run `/簽到列表` and verify the public `簽到人數資訊` embed plus `discord.txt`.
+- If economy coin-rank smoke is enabled, run `/代幣排行榜`, verify the public PNG attachment and pagination buttons, and verify Mongo `coins` rows are not mutated.
 - If economy coin-admin smoke is enabled, run `/代幣增加` with add and reduce against a disposable staging member, verify the `coins` balance changes, and verify negative-balance and over-`999999999` attempts return legacy red embeds without mutation.
 - If balance query smoke is enabled, run `/查看餘額` and verify the ephemeral green author embed reads `伺服器目前剩於餘額: <price>` or `0` when `chatgpt_gets` has no guild row.
 - If redeem smoke is enabled, seed a fresh staging `codes` row, run `/兌換`, verify the ephemeral success embed, verify the code was deleted and `chatgpt_gets.price` was credited, then verify missing and expired codes return the legacy red embeds.

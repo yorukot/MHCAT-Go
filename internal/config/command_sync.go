@@ -23,6 +23,7 @@ const (
 	DefaultCommandSyncIncludeEconomySignIn          = false
 	DefaultCommandSyncIncludeEconomySettings        = false
 	DefaultCommandSyncIncludeEconomyCoinAdmin       = false
+	DefaultCommandSyncIncludeEconomyCoinRank        = false
 	DefaultCommandSyncIncludeWork                   = false
 	DefaultCommandSyncIncludeWarnings               = false
 	DefaultCommandSyncIncludeWarningSettings        = false
@@ -76,6 +77,7 @@ type CommandSyncConfig struct {
 	IncludeEconomySignIn          bool
 	IncludeEconomySettings        bool
 	IncludeEconomyCoinAdmin       bool
+	IncludeEconomyCoinRank        bool
 	IncludeWork                   bool
 	IncludeWarnings               bool
 	IncludeWarningSettings        bool
@@ -144,6 +146,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeEconomySignIn:          DefaultCommandSyncIncludeEconomySignIn,
 		IncludeEconomySettings:        DefaultCommandSyncIncludeEconomySettings,
 		IncludeEconomyCoinAdmin:       DefaultCommandSyncIncludeEconomyCoinAdmin,
+		IncludeEconomyCoinRank:        DefaultCommandSyncIncludeEconomyCoinRank,
 		IncludeWork:                   DefaultCommandSyncIncludeWork,
 		IncludeWarnings:               DefaultCommandSyncIncludeWarnings,
 		IncludeWarningSettings:        DefaultCommandSyncIncludeWarningSettings,
@@ -206,6 +209,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeEconomyCoinAdmin, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN", DefaultCommandSyncIncludeEconomyCoinAdmin); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeEconomyCoinRank, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK", DefaultCommandSyncIncludeEconomyCoinRank); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeWork, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_WORK", DefaultCommandSyncIncludeWork); err != nil {
@@ -391,6 +397,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeEconomyCoinRank {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeWork {

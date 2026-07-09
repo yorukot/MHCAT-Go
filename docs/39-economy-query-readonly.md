@@ -33,7 +33,8 @@ The handler follows `slashCommands/代幣系統/coin.js`:
 ## Outside This Slice
 
 - `/簽到` now has its own disabled-by-default staging write slice documented in `docs/40-economy-signin.md`.
-- `/代幣增加` is implemented separately as a disabled-by-default staging admin write slice; `/代幣排行榜`, `/代幣重製`, games, shop, gacha, work, XP rewards, daily reset ownership, and profile canvas are still not implemented.
+- `/代幣排行榜` is implemented separately as a disabled-by-default read-only PNG leaderboard slice.
+- `/代幣增加` is implemented separately as a disabled-by-default staging admin write slice; `/代幣重製`, games, shop, gacha, work, XP rewards, daily reset ownership, and profile canvas are still not implemented.
 - Production command sync for `/代幣查詢`.
 - Mongo index creation on `coins` or `gift_changes`.
 - Production-ready economy write repositories.

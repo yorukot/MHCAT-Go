@@ -63,6 +63,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true
 
 Set both together only in an isolated staging database when testing `/代幣增加`. This path writes `coins`, requires Manage Messages, and should use disposable balance rows only.
 
+Optional economy coin-rank smoke flags:
+
+```bash
+export MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true
+```
+
+Set both together only in an isolated staging database when testing `/代幣排行榜`. This path reads `coins` and renders a PNG leaderboard without writing economy data.
+
 Optional work command smoke flags:
 
 ```bash
@@ -347,6 +356,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true`, confirm `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`, confirm `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`, the database is isolated staging data, and all target `coins` rows are disposable.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`, confirm `MHCAT_FEATURE_WORK_ENABLED=true` and that the test accepts the partial work command surface.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=true`, confirm `MHCAT_FEATURE_WARNINGS_ENABLED=true` and the staging guild has safe warning-history fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=true`, confirm `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true` and the staging database is isolated because `/警告設定` writes `errors_sets`.
@@ -437,6 +447,13 @@ For economy coin-admin staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true`;
 - `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`;
 - plan includes managed `代幣增加`;
+- plan still performs no create/update/delete during dry-run.
+
+For economy coin-rank staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true`;
+- `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`;
+- plan includes managed `代幣排行榜`;
 - plan still performs no create/update/delete during dry-run.
 
 For work command staging smoke, expected additionally:
@@ -643,6 +660,13 @@ If economy sign-in inclusion is enabled, expected:
 If economy coin-admin inclusion is enabled, expected:
 
 - create/update managed `代幣增加` only in addition to the utility commands;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
+If economy coin-rank inclusion is enabled, expected:
+
+- create/update managed `代幣排行榜` only in addition to the utility commands;
 - no command deletion;
 - no bulk overwrite;
 - no global command mutation.

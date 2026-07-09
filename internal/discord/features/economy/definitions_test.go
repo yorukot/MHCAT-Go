@@ -27,6 +27,26 @@ func TestCoinQueryDefinitionMatchesLegacyCommand(t *testing.T) {
 	}
 }
 
+func TestCoinRankDefinitionMatchesLegacyCommand(t *testing.T) {
+	definition := CoinRankDefinition()
+	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}, []commands.Definition{definition})
+	if err := commands.ValidateRegistry(registry); err != nil {
+		t.Fatalf("validate registry: %v", err)
+	}
+	if definition.Name != CoinRankCommandName || definition.Description != "查詢代幣的排行榜" {
+		t.Fatalf("unexpected command definition: %#v", definition)
+	}
+	if len(definition.Options) != 0 {
+		t.Fatalf("expected no options, got %#v", definition.Options)
+	}
+	if definition.DefaultMemberPermissions != nil {
+		t.Fatalf("rank command should not require default permissions: %#v", definition.DefaultMemberPermissions)
+	}
+	if !commands.IsManagedForScope(definition, commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}) {
+		t.Fatal("coin rank command should be marked managed for guild-scoped staging sync")
+	}
+}
+
 func TestSignInDefinitionsMatchLegacyCommands(t *testing.T) {
 	definitions := SignInDefinitions()
 	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}, definitions)

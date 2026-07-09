@@ -203,6 +203,7 @@ func economyBalanceKey(guildID string, userID string) string {
 
 var _ ports.EconomyRepository = (*EconomyRepository)(nil)
 var _ ports.EconomySignInRepository = (*EconomyRepository)(nil)
+var _ ports.EconomyCoinRankRepository = (*EconomyRepository)(nil)
 var _ ports.EconomySettingsRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyCoinAdminRepository = (*EconomyRepository)(nil)
 

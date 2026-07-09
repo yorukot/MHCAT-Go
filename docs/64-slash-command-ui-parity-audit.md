@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 50
-- Matching command definitions: 50
+- Current Go command definitions: 51
+- Matching command definitions: 51
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 24
+- Legacy commands without Go definitions: 23
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -25,6 +25,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `ping` | `slashCommands/實用工具/ping.js` | matching-definition | none |
 | `set-log-channel` | `slashCommands/管理系統/create_logging.js` | matching-definition | none |
 | `代幣增加` | `slashCommands/代幣系統/addcoin.js` | matching-definition | none |
+| `代幣排行榜` | `slashCommands/代幣系統/coin_rank.js` | matching-definition | none |
 | `代幣查詢` | `slashCommands/代幣系統/coin.js` | matching-definition | none |
 | `兌換` | `slashCommands/管理系統/get_something.js` | matching-definition | none |
 | `公告發送` | `slashCommands/公告系統/announcement.js` | matching-definition | none |
@@ -82,7 +83,6 @@ None.
 | `my-profile` | 代幣系統 | `slashCommands/代幣系統/user-info.js` | Check about data in specific server!! |
 | `上鎖頻道` | 語音包廂 | `slashCommands/語音包廂/lock_channel.js` | 設定語音包廂密碼 |
 | `代幣商店` | 代幣系統 | `slashCommands/代幣系統/ghp_shop.js` | 使用你所賺到的代幣買一些特別的東西吧! |
-| `代幣排行榜` | 代幣系統 | `slashCommands/代幣系統/coin_rank.js` | 查詢代幣的排行榜 |
 | `代幣遊戲` | 代幣系統 | `slashCommands/代幣系統/game.js` | 遊玩有關代幣的小遊戲 |
 | `代幣重製` | 代幣系統 | `slashCommands/代幣系統/coin_rest.js` | 重製所有人的代幣，或者是進行代幣改變幣值 |
 | `剪刀石頭布` | 代幣系統 | `slashCommands/代幣系統/rock_paper_scissors.js` | 跟電腦剪刀時候布來獲得代幣(有賺有賠) |

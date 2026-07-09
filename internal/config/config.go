@@ -22,6 +22,7 @@ const (
 	DefaultFeatureEconomySignInEnabled          = false
 	DefaultFeatureEconomySettingsEnabled        = false
 	DefaultFeatureEconomyCoinAdminEnabled       = false
+	DefaultFeatureEconomyCoinRankEnabled        = false
 	DefaultFeatureWorkEnabled                   = false
 	DefaultFeatureWarningsEnabled               = false
 	DefaultFeatureWarningSettingsEnabled        = false
@@ -84,6 +85,7 @@ type Config struct {
 	FeatureEconomySignInEnabled          bool
 	FeatureEconomySettingsEnabled        bool
 	FeatureEconomyCoinAdminEnabled       bool
+	FeatureEconomyCoinRankEnabled        bool
 	FeatureWorkEnabled                   bool
 	FeatureWarningsEnabled               bool
 	FeatureWarningSettingsEnabled        bool

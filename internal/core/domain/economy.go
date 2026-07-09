@@ -10,6 +10,7 @@ var ErrInvalidEconomyQuery = errors.New("invalid economy query")
 var ErrInvalidSignIn = errors.New("invalid sign in")
 var ErrInvalidEconomySettings = errors.New("invalid economy settings")
 var ErrInvalidCoinAdminCommand = errors.New("invalid coin admin command")
+var ErrInvalidCoinRankQuery = errors.New("invalid coin rank query")
 
 type CoinAdminOperation string
 

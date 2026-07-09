@@ -49,6 +49,7 @@ type RuntimeOptions struct {
 	EconomySignInRepository       ports.EconomySignInRepository
 	EconomySettingsRepository     ports.EconomySettingsRepository
 	EconomyCoinAdminRepository    ports.EconomyCoinAdminRepository
+	EconomyCoinRankRepository     ports.EconomyCoinRankRepository
 	WorkInterfaceRepository       ports.WorkInterfaceRepository
 	WorkStartRepository           ports.WorkStartRepository
 	WorkAdminRepository           ports.WorkAdminRepository
@@ -134,6 +135,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.EconomyCoinAdminRepository != nil {
 		definitions = append(definitions, featureeconomy.CoinAdminDefinitions()...)
+	}
+	if opts.EconomyCoinRankRepository != nil {
+		definitions = append(definitions, featureeconomy.CoinRankDefinitions()...)
 	}
 	if opts.WorkFeatureEnabled {
 		definitions = append(definitions, featurework.Definitions()...)
@@ -284,6 +288,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.EconomyCoinAdminRepository != nil {
 		coinAdminModule := featureeconomy.NewCoinAdminModule(opts.EconomyCoinAdminRepository, concreteDiscord, opts.UsageTracker)
 		if err := coinAdminModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.EconomyCoinRankRepository != nil {
+		coinRankModule := featureeconomy.NewCoinRankModule(opts.EconomyCoinRankRepository, concreteDiscord, opts.UsageTracker)
+		if err := coinRankModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

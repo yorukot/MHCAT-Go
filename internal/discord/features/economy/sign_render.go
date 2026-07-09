@@ -141,11 +141,7 @@ var signFont struct {
 
 func signFontFace(size float64) font.Face {
 	signFont.once.Do(func() {
-		for _, path := range []string{
-			"../MHCAT/fonts/TaipeiSansTCBeta-Regular.ttf",
-			"MHCAT/fonts/TaipeiSansTCBeta-Regular.ttf",
-			"./fonts/TaipeiSansTCBeta-Regular.ttf",
-		} {
+		for _, path := range append(legacyAssetCandidates("fonts/TaipeiSansTCBeta-Regular.ttf"), "./fonts/TaipeiSansTCBeta-Regular.ttf") {
 			data, err := os.ReadFile(path)
 			if err != nil {
 				continue

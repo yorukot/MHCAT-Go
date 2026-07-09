@@ -16,6 +16,7 @@ type Module struct {
 	signInList   coreeconomy.SignInListService
 	settings     coreeconomy.SettingsService
 	coinAdmin    coreeconomy.CoinAdminService
+	coinRank     coreeconomy.CoinRankService
 	discord      ports.DiscordInfoProvider
 	usage        ports.UsageTracker
 	clock        ports.Clock
@@ -89,6 +90,17 @@ func NewCoinAdminModule(repo ports.EconomyCoinAdminRepository, discordInfo ports
 	}
 }
 
+func NewCoinRankModule(repo ports.EconomyCoinRankRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
+	return Module{
+		coinRank: coreeconomy.CoinRankService{Repository: repo},
+		discord:  discordInfo,
+		usage:    usage,
+		color:    legacyRandomColor,
+		defs:     CoinRankDefinitions(),
+		feature:  "economy-coin-rank",
+	}
+}
+
 func (m Module) Name() string {
 	return m.feature
 }
@@ -126,6 +138,14 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 	}
 	if m.coinAdmin.Repository != nil {
 		if err := router.RegisterSlash(CoinAdminCommandName, m.CoinAdminHandler()); err != nil {
+			return err
+		}
+	}
+	if m.coinRank.Repository != nil {
+		if err := router.RegisterSlash(CoinRankCommandName, m.CoinRankHandler()); err != nil {
+			return err
+		}
+		if err := router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: "legacy", Feature: "rank", Action: "coin_page", Legacy: true}, m.CoinRankPageHandler()); err != nil {
 			return err
 		}
 	}

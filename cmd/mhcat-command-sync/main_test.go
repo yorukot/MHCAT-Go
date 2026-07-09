@@ -781,6 +781,37 @@ func TestCommandSyncIncludeEconomyCoinAdminStagingDryRunIncludesDefinition(t *te
 	}
 }
 
+func TestCommandSyncIncludeEconomyCoinRankRequiresStagingMode(t *testing.T) {
+	env := baseCommandSyncEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK"] = "true"
+	exitCode, _, stderr, fake := runWithFakeClient(t, nil, env, &fakediscord.CommandSyncClient{}, defaultCommandRegistry)
+	if exitCode == 0 {
+		t.Fatal("expected include economy coin-rank without staging mode to fail")
+	}
+	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
+		t.Fatalf("unsafe include economy coin-rank performed writes: %#v", fake)
+	}
+	if !strings.Contains(stderr, "MHCAT_STAGING_MODE") {
+		t.Fatalf("expected staging mode error, stderr=%q", stderr)
+	}
+}
+
+func TestCommandSyncIncludeEconomyCoinRankStagingDryRunIncludesDefinition(t *testing.T) {
+	env := stagingCommandSyncEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK"] = "true"
+	fake := &fakediscord.CommandSyncClient{}
+	exitCode, stdout, stderr, _ := runWithFakeClient(t, nil, env, fake, defaultCommandRegistry)
+	if exitCode != 0 {
+		t.Fatalf("expected economy coin-rank dry-run to pass, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
+		t.Fatalf("dry-run performed writes: %#v", fake)
+	}
+	if !strings.Contains(stdout, "代幣排行榜") {
+		t.Fatalf("economy coin-rank command missing from dry-run output: %q", stdout)
+	}
+}
+
 func TestCommandSyncIncludeWorkRequiresStagingMode(t *testing.T) {
 	env := baseCommandSyncEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_WORK"] = "true"

@@ -49,6 +49,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN:-false}" = "true" ] && [ "
   echo "refusing apply: economy coin-admin command apply requires MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: economy coin-rank command apply requires MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WORK:-false}" = "true" ] && [ "${MHCAT_FEATURE_WORK_ENABLED:-false}" != "true" ]; then
   echo "refusing apply: work command apply requires MHCAT_FEATURE_WORK_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -204,6 +208,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN:-false}" = "true" ]; then
   echo "staging command sync apply: including economy coin-admin command" >&2
 else
   echo "staging command sync apply: economy coin-admin command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK:-false}" = "true" ]; then
+  echo "staging command sync apply: including economy coin-rank command" >&2
+else
+  echo "staging command sync apply: economy coin-rank command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WORK:-false}" = "true" ]; then
   echo "staging command sync apply: including work command" >&2

@@ -95,6 +95,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		economySettingsRuntimePairing(lookup),
 		economyCoinAdminCommandSync(lookup),
 		economyCoinAdminRuntimePairing(lookup),
+		economyCoinRankCommandSync(lookup),
+		economyCoinRankRuntimePairing(lookup),
 		workCommandSync(lookup),
 		workRuntimePairing(lookup),
 		warningsCommandSync(lookup),
@@ -411,6 +413,38 @@ func economyCoinAdminRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "economy-coin-admin-runtime-pairing", Status: statusWarn, Message: "economy coin-admin runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "economy-coin-admin-runtime-pairing", Status: statusSkipped, Message: "economy coin-admin runtime and command sync include are disabled"}
+}
+
+func economyCoinRankCommandSync(lookup lookupFunc) checkResult {
+	includeCoinRank, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK")
+	if err != nil {
+		return checkResult{Name: "economy-coin-rank-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeCoinRank {
+		return checkResult{Name: "economy-coin-rank-command-sync", Status: statusPass, Message: "economy coin-rank command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "economy-coin-rank-command-sync", Status: statusSkipped, Message: "economy coin-rank command sync include is disabled"}
+}
+
+func economyCoinRankRuntimePairing(lookup lookupFunc) checkResult {
+	includeCoinRank, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK")
+	if err != nil {
+		return checkResult{Name: "economy-coin-rank-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	coinRankEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED")
+	if err != nil {
+		return checkResult{Name: "economy-coin-rank-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeCoinRank && !coinRankEnabled {
+		return checkResult{Name: "economy-coin-rank-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true requires MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true in the staging runtime"}
+	}
+	if includeCoinRank && coinRankEnabled {
+		return checkResult{Name: "economy-coin-rank-runtime-pairing", Status: statusPass, Message: "economy coin-rank command sync and runtime feature flag are paired"}
+	}
+	if coinRankEnabled {
+		return checkResult{Name: "economy-coin-rank-runtime-pairing", Status: statusWarn, Message: "economy coin-rank runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "economy-coin-rank-runtime-pairing", Status: statusSkipped, Message: "economy coin-rank runtime and command sync include are disabled"}
 }
 
 func workCommandSync(lookup lookupFunc) checkResult {
