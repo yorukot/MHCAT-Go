@@ -41,6 +41,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ] && [ "${MHCAT_F
   echo "refusing command sync: translate command dry-run requires MHCAT_FEATURE_TRANSLATE_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY:-false}" = "true" ] && [ "${MHCAT_FEATURE_BALANCE_QUERY_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: balance query command dry-run requires MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED:-false}" != "true" ]; then
   echo "refusing command sync: autochat config command dry-run requires MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -153,6 +157,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ]; then
   echo "staging command sync dry-run: including translate command for review" >&2
 else
   echo "staging command sync dry-run: translate command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including balance query command for review" >&2
+else
+  echo "staging command sync dry-run: balance query command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG:-false}" = "true" ]; then
   echo "staging command sync dry-run: including autochat config commands for review" >&2

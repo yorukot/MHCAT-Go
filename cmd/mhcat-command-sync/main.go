@@ -13,6 +13,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 	featureannouncements "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/announcements"
 	featureautochat "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/autochat"
+	featurebalance "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/balance"
 	featurebirthday "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/birthday"
 	featureeconomy "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/economy"
 	featuregacha "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/gacha"
@@ -198,6 +199,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeTranslate {
 		definitions = append(definitions, commands.TranslateDefinition())
 	}
+	if cfg.IncludeBalanceQuery {
+		definitions = append(definitions, featurebalance.Definitions()...)
+	}
 	if cfg.IncludeAutoChatConfig {
 		definitions = append(definitions, featureautochat.Definitions()...)
 	}
@@ -277,6 +281,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeTranslate {
 		expected = append(expected, "翻譯")
+	}
+	if cfg.IncludeBalanceQuery {
+		expected = append(expected, featurebalance.CommandName)
 	}
 	if cfg.IncludeAutoChatConfig {
 		expected = append(expected, featureautochat.AutoChatSetCommandName, featureautochat.AutoChatDeleteCommandName)

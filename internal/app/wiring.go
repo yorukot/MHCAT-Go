@@ -12,6 +12,7 @@ import (
 	discordevents "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	featureannouncements "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/announcements"
 	featureautochat "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/autochat"
+	featurebalance "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/balance"
 	featurebirthday "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/birthday"
 	featureeconomy "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/economy"
 	featuregacha "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/gacha"
@@ -53,6 +54,7 @@ type RuntimeOptions struct {
 	WarningsFeatureEnabled        bool
 	TranslateProvider             ports.Translator
 	TranslateFeatureEnabled       bool
+	BalanceRepository             ports.BalanceRepository
 	AutoChatConfigRepository      ports.AutoChatConfigRepository
 	AntiScamConfigRepository      ports.AntiScamConfigRepository
 	ScamURLCatalogRepository      ports.ScamURLCatalog
@@ -115,6 +117,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.TranslateFeatureEnabled && opts.TranslateProvider != nil {
 		definitions = append(definitions, commands.TranslateDefinition())
+	}
+	if opts.BalanceRepository != nil {
+		definitions = append(definitions, featurebalance.Definitions()...)
 	}
 	if opts.AutoChatConfigRepository != nil {
 		definitions = append(definitions, featureautochat.Definitions()...)
@@ -245,6 +250,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.LoggingConfigRepository != nil {
 		loggingModule := featurelogging.NewModule(opts.LoggingConfigRepository, opts.UsageTracker)
 		if err := loggingModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.BalanceRepository != nil {
+		balanceModule := featurebalance.NewModule(opts.BalanceRepository, opts.UsageTracker)
+		if err := balanceModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

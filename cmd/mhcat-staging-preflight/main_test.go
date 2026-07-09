@@ -393,6 +393,43 @@ func TestPreflightAcceptsTranslateCommandSyncWithRuntimeFlag(t *testing.T) {
 	}
 }
 
+func TestPreflightRejectsBalanceQueryCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "balance-query-runtime-pairing status=fail") {
+		t.Fatalf("expected balance query pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsBalanceQueryCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY"] = "true"
+	env["MHCAT_FEATURE_BALANCE_QUERY_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "balance-query-command-sync status=pass") || !strings.Contains(stdout, "balance-query-runtime-pairing status=pass") {
+		t.Fatalf("expected balance query pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenBalanceQueryRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_BALANCE_QUERY_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "balance-query-runtime-pairing status=warn") {
+		t.Fatalf("expected balance query runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsAutoChatConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG"] = "true"

@@ -37,6 +37,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureWorkEnabled:                   DefaultFeatureWorkEnabled,
 		FeatureWarningsEnabled:               DefaultFeatureWarningsEnabled,
 		FeatureTranslateEnabled:              DefaultFeatureTranslateEnabled,
+		FeatureBalanceQueryEnabled:           DefaultFeatureBalanceQueryEnabled,
 		FeatureAutoChatConfigEnabled:         DefaultFeatureAutoChatConfigEnabled,
 		FeatureAntiScamConfigEnabled:         DefaultFeatureAntiScamConfigEnabled,
 		FeatureAntiScamReportEnabled:         DefaultFeatureAntiScamReportEnabled,
@@ -123,6 +124,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureTranslateEnabled, err = getBool(lookup, "MHCAT_FEATURE_TRANSLATE_ENABLED", DefaultFeatureTranslateEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureBalanceQueryEnabled, err = getBool(lookup, "MHCAT_FEATURE_BALANCE_QUERY_ENABLED", DefaultFeatureBalanceQueryEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureAutoChatConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED", DefaultFeatureAutoChatConfigEnabled); err != nil {

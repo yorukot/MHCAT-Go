@@ -344,6 +344,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		translator := externaladapter.NewGoogleTranslateClient()
 		opts.TranslateProvider = translator
 	}
+	if cfg.FeatureBalanceQueryEnabled {
+		balanceRepo, err := balanceRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.BalanceRepository = balanceRepo
+	}
 	if cfg.FeatureAutoChatConfigEnabled {
 		autoChatRepo, err := autoChatConfigRepositoryFromMongo(mongoClient)
 		if err != nil {
@@ -592,6 +599,22 @@ func autoChatConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositor
 	repo, err := mongorepositories.NewAutoChatConfigRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("autochat config feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func balanceRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.BalanceRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("balance query feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("balance query feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewBalanceRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("balance query feature repository: %w", err)
 	}
 	return repo, nil
 }

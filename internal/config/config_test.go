@@ -132,6 +132,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureTranslateEnabled {
 		t.Fatal("translate feature must be disabled by default")
 	}
+	if cfg.FeatureBalanceQueryEnabled {
+		t.Fatal("balance query feature must be disabled by default")
+	}
 	if cfg.FeatureAutoChatConfigEnabled {
 		t.Fatal("autochat config feature must be disabled by default")
 	}
@@ -689,6 +692,21 @@ func TestFeatureTranslateConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureTranslateEnabled {
 		t.Fatal("expected translate feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureBalanceQueryConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                 "token",
+		"MHCAT_MONGODB_URI":                   "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":              "mhcat",
+		"MHCAT_FEATURE_BALANCE_QUERY_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureBalanceQueryEnabled {
+		t.Fatal("expected balance query feature to be enabled explicitly")
 	}
 }
 

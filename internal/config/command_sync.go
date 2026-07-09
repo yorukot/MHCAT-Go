@@ -25,6 +25,7 @@ const (
 	DefaultCommandSyncIncludeWork                   = false
 	DefaultCommandSyncIncludeWarnings               = false
 	DefaultCommandSyncIncludeTranslate              = false
+	DefaultCommandSyncIncludeBalanceQuery           = false
 	DefaultCommandSyncIncludeAutoChatConfig         = false
 	DefaultCommandSyncIncludeAntiScamConfig         = false
 	DefaultCommandSyncIncludeAntiScamReport         = false
@@ -67,6 +68,7 @@ type CommandSyncConfig struct {
 	IncludeWork                   bool
 	IncludeWarnings               bool
 	IncludeTranslate              bool
+	IncludeBalanceQuery           bool
 	IncludeAutoChatConfig         bool
 	IncludeAntiScamConfig         bool
 	IncludeAntiScamReport         bool
@@ -124,6 +126,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeWork:                   DefaultCommandSyncIncludeWork,
 		IncludeWarnings:               DefaultCommandSyncIncludeWarnings,
 		IncludeTranslate:              DefaultCommandSyncIncludeTranslate,
+		IncludeBalanceQuery:           DefaultCommandSyncIncludeBalanceQuery,
 		IncludeAutoChatConfig:         DefaultCommandSyncIncludeAutoChatConfig,
 		IncludeAntiScamConfig:         DefaultCommandSyncIncludeAntiScamConfig,
 		IncludeAntiScamReport:         DefaultCommandSyncIncludeAntiScamReport,
@@ -179,6 +182,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeTranslate, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE", DefaultCommandSyncIncludeTranslate); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeBalanceQuery, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY", DefaultCommandSyncIncludeBalanceQuery); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeAutoChatConfig, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG", DefaultCommandSyncIncludeAutoChatConfig); err != nil {
@@ -341,6 +347,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeBalanceQuery {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeAutoChatConfig {

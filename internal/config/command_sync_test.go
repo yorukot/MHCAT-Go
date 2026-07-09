@@ -67,6 +67,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeWork {
 		t.Fatal("include work must default false")
 	}
+	if cfg.IncludeBalanceQuery {
+		t.Fatal("include balance query must default false")
+	}
 	if cfg.IncludeAutoChatConfig {
 		t.Fatal("include autochat config must default false")
 	}
@@ -876,6 +879,48 @@ func TestCommandSyncIncludeTranslateStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeTranslate {
 		t.Fatal("expected include translate to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeBalanceQueryRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                      "token",
+		"MHCAT_DISCORD_APPLICATION_ID":             "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":              "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include balance query without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeBalanceQueryRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                      "token",
+		"MHCAT_DISCORD_APPLICATION_ID":             "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                 "global",
+		"MHCAT_STAGING_MODE":                       "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include balance query with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeBalanceQueryStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                      "token",
+		"MHCAT_DISCORD_APPLICATION_ID":             "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":              "guild",
+		"MHCAT_STAGING_MODE":                       "true",
+		"MHCAT_STAGING_GUILD_ID":                   "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeBalanceQuery {
+		t.Fatal("expected include balance query to be enabled explicitly")
 	}
 }
 

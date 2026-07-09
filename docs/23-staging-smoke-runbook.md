@@ -81,6 +81,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true
 
 Set both together only when testing `/翻譯`. This path calls the external translate provider, does not require Message Content intent, and does not write Mongo feature data.
 
+Optional balance-query smoke flags:
+
+```bash
+export MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true
+```
+
+Set both together only when testing `/查看餘額`. This path reads `chatgpt_gets.price`, does not require Message Content intent, and does not write Mongo feature data.
+
 Optional logging-config smoke flags:
 
 ```bash
@@ -250,6 +259,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`, confirm `MHCAT_FEATURE_WORK_ENABLED=true` and that the test accepts the partial work command surface.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=true`, confirm `MHCAT_FEATURE_WARNINGS_ENABLED=true` and the staging guild has safe warning-history fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`, confirm `MHCAT_FEATURE_TRANSLATE_ENABLED=true` and external translate calls are allowed for the staging bot.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`, confirm `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true` and the selected log channel is staging-only.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true` and the staging database has safe gacha fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true`, confirm `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true` and that the expected result is only the unavailable embed.
@@ -341,6 +351,13 @@ For translate staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`;
 - `MHCAT_FEATURE_TRANSLATE_ENABLED=true`;
 - plan includes managed `翻譯`;
+- plan still performs no create/update/delete during dry-run.
+
+For balance-query staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`;
+- `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true`;
+- plan includes managed `查看餘額`;
 - plan still performs no create/update/delete during dry-run.
 
 For logging-config staging smoke, expected additionally:

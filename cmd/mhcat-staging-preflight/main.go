@@ -99,6 +99,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		warningsRuntimePairing(lookup),
 		translateCommandSync(lookup),
 		translateRuntimePairing(lookup),
+		balanceQueryCommandSync(lookup),
+		balanceQueryRuntimePairing(lookup),
 		autoChatConfigCommandSync(lookup),
 		autoChatConfigRuntimePairing(lookup),
 		antiScamConfigCommandSync(lookup),
@@ -453,6 +455,38 @@ func translateRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "translate-runtime-pairing", Status: statusWarn, Message: "translate runtime is enabled but translate command sync include is disabled"}
 	}
 	return checkResult{Name: "translate-runtime-pairing", Status: statusSkipped, Message: "translate runtime and command sync include are disabled"}
+}
+
+func balanceQueryCommandSync(lookup lookupFunc) checkResult {
+	includeBalance, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY")
+	if err != nil {
+		return checkResult{Name: "balance-query-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeBalance {
+		return checkResult{Name: "balance-query-command-sync", Status: statusPass, Message: "balance query command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "balance-query-command-sync", Status: statusSkipped, Message: "balance query command sync include is disabled"}
+}
+
+func balanceQueryRuntimePairing(lookup lookupFunc) checkResult {
+	includeBalance, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY")
+	if err != nil {
+		return checkResult{Name: "balance-query-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	balanceEnabled, err := boolValue(lookup, "MHCAT_FEATURE_BALANCE_QUERY_ENABLED")
+	if err != nil {
+		return checkResult{Name: "balance-query-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeBalance && !balanceEnabled {
+		return checkResult{Name: "balance-query-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true requires MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true in the staging runtime"}
+	}
+	if includeBalance && balanceEnabled {
+		return checkResult{Name: "balance-query-runtime-pairing", Status: statusPass, Message: "balance query command sync and runtime feature flag are paired"}
+	}
+	if balanceEnabled {
+		return checkResult{Name: "balance-query-runtime-pairing", Status: statusWarn, Message: "balance query runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "balance-query-runtime-pairing", Status: statusSkipped, Message: "balance query runtime and command sync include are disabled"}
 }
 
 func autoChatConfigCommandSync(lookup lookupFunc) checkResult {

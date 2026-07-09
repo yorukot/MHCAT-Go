@@ -651,6 +651,35 @@ func TestBuildRuntimeRoutesAutoChatConfigOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesBalanceQueryOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteraction("查看餘額")
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("balance query route should not be available without repository")
+	}
+
+	repo := fakemongo.NewBalanceRepository()
+	repo.Balances["guild-1"] = domain.Balance{GuildID: "guild-1", Amount: "18"}
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:            validTestConfig(),
+		BalanceRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with balance repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch balance query: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || responder.Edits[0].Embeds[0].Author == nil || !strings.Contains(responder.Edits[0].Embeds[0].Author.Name, "18") {
+		t.Fatalf("balance query response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesAntiScamConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
