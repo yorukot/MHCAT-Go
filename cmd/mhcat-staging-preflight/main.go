@@ -195,6 +195,9 @@ func buildReport(lookup lookupFunc) []checkResult {
 		accountAgeConfigCommandSync(lookup),
 		accountAgeConfigRuntimePairing(lookup),
 		accountAgePolicyRuntimeReadiness(lookup),
+		roleSelectionCommandSync(lookup),
+		roleSelectionRuntimePairing(lookup),
+		roleSelectionRuntimeReadiness(lookup),
 	}
 	sort.SliceStable(checks, func(i, j int) bool {
 		return checks[i].Name < checks[j].Name
@@ -2191,6 +2194,67 @@ func accountAgePolicyRuntimeReadiness(lookup lookupFunc) checkResult {
 		return checkResult{Name: "account-age-policy-runtime-readiness", Status: statusFail, Message: "account-age policy requires " + strings.Join(missing, ", ")}
 	}
 	return checkResult{Name: "account-age-policy-runtime-readiness", Status: statusPass, Message: "account-age policy gateway and Guild Members intent gates are explicit"}
+}
+
+func roleSelectionCommandSync(lookup lookupFunc) checkResult {
+	includeRoleSelection, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION")
+	if err != nil {
+		return checkResult{Name: "role-selection-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeRoleSelection {
+		return checkResult{Name: "role-selection-command-sync", Status: statusPass, Message: "role-selection commands sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "role-selection-command-sync", Status: statusSkipped, Message: "role-selection commands sync include is disabled"}
+}
+
+func roleSelectionRuntimePairing(lookup lookupFunc) checkResult {
+	includeRoleSelection, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION")
+	if err != nil {
+		return checkResult{Name: "role-selection-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	roleSelectionEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ROLE_SELECTION_ENABLED")
+	if err != nil {
+		return checkResult{Name: "role-selection-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeRoleSelection && !roleSelectionEnabled {
+		return checkResult{Name: "role-selection-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION=true requires MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true in the staging runtime"}
+	}
+	if includeRoleSelection && roleSelectionEnabled {
+		return checkResult{Name: "role-selection-runtime-pairing", Status: statusPass, Message: "role-selection commands sync and runtime feature flag are paired"}
+	}
+	if roleSelectionEnabled {
+		return checkResult{Name: "role-selection-runtime-pairing", Status: statusWarn, Message: "role-selection runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "role-selection-runtime-pairing", Status: statusSkipped, Message: "role-selection runtime and command sync include are disabled"}
+}
+
+func roleSelectionRuntimeReadiness(lookup lookupFunc) checkResult {
+	roleSelectionEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ROLE_SELECTION_ENABLED")
+	if err != nil {
+		return checkResult{Name: "role-selection-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !roleSelectionEnabled {
+		return checkResult{Name: "role-selection-runtime-readiness", Status: statusSkipped, Message: "role-selection runtime is disabled"}
+	}
+	gatewayEnabled, err := boolValue(lookup, "MHCAT_DISCORD_ENABLE_GATEWAY")
+	if err != nil {
+		return checkResult{Name: "role-selection-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	reactions, err := boolValue(lookup, "MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT")
+	if err != nil {
+		return checkResult{Name: "role-selection-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	var missing []string
+	if !gatewayEnabled {
+		missing = append(missing, "MHCAT_DISCORD_ENABLE_GATEWAY=true")
+	}
+	if !reactions {
+		missing = append(missing, "MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true")
+	}
+	if len(missing) > 0 {
+		return checkResult{Name: "role-selection-runtime-readiness", Status: statusFail, Message: "role-selection requires " + strings.Join(missing, ", ")}
+	}
+	return checkResult{Name: "role-selection-runtime-readiness", Status: statusPass, Message: "role-selection gateway and Guild Message Reactions intent gates are explicit"}
 }
 
 func boolValue(lookup lookupFunc, key string) (bool, error) {

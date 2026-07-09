@@ -279,6 +279,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureAccountAgePolicyEnabled {
 		t.Fatal("account-age policy feature must be disabled by default")
 	}
+	if cfg.FeatureRoleSelectionEnabled {
+		t.Fatal("role-selection feature must be disabled by default")
+	}
 	if cfg.JobsDailyResetEnabled {
 		t.Fatal("daily reset job gate must be disabled by default")
 	}
@@ -1447,6 +1450,32 @@ func TestFeatureAccountAgePolicyRequiresGatewayAndGuildMembersIntent(t *testing.
 	}
 	if !cfg.FeatureAccountAgePolicyEnabled {
 		t.Fatal("expected account-age policy feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureRoleSelectionRequiresGatewayAndReactionIntent(t *testing.T) {
+	_, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                  "token",
+		"MHCAT_MONGODB_URI":                    "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":               "mhcat",
+		"MHCAT_FEATURE_ROLE_SELECTION_ENABLED": "true",
+	}))
+	if !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("expected ErrInvalidConfig, got %v", err)
+	}
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                          "token",
+		"MHCAT_MONGODB_URI":                            "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                       "mhcat",
+		"MHCAT_FEATURE_ROLE_SELECTION_ENABLED":         "true",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":                 "true",
+		"MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureRoleSelectionEnabled {
+		t.Fatal("expected role-selection feature to be enabled explicitly")
 	}
 }
 

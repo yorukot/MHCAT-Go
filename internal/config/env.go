@@ -86,6 +86,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureVerificationFlowEnabled:       DefaultFeatureVerificationFlowEnabled,
 		FeatureAccountAgeConfigEnabled:       DefaultFeatureAccountAgeConfigEnabled,
 		FeatureAccountAgePolicyEnabled:       DefaultFeatureAccountAgePolicyEnabled,
+		FeatureRoleSelectionEnabled:          DefaultFeatureRoleSelectionEnabled,
 		JobsDailyResetEnabled:                DefaultJobsDailyResetEnabled,
 		MongoConnectTimeout:                  DefaultMongoConnectTimeout,
 		MongoPingTimeout:                     DefaultMongoPingTimeout,
@@ -297,6 +298,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureAccountAgePolicyEnabled, err = getBool(lookup, "MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED", DefaultFeatureAccountAgePolicyEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureRoleSelectionEnabled, err = getBool(lookup, "MHCAT_FEATURE_ROLE_SELECTION_ENABLED", DefaultFeatureRoleSelectionEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.JobsDailyResetEnabled, err = getBool(lookup, "MHCAT_JOBS_DAILY_RESET_ENABLED", DefaultJobsDailyResetEnabled); err != nil {

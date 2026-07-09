@@ -20,6 +20,7 @@ type SideEffects struct {
 	Edited            []EditedMessage
 	DeletedMessage    []ports.MessageRef
 	CleanupRequests   []ports.MessageCleanupRequest
+	Reactions         []ReactionAdd
 	AddedRoles        []RoleChange
 	RemovedRoles      []RoleChange
 	Nicknames         []NicknameChange
@@ -67,6 +68,12 @@ type RoleChange struct {
 	GuildID string
 	UserID  string
 	RoleID  string
+}
+
+type ReactionAdd struct {
+	ChannelID string
+	MessageID string
+	Emoji     string
 }
 
 type NicknameChange struct {
@@ -306,6 +313,16 @@ func (s *SideEffects) DeleteChannel(ctx context.Context, channelID string) error
 	return nil
 }
 
+func (s *SideEffects) AddReaction(ctx context.Context, channelID string, messageID string, emoji string) error {
+	if err := s.ready(ctx); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Reactions = append(s.Reactions, ReactionAdd{ChannelID: channelID, MessageID: messageID, Emoji: emoji})
+	return nil
+}
+
 func (s *SideEffects) AddRole(ctx context.Context, guildID string, userID string, roleID string) error {
 	if err := s.ready(ctx); err != nil {
 		return err
@@ -441,6 +458,7 @@ func (s *SideEffects) ready(ctx context.Context) error {
 
 var _ ports.DiscordChannelPort = (*SideEffects)(nil)
 var _ ports.DiscordMessagePort = (*SideEffects)(nil)
+var _ ports.DiscordReactionPort = (*SideEffects)(nil)
 var _ ports.DiscordMessageCleaner = (*SideEffects)(nil)
 var _ ports.DiscordDirectMessagePort = (*SideEffects)(nil)
 var _ ports.DiscordRolePort = (*SideEffects)(nil)

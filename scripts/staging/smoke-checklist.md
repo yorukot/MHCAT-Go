@@ -20,6 +20,7 @@
 - For verification full-flow smoke, first configure `/驗證設置`, then pair `MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_FLOW=true` with `MHCAT_FEATURE_VERIFICATION_FLOW_ENABLED=true`.
 - For account-age config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG=true` with `MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED=true`.
 - For account-age member-gate smoke, use only a disposable staging member and enable `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`.
+- For role-selection smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION=true` with `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true`; use roles below the bot's highest role and disposable staging messages.
 - For anti-scam config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG=true` with `MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED=true`.
 - For anti-scam report smoke, use a safe staging webhook endpoint and pair `MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT=true` with `MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED=true` plus `MHCAT_REPORT_WEBHOOK_URL` or `REPORT_WEBHOOK`.
 - For economy sign-in smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true` with `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`.
@@ -59,6 +60,7 @@
 - If verification full-flow smoke is enabled, run `/驗證`, verify `captcha.jpeg`, click `點我進行驗證!`, verify the `請輸入驗證碼!` modal, test one wrong answer, test one correct answer, and confirm the role/nickname side effects.
 - If account-age config smoke is enabled, run `/帳號需創建時數 小時數` with a safe staging threshold, optionally configure/delete `被踢出資訊頻道`, and verify the legacy group-protection embeds.
 - If account-age member-gate smoke is enabled, join with a disposable too-new staging member and verify the legacy DM, kick reason, optional log embed, and that join-role/welcome side effects do not run after the kick.
+- If role-selection smoke is enabled, run `/選取身分組-表情符號` against a disposable staging message, verify the reaction is added and `message_reactions` stores `guild`, `message`, `react`, and `role`, react/unreact as a test member to verify role add/remove, run `/選取身分組刪除-表情符號`, and run `/選取身分組-按鈕` to verify the legacy modal/panel plus add/delete buttons and `btns` rows.
 - If anti-scam config smoke is enabled, run `/防詐騙網址` twice and verify `good_webs.open` toggles true then false.
 - If anti-scam report smoke is enabled, run `/詐騙網址回報` with a safe staging URL, verify the webhook payload, then seed `not_a_good_webs.web` with the same URL and verify the duplicate error.
 - If economy sign-in smoke is enabled, run `/簽到`, then run `/簽到列表` and verify the public `簽到人數資訊` embed plus `discord.txt`.
@@ -76,5 +78,5 @@
 - If delete-data smoke is enabled, run `/刪除資料`, verify the legacy destructive select UI, select only a disposable seeded config target, and confirm the legacy success/missing responses plus guild-scoped row deletion.
 - Verify no duplicate initial response and no raw internal error.
 - Verify no command deletion or bulk overwrite happened.
-- Verify no Mongo feature write happened except explicitly tested staging config writes, economy coin-admin disposable `coins` writes, economy coin-reset disposable `coins` deletes/divisions after owner confirmation, and verify no index creation happened.
+- Verify no Mongo feature write happened except explicitly tested staging config writes, role-selection `message_reactions`/`btns` writes, economy coin-admin disposable `coins` writes, economy coin-reset disposable `coins` deletes/divisions after owner confirmation, and verify no index creation happened.
 - Shut the bot down cleanly.

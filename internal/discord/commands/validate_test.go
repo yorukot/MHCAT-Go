@@ -61,6 +61,19 @@ func TestValidateUnicodeLegacyOptionName(t *testing.T) {
 	}
 }
 
+func TestValidateUnicodeLegacyCommandNameCountsRunes(t *testing.T) {
+	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGlobal}, []commands.Definition{
+		{
+			Type:        commands.CommandTypeChatInput,
+			Name:        "選取身分組刪除-表情符號",
+			Description: "選取身分組刪除-表情符號版(進行刪除)",
+		},
+	})
+	if err := commands.ValidateRegistry(registry); err != nil {
+		t.Fatalf("unicode legacy command name failed validation: %v", err)
+	}
+}
+
 func TestValidateMissingDescriptionFailsForChatInput(t *testing.T) {
 	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGlobal}, []commands.Definition{
 		{Type: commands.CommandTypeChatInput, Name: "ping"},

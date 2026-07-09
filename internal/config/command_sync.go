@@ -69,6 +69,7 @@ const (
 	DefaultCommandSyncIncludeVerificationConfig     = false
 	DefaultCommandSyncIncludeVerificationFlow       = false
 	DefaultCommandSyncIncludeAccountAgeConfig       = false
+	DefaultCommandSyncIncludeRoleSelection          = false
 )
 
 var ErrInvalidCommandSyncConfig = errors.New("invalid command sync config")
@@ -138,6 +139,7 @@ type CommandSyncConfig struct {
 	IncludeVerificationConfig     bool
 	IncludeVerificationFlow       bool
 	IncludeAccountAgeConfig       bool
+	IncludeRoleSelection          bool
 	Staging                       StagingConfig
 	AliasWarnings                 []AliasWarning
 }
@@ -222,6 +224,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeVerificationConfig:     DefaultCommandSyncIncludeVerificationConfig,
 		IncludeVerificationFlow:       DefaultCommandSyncIncludeVerificationFlow,
 		IncludeAccountAgeConfig:       DefaultCommandSyncIncludeAccountAgeConfig,
+		IncludeRoleSelection:          DefaultCommandSyncIncludeRoleSelection,
 	}
 	cfg.DiscordToken = getAliasedCommandSyncString(lookup, "MHCAT_DISCORD_TOKEN", "TOKEN", &cfg)
 
@@ -392,6 +395,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeAccountAgeConfig, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG", DefaultCommandSyncIncludeAccountAgeConfig); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeRoleSelection, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION", DefaultCommandSyncIncludeRoleSelection); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.Staging, err = loadStagingWithLookup(lookup); err != nil {
@@ -855,6 +861,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeRoleSelection {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if err := ValidateStagingCommandSync(cfg.Staging, cfg); err != nil {

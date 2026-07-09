@@ -707,6 +707,22 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.AccountAgeConfigRepository = accountAgeRepo
 	}
+	if cfg.FeatureRoleSelectionEnabled {
+		roleRepo, err := roleSelectionRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "role-selection feature")
+		if err != nil {
+			return nil, err
+		}
+		opts.RoleSelectionRepository = roleRepo
+		opts.RoleSelectionRolePort = sideEffects
+		opts.RoleSelectionRoleInspector = sideEffects
+		opts.RoleSelectionReactionPort = sideEffects
+		opts.RoleSelectionMessagePort = sideEffects
+		opts.RoleSelectionDirectMessage = sideEffects
+	}
 	return BuildRuntime(opts)
 }
 
@@ -754,6 +770,22 @@ func economyRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.Eco
 	repo, err := mongorepositories.NewEconomyRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("economy query feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func roleSelectionRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.RoleSelectionRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("role-selection feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("role-selection feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewRoleSelectionRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("role-selection feature repository: %w", err)
 	}
 	return repo, nil
 }

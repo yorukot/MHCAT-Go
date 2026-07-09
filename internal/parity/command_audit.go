@@ -26,6 +26,7 @@ import (
 	featureonboarding "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/onboarding"
 	featurepoll "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/poll"
 	featureredeem "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/redeem"
+	featureroles "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/roles"
 	featuresafety "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/safety"
 	featurestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/stats"
 	featureticket "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/ticket"
@@ -138,6 +139,7 @@ func CurrentGoDefinitions() []commands.Definition {
 	definitions = append(definitions, featureonboarding.VerificationDefinitions()...)
 	definitions = append(definitions, featureonboarding.VerificationFlowDefinitions()...)
 	definitions = append(definitions, featureonboarding.AccountAgeDefinitions()...)
+	definitions = append(definitions, featureroles.Definitions()...)
 	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "parity-audit"}, definitions)
 	return registry.Commands
 }

@@ -1819,6 +1819,53 @@ func TestBuildRuntimeRoutesEconomyCoinResetOnlyWithDependencies(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesRoleSelectionOnlyWithDependencies(t *testing.T) {
+	interaction := fakediscord.SlashInteractionWithOptions("選取身分組-表情符號", "", map[string]string{
+		"訊息url": "https://discord.com/channels/guild-1/channel-1/message-1",
+		"身分組":   "role-1",
+		"表情符號":  "👍",
+	})
+	interaction.Actor.PermissionBits = 8192
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("role-selection route should not be available without repository")
+	}
+
+	repo := fakemongo.NewRoleSelectionRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.AssignableRoles["guild-1/role-1"] = true
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                     validTestConfig(),
+		RoleSelectionRepository:    repo,
+		RoleSelectionRolePort:      sideEffects,
+		RoleSelectionRoleInspector: sideEffects,
+		RoleSelectionReactionPort:  sideEffects,
+		RoleSelectionMessagePort:   sideEffects,
+		RoleSelectionDirectMessage: sideEffects,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with role-selection: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch role-selection: %v", err)
+	}
+	saved, ok := repo.Reactions["guild-1/message-1/👍"]
+	if !ok || saved.RoleID != "role-1" {
+		t.Fatalf("saved role-selection config = %#v ok=%v", saved, ok)
+	}
+	if len(sideEffects.Reactions) != 1 || sideEffects.Reactions[0].ChannelID != "channel-1" || sideEffects.Reactions[0].MessageID != "message-1" {
+		t.Fatalf("reaction side effect = %#v", sideEffects.Reactions)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "表情符號選取身分組成功設定") {
+		t.Fatalf("role-selection response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesXPRankOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

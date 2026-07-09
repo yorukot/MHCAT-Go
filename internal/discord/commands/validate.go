@@ -43,7 +43,7 @@ func validateDefinition(definition Definition) error {
 	if definition.Name == "" {
 		return fmt.Errorf("%w: command name is required", ErrInvalidRegistry)
 	}
-	if len(definition.Name) > 32 {
+	if utf8.RuneCountInString(definition.Name) > 32 {
 		return fmt.Errorf("%w: command name %q exceeds 32 characters", ErrInvalidRegistry, definition.Name)
 	}
 	switch definition.Type {

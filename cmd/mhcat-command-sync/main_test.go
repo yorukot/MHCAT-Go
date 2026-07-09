@@ -1715,6 +1715,39 @@ func TestCommandSyncIncludeAccountAgeConfigStagingDryRunIncludesDefinition(t *te
 	}
 }
 
+func TestCommandSyncIncludeRoleSelectionRequiresStagingMode(t *testing.T) {
+	env := baseCommandSyncEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION"] = "true"
+	exitCode, _, stderr, fake := runWithFakeClient(t, nil, env, &fakediscord.CommandSyncClient{}, defaultCommandRegistry)
+	if exitCode == 0 {
+		t.Fatal("expected include role-selection without staging mode to fail")
+	}
+	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
+		t.Fatalf("unsafe include role-selection performed writes: %#v", fake)
+	}
+	if !strings.Contains(stderr, "MHCAT_STAGING_MODE") {
+		t.Fatalf("expected staging mode error, stderr=%q", stderr)
+	}
+}
+
+func TestCommandSyncIncludeRoleSelectionStagingDryRunIncludesDefinitions(t *testing.T) {
+	env := stagingCommandSyncEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION"] = "true"
+	fake := &fakediscord.CommandSyncClient{}
+	exitCode, stdout, stderr, _ := runWithFakeClient(t, nil, env, fake, defaultCommandRegistry)
+	if exitCode != 0 {
+		t.Fatalf("expected role-selection dry-run to pass, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
+		t.Fatalf("dry-run performed writes: %#v", fake)
+	}
+	for _, command := range []string{"選取身分組-按鈕", "選取身分組-表情符號", "選取身分組刪除-表情符號"} {
+		if !strings.Contains(stdout, command) {
+			t.Fatalf("%s missing from dry-run output: %q", command, stdout)
+		}
+	}
+}
+
 func runWithFake(t *testing.T, args []string, env map[string]string, loader registryLoader) (int, string, string, *fakediscord.CommandSyncClient) {
 	t.Helper()
 	return runWithFakeClient(t, args, env, &fakediscord.CommandSyncClient{}, loader)

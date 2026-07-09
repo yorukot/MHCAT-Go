@@ -2219,6 +2219,67 @@ func TestPreflightAcceptsAccountAgePolicyWithGatewayIntent(t *testing.T) {
 	}
 }
 
+func TestPreflightRejectsRoleSelectionCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "role-selection-runtime-pairing status=fail") {
+		t.Fatalf("expected role-selection pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsRoleSelectionCommandSyncWithRuntimeReadiness(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION"] = "true"
+	env["MHCAT_FEATURE_ROLE_SELECTION_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "role-selection-command-sync status=pass") || !strings.Contains(stdout, "role-selection-runtime-pairing status=pass") || !strings.Contains(stdout, "role-selection-runtime-readiness status=pass") {
+		t.Fatalf("expected role-selection pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenRoleSelectionRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_ROLE_SELECTION_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "role-selection-runtime-pairing status=warn") {
+		t.Fatalf("expected role-selection runtime warning, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightRejectsRoleSelectionRuntimeWithoutGatewayOrReactionIntent(t *testing.T) {
+	for key, want := range map[string]string{
+		"MHCAT_DISCORD_ENABLE_GATEWAY":                 "MHCAT_DISCORD_ENABLE_GATEWAY=true",
+		"MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT": "MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true",
+	} {
+		env := validEnv()
+		env["MHCAT_FEATURE_ROLE_SELECTION_ENABLED"] = "true"
+		env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+		env["MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT"] = "true"
+		env[key] = "false"
+		code, stdout, _ := runPreflight(t, nil, env)
+		if code == 0 {
+			t.Fatalf("expected role-selection without %s to fail", key)
+		}
+		if !strings.Contains(stdout, "role-selection-runtime-readiness status=fail") || !strings.Contains(stdout, want) {
+			t.Fatalf("expected role-selection readiness failure %q, stdout=%q", want, stdout)
+		}
+	}
+}
+
 func TestPreflightRejectsWelcomeMessageDeliveryWithoutGatewayIntent(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_FEATURE_WELCOME_MESSAGE_DELIVERY_ENABLED"] = "true"

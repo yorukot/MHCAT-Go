@@ -73,6 +73,7 @@ const (
 	DefaultFeatureVerificationFlowEnabled       = false
 	DefaultFeatureAccountAgeConfigEnabled       = false
 	DefaultFeatureAccountAgePolicyEnabled       = false
+	DefaultFeatureRoleSelectionEnabled          = false
 	DefaultJobsDailyResetEnabled                = false
 	DefaultMongoConnectTimeout                  = 10 * time.Second
 	DefaultMongoPingTimeout                     = 5 * time.Second
@@ -151,6 +152,7 @@ type Config struct {
 	FeatureVerificationFlowEnabled       bool
 	FeatureAccountAgeConfigEnabled       bool
 	FeatureAccountAgePolicyEnabled       bool
+	FeatureRoleSelectionEnabled          bool
 	JobsDailyResetEnabled                bool
 	Staging                              StagingConfig
 	MongoDBURI                           string

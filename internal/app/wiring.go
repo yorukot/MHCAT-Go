@@ -23,6 +23,7 @@ import (
 	featureonboarding "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/onboarding"
 	featurepoll "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/poll"
 	featureredeem "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/redeem"
+	featureroles "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/roles"
 	featuresafety "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/safety"
 	featurestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/stats"
 	featureticket "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/ticket"
@@ -139,6 +140,12 @@ type RuntimeOptions struct {
 	AccountAgeMemberPort          ports.DiscordMemberPort
 	AccountAgeMessagePort         ports.DiscordMessagePort
 	AccountAgeGuildInfo           ports.DiscordInfoProvider
+	RoleSelectionRepository       ports.RoleSelectionRepository
+	RoleSelectionRolePort         ports.DiscordRolePort
+	RoleSelectionRoleInspector    ports.DiscordRoleInspector
+	RoleSelectionReactionPort     ports.DiscordReactionPort
+	RoleSelectionMessagePort      ports.DiscordMessagePort
+	RoleSelectionDirectMessage    ports.DiscordDirectMessagePort
 	BotUserID                     string
 	Clock                         ports.Clock
 }
@@ -311,6 +318,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.AccountAgeConfigRepository != nil {
 		definitions = append(definitions, featureonboarding.AccountAgeDefinitions()...)
+	}
+	if opts.RoleSelectionRepository != nil {
+		definitions = append(definitions, featureroles.Definitions()...)
 	}
 	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGlobal}, definitions)
 	interactionTimeout := opts.Config.DiscordInteractionTimeout
@@ -644,6 +654,20 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 			return nil, err
 		}
 	}
+	if opts.RoleSelectionRepository != nil {
+		roleModule := featureroles.NewModule(
+			opts.RoleSelectionRepository,
+			opts.RoleSelectionRolePort,
+			opts.RoleSelectionRoleInspector,
+			opts.RoleSelectionReactionPort,
+			opts.RoleSelectionMessagePort,
+			opts.RoleSelectionDirectMessage,
+			opts.UsageTracker,
+		)
+		if err := roleModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
 	return discordruntime.NewDispatcher(router, opts.Logger)
 }
 
@@ -756,6 +780,17 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 			return nil, err
 		}
 		featureeconomy.NewCoinResetModule(repo, discordInfoProvider(session), sideEffects, nil, nil).RegisterEventRoutes(dispatcher)
+	}
+	if cfg.FeatureRoleSelectionEnabled {
+		repo, err := roleSelectionRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "role-selection feature")
+		if err != nil {
+			return nil, err
+		}
+		featureroles.NewModule(repo, sideEffects, sideEffects, sideEffects, sideEffects, sideEffects, nil).RegisterEventRoutes(dispatcher)
 	}
 	return dispatcher, nil
 }

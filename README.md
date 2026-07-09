@@ -141,6 +141,7 @@ Implemented utility commands:
 - `/驗證設置` when explicitly enabled with `MHCAT_FEATURE_VERIFICATION_CONFIG_ENABLED=true`
 - `/驗證` captcha flow when explicitly enabled with `MHCAT_FEATURE_VERIFICATION_FLOW_ENABLED=true`
 - `/帳號需創建時數` when explicitly enabled with `MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED=true`
+- `/選取身分組-按鈕`, `/選取身分組-表情符號`, and `/選取身分組刪除-表情符號` when explicitly enabled with `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true`, gateway enabled, and Guild Message Reactions intent enabled
 
 Implemented event features:
 
@@ -149,6 +150,7 @@ Implemented event features:
 - Welcome-message delivery on member join when explicitly enabled with `MHCAT_FEATURE_WELCOME_MESSAGE_DELIVERY_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`.
 - Leave-message delivery on member leave when explicitly enabled with `MHCAT_FEATURE_LEAVE_MESSAGE_DELIVERY_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`.
 - Account-age member join gate when explicitly enabled with `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`.
+- Reaction role add/remove handling when explicitly enabled with `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true`.
 
 `/help` now uses the legacy embed/select-menu interface instead of the temporary text placeholder. The help menu can display legacy categories and command documentation entries before every linked feature handler is implemented; that mirrors the Node.js bot's help interface and does not mean those feature groups are runtime-complete.
 
@@ -160,7 +162,7 @@ Implemented event features:
 
 Not implemented yet:
 
-- role button, remaining economy game/shop writes, text/voice XP accrual, rank cards, gacha draw/shop, gift delivery, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
+- remaining economy game/shop writes, text/voice XP accrual, rank cards, gacha draw/shop, gift delivery, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete, and the daily reset is either run by the explicit one-shot tool under an operator process or owned by a future lease-backed scheduler.
 
@@ -169,6 +171,8 @@ Not implemented yet:
 `/剪刀石頭布` is a disabled-by-default staging game write slice. It writes existing `coins` rows only, rejects missing or insufficient balances, preserves legacy tie/win/loss wager behavior, and must be paired with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
 
 `/代幣重製` is a disabled-by-default staging owner-only destructive write slice. It writes all `coins` rows for a guild by either deleting them when `除以多少` is omitted or `0`, or dividing balances with legacy rounding when a divisor is provided. It must be paired with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true`, gateway, Guild Messages, and Message Content flags, and tested only against disposable staging balances.
+
+Role selection is a disabled-by-default staging slice. `/選取身分組-表情符號` writes legacy-compatible `message_reactions` rows and adds the configured reaction to the target message; `/選取身分組刪除-表情符號` deletes the matching row; `/選取身分組-按鈕` writes legacy-compatible `btns` rows and opens the legacy `nal` modal to publish an add/delete button panel. The runtime must be paired with `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true`, `MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true` for staging smoke.
 
 `/自動通知列表` and `/自動通知刪除` are config-maintenance commands only. They read/delete legacy `cron_sets` rows behind `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`; they do not implement `automatic-notification`, cron setup modals/selects, scheduler ownership, or notification sends.
 
@@ -251,6 +255,7 @@ Safe defaults:
 - `MHCAT_FEATURE_VERIFICATION_FLOW_ENABLED=false`
 - `MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=false`
+- `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=false`
 - `MHCAT_JOBS_DAILY_RESET_ENABLED=false`
 - `MHCAT_JOBS_DAILY_RESET_DRY_RUN=true`
 - `MHCAT_JOBS_DAILY_RESET_TIMEOUT=60s`
@@ -335,6 +340,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_FLOW=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION=false`
 
 Legacy aliases:
 
@@ -551,6 +557,8 @@ The `/coin-related-settings` command is available only when `MHCAT_FEATURE_ECONO
 The `/剪刀石頭布` command is available only when `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes existing `coins` rows only, rejects missing or insufficient balances, and preserves the legacy game behavior where winning can move a balance above `999999999`; use only disposable staging balances until economy ownership and duplicate audits are reviewed.
 
 The `/代幣重製` command is available only when `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires the Discord guild owner and a same-channel `^確認^` message within 60 seconds before deleting or dividing all guild `coins` balances. Test only against disposable staging rows.
+
+The role-selection commands are available only when `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION=true`; staging preflight and scripts reject unpaired sync/runtime flags.
 
 The `打工系統` command is available only when `MHCAT_FEATURE_WORK_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`; staging preflight rejects unpaired sync/runtime flags. The current work slices preserve the legacy dashboard redirect for `新增打工事項`, implement legacy-style `打工介面` list/captcha/detail/start UI, and implement `打工系統設定`, `打工事項刪除`, `增加個人精力`, and `增加全體精力` behind explicit admin repository wiring and Manage Messages checks. The start and energy paths can create/update `work_users` through atomic repository methods and do not write coins or payout state. Recurring scheduler ownership and payout idempotency remain pending.
 

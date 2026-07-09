@@ -245,6 +245,18 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG:-false}" = "true" ] && [ "
   echo "refusing command sync: account-age config command dry-run requires MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION:-false}" = "true" ] && [ "${MHCAT_FEATURE_ROLE_SELECTION_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: role-selection commands dry-run requires MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_FEATURE_ROLE_SELECTION_ENABLED:-false}" = "true" ] && [ "${MHCAT_DISCORD_ENABLE_GATEWAY:-false}" != "true" ]; then
+  echo "refusing command sync: role-selection runtime requires MHCAT_DISCORD_ENABLE_GATEWAY=true for staging reaction-role parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_FEATURE_ROLE_SELECTION_ENABLED:-false}" = "true" ] && [ "${MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT:-false}" != "true" ]; then
+  echo "refusing command sync: role-selection runtime requires MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true for staging reaction-role parity" >&2
+  exit 1
+fi
 
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TICKETS:-false}" = "true" ]; then
   echo "staging command sync dry-run: including ticket commands for review" >&2
@@ -505,6 +517,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG:-false}" = "true" ]; then
   echo "staging command sync dry-run: including account-age config command for review" >&2
 else
   echo "staging command sync dry-run: account-age config command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including role-selection commands for review" >&2
+else
+  echo "staging command sync dry-run: role-selection commands are excluded" >&2
 fi
 
 MHCAT_COMMAND_SYNC_SCOPE=guild \

@@ -24,6 +24,7 @@ import (
 	featureonboarding "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/onboarding"
 	featurepoll "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/poll"
 	featureredeem "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/redeem"
+	featureroles "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/roles"
 	featuresafety "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/safety"
 	featurestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/stats"
 	featureticket "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/ticket"
@@ -334,6 +335,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeAccountAgeConfig {
 		definitions = append(definitions, featureonboarding.AccountAgeDefinitions()...)
 	}
+	if cfg.IncludeRoleSelection {
+		definitions = append(definitions, featureroles.Definitions()...)
+	}
 	return commands.NewRegistry(scope, definitions)
 }
 
@@ -494,6 +498,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeAccountAgeConfig {
 		expected = append(expected, featureonboarding.AccountAgeCommandName)
+	}
+	if cfg.IncludeRoleSelection {
+		expected = append(expected, featureroles.RoleButtonCommandName, featureroles.RoleReactionSetCommandName, featureroles.RoleReactionDeleteCommandName)
 	}
 	return expected
 }

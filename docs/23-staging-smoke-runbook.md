@@ -474,6 +474,17 @@ export MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 
 Set these only after `/帳號需創建時數 小時數` has configured a staging `create_hours` row. This path reads `create_hours` during `guildMemberAdd`, sends the legacy bilingual DM, kicks too-new members with the legacy reason, optionally logs to the configured channel, and stops later member-add handlers so join roles/welcome messages do not run after a kick. Use only a disposable staging member/account for smoke testing.
 
+Optional role-selection smoke flags:
+
+```bash
+export MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true
+```
+
+Set all four together only in an isolated staging guild/database when testing `/選取身分組-表情符號`, `/選取身分組刪除-表情符號`, and `/選取身分組-按鈕`. This path writes `message_reactions` and `btns`, adds reactions to staging messages, and changes roles on reaction/button use. Use roles below the bot's highest role.
+
 Optional leave-message delivery smoke flags:
 
 ```bash
@@ -543,6 +554,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_FLOW=true`, confirm `MHCAT_FEATURE_VERIFICATION_FLOW_ENABLED=true`, a staging `verifications` row exists or `/驗證設置` will be tested first, the target role is below the bot's highest role, and the test accepts process-local challenge state.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG=true`, confirm `MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED=true` and the staging database can safely write `create_hours`.
 - If `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`, a staging `create_hours` row exists or `/帳號需創建時數 小時數` will be tested first, and a disposable too-new test account/member is available.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION=true`, confirm `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true`, the staging database can safely write `message_reactions` and `btns`, and the test role is below the bot's highest role.
 - If `MHCAT_FEATURE_LEAVE_MESSAGE_DELIVERY_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`, the staging database has a safe `leave_messages` row, and the target channel is staging-only.
 
 Run local-only preflight before any Discord or Mongo action:
@@ -1271,6 +1283,16 @@ If account-age member gate smoke was explicitly enabled:
 - if a log channel was configured, verify the log embed title is `低於管理員所設定的時數` and contains the account creation timestamp field;
 - verify join-role/welcome side effects do not run after the account-age kick.
 
+If role-selection flags were enabled and command sync apply was reviewed:
+
+- run `/選取身分組-表情符號` against a disposable staging message with a staging role below the bot's highest role;
+- verify the bot adds the configured reaction to the target message;
+- verify `message_reactions` stores `guild`, `message`, `react`, and `role`;
+- react and unreact as a test member, then verify the configured role is added and removed;
+- run `/選取身分組刪除-表情符號` and verify the matching `message_reactions` row is deleted;
+- run `/選取身分組-按鈕`, submit the legacy `領取身分系統!` modal, verify the public `選取身分組` panel appears, click add/delete, and verify `btns` stores the add/delete IDs with the configured role;
+- verify unassignable roles and missing reaction config return legacy red errors.
+
 If ticket flags were enabled and command sync apply was reviewed:
 
 - `/私人頻道設置`
@@ -1375,6 +1397,7 @@ Verify:
   - Exception: ticket smoke writes the legacy-compatible `tickets` config only after successful modal submit.
   - Exception: economy coin-admin smoke writes disposable staging `coins` rows only.
   - Exception: economy coin-reset smoke deletes or divides disposable staging `coins` rows only after the owner `^確認^` confirmation.
+  - Exception: role-selection smoke writes staging `message_reactions` and `btns` rows only after setup commands.
   - Exception: logging-config smoke writes the legacy-compatible `loggings` config only after the setup select is submitted.
   - Exception: delete-data smoke deletes selected disposable staging config rows only.
   - Exception: auto-notification config smoke writes/completes disposable setup `cron_sets` rows, sends a setup preview, and deletes selected rows and abandoned pending drafts only.

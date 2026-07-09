@@ -83,6 +83,17 @@ func (c SideEffectClient) DeleteMessage(ctx context.Context, ref ports.MessageRe
 	return ctx.Err()
 }
 
+func (c SideEffectClient) AddReaction(ctx context.Context, channelID string, messageID string, emoji string) error {
+	session, err := c.session()
+	if err != nil {
+		return err
+	}
+	if err := session.MessageReactionAdd(channelID, messageID, emoji, dgo.WithContext(ctx)); err != nil {
+		return fmt.Errorf("add discord reaction: %w", err)
+	}
+	return ctx.Err()
+}
+
 func (c SideEffectClient) CleanupMessages(ctx context.Context, req ports.MessageCleanupRequest) (int, error) {
 	session, err := c.session()
 	if err != nil {
@@ -785,6 +796,7 @@ func coreAllowedMentions(allowed ports.AllowedMentions) *dgo.MessageAllowedMenti
 
 var _ ports.DiscordChannelPort = SideEffectClient{}
 var _ ports.DiscordMessagePort = SideEffectClient{}
+var _ ports.DiscordReactionPort = SideEffectClient{}
 var _ ports.DiscordMessageCleaner = SideEffectClient{}
 var _ ports.DiscordDirectMessagePort = SideEffectClient{}
 var _ ports.DiscordGuildMemberReader = SideEffectClient{}

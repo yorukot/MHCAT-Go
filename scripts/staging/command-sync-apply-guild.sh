@@ -261,6 +261,18 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG:-false}" = "true" ] && [ "
   echo "refusing apply: account-age config command apply requires MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION:-false}" = "true" ] && [ "${MHCAT_FEATURE_ROLE_SELECTION_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: role-selection commands apply requires MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_FEATURE_ROLE_SELECTION_ENABLED:-false}" = "true" ] && [ "${MHCAT_DISCORD_ENABLE_GATEWAY:-false}" != "true" ]; then
+  echo "refusing apply: role-selection runtime requires MHCAT_DISCORD_ENABLE_GATEWAY=true for staging reaction-role parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_FEATURE_ROLE_SELECTION_ENABLED:-false}" = "true" ] && [ "${MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT:-false}" != "true" ]; then
+  echo "refusing apply: role-selection runtime requires MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true for staging reaction-role parity" >&2
+  exit 1
+fi
 
 echo "staging command sync apply: guild create/update only; no delete; no bulk overwrite" >&2
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TICKETS:-false}" = "true" ]; then
@@ -522,6 +534,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG:-false}" = "true" ]; then
   echo "staging command sync apply: including account-age config command" >&2
 else
   echo "staging command sync apply: account-age config command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION:-false}" = "true" ]; then
+  echo "staging command sync apply: including role-selection commands" >&2
+else
+  echo "staging command sync apply: role-selection commands are excluded" >&2
 fi
 
 MHCAT_COMMAND_SYNC_SCOPE=guild \

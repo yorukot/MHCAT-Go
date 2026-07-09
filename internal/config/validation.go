@@ -126,6 +126,14 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED requires MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureRoleSelectionEnabled {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_ROLE_SELECTION_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordMessageReactionsIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_ROLE_SELECTION_ENABLED requires MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true", ErrInvalidConfig)
+		}
+	}
 	if cfg.FeatureAntiScamReportEnabled && strings.TrimSpace(cfg.ReportWebhookURL) == "" {
 		return fmt.Errorf("%w: MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED requires MHCAT_REPORT_WEBHOOK_URL or REPORT_WEBHOOK", ErrInvalidConfig)
 	}

@@ -125,6 +125,10 @@ type DiscordMessagePort interface {
 	DeleteMessage(ctx context.Context, ref MessageRef) error
 }
 
+type DiscordReactionPort interface {
+	AddReaction(ctx context.Context, channelID string, messageID string, emoji string) error
+}
+
 type DiscordMessageCleaner interface {
 	CleanupMessages(ctx context.Context, req MessageCleanupRequest) (int, error)
 }
