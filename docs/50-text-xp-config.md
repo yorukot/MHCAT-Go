@@ -19,7 +19,7 @@ Status: implemented behind explicit runtime and command-sync gates.
 - Permission: Manage Messages (`8192`) at command definition and runtime check
 - Discord behavior: public defer, legacy-style green/red embeds, optional preview message
 
-This slice is config-only. It does not enable message-create XP accrual, rank cards, level-role rewards, voice XP, coin rewards, or Message Content intent.
+This slice is announcement-config only. It does not enable message-create XP accrual, rank cards, automatic reward-role assignment/removal, voice XP, coin rewards, or Message Content intent. Text reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
 
 ## Legacy UI/UX Preserved
 
@@ -57,7 +57,7 @@ This slice is config-only. It does not enable message-create XP accrual, rank ca
 - `events/LevelSystem.js` / text XP accrual.
 - `/聊天排行榜`, rank image rendering, rank buttons, and the old XP profile card lookup behind `/聊天經驗`; the current `/聊天經驗` command is implemented separately as a disabled replacement response only.
 - XP-to-coin rewards.
-- chat level-role config.
+- automatic chat reward-role assignment/removal; the config command is tracked separately from XP accrual.
 - voice XP and voice level-role behavior.
 - Message Content or Guild Messages intent enablement.
 - Usage counter writes to `all_use_count`.

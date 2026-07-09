@@ -6,6 +6,7 @@
 - If syncing optional features, confirm every `MHCAT_COMMAND_SYNC_INCLUDE_*` flag is paired with the matching `MHCAT_FEATURE_*_ENABLED=true` runtime flag.
 - For text-XP config smoke, use an isolated staging database and pair `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true` with `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`.
 - For voice-XP config smoke, use an isolated staging database and pair `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true` with `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`.
+- For XP reward-role config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true` with `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`; use roles below the bot's highest role.
 - For disabled XP profile smoke, pair `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true` with `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true`; these commands only return the legacy replacement message and must not write Mongo data.
 - For voice-room config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true` with `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true`; this only writes `voice_channels` config rows and does not create dynamic voice rooms yet.
 - For join-role config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=true` with `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true`.
@@ -37,6 +38,7 @@
 - Run `/info bot`.
 - If text-XP config smoke is enabled, run `/聊天經驗設定` with a staging channel and then `/聊天經驗刪除`.
 - If voice-XP config smoke is enabled, run `/語音經驗設定` with a staging channel and then `/語音經驗刪除`.
+- If XP reward-role config smoke is enabled, run `/聊天經驗身分組設定 增加`, `/聊天經驗身分組設定 設定查詢`, and `/聊天經驗身分組設定 刪除` with a staging role and level, then repeat for `/語音經驗身分組設定`; verify `chat_roles`/`voice_roles` rows use legacy `leavel` strings and no XP role assignment happens.
 - If disabled XP profile smoke is enabled, run `/聊天經驗` and `/語音經驗` and verify the red replacement embed points users to `/我的檔案`.
 - If voice-room config smoke is enabled, run `/語音包廂設置` with a staging voice/stage channel, `{name}` room template, lock choice, and optional limit; verify the `voice_channels` row, then run `/語音包廂刪除` for the trigger channel or parent category.
 - If join-role config smoke is enabled, run `/加入身份組設置` with a staging role below the bot's highest role and then `/加入身份組刪除`.

@@ -934,6 +934,38 @@ func TestBuildRuntimeRoutesStatsDeleteOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesXPRoleConfigOnlyWithRepositories(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("聊天經驗身分組設定", "設定查詢", nil)
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("XP role config route should not be available without repositories")
+	}
+
+	textRepo := fakemongo.NewTextXPRewardRoleRepository()
+	textRepo.Configs = []domain.XPRewardRoleConfig{{GuildID: "guild-1", Level: 5, RoleID: "role-1"}}
+	voiceRepo := fakemongo.NewVoiceXPRewardRoleRepository()
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                      validTestConfig(),
+		TextXPRewardRoleRepository:  textRepo,
+		VoiceXPRewardRoleRepository: voiceRepo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with XP role config: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch XP role config: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "聊天經驗身分組") {
+		t.Fatalf("XP role config response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesAutoChatConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

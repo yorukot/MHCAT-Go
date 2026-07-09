@@ -16,8 +16,10 @@ import (
 )
 
 const (
-	TextXPChannelCollectionName  = "text_xp_channels"
-	VoiceXPChannelCollectionName = "voice_xp_channels"
+	TextXPChannelCollectionName     = "text_xp_channels"
+	VoiceXPChannelCollectionName    = "voice_xp_channels"
+	TextXPRewardRoleCollectionName  = "chat_roles"
+	VoiceXPRewardRoleCollectionName = "voice_roles"
 )
 
 type TextXPConfigRepository struct {
@@ -25,6 +27,14 @@ type TextXPConfigRepository struct {
 }
 
 type VoiceXPConfigRepository struct {
+	collection *drivermongo.Collection
+}
+
+type TextXPRewardRoleRepository struct {
+	collection *drivermongo.Collection
+}
+
+type VoiceXPRewardRoleRepository struct {
 	collection *drivermongo.Collection
 }
 
@@ -54,6 +64,34 @@ func NewVoiceXPConfigRepositoryFromDatabase(database *drivermongo.Database) (*Vo
 		return nil, errors.New("mongo database is required")
 	}
 	return NewVoiceXPConfigRepository(database.Collection(VoiceXPChannelCollectionName))
+}
+
+func NewTextXPRewardRoleRepository(collection *drivermongo.Collection) (*TextXPRewardRoleRepository, error) {
+	if collection == nil {
+		return nil, errors.New("mongo text xp reward role collection is required")
+	}
+	return &TextXPRewardRoleRepository{collection: collection}, nil
+}
+
+func NewTextXPRewardRoleRepositoryFromDatabase(database *drivermongo.Database) (*TextXPRewardRoleRepository, error) {
+	if database == nil {
+		return nil, errors.New("mongo database is required")
+	}
+	return NewTextXPRewardRoleRepository(database.Collection(TextXPRewardRoleCollectionName))
+}
+
+func NewVoiceXPRewardRoleRepository(collection *drivermongo.Collection) (*VoiceXPRewardRoleRepository, error) {
+	if collection == nil {
+		return nil, errors.New("mongo voice xp reward role collection is required")
+	}
+	return &VoiceXPRewardRoleRepository{collection: collection}, nil
+}
+
+func NewVoiceXPRewardRoleRepositoryFromDatabase(database *drivermongo.Database) (*VoiceXPRewardRoleRepository, error) {
+	if database == nil {
+		return nil, errors.New("mongo database is required")
+	}
+	return NewVoiceXPRewardRoleRepository(database.Collection(VoiceXPRewardRoleCollectionName))
 }
 
 func (r *TextXPConfigRepository) SaveTextXPConfig(ctx context.Context, config domain.TextXPConfig) error {
@@ -179,5 +217,104 @@ func xpChannelConfigUpdate(channel string, color string, message string, guild s
 	return builder.Build()
 }
 
+func (r *TextXPRewardRoleRepository) ListTextXPRewardRoles(ctx context.Context, guildID string) ([]domain.XPRewardRoleConfig, error) {
+	return listXPRewardRoles(ctx, r.collection, guildID)
+}
+
+func (r *TextXPRewardRoleRepository) SaveTextXPRewardRole(ctx context.Context, config domain.XPRewardRoleConfig) error {
+	return saveXPRewardRole(ctx, r.collection, config)
+}
+
+func (r *TextXPRewardRoleRepository) DeleteTextXPRewardRole(ctx context.Context, guildID string, level int64, roleID string) error {
+	return deleteXPRewardRole(ctx, r.collection, guildID, level, roleID, ports.ErrTextXPRewardRoleMissing)
+}
+
+func (r *VoiceXPRewardRoleRepository) ListVoiceXPRewardRoles(ctx context.Context, guildID string) ([]domain.XPRewardRoleConfig, error) {
+	return listXPRewardRoles(ctx, r.collection, guildID)
+}
+
+func (r *VoiceXPRewardRoleRepository) SaveVoiceXPRewardRole(ctx context.Context, config domain.XPRewardRoleConfig) error {
+	return saveXPRewardRole(ctx, r.collection, config)
+}
+
+func (r *VoiceXPRewardRoleRepository) DeleteVoiceXPRewardRole(ctx context.Context, guildID string, level int64, roleID string) error {
+	return deleteXPRewardRole(ctx, r.collection, guildID, level, roleID, ports.ErrVoiceXPRewardRoleMissing)
+}
+
+func listXPRewardRoles(ctx context.Context, collection *drivermongo.Collection, guildID string) ([]domain.XPRewardRoleConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return nil, domain.ErrInvalidXPRewardRoleConfig
+	}
+	cursor, err := collection.Find(ctx, bson.D{{Key: "guild", Value: guildID}})
+	if err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("list xp reward roles: %w", err))
+	}
+	defer cursor.Close(ctx)
+	var configs []domain.XPRewardRoleConfig
+	for cursor.Next(ctx) {
+		var document documents.XPRewardRoleDocument
+		if err := cursor.Decode(&document); err != nil {
+			return nil, mhcatmongo.MapError(fmt.Errorf("decode xp reward role: %w", err))
+		}
+		configs = append(configs, document.ToDomain())
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("iterate xp reward roles: %w", err))
+	}
+	return configs, ctx.Err()
+}
+
+func saveXPRewardRole(ctx context.Context, collection *drivermongo.Collection, config domain.XPRewardRoleConfig) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	config = config.Normalize()
+	if err := config.Validate(); err != nil {
+		return err
+	}
+	document := documents.XPRewardRoleDocumentFromDomain(config)
+	filter := xpRewardRoleFilter(document.Guild, document.Leavel, document.Role)
+	if _, err := collection.DeleteMany(ctx, filter); err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("replace xp reward role: %w", err))
+	}
+	if _, err := collection.InsertOne(ctx, document); err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("insert xp reward role: %w", err))
+	}
+	return ctx.Err()
+}
+
+func deleteXPRewardRole(ctx context.Context, collection *drivermongo.Collection, guildID string, level int64, roleID string, missing error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	guildID = strings.TrimSpace(guildID)
+	roleID = strings.TrimSpace(roleID)
+	if guildID == "" || roleID == "" {
+		return domain.ErrInvalidXPRewardRoleConfig
+	}
+	result, err := collection.DeleteMany(ctx, xpRewardRoleFilter(guildID, fmt.Sprintf("%d", level), roleID))
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("delete xp reward role: %w", err))
+	}
+	if result.DeletedCount == 0 {
+		return missing
+	}
+	return ctx.Err()
+}
+
+func xpRewardRoleFilter(guildID string, level string, roleID string) bson.D {
+	return bson.D{
+		{Key: "guild", Value: strings.TrimSpace(guildID)},
+		{Key: "leavel", Value: strings.TrimSpace(level)},
+		{Key: "role", Value: strings.TrimSpace(roleID)},
+	}
+}
+
 var _ ports.TextXPConfigRepository = (*TextXPConfigRepository)(nil)
 var _ ports.VoiceXPConfigRepository = (*VoiceXPConfigRepository)(nil)
+var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
+var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)

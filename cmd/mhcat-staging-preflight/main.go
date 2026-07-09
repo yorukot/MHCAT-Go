@@ -148,6 +148,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		textXPConfigRuntimePairing(lookup),
 		voiceXPConfigCommandSync(lookup),
 		voiceXPConfigRuntimePairing(lookup),
+		xpRoleConfigCommandSync(lookup),
+		xpRoleConfigRuntimePairing(lookup),
 		xpProfileDisabledCommandSync(lookup),
 		xpProfileDisabledRuntimePairing(lookup),
 		voiceRoomConfigCommandSync(lookup),
@@ -1291,6 +1293,38 @@ func voiceXPConfigRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "voice-xp-config-runtime-pairing", Status: statusWarn, Message: "voice XP config runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "voice-xp-config-runtime-pairing", Status: statusSkipped, Message: "voice XP config runtime and command sync include are disabled"}
+}
+
+func xpRoleConfigCommandSync(lookup lookupFunc) checkResult {
+	includeXPRoles, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG")
+	if err != nil {
+		return checkResult{Name: "xp-role-config-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeXPRoles {
+		return checkResult{Name: "xp-role-config-command-sync", Status: statusPass, Message: "XP role config command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "xp-role-config-command-sync", Status: statusSkipped, Message: "XP role config command sync include is disabled"}
+}
+
+func xpRoleConfigRuntimePairing(lookup lookupFunc) checkResult {
+	includeXPRoles, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG")
+	if err != nil {
+		return checkResult{Name: "xp-role-config-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	xpRolesEnabled, err := boolValue(lookup, "MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED")
+	if err != nil {
+		return checkResult{Name: "xp-role-config-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeXPRoles && !xpRolesEnabled {
+		return checkResult{Name: "xp-role-config-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true requires MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true in the staging runtime"}
+	}
+	if includeXPRoles && xpRolesEnabled {
+		return checkResult{Name: "xp-role-config-runtime-pairing", Status: statusPass, Message: "XP role config command sync and runtime feature flag are paired"}
+	}
+	if xpRolesEnabled {
+		return checkResult{Name: "xp-role-config-runtime-pairing", Status: statusWarn, Message: "XP role config runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "xp-role-config-runtime-pairing", Status: statusSkipped, Message: "XP role config runtime and command sync include are disabled"}
 }
 
 func xpProfileDisabledCommandSync(lookup lookupFunc) checkResult {

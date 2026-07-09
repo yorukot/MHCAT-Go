@@ -82,6 +82,41 @@ func TestDisabledProfileDefinitionsMatchLegacy(t *testing.T) {
 	}
 }
 
+func TestRewardRoleDefinitionsMatchLegacy(t *testing.T) {
+	definitions := RewardRoleDefinitions()
+	if len(definitions) != 2 {
+		t.Fatalf("definitions = %#v", definitions)
+	}
+	text := TextXPRewardRoleDefinition()
+	if text.Name != TextXPRewardRoleCommandName || text.Description != "設定聊天經驗通知要在哪發送" {
+		t.Fatalf("text reward definition = %#v", text)
+	}
+	voice := VoiceXPRewardRoleDefinition()
+	if voice.Name != VoiceXPRewardRoleCommandName || voice.Description != "設定語音經驗通知要在哪發送(兼增加、刪除、設定查詢)" {
+		t.Fatalf("voice reward definition = %#v", voice)
+	}
+	for _, definition := range definitions {
+		if definition.DefaultMemberPermissions == nil || *definition.DefaultMemberPermissions != manageMessagesPermission {
+			t.Fatalf("permissions = %#v", definition.DefaultMemberPermissions)
+		}
+		if len(definition.Options) != 3 {
+			t.Fatalf("reward options = %#v", definition.Options)
+		}
+		if definition.Options[0].Name != "增加" || definition.Options[0].Type != commands.OptionTypeSubCommand || len(definition.Options[0].Options) != 3 {
+			t.Fatalf("add subcommand = %#v", definition.Options[0])
+		}
+		if definition.Options[1].Name != "刪除" || definition.Options[1].Type != commands.OptionTypeSubCommand || len(definition.Options[1].Options) != 2 {
+			t.Fatalf("delete subcommand = %#v", definition.Options[1])
+		}
+		if definition.Options[2].Name != "設定查詢" || definition.Options[2].Type != commands.OptionTypeSubCommand {
+			t.Fatalf("query subcommand = %#v", definition.Options[2])
+		}
+	}
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, definitions)); err != nil {
+		t.Fatalf("validate reward roles: %v", err)
+	}
+}
+
 func TestTextAndVoiceDefinitionsAreSeparateGates(t *testing.T) {
 	for _, definition := range TextDefinitions() {
 		if definition.Name == VoiceXPSetCommandName || definition.Name == VoiceXPDeleteCommandName {
@@ -97,6 +132,12 @@ func TestTextAndVoiceDefinitionsAreSeparateGates(t *testing.T) {
 		switch definition.Name {
 		case TextXPSetCommandName, TextXPDeleteCommandName, VoiceXPSetCommandName, VoiceXPDeleteCommandName:
 			t.Fatalf("disabled profile definitions leaked config command: %#v", definition)
+		}
+	}
+	for _, definition := range RewardRoleDefinitions() {
+		switch definition.Name {
+		case TextXPSetCommandName, TextXPDeleteCommandName, VoiceXPSetCommandName, VoiceXPDeleteCommandName, TextXPProfileCommandName, VoiceXPProfileCommandName:
+			t.Fatalf("reward role definitions leaked another XP command: %#v", definition)
 		}
 	}
 }

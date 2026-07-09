@@ -1283,6 +1283,43 @@ func TestPreflightWarnsWhenVoiceXPConfigRuntimeEnabledWithoutCommandSync(t *test
 	}
 }
 
+func TestPreflightRejectsXPRoleConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "xp-role-config-runtime-pairing status=fail") {
+		t.Fatalf("expected XP role config pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsXPRoleConfigCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG"] = "true"
+	env["MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "xp-role-config-command-sync status=pass") || !strings.Contains(stdout, "xp-role-config-runtime-pairing status=pass") {
+		t.Fatalf("expected XP role config pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenXPRoleConfigRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "xp-role-config-runtime-pairing status=warn") {
+		t.Fatalf("expected XP role config runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsXPProfileDisabledCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS"] = "true"

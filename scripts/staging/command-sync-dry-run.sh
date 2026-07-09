@@ -141,6 +141,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG:-false}" = "true" ] && [ "${M
   echo "refusing command sync: voice XP config command dry-run requires MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: XP role config commands dry-run requires MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS:-false}" = "true" ] && [ "${MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED:-false}" != "true" ]; then
   echo "refusing command sync: XP profile disabled commands dry-run requires MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -329,6 +333,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG:-false}" = "true" ]; then
   echo "staging command sync dry-run: including voice XP config commands for review" >&2
 else
   echo "staging command sync dry-run: voice XP config commands are excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including XP role config commands for review" >&2
+else
+  echo "staging command sync dry-run: XP role config commands are excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS:-false}" = "true" ]; then
   echo "staging command sync dry-run: including XP profile disabled commands for review" >&2

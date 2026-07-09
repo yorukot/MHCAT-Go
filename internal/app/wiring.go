@@ -95,6 +95,9 @@ type RuntimeOptions struct {
 	TextXPMessagePort             ports.DiscordMessagePort
 	VoiceXPConfigRepository       ports.VoiceXPConfigRepository
 	VoiceXPMessagePort            ports.DiscordMessagePort
+	TextXPRewardRoleRepository    ports.TextXPRewardRoleRepository
+	VoiceXPRewardRoleRepository   ports.VoiceXPRewardRoleRepository
+	XPRewardRoleInspector         ports.DiscordRoleInspector
 	XPProfileDisabledEnabled      bool
 	VoiceRoomConfigRepository     ports.VoiceRoomConfigRepository
 	JoinRoleConfigRepository      ports.JoinRoleConfigRepository
@@ -215,6 +218,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.VoiceXPConfigRepository != nil {
 		definitions = append(definitions, featurexp.VoiceDefinitions()...)
+	}
+	if opts.TextXPRewardRoleRepository != nil && opts.VoiceXPRewardRoleRepository != nil {
+		definitions = append(definitions, featurexp.RewardRoleDefinitions()...)
 	}
 	if opts.XPProfileDisabledEnabled {
 		definitions = append(definitions, featurexp.DisabledProfileDefinitions()...)
@@ -454,6 +460,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.VoiceXPConfigRepository != nil {
 		voiceXPModule := featurexp.NewVoiceModule(opts.VoiceXPConfigRepository, opts.VoiceXPMessagePort, opts.UsageTracker)
 		if err := voiceXPModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.TextXPRewardRoleRepository != nil && opts.VoiceXPRewardRoleRepository != nil {
+		rewardRoleModule := featurexp.NewRewardRoleModule(opts.TextXPRewardRoleRepository, opts.VoiceXPRewardRoleRepository, opts.XPRewardRoleInspector, opts.UsageTracker)
+		if err := rewardRoleModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

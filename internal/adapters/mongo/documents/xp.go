@@ -1,6 +1,9 @@
 package documents
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -26,6 +29,13 @@ type XPProfileDocument struct {
 	Member string        `bson:"member" json:"member"`
 	XP     bson.RawValue `bson:"xp" json:"xp"`
 	Leavel bson.RawValue `bson:"leavel" json:"leavel"`
+}
+
+type XPRewardRoleDocument struct {
+	Guild         string `bson:"guild" json:"guild"`
+	Leavel        string `bson:"leavel" json:"leavel"`
+	Role          string `bson:"role" json:"role"`
+	DeleteWhenNot bool   `bson:"delete_when_not" json:"delete_when_not"`
 }
 
 func TextXPChannelDocumentFromDomain(config domain.TextXPConfig) TextXPChannelDocument {
@@ -71,4 +81,24 @@ func (d XPProfileDocument) ToDomain() domain.XPProfile {
 		XP:      legacyInt64(d.XP),
 		Level:   legacyInt64(d.Leavel),
 	}
+}
+
+func XPRewardRoleDocumentFromDomain(config domain.XPRewardRoleConfig) XPRewardRoleDocument {
+	config = config.Normalize()
+	return XPRewardRoleDocument{
+		Guild:         config.GuildID,
+		Leavel:        strconv.FormatInt(config.Level, 10),
+		Role:          config.RoleID,
+		DeleteWhenNot: config.DeleteWhenNot,
+	}
+}
+
+func (d XPRewardRoleDocument) ToDomain() domain.XPRewardRoleConfig {
+	level, _ := strconv.ParseInt(strings.TrimSpace(d.Leavel), 10, 64)
+	return domain.XPRewardRoleConfig{
+		GuildID:       d.Guild,
+		Level:         level,
+		RoleID:        d.Role,
+		DeleteWhenNot: d.DeleteWhenNot,
+	}.Normalize()
 }

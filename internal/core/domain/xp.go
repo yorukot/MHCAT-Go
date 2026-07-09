@@ -9,6 +9,7 @@ import (
 
 var ErrInvalidTextXPConfig = errors.New("invalid text xp config")
 var ErrInvalidVoiceXPConfig = errors.New("invalid voice xp config")
+var ErrInvalidXPRewardRoleConfig = errors.New("invalid xp reward role config")
 
 type TextXPConfig struct {
 	GuildID   string
@@ -31,6 +32,13 @@ type XPProfile struct {
 	Level   int64
 }
 
+type XPRewardRoleConfig struct {
+	GuildID       string
+	Level         int64
+	RoleID        string
+	DeleteWhenNot bool
+}
+
 func (c TextXPConfig) Validate() error {
 	if strings.TrimSpace(c.GuildID) == "" || strings.TrimSpace(c.ChannelID) == "" {
 		return ErrInvalidTextXPConfig
@@ -47,6 +55,20 @@ func (c VoiceXPConfig) Validate() error {
 	}
 	if strings.TrimSpace(c.Color) != "" && !ValidLegacyColor(c.Color) {
 		return ErrInvalidVoiceXPConfig
+	}
+	return nil
+}
+
+func (c XPRewardRoleConfig) Normalize() XPRewardRoleConfig {
+	c.GuildID = strings.TrimSpace(c.GuildID)
+	c.RoleID = strings.TrimSpace(c.RoleID)
+	return c
+}
+
+func (c XPRewardRoleConfig) Validate() error {
+	c = c.Normalize()
+	if c.GuildID == "" || c.RoleID == "" {
+		return ErrInvalidXPRewardRoleConfig
 	}
 	return nil
 }

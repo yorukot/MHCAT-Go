@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 53
-- Matching command definitions: 53
+- Current Go command definitions: 55
+- Matching command definitions: 55
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 21
+- Legacy commands without Go definitions: 19
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -53,6 +53,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `聊天經驗` | `slashCommands/經驗系統/text_xp.js` | matching-definition | none |
 | `聊天經驗刪除` | `slashCommands/經驗系統/text_set_delete.js` | matching-definition | none |
 | `聊天經驗設定` | `slashCommands/經驗系統/text_set.js` | matching-definition | none |
+| `聊天經驗身分組設定` | `slashCommands/經驗系統/text_leave_role.js` | matching-definition | none |
 | `自動聊天頻道` | `slashCommands/實用工具/chat.js` | matching-definition | none |
 | `自動聊天頻道刪除` | `slashCommands/實用工具/chat_delete.js` | matching-definition | none |
 | `自動通知列表` | `slashCommands/自動通知/cron_list.js` | matching-definition | none |
@@ -63,6 +64,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `語音經驗` | `slashCommands/經驗系統/voice_xp.js` | matching-definition | none |
 | `語音經驗刪除` | `slashCommands/經驗系統/voice_set_delete.js` | matching-definition | none |
 | `語音經驗設定` | `slashCommands/經驗系統/voice_set.js` | matching-definition | none |
+| `語音經驗身分組設定` | `slashCommands/經驗系統/voice_leavel_role.js` | matching-definition | none |
 | `警告` | `slashCommands/警告系統/warn.js` | matching-definition | none |
 | `警告全部清除` | `slashCommands/警告系統/remove-all-warnings.js` | matching-definition | none |
 | `警告清除` | `slashCommands/警告系統/remove-warn.js` | matching-definition | none |
@@ -96,9 +98,7 @@ None.
 | `經驗值改變` | 經驗系統 | `slashCommands/經驗系統/xp_add.js` | 增加某人的經驗值 |
 | `經驗值重製` | 經驗系統 | `slashCommands/經驗系統/reset_xp.js` | 重製整個伺服器的經驗 |
 | `聊天排行榜` | 經驗系統 | `slashCommands/經驗系統/text_rank.js` | 查詢聊天經驗的排行榜 |
-| `聊天經驗身分組設定` | 經驗系統 | `slashCommands/經驗系統/text_leave_role.js` | 設定聊天經驗通知要在哪發送 |
 | `語音排行榜` | 經驗系統 | `slashCommands/經驗系統/voice_rank.js` | 查詢語音經驗的排行榜 |
-| `語音經驗身分組設定` | 經驗系統 | `slashCommands/經驗系統/voice_leavel_role.js` | 設定語音經驗通知要在哪發送(兼增加、刪除、設定查詢) |
 | `選取身分組-按鈕` | 管理系統 | `slashCommands/管理系統/releadd.js` | 設定領取身分組的消息(點按鈕自動增加身分組) |
 | `選取身分組-表情符號` | 管理系統 | `slashCommands/管理系統/role.js` | 設定領取身分組的消息-點按鈕自動增加身分組(如要更改某個表情符號所給予的身分組，請一樣打這個指令) |
 | `選取身分組刪除-表情符號` | 管理系統 | `slashCommands/管理系統/role_delete.js` | 選取身分組刪除-表情符號版(進行刪除) |

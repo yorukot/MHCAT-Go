@@ -48,6 +48,19 @@ func TestXPChannelConfigUpdateUsesNilForEmptyColorAndMessage(t *testing.T) {
 	}
 }
 
+func TestXPRewardRoleFilterUsesLegacyMisspelledLevelField(t *testing.T) {
+	filter := xpRewardRoleFilter(" guild-1 ", " 12 ", " role-1 ")
+	if value := documentValue(t, filter, "guild"); value != "guild-1" {
+		t.Fatalf("guild = %#v", value)
+	}
+	if value := documentValue(t, filter, "leavel"); value != "12" {
+		t.Fatalf("leavel = %#v", value)
+	}
+	if value := documentValue(t, filter, "role"); value != "role-1" {
+		t.Fatalf("role = %#v", value)
+	}
+}
+
 func documentValue(t *testing.T, doc any, key string) any {
 	t.Helper()
 	switch typed := doc.(type) {

@@ -11,6 +11,9 @@ var ErrTextXPConfigMissing = errors.New("text xp config is missing")
 var ErrVoiceXPConfigMissing = errors.New("voice xp config is missing")
 var ErrTextXPProfileMissing = errors.New("text xp profile is missing")
 var ErrVoiceXPProfileMissing = errors.New("voice xp profile is missing")
+var ErrTextXPRewardRoleMissing = errors.New("text xp reward role config is missing")
+var ErrVoiceXPRewardRoleMissing = errors.New("voice xp reward role config is missing")
+var ErrXPRewardRoleLimitExceeded = errors.New("xp reward role config limit exceeded")
 
 type TextXPConfigRepository interface {
 	SaveTextXPConfig(ctx context.Context, config domain.TextXPConfig) error
@@ -20,4 +23,16 @@ type TextXPConfigRepository interface {
 type VoiceXPConfigRepository interface {
 	SaveVoiceXPConfig(ctx context.Context, config domain.VoiceXPConfig) error
 	DeleteVoiceXPConfig(ctx context.Context, guildID string) error
+}
+
+type TextXPRewardRoleRepository interface {
+	ListTextXPRewardRoles(ctx context.Context, guildID string) ([]domain.XPRewardRoleConfig, error)
+	SaveTextXPRewardRole(ctx context.Context, config domain.XPRewardRoleConfig) error
+	DeleteTextXPRewardRole(ctx context.Context, guildID string, level int64, roleID string) error
+}
+
+type VoiceXPRewardRoleRepository interface {
+	ListVoiceXPRewardRoles(ctx context.Context, guildID string) ([]domain.XPRewardRoleConfig, error)
+	SaveVoiceXPRewardRole(ctx context.Context, config domain.XPRewardRoleConfig) error
+	DeleteVoiceXPRewardRole(ctx context.Context, guildID string, level int64, roleID string) error
 }

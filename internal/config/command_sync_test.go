@@ -142,6 +142,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeVoiceXPConfig {
 		t.Fatal("include voice XP config must default false")
 	}
+	if cfg.IncludeXPRoleConfig {
+		t.Fatal("include XP role config must default false")
+	}
 	if cfg.IncludeXPProfileDisabled {
 		t.Fatal("include XP profile disabled commands must default false")
 	}
@@ -543,6 +546,48 @@ func TestCommandSyncIncludeStatsDeleteStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeStatsDelete {
 		t.Fatal("expected include stats delete to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeXPRoleConfigRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                       "token",
+		"MHCAT_DISCORD_APPLICATION_ID":              "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":               "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include XP role config without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeXPRoleConfigRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                       "token",
+		"MHCAT_DISCORD_APPLICATION_ID":              "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                  "global",
+		"MHCAT_STAGING_MODE":                        "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include XP role config with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeXPRoleConfigStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                       "token",
+		"MHCAT_DISCORD_APPLICATION_ID":              "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":               "guild",
+		"MHCAT_STAGING_MODE":                        "true",
+		"MHCAT_STAGING_GUILD_ID":                    "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeXPRoleConfig {
+		t.Fatal("expected include XP role config to be enabled explicitly")
 	}
 }
 

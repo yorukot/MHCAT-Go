@@ -254,6 +254,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true
 
 Set both together only in an isolated staging database when testing `/語音經驗設定` and `/語音經驗刪除`. This path writes `voice_xp_channels`; it does not enable Voice State intent, voice XP accrual, rank cards, or XP rewards. The legacy `背景` option is visible for command UI parity, but the legacy command did not save it.
 
+Optional XP reward-role config smoke flags:
+
+```bash
+export MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true
+```
+
+Set both together only in an isolated staging guild/database when testing `/聊天經驗身分組設定` and `/語音經驗身分組設定`. This path writes `chat_roles` and `voice_roles` config rows with legacy `leavel` strings; it does not enable Message Content intent, Guild Messages intent, Voice State intent, XP accrual, rank cards, automatic role assignment/removal, or coin rewards. Use staging roles below the bot's highest role.
+
 Optional disabled XP profile smoke flags:
 
 ```bash
@@ -396,6 +405,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, the staging bound channel is safe for message deletion tests, and tag pings are expected to be suppressed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true`, confirm `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true` and the staging database can safely write `text_xp_channels`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true`, confirm `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true` and the staging database can safely write `voice_xp_channels`.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true`, confirm `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`, the staging database can safely write `chat_roles`/`voice_roles`, and the test roles are below the bot's highest role.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true`, confirm `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true` and that the expected result is only the replacement embed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true`, confirm `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true` and the staging database can safely write/delete `voice_channels`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=true`, confirm `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true`, the staging database can safely write `join_roles`, and the test role is below the bot's highest role.
@@ -609,6 +619,13 @@ For voice-XP config staging smoke, expected additionally:
 - plan includes managed `語音經驗設定` and `語音經驗刪除`;
 - plan still performs no create/update/delete during dry-run.
 
+For XP reward-role config staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true`;
+- `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`;
+- plan includes managed `聊天經驗身分組設定` and `語音經驗身分組設定`;
+- plan still performs no create/update/delete during dry-run.
+
 For disabled XP profile staging smoke, expected additionally:
 
 - `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true`;
@@ -817,6 +834,13 @@ If account-age config inclusion is enabled, expected:
 - no bulk overwrite;
 - no global command mutation.
 
+If XP reward-role config inclusion is enabled, expected:
+
+- create/update managed `聊天經驗身分組設定` and `語音經驗身分組設定` only in addition to the utility commands;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
 If voice-room config inclusion is enabled, expected:
 
 - create/update managed `語音包廂設置` and `語音包廂刪除` only in addition to the utility commands;
@@ -1015,6 +1039,16 @@ If logging-config flags were enabled and command sync apply was reviewed:
 - choose one or more staging log types;
 - verify `loggings.channel_id`, `message_update`, `message_delete`, `channel_update`, and `member_voice_update` reflect the selection in the staging database;
 - verify no message/channel/voice log event is emitted by the Go bot from this config slice.
+
+If XP reward-role config flags were enabled and command sync apply was reviewed:
+
+- run `/聊天經驗身分組設定 增加` with a staging role below the bot's highest role, a safe level, and both `到達等級後自動刪除身分組` choices across test rows;
+- verify the legacy green add/modify embed appears and the staging `chat_roles` row stores `guild`, string `leavel`, `role`, and `delete_when_not`;
+- run `/聊天經驗身分組設定 設定查詢` and verify the legacy query embed plus `上一頁`/`下一頁` buttons when there are enough seeded rows;
+- run `/聊天經驗身分組設定 刪除` for the staged level/role and verify the legacy green delete embed and row removal;
+- repeat the same add/query/delete path for `/語音經驗身分組設定` and `voice_roles`;
+- verify unassignable roles, missing deletes, and over-limit seeded data return legacy red errors;
+- verify no XP accrual, rank rendering, automatic role assignment/removal, coin reward, gateway intent, index, or usage-counter write happened.
 
 If voice-room config flags were enabled and command sync apply was reviewed:
 

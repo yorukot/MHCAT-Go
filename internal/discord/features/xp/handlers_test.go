@@ -247,3 +247,115 @@ func TestDisabledProfileHandlersReturnLegacyRemovalMessage(t *testing.T) {
 		t.Fatalf("voice usage = %#v", usage.Events[1])
 	}
 }
+
+func TestRewardRoleAddDeleteAndQueryHandlers(t *testing.T) {
+	textRepo := fakemongo.NewTextXPRewardRoleRepository()
+	voiceRepo := fakemongo.NewVoiceXPRewardRoleRepository()
+	roles := fakediscord.NewSideEffects()
+	roles.AssignableRoles["guild-1/role-1"] = true
+	usage := &fakeusage.Tracker{}
+	module := NewRewardRoleModule(textRepo, voiceRepo, roles, usage)
+
+	add := fakediscord.SlashInteractionWithOptions(TextXPRewardRoleCommandName, "增加", map[string]string{
+		"等級":     "12",
+		"身分組":    "role-1",
+		"是否自動刪除": "true",
+	})
+	add.Actor.PermissionBits = permissionManageMessages
+	responder := fakediscord.NewResponder()
+	if err := module.TextHandler()(context.Background(), add, responder); err != nil {
+		t.Fatalf("add handler: %v", err)
+	}
+	if len(textRepo.Configs) != 1 || textRepo.Configs[0].Level != 12 || textRepo.Configs[0].RoleID != "role-1" || !textRepo.Configs[0].DeleteWhenNot {
+		t.Fatalf("saved reward roles = %#v", textRepo.Configs)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != channelEmoji+"聊天經驗系統" || !strings.Contains(responder.Edits[0].Embeds[0].Description, "成功`增加`/`修改`該設定") {
+		t.Fatalf("add response = %#v", responder.Edits)
+	}
+
+	query := fakediscord.SlashInteractionWithOptions(TextXPRewardRoleCommandName, "設定查詢", nil)
+	query.Actor.PermissionBits = permissionManageMessages
+	responder = fakediscord.NewResponder()
+	if err := module.TextHandler()(context.Background(), query, responder); err != nil {
+		t.Fatalf("query handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds[0].Fields) != 1 {
+		t.Fatalf("query response = %#v", responder.Edits)
+	}
+	field := responder.Edits[0].Embeds[0].Fields[0]
+	if !strings.Contains(field.Value, "**等級:**`12`") || !strings.Contains(field.Value, "**身分組:**<@&role-1>") {
+		t.Fatalf("query field = %#v", field)
+	}
+	if responder.Edits[0].AllowedMentions == nil {
+		t.Fatalf("allowed mentions should be explicit: %#v", responder.Edits[0])
+	}
+
+	del := fakediscord.SlashInteractionWithOptions(TextXPRewardRoleCommandName, "刪除", map[string]string{"等級": "12", "身分組": "role-1"})
+	del.Actor.PermissionBits = permissionManageMessages
+	responder = fakediscord.NewResponder()
+	if err := module.TextHandler()(context.Background(), del, responder); err != nil {
+		t.Fatalf("delete handler: %v", err)
+	}
+	if len(textRepo.Configs) != 0 {
+		t.Fatalf("reward role was not deleted: %#v", textRepo.Configs)
+	}
+	if len(usage.Events) != 3 || usage.Events[0].Feature != "text-xp-role-config" {
+		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
+func TestRewardRoleRejectsPermissionRoleAndMissingDelete(t *testing.T) {
+	textRepo := fakemongo.NewTextXPRewardRoleRepository()
+	module := NewRewardRoleModule(textRepo, fakemongo.NewVoiceXPRewardRoleRepository(), fakediscord.NewSideEffects(), nil)
+
+	interaction := fakediscord.SlashInteractionWithOptions(TextXPRewardRoleCommandName, "增加", map[string]string{"等級": "1", "身分組": "role-1"})
+	responder := fakediscord.NewResponder()
+	if err := module.TextHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("permission handler: %v", err)
+	}
+	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你需要有`訊息管理`才能使用此指令") {
+		t.Fatalf("permission response = %#v", responder.Edits)
+	}
+
+	interaction.Actor.PermissionBits = permissionManageMessages
+	responder = fakediscord.NewResponder()
+	if err := module.TextHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("role handler: %v", err)
+	}
+	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "我沒有權限給大家這個身分組") {
+		t.Fatalf("role response = %#v", responder.Edits)
+	}
+
+	deleteInteraction := fakediscord.SlashInteractionWithOptions(TextXPRewardRoleCommandName, "刪除", map[string]string{"等級": "1", "身分組": "role-1"})
+	deleteInteraction.Actor.PermissionBits = permissionManageMessages
+	responder = fakediscord.NewResponder()
+	if err := module.TextHandler()(context.Background(), deleteInteraction, responder); err != nil {
+		t.Fatalf("missing delete handler: %v", err)
+	}
+	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你沒有設定過這個選項!") {
+		t.Fatalf("missing delete response = %#v", responder.Edits)
+	}
+}
+
+func TestRewardRoleVoicePaginationUpdatesMessage(t *testing.T) {
+	voiceRepo := fakemongo.NewVoiceXPRewardRoleRepository()
+	for i := 0; i < 13; i++ {
+		voiceRepo.Configs = append(voiceRepo.Configs, domain.XPRewardRoleConfig{GuildID: "guild-1", Level: int64(i + 1), RoleID: "role"})
+	}
+	module := NewRewardRoleModule(fakemongo.NewTextXPRewardRoleRepository(), voiceRepo, nil, nil)
+	module.color = func() int { return 0x123456 }
+	interaction := fakediscord.ComponentInteractionFromID("1voice_leave_role")
+	responder := fakediscord.NewResponder()
+	if err := module.VoicePageHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("page handler: %v", err)
+	}
+	if len(responder.Updates) != 1 || len(responder.Updates[0].Embeds[0].Fields) != 1 {
+		t.Fatalf("updates = %#v", responder.Updates)
+	}
+	if responder.Updates[0].Embeds[0].Color != 0x123456 {
+		t.Fatalf("color = %#v", responder.Updates[0].Embeds[0])
+	}
+	if responder.Updates[0].Components[0].Components[0].CustomID != "0voice_leave_role" || !responder.Updates[0].Components[0].Components[1].Disabled {
+		t.Fatalf("components = %#v", responder.Updates[0].Components)
+	}
+}

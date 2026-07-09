@@ -58,6 +58,7 @@ This module currently provides:
 - gated config-only `/公告頻道設置` command with legacy subcommands, embeds, and rollback-compatible `guilds`/`ann_all_sets` writes.
 - gated bound announcement message relay from legacy `ann_message.js`, disabled by default and requiring explicit gateway/message-content flags.
 - gated config-only `/聊天經驗設定` and `/聊天經驗刪除` commands with legacy embed/preview UI and rollback-compatible `text_xp_channels` writes.
+- gated `/聊天經驗身分組設定` and `/語音經驗身分組設定` reward-role config commands with legacy pagination UI and rollback-compatible `chat_roles`/`voice_roles` writes.
 - gated disabled-response `/聊天經驗` and `/語音經驗` commands that preserve the legacy replacement message pointing users to `/我的檔案`.
 - gated config-only `/語音包廂設置` and `/語音包廂刪除` commands with legacy embed UI and rollback-compatible `voice_channels` writes/deletes; dynamic voice-room creation and lock passwords remain disabled.
 - gated `guildMemberAdd` join-role assignment from legacy `join_roles`, disabled by default and requiring explicit Gateway + Guild Members intent.
@@ -116,6 +117,7 @@ Implemented utility commands:
 - `/公告發送` modal preview/confirm/send flow when explicitly enabled with `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true`
 - `/聊天經驗設定` and `/聊天經驗刪除` when explicitly enabled with `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`
 - `/語音經驗設定` and `/語音經驗刪除` when explicitly enabled with `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`
+- `/聊天經驗身分組設定` and `/語音經驗身分組設定` when explicitly enabled with `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`
 - `/聊天經驗` and `/語音經驗` disabled-command replacement responses when explicitly enabled with `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true`
 - `/語音包廂設置` and `/語音包廂刪除` when explicitly enabled with `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true`
 - `/加入身份組設置` and `/加入身份組刪除` when explicitly enabled with `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true`
@@ -206,6 +208,7 @@ Safe defaults:
 - `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=false`
 - `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=false`
+- `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=false`
 - `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=false`
@@ -282,6 +285,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_SEND=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=false`
@@ -537,6 +541,8 @@ The bound announcement relay is available only when `MHCAT_FEATURE_ANNOUNCEMENT_
 The `/聊天經驗設定` and `/聊天經驗刪除` commands are available only when `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `text_xp_channels` config and do not enable text XP accrual, rank cards, voice XP, Message Content intent, or XP reward behavior.
 
 The `/語音經驗設定` and `/語音經驗刪除` commands are available only when `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `voice_xp_channels` config, preserve the old visible `背景` option without saving it, and do not enable Voice State intent, voice XP accrual, rank cards, or XP reward behavior.
+
+The `/聊天經驗身分組設定` and `/語音經驗身分組設定` commands are available only when `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true`; staging preflight and scripts reject unpaired sync/runtime flags. These commands add, delete, query, and paginate legacy-compatible `chat_roles` and `voice_roles` reward-role config rows with the legacy misspelled `leavel` field. They require Manage Messages and verify the selected role is assignable by the bot before saving. They do not enable XP accrual, rank cards, automatic role assignment/removal, coin rewards, Message Content intent, Guild Messages intent, Voice State intent, or usage-counter writes.
 
 The `/聊天經驗` and `/語音經驗` disabled-command replacement responses are available only when `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true`; staging preflight and scripts reject unpaired sync/runtime flags. These commands only preserve the legacy red embed telling users to use `/我的檔案`; they do not read XP collections, render rank cards, award XP, or write Mongo data.
 

@@ -19,7 +19,7 @@ Status: implemented behind explicit runtime and command-sync gates.
 - Permission: Manage Messages (`8192`) at command definition and runtime check
 - Discord behavior: public defer, legacy-style green/red embeds, optional preview message
 
-This slice is config-only. It does not enable voice-state XP accrual, rank cards, level-role rewards, coin rewards, or Voice State intent.
+This slice is announcement-config only. It does not enable voice-state XP accrual, rank cards, automatic reward-role assignment/removal, coin rewards, or Voice State intent. Voice reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
 
 ## Legacy UI/UX Preserved
 
@@ -58,7 +58,7 @@ This slice is config-only. It does not enable voice-state XP accrual, rank cards
 
 - `events/voice_xp.js` / voice XP accrual.
 - `/語音排行榜`, rank image rendering, rank buttons, and the old XP profile card lookup behind `/語音經驗`; the current `/語音經驗` command is implemented separately as a disabled replacement response only.
-- voice level-role config.
+- automatic voice reward-role assignment/removal; the config command is tracked separately from XP accrual.
 - XP-to-coin rewards.
 - Voice State intent enablement.
 - Usage counter writes to `all_use_count`.

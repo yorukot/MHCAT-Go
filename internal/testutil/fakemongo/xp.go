@@ -18,12 +18,30 @@ type VoiceXPConfigRepository struct {
 	Err     error
 }
 
+type TextXPRewardRoleRepository struct {
+	Configs []domain.XPRewardRoleConfig
+	Err     error
+}
+
+type VoiceXPRewardRoleRepository struct {
+	Configs []domain.XPRewardRoleConfig
+	Err     error
+}
+
 func NewTextXPConfigRepository() *TextXPConfigRepository {
 	return &TextXPConfigRepository{Configs: map[string]domain.TextXPConfig{}}
 }
 
 func NewVoiceXPConfigRepository() *VoiceXPConfigRepository {
 	return &VoiceXPConfigRepository{Configs: map[string]domain.VoiceXPConfig{}}
+}
+
+func NewTextXPRewardRoleRepository() *TextXPRewardRoleRepository {
+	return &TextXPRewardRoleRepository{}
+}
+
+func NewVoiceXPRewardRoleRepository() *VoiceXPRewardRoleRepository {
+	return &VoiceXPRewardRoleRepository{}
 }
 
 func (r *TextXPConfigRepository) SaveTextXPConfig(ctx context.Context, config domain.TextXPConfig) error {
@@ -66,6 +84,64 @@ func (r *VoiceXPConfigRepository) DeleteVoiceXPConfig(ctx context.Context, guild
 	return nil
 }
 
+func (r *TextXPRewardRoleRepository) ListTextXPRewardRoles(ctx context.Context, guildID string) ([]domain.XPRewardRoleConfig, error) {
+	if err := r.ready(ctx); err != nil {
+		return nil, err
+	}
+	return filterRewardRoles(r.Configs, guildID), nil
+}
+
+func (r *TextXPRewardRoleRepository) SaveTextXPRewardRole(ctx context.Context, config domain.XPRewardRoleConfig) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	config = config.Normalize()
+	r.Configs = deleteRewardRole(r.Configs, config.GuildID, config.Level, config.RoleID)
+	r.Configs = append(r.Configs, config)
+	return nil
+}
+
+func (r *TextXPRewardRoleRepository) DeleteTextXPRewardRole(ctx context.Context, guildID string, level int64, roleID string) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	before := len(r.Configs)
+	r.Configs = deleteRewardRole(r.Configs, guildID, level, roleID)
+	if len(r.Configs) == before {
+		return ports.ErrTextXPRewardRoleMissing
+	}
+	return nil
+}
+
+func (r *VoiceXPRewardRoleRepository) ListVoiceXPRewardRoles(ctx context.Context, guildID string) ([]domain.XPRewardRoleConfig, error) {
+	if err := r.ready(ctx); err != nil {
+		return nil, err
+	}
+	return filterRewardRoles(r.Configs, guildID), nil
+}
+
+func (r *VoiceXPRewardRoleRepository) SaveVoiceXPRewardRole(ctx context.Context, config domain.XPRewardRoleConfig) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	config = config.Normalize()
+	r.Configs = deleteRewardRole(r.Configs, config.GuildID, config.Level, config.RoleID)
+	r.Configs = append(r.Configs, config)
+	return nil
+}
+
+func (r *VoiceXPRewardRoleRepository) DeleteVoiceXPRewardRole(ctx context.Context, guildID string, level int64, roleID string) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	before := len(r.Configs)
+	r.Configs = deleteRewardRole(r.Configs, guildID, level, roleID)
+	if len(r.Configs) == before {
+		return ports.ErrVoiceXPRewardRoleMissing
+	}
+	return nil
+}
+
 func (r *TextXPConfigRepository) ready(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -80,5 +156,47 @@ func (r *VoiceXPConfigRepository) ready(ctx context.Context) error {
 	return r.Err
 }
 
+func (r *TextXPRewardRoleRepository) ready(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return r.Err
+}
+
+func (r *VoiceXPRewardRoleRepository) ready(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return r.Err
+}
+
+func filterRewardRoles(configs []domain.XPRewardRoleConfig, guildID string) []domain.XPRewardRoleConfig {
+	guildID = strings.TrimSpace(guildID)
+	out := make([]domain.XPRewardRoleConfig, 0, len(configs))
+	for _, config := range configs {
+		config = config.Normalize()
+		if config.GuildID == guildID {
+			out = append(out, config)
+		}
+	}
+	return out
+}
+
+func deleteRewardRole(configs []domain.XPRewardRoleConfig, guildID string, level int64, roleID string) []domain.XPRewardRoleConfig {
+	guildID = strings.TrimSpace(guildID)
+	roleID = strings.TrimSpace(roleID)
+	out := configs[:0]
+	for _, config := range configs {
+		config = config.Normalize()
+		if config.GuildID == guildID && config.Level == level && config.RoleID == roleID {
+			continue
+		}
+		out = append(out, config)
+	}
+	return out
+}
+
 var _ ports.TextXPConfigRepository = (*TextXPConfigRepository)(nil)
 var _ ports.VoiceXPConfigRepository = (*VoiceXPConfigRepository)(nil)
+var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
+var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)

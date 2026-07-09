@@ -529,6 +529,23 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		opts.VoiceXPConfigRepository = voiceXPRepo
 		opts.VoiceXPMessagePort = sideEffects
 	}
+	if cfg.FeatureXPRoleConfigEnabled {
+		textRoleRepo, err := textXPRewardRoleRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		voiceRoleRepo, err := voiceXPRewardRoleRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "XP role config feature")
+		if err != nil {
+			return nil, err
+		}
+		opts.TextXPRewardRoleRepository = textRoleRepo
+		opts.VoiceXPRewardRoleRepository = voiceRoleRepo
+		opts.XPRewardRoleInspector = sideEffects
+	}
 	if cfg.FeatureXPProfileDisabledEnabled {
 		opts.XPProfileDisabledEnabled = true
 	}
@@ -927,6 +944,38 @@ func voiceXPConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositori
 	repo, err := mongorepositories.NewVoiceXPConfigRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("voice XP config feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func textXPRewardRoleRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.TextXPRewardRoleRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("XP role config feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("XP role config feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewTextXPRewardRoleRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("text XP reward role feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func voiceXPRewardRoleRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.VoiceXPRewardRoleRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("XP role config feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("XP role config feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewVoiceXPRewardRoleRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("voice XP reward role feature repository: %w", err)
 	}
 	return repo, nil
 }

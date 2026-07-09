@@ -3,13 +3,15 @@ package xp
 import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 
 const (
-	TextXPProfileCommandName  = "聊天經驗"
-	TextXPSetCommandName      = "聊天經驗設定"
-	TextXPDeleteCommandName   = "聊天經驗刪除"
-	VoiceXPProfileCommandName = "語音經驗"
-	VoiceXPSetCommandName     = "語音經驗設定"
-	VoiceXPDeleteCommandName  = "語音經驗刪除"
-	manageMessagesPermission  = "8192"
+	TextXPProfileCommandName     = "聊天經驗"
+	TextXPSetCommandName         = "聊天經驗設定"
+	TextXPDeleteCommandName      = "聊天經驗刪除"
+	VoiceXPProfileCommandName    = "語音經驗"
+	VoiceXPSetCommandName        = "語音經驗設定"
+	VoiceXPDeleteCommandName     = "語音經驗刪除"
+	TextXPRewardRoleCommandName  = "聊天經驗身分組設定"
+	VoiceXPRewardRoleCommandName = "語音經驗身分組設定"
+	manageMessagesPermission     = "8192"
 )
 
 func Definitions() []commands.Definition {
@@ -26,6 +28,10 @@ func VoiceDefinitions() []commands.Definition {
 
 func DisabledProfileDefinitions() []commands.Definition {
 	return []commands.Definition{TextXPProfileDefinition(), VoiceXPProfileDefinition()}
+}
+
+func RewardRoleDefinitions() []commands.Definition {
+	return []commands.Definition{TextXPRewardRoleDefinition(), VoiceXPRewardRoleDefinition()}
 }
 
 func TextXPProfileDefinition() commands.Definition {
@@ -123,6 +129,14 @@ func VoiceXPDeleteDefinition() commands.Definition {
 	}
 }
 
+func TextXPRewardRoleDefinition() commands.Definition {
+	return xpRewardRoleDefinition(TextXPRewardRoleCommandName, "設定聊天經驗通知要在哪發送", "text-xp-role-config", "https://docsmhcat.yorukot.me.xyz.xyz/docs/chat_xp_set", "輸入之前設定的身分組")
+}
+
+func VoiceXPRewardRoleDefinition() commands.Definition {
+	return xpRewardRoleDefinition(VoiceXPRewardRoleCommandName, "設定語音經驗通知要在哪發送(兼增加、刪除、設定查詢)", "voice-xp-role-config", "https://docsmhcat.yorukot.me/docs/chat_xp_set", "當到達設定的等級時時，要給甚麼身份組")
+}
+
 func xpProfileDefinition(name string, description string) commands.Definition {
 	return commands.Definition{
 		Type:        commands.CommandTypeChatInput,
@@ -134,6 +148,43 @@ func xpProfileDefinition(name string, description string) commands.Definition {
 				Type:        commands.OptionTypeUser,
 				Name:        "玩家",
 				Description: "輸入玩家!",
+			},
+		},
+	}
+}
+
+func xpRewardRoleDefinition(name string, description string, owner string, docsURL string, deleteRoleDescription string) commands.Definition {
+	return commands.Definition{
+		Type:                     commands.CommandTypeChatInput,
+		Name:                     name,
+		Description:              description,
+		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
+		DocsURL:                  docsURL,
+		Ownership:                commands.ManagedOwnership(owner, commands.ScopeGuild),
+		Options: []commands.Option{
+			{
+				Type:        commands.OptionTypeSubCommand,
+				Name:        "增加",
+				Description: "當有人的等級達到後要給予身分組",
+				Options: []commands.Option{
+					{Type: commands.OptionTypeInteger, Name: "等級", Description: "輸入要在幾等時給予身分組!", Required: true},
+					{Type: commands.OptionTypeRole, Name: "身分組", Description: "當到達設定的等級時時，要給甚麼身份組", Required: true},
+					{Type: commands.OptionTypeBoolean, Name: "是否自動刪除", Description: "當使用者等級不再是所設定的等級時自動將此身分組刪除(默認為否)"},
+				},
+			},
+			{
+				Type:        commands.OptionTypeSubCommand,
+				Name:        "刪除",
+				Description: "刪除之前的設定",
+				Options: []commands.Option{
+					{Type: commands.OptionTypeInteger, Name: "等級", Description: "輸入之前設定的身分組!", Required: true},
+					{Type: commands.OptionTypeRole, Name: "身分組", Description: deleteRoleDescription, Required: true},
+				},
+			},
+			{
+				Type:        commands.OptionTypeSubCommand,
+				Name:        "設定查詢",
+				Description: "查看之前的設定",
 			},
 		},
 	}
