@@ -11,6 +11,7 @@ type GachaRepository struct {
 	Prizes       map[string][]domain.GachaPrize
 	PrizeConfigs map[string][]domain.GachaPrizeConfig
 	Configs      map[string]domain.EconomyConfig
+	Balances     map[string]domain.CoinBalance
 	Err          error
 }
 
@@ -19,6 +20,7 @@ func NewGachaRepository() *GachaRepository {
 		Prizes:       map[string][]domain.GachaPrize{},
 		PrizeConfigs: map[string][]domain.GachaPrizeConfig{},
 		Configs:      map[string]domain.EconomyConfig{},
+		Balances:     map[string]domain.CoinBalance{},
 	}
 }
 
@@ -136,6 +138,125 @@ func (r *GachaRepository) EditGachaPrize(ctx context.Context, edit domain.GachaP
 	return domain.GachaPrizeConfig{}, ports.ErrGachaPrizeMissing
 }
 
+func (r *GachaRepository) DrawGacha(ctx context.Context, request domain.GachaDrawRequest) (domain.GachaDrawResult, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.GachaDrawResult{}, err
+	}
+	if request.GuildID == "" || request.UserID == "" || request.PaidDraws <= 0 || request.ActualDraws <= 0 || len(request.RandomValues) < request.ActualDraws {
+		return domain.GachaDrawResult{}, domain.ErrInvalidGachaDraw
+	}
+	balance, ok := r.Balances[gachaBalanceKey(request.GuildID, request.UserID)]
+	if !ok {
+		return domain.GachaDrawResult{}, ports.ErrCoinBalanceNotFound
+	}
+	config, configFound := r.Configs[request.GuildID]
+	if !configFound {
+		config = domain.EconomyConfig{GuildID: request.GuildID}
+	}
+	prizes := r.gachaPrizeConfigs(request.GuildID)
+	if len(prizes) == 0 {
+		return domain.GachaDrawResult{}, ports.ErrGachaPrizePoolEmpty
+	}
+	cost := config.EffectiveGachaCost() * int64(request.PaidDraws)
+	if balance.Coins < cost {
+		return domain.GachaDrawResult{GuildID: request.GuildID, UserID: request.UserID, PaidDraws: request.PaidDraws, ActualDraws: request.ActualDraws, Cost: cost, BalanceBefore: balance.Coins, Config: config, ConfigFound: configFound}, ports.ErrGachaInsufficientCoins
+	}
+	results := make([]domain.GachaDrawPrizeResult, 0, request.ActualDraws)
+	drawnByName := map[string]int64{}
+	giveCoinTotal := int64(0)
+	for index := 0; index < request.ActualDraws; index++ {
+		drawn := domain.ResolveGachaDraw(prizes, request.RandomValues[index])
+		results = append(results, drawn)
+		if drawn.Air {
+			continue
+		}
+		drawnByName[drawn.Name]++
+		giveCoinTotal += drawn.GiveCoin
+	}
+	r.applyFakeGachaInventoryDraws(request.GuildID, drawnByName, prizes)
+	balance.Coins = balance.Coins - cost + giveCoinTotal
+	r.Balances[gachaBalanceKey(request.GuildID, request.UserID)] = balance
+	return domain.GachaDrawResult{
+		GuildID:               request.GuildID,
+		UserID:                request.UserID,
+		PaidDraws:             request.PaidDraws,
+		ActualDraws:           request.ActualDraws,
+		Cost:                  cost,
+		BalanceBefore:         balance.Coins + cost - giveCoinTotal,
+		BalanceAfter:          balance.Coins,
+		Config:                config,
+		ConfigFound:           configFound,
+		NotificationChannelID: config.ChannelID,
+		Prizes:                results,
+	}, nil
+}
+
+func (r *GachaRepository) gachaPrizeConfigs(guildID string) []domain.GachaPrizeConfig {
+	if configs := r.PrizeConfigs[guildID]; len(configs) > 0 {
+		return append([]domain.GachaPrizeConfig(nil), configs...)
+	}
+	prizes := r.Prizes[guildID]
+	configs := make([]domain.GachaPrizeConfig, 0, len(prizes))
+	for _, prize := range prizes {
+		configs = append(configs, domain.GachaPrizeConfig{
+			GuildID:    prize.GuildID,
+			Name:       prize.Name,
+			Chance:     prize.Chance,
+			AutoDelete: true,
+			Count:      prize.Count,
+		})
+	}
+	return configs
+}
+
+func (r *GachaRepository) applyFakeGachaInventoryDraws(guildID string, drawnByName map[string]int64, prizes []domain.GachaPrizeConfig) {
+	initial := map[string]domain.GachaPrizeConfig{}
+	for _, prize := range prizes {
+		if _, ok := initial[prize.Name]; !ok {
+			initial[prize.Name] = prize
+		}
+	}
+	for prizeName, draws := range drawnByName {
+		prize, ok := initial[prizeName]
+		if !ok || !prize.AutoDelete || draws <= 0 {
+			continue
+		}
+		nextCount := prize.Count - draws
+		r.updateFakeGachaPrizeCount(guildID, prizeName, nextCount)
+	}
+}
+
+func (r *GachaRepository) updateFakeGachaPrizeCount(guildID string, prizeName string, nextCount int64) {
+	prizes := r.Prizes[guildID]
+	for index, prize := range prizes {
+		if prize.Name != prizeName {
+			continue
+		}
+		if nextCount <= 0 {
+			r.Prizes[guildID] = append(append([]domain.GachaPrize(nil), prizes[:index]...), prizes[index+1:]...)
+		} else {
+			r.Prizes[guildID][index].Count = nextCount
+		}
+		break
+	}
+	configs := r.PrizeConfigs[guildID]
+	for index, config := range configs {
+		if config.Name != prizeName {
+			continue
+		}
+		if nextCount <= 0 {
+			r.PrizeConfigs[guildID] = append(append([]domain.GachaPrizeConfig(nil), configs[:index]...), configs[index+1:]...)
+		} else {
+			r.PrizeConfigs[guildID][index].Count = nextCount
+		}
+		break
+	}
+}
+
+func gachaBalanceKey(guildID string, userID string) string {
+	return guildID + "/" + userID
+}
+
 func mergeLegacyFakeGachaPrizeEdit(existing domain.GachaPrizeConfig, edit domain.GachaPrizeEdit) domain.GachaPrizeConfig {
 	updated := existing
 	updated.GuildID = edit.GuildID
@@ -167,3 +288,4 @@ var _ ports.GachaPrizePoolRepository = (*GachaRepository)(nil)
 var _ ports.GachaPrizeDeleteRepository = (*GachaRepository)(nil)
 var _ ports.GachaPrizeCreateRepository = (*GachaRepository)(nil)
 var _ ports.GachaPrizeEditRepository = (*GachaRepository)(nil)
+var _ ports.GachaDrawRepository = (*GachaRepository)(nil)

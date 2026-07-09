@@ -84,6 +84,9 @@ type RuntimeOptions struct {
 	ScamReportSender              ports.ScamReportSender
 	LoggingConfigRepository       ports.LoggingConfigRepository
 	GachaPrizePoolRepository      ports.GachaPrizePoolRepository
+	GachaDrawRepository           ports.GachaDrawRepository
+	GachaDrawMessagePort          ports.DiscordMessagePort
+	GachaDrawDirectMessagePort    ports.DiscordDirectMessagePort
 	GachaPrizeCreateRepository    ports.GachaPrizeCreateRepository
 	GachaPrizeEditRepository      ports.GachaPrizeEditRepository
 	GachaPrizeDeleteRepository    ports.GachaPrizeDeleteRepository
@@ -198,6 +201,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.GachaPrizePoolRepository != nil {
 		definitions = append(definitions, featuregacha.PrizeListDefinitions()...)
+	}
+	if opts.GachaDrawRepository != nil {
+		definitions = append(definitions, featuregacha.DrawDefinitions()...)
 	}
 	if opts.GachaPrizeCreateRepository != nil {
 		definitions = append(definitions, featuregacha.PrizeCreateDefinitions()...)
@@ -424,8 +430,18 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 			return nil, err
 		}
 	}
-	if opts.GachaPrizePoolRepository != nil || opts.GachaPrizeCreateRepository != nil || opts.GachaPrizeEditRepository != nil || opts.GachaPrizeDeleteRepository != nil {
-		gachaModule := featuregacha.NewModuleWithRepositories(opts.GachaPrizePoolRepository, opts.GachaPrizeCreateRepository, opts.GachaPrizeEditRepository, opts.GachaPrizeDeleteRepository, concreteDiscord, opts.UsageTracker)
+	if opts.GachaPrizePoolRepository != nil || opts.GachaDrawRepository != nil || opts.GachaPrizeCreateRepository != nil || opts.GachaPrizeEditRepository != nil || opts.GachaPrizeDeleteRepository != nil {
+		gachaModule := featuregacha.NewModuleWithRepositories(
+			opts.GachaPrizePoolRepository,
+			opts.GachaDrawRepository,
+			opts.GachaPrizeCreateRepository,
+			opts.GachaPrizeEditRepository,
+			opts.GachaPrizeDeleteRepository,
+			concreteDiscord,
+			opts.GachaDrawMessagePort,
+			opts.GachaDrawDirectMessagePort,
+			opts.UsageTracker,
+		)
 		if err := gachaModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

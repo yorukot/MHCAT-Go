@@ -22,6 +22,7 @@ const (
 	gachaManageMessagesPermissionBit = int64(8192)
 	legacyDoneEmoji                  = "<a:green_tick:994529015652163614>"
 	legacyGachaFallbackGuild         = "這個伺服器"
+	legacyGachaDrawLoadingGIF        = "https://cdn.discordapp.com/attachments/991337796960784424/997105505640136794/giphy.gif"
 	discordEmbedFieldLimit           = 25
 )
 
@@ -45,6 +46,33 @@ func (m Module) PrizeListHandler() interactions.Handler {
 			return err
 		}
 		return m.track(ctx, interaction, GachaPrizeListCommandName, "gacha-prize-list")
+	}
+}
+
+func (m Module) DrawHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		result, err := m.drawService.Draw(ctx, domain.GachaDrawCommand{
+			GuildID: interaction.Actor.GuildID,
+			UserID:  interaction.Actor.UserID,
+			Choice:  gachaStringOption(interaction, gachaDrawMultiOption),
+		})
+		if err != nil {
+			return m.handleDrawError(ctx, responder, result, err)
+		}
+		if err := responder.EditOriginal(ctx, responses.Message{
+			Content:         legacyGachaDrawLoadingGIF,
+			AllowedMentions: &responses.AllowedMentions{},
+		}); err != nil {
+			return err
+		}
+		if err := responder.EditOriginal(ctx, legacyGachaDrawResultMessage(result, interaction.Actor.AvatarURL, m.color())); err != nil {
+			return err
+		}
+		m.sendDrawSideEffects(ctx, interaction, result)
+		return m.track(ctx, interaction, GachaDrawCommandName, "gacha-draw")
 	}
 }
 
@@ -178,6 +206,38 @@ func (m Module) guildName(ctx context.Context, guildID string) string {
 	return info.Name
 }
 
+func (m Module) handleDrawError(ctx context.Context, responder responses.Responder, result domain.GachaDrawResult, err error) error {
+	switch {
+	case errors.Is(err, ports.ErrCoinBalanceNotFound):
+		return responder.FollowUp(ctx, gachaDrawErrorFollowUp("你還沒有任何代幣欸使用`/簽到`或是多講話，都可以獲得代幣喔!"))
+	case errors.Is(err, ports.ErrGachaPrizePoolEmpty):
+		return responder.FollowUp(ctx, gachaDrawErrorFollowUp("獎池裡沒有獎品，只會抽到空氣喔;w;"))
+	case errors.Is(err, ports.ErrGachaInsufficientCoins):
+		cost := result.Cost
+		if cost <= 0 {
+			cost = coreservice.DefaultGachaCost
+		}
+		return responder.FollowUp(ctx, gachaDrawErrorFollowUp(fmt.Sprintf("必須要有`%d`個代幣才能進行扭蛋", cost)))
+	default:
+		return responder.FollowUp(ctx, gachaDrawErrorFollowUp("很抱歉，出現了未知的錯誤，請重試!"))
+	}
+}
+
+func (m Module) sendDrawSideEffects(ctx context.Context, interaction interactions.Interaction, result domain.GachaDrawResult) {
+	if m.messages != nil && strings.TrimSpace(result.NotificationChannelID) != "" {
+		nonAir := result.NonAirPrizes()
+		if len(nonAir) > 0 {
+			_, _ = m.messages.SendMessage(ctx, result.NotificationChannelID, legacyGachaWinnerMessage(interaction.Actor.UserID, nonAir, m.color()))
+		}
+	}
+	if m.direct != nil {
+		codePrizes := result.CodePrizes()
+		if len(codePrizes) > 0 {
+			_, _ = m.direct.SendDirectMessage(ctx, interaction.Actor.UserID, legacyGachaPrizeCodeMessage(codePrizes, m.color()))
+		}
+	}
+}
+
 func legacyPrizePoolMessage(result domain.GachaPrizePool, guildName string, actorTag string, avatarURL string, color int) responses.Message {
 	if strings.TrimSpace(guildName) == "" {
 		guildName = legacyGachaFallbackGuild
@@ -257,6 +317,57 @@ func legacyPrizeFields(prizes []domain.GachaPrize) []responses.EmbedField {
 	return fields
 }
 
+func legacyGachaDrawResultMessage(result domain.GachaDrawResult, avatarURL string, color int) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       "<:gashapon:997374176526610472> 扭蛋系統",
+			Description: "<:fireworks:997374182016958494><:fireworks:997374182016958494>你扭中了:\n" + strings.Join(result.PrizeNames(), "\n"),
+			Color:       color,
+			Footer: &responses.EmbedFooter{
+				Text:    "如扭中的獎品有獎品代碼，將會私訊給您!",
+				IconURL: avatarURL,
+			},
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func legacyGachaWinnerMessage(userID string, prizes []domain.GachaDrawPrizeResult, color int) ports.OutboundMessage {
+	names := make([]string, 0, len(prizes))
+	for _, prize := range prizes {
+		names = append(names, prize.Name)
+	}
+	return ports.OutboundMessage{
+		Embeds: []ports.OutboundEmbed{{
+			Title:       "<:celebration:997374188060946495> **有人中獎了!**",
+			Description: fmt.Sprintf("<:id:985950321975128094> **中獎人:** <@%s>\n<a:gift:954018543211532289> **中獎禮物:**```%s```", userID, strings.Join(names, "\n")),
+			Color:       color,
+		}},
+		AllowedMentions: ports.AllowedMentions{UserIDs: []string{userID}},
+	}
+}
+
+func legacyGachaPrizeCodeMessage(prizes []domain.GachaDrawPrizeResult, color int) ports.OutboundMessage {
+	fields := make([]ports.OutboundEmbedField, 0, len(prizes))
+	for _, prize := range prizes {
+		if prize.Code == "" {
+			continue
+		}
+		fields = append(fields, ports.OutboundEmbedField{
+			Name:   "<:id:985950321975128094> **獎品名:**" + prize.Name,
+			Value:  "<:security:997374179257102396> **獎品代碼:**" + prize.Code,
+			Inline: true,
+		})
+	}
+	return ports.OutboundMessage{
+		Embeds: []ports.OutboundEmbed{{
+			Title:  "<:fireworks:997374182016958494> 恭喜你中獎!!",
+			Color:  color,
+			Fields: fields,
+		}},
+	}
+}
+
 func formatLegacyNumber(value float64) string {
 	return strconv.FormatFloat(value, 'f', -1, 64)
 }
@@ -269,6 +380,12 @@ func gachaErrorMessage(content string) responses.Message {
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
+}
+
+func gachaDrawErrorFollowUp(content string) responses.Message {
+	message := gachaErrorMessage(content)
+	message.Ephemeral = true
+	return message
 }
 
 func gachaPrizeDeleteSuccessMessage(prize domain.GachaPrize) responses.Message {

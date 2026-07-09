@@ -987,6 +987,43 @@ func TestPreflightWarnsWhenGachaPrizeListRuntimeEnabledWithoutCommandSync(t *tes
 	}
 }
 
+func TestPreflightRejectsGachaDrawCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "gacha-draw-runtime-pairing status=fail") {
+		t.Fatalf("expected gacha draw pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsGachaDrawCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW"] = "true"
+	env["MHCAT_FEATURE_GACHA_DRAW_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "gacha-draw-command-sync status=pass") || !strings.Contains(stdout, "gacha-draw-runtime-pairing status=pass") {
+		t.Fatalf("expected gacha draw pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenGachaDrawRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_GACHA_DRAW_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "gacha-draw-runtime-pairing status=warn") {
+		t.Fatalf("expected gacha draw runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsGachaPrizeDeleteCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE"] = "true"

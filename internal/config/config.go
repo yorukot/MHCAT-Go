@@ -40,6 +40,7 @@ const (
 	DefaultFeatureAntiScamReportEnabled         = false
 	DefaultFeatureLoggingConfigEnabled          = false
 	DefaultFeatureGachaPrizeListEnabled         = false
+	DefaultFeatureGachaDrawEnabled              = false
 	DefaultFeatureGachaPrizeCreateEnabled       = false
 	DefaultFeatureGachaPrizeEditEnabled         = false
 	DefaultFeatureGachaPrizeDeleteEnabled       = false
@@ -110,6 +111,7 @@ type Config struct {
 	FeatureAntiScamReportEnabled         bool
 	FeatureLoggingConfigEnabled          bool
 	FeatureGachaPrizeListEnabled         bool
+	FeatureGachaDrawEnabled              bool
 	FeatureGachaPrizeCreateEnabled       bool
 	FeatureGachaPrizeEditEnabled         bool
 	FeatureGachaPrizeDeleteEnabled       bool

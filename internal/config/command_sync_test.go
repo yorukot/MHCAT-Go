@@ -118,6 +118,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeGachaPrizeList {
 		t.Fatal("include gacha prize-list must default false")
 	}
+	if cfg.IncludeGachaDraw {
+		t.Fatal("include gacha draw must default false")
+	}
 	if cfg.IncludeGachaPrizeCreate {
 		t.Fatal("include gacha prize-create must default false")
 	}
@@ -474,6 +477,48 @@ func TestCommandSyncIncludeGachaPrizeListStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeGachaPrizeList {
 		t.Fatal("expected include gacha prize-list to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeGachaDrawRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                   "token",
+		"MHCAT_DISCORD_APPLICATION_ID":          "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":           "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include gacha draw without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeGachaDrawRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                   "token",
+		"MHCAT_DISCORD_APPLICATION_ID":          "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":              "global",
+		"MHCAT_STAGING_MODE":                    "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include gacha draw with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeGachaDrawStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                   "token",
+		"MHCAT_DISCORD_APPLICATION_ID":          "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":           "guild",
+		"MHCAT_STAGING_MODE":                    "true",
+		"MHCAT_STAGING_GUILD_ID":                "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeGachaDraw {
+		t.Fatal("expected include gacha draw to be enabled explicitly")
 	}
 }
 

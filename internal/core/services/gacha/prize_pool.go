@@ -2,7 +2,9 @@ package gacha
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
+	"math/big"
 	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -29,6 +31,13 @@ type PrizeCreateService struct {
 
 type PrizeEditService struct {
 	Repository ports.GachaPrizeEditRepository
+}
+
+type RandomFloat func() float64
+
+type DrawService struct {
+	Repository ports.GachaDrawRepository
+	Random     RandomFloat
 }
 
 func (s PrizePoolService) Query(ctx context.Context, guildID string) (domain.GachaPrizePool, error) {
@@ -109,4 +118,60 @@ func (s PrizeEditService) Edit(ctx context.Context, edit domain.GachaPrizeEdit) 
 		return domain.GachaPrizeConfig{}, domain.ErrInvalidGachaPrize
 	}
 	return s.Repository.EditGachaPrize(ctx, edit)
+}
+
+func (s DrawService) Draw(ctx context.Context, command domain.GachaDrawCommand) (domain.GachaDrawResult, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.GachaDrawResult{}, err
+	}
+	command.GuildID = strings.TrimSpace(command.GuildID)
+	command.UserID = strings.TrimSpace(command.UserID)
+	if command.GuildID == "" || command.UserID == "" || s.Repository == nil {
+		return domain.GachaDrawResult{}, domain.ErrInvalidGachaDraw
+	}
+	paidDraws, actualDraws, err := LegacyDrawCounts(command.Choice)
+	if err != nil {
+		return domain.GachaDrawResult{}, err
+	}
+	randomValues := make([]float64, actualDraws)
+	random := s.Random
+	if random == nil {
+		random = secureRandomFloat
+	}
+	for index := range randomValues {
+		randomValues[index] = random()
+	}
+	return s.Repository.DrawGacha(ctx, domain.GachaDrawRequest{
+		GuildID:      command.GuildID,
+		UserID:       command.UserID,
+		PaidDraws:    paidDraws,
+		ActualDraws:  actualDraws,
+		RandomValues: randomValues,
+	})
+}
+
+func LegacyDrawCounts(choice string) (int, int, error) {
+	switch strings.TrimSpace(choice) {
+	case "":
+		return 1, 1, nil
+	case "5":
+		return 5, 5, nil
+	case "11":
+		return 10, 11, nil
+	case "17":
+		return 15, 17, nil
+	case "23":
+		return 20, 23, nil
+	default:
+		return 0, 0, domain.ErrInvalidGachaDraw
+	}
+}
+
+func secureRandomFloat() float64 {
+	max := big.NewInt(1 << 53)
+	value, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		return 0.5
+	}
+	return float64(value.Int64()) / float64(1<<53)
 }

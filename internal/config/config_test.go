@@ -180,6 +180,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureGachaPrizeListEnabled {
 		t.Fatal("gacha prize-list feature must be disabled by default")
 	}
+	if cfg.FeatureGachaDrawEnabled {
+		t.Fatal("gacha draw feature must be disabled by default")
+	}
 	if cfg.FeatureGachaPrizeCreateEnabled {
 		t.Fatal("gacha prize-create feature must be disabled by default")
 	}
@@ -576,6 +579,21 @@ func TestFeatureGachaPrizeListConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureGachaPrizeListEnabled {
 		t.Fatal("expected gacha prize-list feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureGachaDrawConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":              "token",
+		"MHCAT_MONGODB_URI":                "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":           "mhcat",
+		"MHCAT_FEATURE_GACHA_DRAW_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureGachaDrawEnabled {
+		t.Fatal("expected gacha draw feature to be enabled explicitly")
 	}
 }
 

@@ -131,6 +131,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		loggingConfigRuntimePairing(lookup),
 		gachaPrizeListCommandSync(lookup),
 		gachaPrizeListRuntimePairing(lookup),
+		gachaDrawCommandSync(lookup),
+		gachaDrawRuntimePairing(lookup),
 		gachaPrizeCreateCommandSync(lookup),
 		gachaPrizeCreateRuntimePairing(lookup),
 		gachaPrizeEditCommandSync(lookup),
@@ -1010,6 +1012,38 @@ func gachaPrizeListRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "gacha-prize-list-runtime-pairing", Status: statusWarn, Message: "gacha prize-list runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "gacha-prize-list-runtime-pairing", Status: statusSkipped, Message: "gacha prize-list runtime and command sync include are disabled"}
+}
+
+func gachaDrawCommandSync(lookup lookupFunc) checkResult {
+	includeGacha, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW")
+	if err != nil {
+		return checkResult{Name: "gacha-draw-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeGacha {
+		return checkResult{Name: "gacha-draw-command-sync", Status: statusPass, Message: "gacha draw command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "gacha-draw-command-sync", Status: statusSkipped, Message: "gacha draw command sync include is disabled"}
+}
+
+func gachaDrawRuntimePairing(lookup lookupFunc) checkResult {
+	includeGacha, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW")
+	if err != nil {
+		return checkResult{Name: "gacha-draw-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	gachaEnabled, err := boolValue(lookup, "MHCAT_FEATURE_GACHA_DRAW_ENABLED")
+	if err != nil {
+		return checkResult{Name: "gacha-draw-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeGacha && !gachaEnabled {
+		return checkResult{Name: "gacha-draw-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW=true requires MHCAT_FEATURE_GACHA_DRAW_ENABLED=true in the staging runtime"}
+	}
+	if includeGacha && gachaEnabled {
+		return checkResult{Name: "gacha-draw-runtime-pairing", Status: statusPass, Message: "gacha draw command sync and runtime feature flag are paired"}
+	}
+	if gachaEnabled {
+		return checkResult{Name: "gacha-draw-runtime-pairing", Status: statusWarn, Message: "gacha draw runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "gacha-draw-runtime-pairing", Status: statusSkipped, Message: "gacha draw runtime and command sync include are disabled"}
 }
 
 func gachaPrizeDeleteCommandSync(lookup lookupFunc) checkResult {

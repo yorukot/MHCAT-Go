@@ -1,15 +1,33 @@
-# Gacha Prize-list, Prize-add, Prize-edit, and Prize-delete Slices
+# Gacha Draw and Prize Maintenance Slices
 
 Status: implemented behind explicit staging/runtime gates.
 
 ## Legacy References
 
 - `MHCAT/slashCommands/扭蛋系統/giftlist.js`
+- `MHCAT/slashCommands/扭蛋系統/gashapon.js`
 - `MHCAT/slashCommands/扭蛋系統/giftadd.js`
 - `MHCAT/slashCommands/扭蛋系統/giftadd copy.js`
 - `MHCAT/slashCommands/扭蛋系統/gift_delete.js`
 - `MHCAT/models/gift.js`
 - `MHCAT/models/gift_change.js`
+- `MHCAT/models/coin.js`
+
+## Draw Scope
+
+- Slash command: `扭蛋`
+- Runtime flag: `MHCAT_FEATURE_GACHA_DRAW_ENABLED=true`
+- Command sync flag: `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW=true`
+- Optional option: string `連抽` with legacy choices `5`, `11`, `17`, and `23`
+- Mongo reads: `coins`, `gifts`, `gift_changes`
+- Mongo writes: updates matching `coins` rows for the member; decrements or deletes auto-delete `gifts` rows by `{guild,gift_name}`
+- Discord behavior: public defer, loading GIF edit, final legacy result embed, best-effort prize-code DM, and best-effort notification-channel winner embed
+
+The command preserves the legacy visible draw UI, draw-count mapping, missing-balance/empty-pool/insufficient-coin errors, default gacha cost `500`, weighted air result, prize-code DM fields, and notification-channel embed text. Paid draws remain `1`, `5`, `10`, `15`, or `20`; actual result lines remain `1`, `5`, `11`, `17`, or `23`.
+
+## Draw Safety Fix
+
+The legacy draw code can touch auto-delete prize inventory twice through separate async callback loops. The Go implementation keeps the same user-visible results but applies one intended decrement/delete per drawn auto-delete prize. Coin updates are also applied once as `starting coin - cost + give_coin total`, and duplicate `{guild,member}` coin rows are updated together for rollback compatibility with the current duplicate-audit posture. Prize inventory writes remain non-transactional and target one legacy prize name row, so keep this path limited to isolated staging data until production duplicate and transaction policy is reviewed.
 
 ## Prize-list Scope
 
@@ -68,12 +86,7 @@ The command preserves the legacy missing-prize error `找不到這個獎品!` an
 
 ## Not Implemented
 
-- `/扭蛋` draw flow
 - gacha/shop purchase paths
-- coin balance mutation
-- prize inventory decrement
-- prize code DMs
-- notification channel sends
 - indexes or data repair
 
 ## Rollout Notes
@@ -86,4 +99,6 @@ For `/扭蛋獎品編輯`, use only disposable staging prize rows. The command r
 
 For `/扭蛋獎池刪除`, use only disposable staging prize rows. The command removes data and has no undo path.
 
-Production rollout still requires a live audit of `gifts` and `gift_changes`, especially duplicate `gift_changes.guild` rows, impossible prize counts/chances, and guilds with more than 25 prize rows.
+For `/扭蛋`, use only isolated staging balances and prize rows. The command mutates `coins` and `gifts`, may send DMs, and may send notification-channel messages.
+
+Production rollout still requires a live audit of `coins`, `gifts`, and `gift_changes`, especially duplicate `coins.{guild,member}` rows, duplicate `gift_changes.guild` rows, duplicate prize names, impossible prize counts/chances, and guilds with more than 25 prize rows.

@@ -1,10 +1,51 @@
 package gacha
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 )
+
+func TestDrawDefinitionMatchesLegacy(t *testing.T) {
+	definition := DrawDefinition()
+	if definition.Name != GachaDrawCommandName || definition.Description != "進行扭蛋，有機會抽中各種大獎喔!!!!" {
+		t.Fatalf("definition = %#v", definition)
+	}
+	if definition.DefaultMemberPermissions != nil {
+		t.Fatalf("permissions = %#v", definition.DefaultMemberPermissions)
+	}
+	if len(definition.Options) != 1 {
+		t.Fatalf("expected one option, got %#v", definition.Options)
+	}
+	option := definition.Options[0]
+	if option.Type != commands.OptionTypeString || option.Name != gachaDrawMultiOption || option.Description != "如果需要連抽的話可以使用這個指令" || option.Required {
+		t.Fatalf("option = %#v", option)
+	}
+	if len(option.Choices) != 4 {
+		t.Fatalf("choices = %#v", option.Choices)
+	}
+	for index, want := range []struct {
+		name  string
+		value string
+	}{
+		{"5連抽(無buff)", "5"},
+		{"10連抽(多送一抽)", "11"},
+		{"15連抽(多送兩抽)", "17"},
+		{"20連抽(多送三抽)", "23"},
+	} {
+		choice := option.Choices[index]
+		if choice.Name != want.name || fmt.Sprint(choice.Value) != want.value {
+			t.Fatalf("choice %d = %#v", index, choice)
+		}
+	}
+	if definition.Ownership == nil || definition.Ownership.Owner != commands.OwnerMHCATRefactor || definition.Ownership.SinceWave != "gacha-draw" || !definition.Ownership.Managed {
+		t.Fatalf("ownership = %#v", definition.Ownership)
+	}
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, Definitions())); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+}
 
 func TestPrizeListDefinitionMatchesLegacy(t *testing.T) {
 	definition := PrizeListDefinition()
@@ -17,7 +58,7 @@ func TestPrizeListDefinitionMatchesLegacy(t *testing.T) {
 	if definition.Ownership == nil || definition.Ownership.Owner != commands.OwnerMHCATRefactor || definition.Ownership.SinceWave != "gacha-prize-list" || !definition.Ownership.Managed {
 		t.Fatalf("ownership = %#v", definition.Ownership)
 	}
-	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, Definitions())); err != nil {
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, PrizeListDefinitions())); err != nil {
 		t.Fatalf("validate: %v", err)
 	}
 }

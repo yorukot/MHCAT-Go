@@ -12,10 +12,13 @@ import (
 
 type Module struct {
 	service       coreservice.PrizePoolService
+	drawService   coreservice.DrawService
 	createService coreservice.PrizeCreateService
 	editService   coreservice.PrizeEditService
 	deleteService coreservice.PrizeDeleteService
 	discord       ports.DiscordInfoProvider
+	messages      ports.DiscordMessagePort
+	direct        ports.DiscordDirectMessagePort
 	usage         ports.UsageTracker
 	color         func() int
 }
@@ -26,6 +29,16 @@ func NewModule(repo ports.GachaPrizePoolRepository, discord ports.DiscordInfoPro
 		discord: discord,
 		usage:   usage,
 		color:   legacyRandomColor,
+	}
+}
+
+func NewDrawModule(repo ports.GachaDrawRepository, messages ports.DiscordMessagePort, direct ports.DiscordDirectMessagePort, usage ports.UsageTracker) Module {
+	return Module{
+		drawService: coreservice.DrawService{Repository: repo},
+		messages:    messages,
+		direct:      direct,
+		usage:       usage,
+		color:       legacyRandomColor,
 	}
 }
 
@@ -53,13 +66,16 @@ func NewEditModule(repo ports.GachaPrizeEditRepository, usage ports.UsageTracker
 	}
 }
 
-func NewModuleWithRepositories(listRepo ports.GachaPrizePoolRepository, createRepo ports.GachaPrizeCreateRepository, editRepo ports.GachaPrizeEditRepository, deleteRepo ports.GachaPrizeDeleteRepository, discord ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
+func NewModuleWithRepositories(listRepo ports.GachaPrizePoolRepository, drawRepo ports.GachaDrawRepository, createRepo ports.GachaPrizeCreateRepository, editRepo ports.GachaPrizeEditRepository, deleteRepo ports.GachaPrizeDeleteRepository, discord ports.DiscordInfoProvider, messages ports.DiscordMessagePort, direct ports.DiscordDirectMessagePort, usage ports.UsageTracker) Module {
 	return Module{
 		service:       coreservice.PrizePoolService{Repository: listRepo},
+		drawService:   coreservice.DrawService{Repository: drawRepo},
 		createService: coreservice.PrizeCreateService{Repository: createRepo},
 		editService:   coreservice.PrizeEditService{Repository: editRepo},
 		deleteService: coreservice.PrizeDeleteService{Repository: deleteRepo},
 		discord:       discord,
+		messages:      messages,
+		direct:        direct,
 		usage:         usage,
 		color:         legacyRandomColor,
 	}
@@ -78,6 +94,9 @@ func (m Module) Name() string {
 	if m.service.Repository != nil {
 		enabled++
 	}
+	if m.drawService.Repository != nil {
+		enabled++
+	}
 	if m.createService.Repository != nil {
 		enabled++
 	}
@@ -89,6 +108,9 @@ func (m Module) Name() string {
 	}
 	if enabled > 1 {
 		return "gacha"
+	}
+	if m.drawService.Repository != nil {
+		return "gacha-draw"
 	}
 	if m.createService.Repository != nil {
 		return "gacha-prize-create"
@@ -107,6 +129,9 @@ func (m Module) Commands() []commands.Definition {
 	if m.service.Repository != nil {
 		definitions = append(definitions, PrizeListDefinitions()...)
 	}
+	if m.drawService.Repository != nil {
+		definitions = append(definitions, DrawDefinitions()...)
+	}
 	if m.createService.Repository != nil {
 		definitions = append(definitions, PrizeCreateDefinitions()...)
 	}
@@ -122,6 +147,11 @@ func (m Module) Commands() []commands.Definition {
 func (m Module) RegisterRoutes(router *interactions.Router) error {
 	if m.service.Repository != nil {
 		if err := router.RegisterSlash(GachaPrizeListCommandName, m.PrizeListHandler()); err != nil {
+			return err
+		}
+	}
+	if m.drawService.Repository != nil {
+		if err := router.RegisterSlash(GachaDrawCommandName, m.DrawHandler()); err != nil {
 			return err
 		}
 	}

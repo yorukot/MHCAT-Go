@@ -112,6 +112,135 @@ func TestPrizeListSplitsMoreThanDiscordFieldLimit(t *testing.T) {
 	}
 }
 
+func TestDrawRendersLegacyResultAndSendsSideEffects(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	repo.Balances["guild-1/user-1"] = domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 1000}
+	repo.Configs["guild-1"] = domain.EconomyConfig{GuildID: "guild-1", GachaCost: 500, ChannelID: "notify-channel"}
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 100, Count: 2}}
+	repo.PrizeConfigs["guild-1"] = []domain.GachaPrizeConfig{{
+		GuildID:    "guild-1",
+		Name:       "大獎",
+		Code:       "code-1",
+		Chance:     100,
+		AutoDelete: true,
+		Count:      2,
+		GiveCoin:   50,
+	}}
+	sideEffects := fakediscord.NewSideEffects()
+	usage := &fakeusage.Tracker{}
+	module := NewDrawModule(repo, sideEffects, sideEffects, usage)
+	module.drawService.Random = func() float64 { return 0 }
+	module.color = func() int { return 0x123456 }
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteraction(GachaDrawCommandName)
+	interaction.Actor.AvatarURL = "https://example.invalid/avatar.png"
+
+	if err := module.DrawHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 || responder.Defers[0].Ephemeral {
+		t.Fatalf("defers = %#v", responder.Defers)
+	}
+	if len(responder.Edits) != 2 {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if responder.Edits[0].Content != legacyGachaDrawLoadingGIF {
+		t.Fatalf("loading edit = %#v", responder.Edits[0])
+	}
+	embed := responder.Edits[1].Embeds[0]
+	if embed.Title != "<:gashapon:997374176526610472> 扭蛋系統" || embed.Color != 0x123456 || !strings.Contains(embed.Description, "你扭中了:\n大獎") {
+		t.Fatalf("result embed = %#v", embed)
+	}
+	if embed.Footer == nil || embed.Footer.Text != "如扭中的獎品有獎品代碼，將會私訊給您!" || embed.Footer.IconURL != "https://example.invalid/avatar.png" {
+		t.Fatalf("footer = %#v", embed.Footer)
+	}
+	if repo.Balances["guild-1/user-1"].Coins != 550 {
+		t.Fatalf("balance = %#v", repo.Balances["guild-1/user-1"])
+	}
+	if len(repo.Prizes["guild-1"]) != 1 || repo.Prizes["guild-1"][0].Count != 1 {
+		t.Fatalf("inventory = %#v", repo.Prizes["guild-1"])
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].ChannelID != "notify-channel" || !strings.Contains(sideEffects.Sent[0].Message.Embeds[0].Description, "大獎") {
+		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+	if len(sideEffects.DirectMessages) != 1 || sideEffects.DirectMessages[0].UserID != "user-1" {
+		t.Fatalf("dm = %#v", sideEffects.DirectMessages)
+	}
+	dmEmbed := sideEffects.DirectMessages[0].Message.Embeds[0]
+	if dmEmbed.Title != "<:fireworks:997374182016958494> 恭喜你中獎!!" || len(dmEmbed.Fields) != 1 || dmEmbed.Fields[0].Value != "<:security:997374179257102396> **獎品代碼:**code-1" {
+		t.Fatalf("dm embed = %#v", dmEmbed)
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != GachaDrawCommandName || usage.Events[0].Feature != "gacha-draw" {
+		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
+func TestDrawChoiceUsesPaidCostAndActualResultCount(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	repo.Balances["guild-1/user-1"] = domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 2000}
+	repo.Configs["guild-1"] = domain.EconomyConfig{GuildID: "guild-1", GachaCost: 100}
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 100, Count: 20}}
+	repo.PrizeConfigs["guild-1"] = []domain.GachaPrizeConfig{{GuildID: "guild-1", Name: "大獎", Chance: 100, AutoDelete: true, Count: 20}}
+	module := NewDrawModule(repo, nil, nil, nil)
+	module.drawService.Random = func() float64 { return 0 }
+	module.color = func() int { return 0 }
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteractionWithOptions(GachaDrawCommandName, "", map[string]string{gachaDrawMultiOption: "11"})
+
+	if err := module.DrawHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	description := responder.Edits[1].Embeds[0].Description
+	if strings.Count(description, "大獎") != 11 {
+		t.Fatalf("description = %q", description)
+	}
+	if repo.Balances["guild-1/user-1"].Coins != 1000 {
+		t.Fatalf("balance should charge 10 paid draws: %#v", repo.Balances["guild-1/user-1"])
+	}
+}
+
+func TestDrawLegacyErrorFollowUps(t *testing.T) {
+	t.Run("missing balance", func(t *testing.T) {
+		module := NewDrawModule(fakemongo.NewGachaRepository(), nil, nil, nil)
+		responder := fakediscord.NewResponder()
+		if err := module.DrawHandler()(context.Background(), fakediscord.SlashInteraction(GachaDrawCommandName), responder); err != nil {
+			t.Fatalf("handler: %v", err)
+		}
+		if len(responder.Follow) != 1 || !responder.Follow[0].Ephemeral || responder.Follow[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 你還沒有任何代幣欸使用`/簽到`或是多講話，都可以獲得代幣喔!" {
+			t.Fatalf("followups = %#v", responder.Follow)
+		}
+		if len(responder.Edits) != 0 {
+			t.Fatalf("should not render loading/final on error: %#v", responder.Edits)
+		}
+	})
+	t.Run("empty pool", func(t *testing.T) {
+		repo := fakemongo.NewGachaRepository()
+		repo.Balances["guild-1/user-1"] = domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 1000}
+		module := NewDrawModule(repo, nil, nil, nil)
+		responder := fakediscord.NewResponder()
+		if err := module.DrawHandler()(context.Background(), fakediscord.SlashInteraction(GachaDrawCommandName), responder); err != nil {
+			t.Fatalf("handler: %v", err)
+		}
+		if len(responder.Follow) != 1 || responder.Follow[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 獎池裡沒有獎品，只會抽到空氣喔;w;" {
+			t.Fatalf("followups = %#v", responder.Follow)
+		}
+	})
+	t.Run("insufficient coins", func(t *testing.T) {
+		repo := fakemongo.NewGachaRepository()
+		repo.Balances["guild-1/user-1"] = domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 99}
+		repo.Configs["guild-1"] = domain.EconomyConfig{GuildID: "guild-1", GachaCost: 100}
+		repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 100, Count: 1}}
+		module := NewDrawModule(repo, nil, nil, nil)
+		responder := fakediscord.NewResponder()
+		if err := module.DrawHandler()(context.Background(), fakediscord.SlashInteraction(GachaDrawCommandName), responder); err != nil {
+			t.Fatalf("handler: %v", err)
+		}
+		if len(responder.Follow) != 1 || responder.Follow[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 必須要有`100`個代幣才能進行扭蛋" {
+			t.Fatalf("followups = %#v", responder.Follow)
+		}
+	})
+}
+
 func TestPrizeDeleteRemovesPrizeAndRendersLegacySuccess(t *testing.T) {
 	repo := fakemongo.NewGachaRepository()
 	repo.Prizes["guild-1"] = []domain.GachaPrize{

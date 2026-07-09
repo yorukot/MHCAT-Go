@@ -847,6 +847,43 @@ func TestBuildRuntimeRoutesGachaPrizeListOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesGachaDrawOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteraction("扭蛋")
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("gacha draw route should not be available without repository")
+	}
+
+	repo := fakemongo.NewGachaRepository()
+	repo.Balances["guild-1/user-1"] = domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 1000}
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 100, Count: 1}}
+	repo.PrizeConfigs["guild-1"] = []domain.GachaPrizeConfig{{GuildID: "guild-1", Name: "大獎", Chance: 100, AutoDelete: true, Count: 1}}
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:              validTestConfig(),
+		GachaDrawRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with gacha draw repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch gacha draw: %v", err)
+	}
+	if len(responder.Edits) != 2 || len(responder.Edits[1].Embeds) != 1 || !strings.Contains(responder.Edits[1].Embeds[0].Title, "扭蛋系統") {
+		t.Fatalf("gacha draw response = %#v", responder.Edits)
+	}
+
+	responder = fakediscord.NewResponder()
+	listInteraction := fakediscord.SlashInteraction("扭蛋獎池查詢")
+	if err := dispatcher.Dispatch(context.Background(), listInteraction, responder); err == nil {
+		t.Fatal("gacha prize-list route should not be available with draw-only repository")
+	}
+}
+
 func TestBuildRuntimeRoutesGachaPrizeDeleteOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

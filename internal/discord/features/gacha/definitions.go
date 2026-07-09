@@ -3,12 +3,14 @@ package gacha
 import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 
 const (
+	GachaDrawCommandName        = "扭蛋"
 	GachaPrizeCreateCommandName = "扭蛋獎池增加"
 	GachaPrizeEditCommandName   = "扭蛋獎品編輯"
 	GachaPrizeListCommandName   = "扭蛋獎池查詢"
 	GachaPrizeDeleteCommandName = "扭蛋獎池刪除"
 
 	gachaManageMessagesPermission = "8192"
+	gachaDrawMultiOption          = "連抽"
 	gachaPrizeNameOption          = "獎品名稱"
 	gachaPrizeChanceOption        = "機率"
 	gachaPrizeCodeOption          = "獎品代碼"
@@ -18,15 +20,20 @@ const (
 )
 
 func Definitions() []commands.Definition {
-	return PrizeListDefinitions()
+	return DrawDefinitions()
 }
 
 func AllDefinitions() []commands.Definition {
-	definitions := PrizeListDefinitions()
+	definitions := DrawDefinitions()
+	definitions = append(definitions, PrizeListDefinitions()...)
 	definitions = append(definitions, PrizeCreateDefinitions()...)
 	definitions = append(definitions, PrizeEditDefinitions()...)
 	definitions = append(definitions, PrizeDeleteDefinitions()...)
 	return definitions
+}
+
+func DrawDefinitions() []commands.Definition {
+	return []commands.Definition{DrawDefinition()}
 }
 
 func PrizeListDefinitions() []commands.Definition {
@@ -43,6 +50,27 @@ func PrizeCreateDefinitions() []commands.Definition {
 
 func PrizeEditDefinitions() []commands.Definition {
 	return []commands.Definition{PrizeEditDefinition()}
+}
+
+func DrawDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        GachaDrawCommandName,
+		Description: "進行扭蛋，有機會抽中各種大獎喔!!!!",
+		DocsURL:     "https://docsmhcat.yorukot.meocs/gashapon",
+		Ownership:   commands.ManagedOwnership("gacha-draw", commands.ScopeGuild),
+		Options: []commands.Option{{
+			Type:        commands.OptionTypeString,
+			Name:        gachaDrawMultiOption,
+			Description: "如果需要連抽的話可以使用這個指令",
+			Choices: []commands.Choice{
+				{Name: "5連抽(無buff)", Value: "5"},
+				{Name: "10連抽(多送一抽)", Value: "11"},
+				{Name: "15連抽(多送兩抽)", Value: "17"},
+				{Name: "20連抽(多送三抽)", Value: "23"},
+			},
+		}},
+	}
 }
 
 func PrizeListDefinition() commands.Definition {

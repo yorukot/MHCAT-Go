@@ -8,10 +8,11 @@ import (
 )
 
 var (
-	ErrGachaPrizePoolEmpty = errors.New("gacha prize pool is empty")
-	ErrGachaPrizePoolFull  = errors.New("gacha prize pool is full")
-	ErrGachaPrizeExists    = errors.New("gacha prize already exists")
-	ErrGachaPrizeMissing   = errors.New("gacha prize is missing")
+	ErrGachaPrizePoolEmpty    = errors.New("gacha prize pool is empty")
+	ErrGachaPrizePoolFull     = errors.New("gacha prize pool is full")
+	ErrGachaPrizeExists       = errors.New("gacha prize already exists")
+	ErrGachaPrizeMissing      = errors.New("gacha prize is missing")
+	ErrGachaInsufficientCoins = errors.New("gacha draw has insufficient coins")
 )
 
 type GachaPrizePoolRepository interface {
@@ -30,4 +31,8 @@ type GachaPrizeCreateRepository interface {
 
 type GachaPrizeEditRepository interface {
 	EditGachaPrize(ctx context.Context, edit domain.GachaPrizeEdit) (domain.GachaPrizeConfig, error)
+}
+
+type GachaDrawRepository interface {
+	DrawGacha(ctx context.Context, request domain.GachaDrawRequest) (domain.GachaDrawResult, error)
 }

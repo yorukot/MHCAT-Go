@@ -41,6 +41,7 @@ const (
 	DefaultCommandSyncIncludeAntiScamReport         = false
 	DefaultCommandSyncIncludeLoggingConfig          = false
 	DefaultCommandSyncIncludeGachaPrizeList         = false
+	DefaultCommandSyncIncludeGachaDraw              = false
 	DefaultCommandSyncIncludeGachaPrizeCreate       = false
 	DefaultCommandSyncIncludeGachaPrizeEdit         = false
 	DefaultCommandSyncIncludeGachaPrizeDelete       = false
@@ -102,6 +103,7 @@ type CommandSyncConfig struct {
 	IncludeAntiScamReport         bool
 	IncludeLoggingConfig          bool
 	IncludeGachaPrizeList         bool
+	IncludeGachaDraw              bool
 	IncludeGachaPrizeCreate       bool
 	IncludeGachaPrizeEdit         bool
 	IncludeGachaPrizeDelete       bool
@@ -178,6 +180,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeAntiScamReport:         DefaultCommandSyncIncludeAntiScamReport,
 		IncludeLoggingConfig:          DefaultCommandSyncIncludeLoggingConfig,
 		IncludeGachaPrizeList:         DefaultCommandSyncIncludeGachaPrizeList,
+		IncludeGachaDraw:              DefaultCommandSyncIncludeGachaDraw,
 		IncludeGachaPrizeCreate:       DefaultCommandSyncIncludeGachaPrizeCreate,
 		IncludeGachaPrizeEdit:         DefaultCommandSyncIncludeGachaPrizeEdit,
 		IncludeGachaPrizeDelete:       DefaultCommandSyncIncludeGachaPrizeDelete,
@@ -284,6 +287,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeGachaPrizeList, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST", DefaultCommandSyncIncludeGachaPrizeList); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeGachaDraw, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW", DefaultCommandSyncIncludeGachaDraw); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeGachaPrizeCreate, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE", DefaultCommandSyncIncludeGachaPrizeCreate); err != nil {
@@ -583,6 +589,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeGachaDraw {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeGachaPrizeCreate {
