@@ -8,7 +8,12 @@ import (
 )
 
 var ErrWarningsNotFound = errors.New("warnings not found")
+var ErrWarningSettingsUnavailable = errors.New("warning settings repository unavailable")
 
 type WarningHistoryRepository interface {
 	GetWarningHistory(ctx context.Context, guildID string, userID string) (domain.WarningHistory, error)
+}
+
+type WarningSettingsRepository interface {
+	SaveWarningSettings(ctx context.Context, settings domain.WarningSettings) error
 }

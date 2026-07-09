@@ -23,6 +23,7 @@ const (
 	DefaultFeatureEconomySettingsEnabled        = false
 	DefaultFeatureWorkEnabled                   = false
 	DefaultFeatureWarningsEnabled               = false
+	DefaultFeatureWarningSettingsEnabled        = false
 	DefaultFeatureTranslateEnabled              = false
 	DefaultFeatureBalanceQueryEnabled           = false
 	DefaultFeatureRedeemEnabled                 = false
@@ -79,6 +80,7 @@ type Config struct {
 	FeatureEconomySettingsEnabled        bool
 	FeatureWorkEnabled                   bool
 	FeatureWarningsEnabled               bool
+	FeatureWarningSettingsEnabled        bool
 	FeatureTranslateEnabled              bool
 	FeatureBalanceQueryEnabled           bool
 	FeatureRedeemEnabled                 bool

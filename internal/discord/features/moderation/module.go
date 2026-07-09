@@ -9,6 +9,7 @@ import (
 
 type Module struct {
 	warnings coremoderation.WarningHistoryService
+	settings coremoderation.WarningSettingsService
 	members  ports.DiscordGuildMemberReader
 	discord  ports.DiscordInfoProvider
 	usage    ports.UsageTracker
@@ -23,14 +24,41 @@ func NewModule(repo ports.WarningHistoryRepository, members ports.DiscordGuildMe
 	}
 }
 
+func NewSettingsModule(repo ports.WarningSettingsRepository, usage ports.UsageTracker) Module {
+	return Module{
+		settings: coremoderation.WarningSettingsService{Repository: repo},
+		usage:    usage,
+	}
+}
+
 func (m Module) Name() string {
 	return "warnings"
 }
 
 func (m Module) Commands() []commands.Definition {
-	return Definitions()
+	definitions := []commands.Definition{}
+	if m.warnings.Repository != nil {
+		definitions = append(definitions, WarningHistoryDefinition())
+	}
+	if m.settings.Repository != nil {
+		definitions = append(definitions, WarningSettingsDefinition())
+	}
+	if len(definitions) > 0 {
+		return definitions
+	}
+	return append(Definitions(), SettingsDefinitions()...)
 }
 
 func (m Module) RegisterRoutes(router *interactions.Router) error {
-	return router.RegisterSlash(WarningHistoryCommandName, m.WarningHistoryHandler())
+	if m.warnings.Repository != nil {
+		if err := router.RegisterSlash(WarningHistoryCommandName, m.WarningHistoryHandler()); err != nil {
+			return err
+		}
+	}
+	if m.settings.Repository != nil {
+		if err := router.RegisterSlash(WarningSettingsCommandName, m.WarningSettingsHandler()); err != nil {
+			return err
+		}
+	}
+	return nil
 }

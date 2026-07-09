@@ -53,6 +53,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS:-false}" = "true" ] && [ "${MHCAT_FE
   echo "refusing apply: warning-history command apply requires MHCAT_FEATURE_WARNINGS_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS:-false}" = "true" ] && [ "${MHCAT_FEATURE_WARNING_SETTINGS_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: warning-settings command apply requires MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ] && [ "${MHCAT_FEATURE_TRANSLATE_ENABLED:-false}" != "true" ]; then
   echo "refusing apply: translate command apply requires MHCAT_FEATURE_TRANSLATE_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -185,6 +189,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS:-false}" = "true" ]; then
   echo "staging command sync apply: including warning-history command" >&2
 else
   echo "staging command sync apply: warning-history command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS:-false}" = "true" ]; then
+  echo "staging command sync apply: including warning-settings command" >&2
+else
+  echo "staging command sync apply: warning-settings command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ]; then
   echo "staging command sync apply: including translate command" >&2

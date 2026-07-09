@@ -95,8 +95,93 @@ func TestWarningHistoryMissingUsesLegacyError(t *testing.T) {
 	}
 }
 
+func TestWarningSettingsRequiresManageMessages(t *testing.T) {
+	module := NewSettingsModule(fakemongo.NewWarningSettingsRepository(), nil)
+	responder := fakediscord.NewResponder()
+	interaction := warningSettingsInteraction(domain.WarningSettingsActionBan, "3")
+	interaction.Actor.PermissionBits = 0
+
+	if err := module.WarningSettingsHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestWarningSettingsSavesAndRendersLegacyEmbed(t *testing.T) {
+	repo := fakemongo.NewWarningSettingsRepository()
+	usage := &fakeusage.Tracker{}
+	module := NewSettingsModule(repo, usage)
+	responder := fakediscord.NewResponder()
+	interaction := warningSettingsInteraction(domain.WarningSettingsActionKick, "4")
+
+	if err := module.WarningSettingsHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	embed := responder.Edits[0].Embeds[0]
+	if embed.Title != "警告系統" || embed.Description != "警告成功設為警告4次後\n執行踢出" || embed.Color != warningSettingsSuccessColor {
+		t.Fatalf("embed = %#v", embed)
+	}
+	got := repo.Settings["guild-1"]
+	if got.Threshold != 4 || got.Action != domain.WarningSettingsActionKick {
+		t.Fatalf("saved settings = %#v", got)
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != WarningSettingsCommandName || usage.Events[0].Feature != "warning-settings" {
+		t.Fatalf("usage events = %#v", usage.Events)
+	}
+}
+
+func TestWarningSettingsTypedIntegerOption(t *testing.T) {
+	repo := fakemongo.NewWarningSettingsRepository()
+	module := NewSettingsModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	interaction := warningSettingsInteraction(domain.WarningSettingsActionBan, "")
+	interaction.CommandOptions = map[string]interactions.CommandOptionValue{
+		warningSettingsOptionAction: {
+			Type:   interactions.CommandOptionString,
+			String: domain.WarningSettingsActionBan,
+		},
+		warningSettingsOptionThreshold: {
+			Type: interactions.CommandOptionInteger,
+			Int:  2,
+		},
+	}
+
+	if err := module.WarningSettingsHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if got := repo.Settings["guild-1"]; got.Threshold != 2 || got.Action != domain.WarningSettingsActionBan {
+		t.Fatalf("saved settings = %#v", got)
+	}
+}
+
+func TestWarningSettingsInvalidInputUsesGenericError(t *testing.T) {
+	module := NewSettingsModule(fakemongo.NewWarningSettingsRepository(), nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.WarningSettingsHandler()(context.Background(), warningSettingsInteraction("mute", "0"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "未知的錯誤") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func warningHistoryInteraction(userID string) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(WarningHistoryCommandName, "", map[string]string{"使用者": userID})
+	interaction.Actor.PermissionBits = warningManageMessagesPermission
+	return interaction
+}
+
+func warningSettingsInteraction(action string, threshold string) interactions.Interaction {
+	interaction := fakediscord.SlashInteractionWithOptions(WarningSettingsCommandName, "", map[string]string{
+		warningSettingsOptionAction:    action,
+		warningSettingsOptionThreshold: threshold,
+	})
 	interaction.Actor.PermissionBits = warningManageMessagesPermission
 	return interaction
 }

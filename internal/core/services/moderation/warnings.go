@@ -12,6 +12,10 @@ type WarningHistoryService struct {
 	Repository ports.WarningHistoryRepository
 }
 
+type WarningSettingsService struct {
+	Repository ports.WarningSettingsRepository
+}
+
 func (s WarningHistoryService) History(ctx context.Context, guildID string, userID string) (domain.WarningHistory, error) {
 	guildID = strings.TrimSpace(guildID)
 	userID = strings.TrimSpace(userID)
@@ -29,4 +33,16 @@ func (s WarningHistoryService) History(ctx context.Context, guildID string, user
 		return domain.WarningHistory{}, ports.ErrWarningsNotFound
 	}
 	return history, nil
+}
+
+func (s WarningSettingsService) Configure(ctx context.Context, settings domain.WarningSettings) error {
+	settings.GuildID = strings.TrimSpace(settings.GuildID)
+	settings.Action = strings.TrimSpace(settings.Action)
+	if err := settings.Validate(); err != nil {
+		return err
+	}
+	if s.Repository == nil {
+		return ports.ErrWarningSettingsUnavailable
+	}
+	return s.Repository.SaveWarningSettings(ctx, settings)
 }

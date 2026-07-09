@@ -1,6 +1,10 @@
 package documents
 
-import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+import (
+	"strconv"
+
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+)
 
 type WarningDocument struct {
 	Guild   string                 `bson:"guild" json:"guild"`
@@ -12,6 +16,12 @@ type WarningEntryDocument struct {
 	Moderator string `bson:"moderator" json:"moderator"`
 	Reason    string `bson:"reason" json:"reason"`
 	Time      string `bson:"time" json:"time"`
+}
+
+type WarningSettingsDocument struct {
+	Guild    string `bson:"guild" json:"guild"`
+	BanCount string `bson:"ban_count" json:"ban_count"`
+	Move     string `bson:"move" json:"move"`
 }
 
 func (d WarningDocument) ToDomain() domain.WarningHistory {
@@ -27,5 +37,13 @@ func (d WarningDocument) ToDomain() domain.WarningHistory {
 		GuildID: d.Guild,
 		UserID:  d.User,
 		Entries: entries,
+	}
+}
+
+func WarningSettingsDocumentFromDomain(settings domain.WarningSettings) WarningSettingsDocument {
+	return WarningSettingsDocument{
+		Guild:    settings.GuildID,
+		BanCount: strconv.FormatInt(settings.Threshold, 10),
+		Move:     settings.Action,
 	}
 }

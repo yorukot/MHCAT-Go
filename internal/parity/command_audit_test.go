@@ -142,6 +142,19 @@ func TestAuditSlashCommandParityClassifiesMissingMatchingAndDrift(t *testing.T) 
 	}
 }
 
+func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
+	var foundWarningSettings bool
+	for _, definition := range CurrentGoDefinitions() {
+		if definition.Name == "警告設定" {
+			foundWarningSettings = true
+			break
+		}
+	}
+	if !foundWarningSettings {
+		t.Fatal("current Go definitions should include warning settings")
+	}
+}
+
 func TestAuditSlashCommandParityPreservesUnnamedParserWarnings(t *testing.T) {
 	audit := AuditSlashCommandParity([]LegacyCommand{
 		{File: "slashCommands/a/bad.js", Warnings: []string{"module.exports object did not close"}},

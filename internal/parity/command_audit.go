@@ -102,6 +102,7 @@ func CurrentGoDefinitions() []commands.Definition {
 	definitions = append(definitions, featureeconomy.SettingsDefinitions()...)
 	definitions = append(definitions, featurework.Definitions()...)
 	definitions = append(definitions, featuremoderation.Definitions()...)
+	definitions = append(definitions, featuremoderation.SettingsDefinitions()...)
 	definitions = append(definitions, featurebalance.Definitions()...)
 	definitions = append(definitions, featureredeem.Definitions()...)
 	definitions = append(definitions, featureautochat.Definitions()...)

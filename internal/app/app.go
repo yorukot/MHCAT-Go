@@ -270,6 +270,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		UsageTracker:                  usageadapter.NoopTracker{},
 		WorkFeatureEnabled:            cfg.FeatureWorkEnabled,
 		WarningsFeatureEnabled:        cfg.FeatureWarningsEnabled,
+		WarningSettingsFeatureEnabled: cfg.FeatureWarningSettingsEnabled,
 		TranslateFeatureEnabled:       cfg.FeatureTranslateEnabled,
 		LotteryDisabledCommandEnabled: cfg.FeatureLotteryDisabledCommandEnabled,
 		StatsQueryEnabled:             cfg.FeatureStatsQueryEnabled,
@@ -339,6 +340,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.WarningHistoryRepository = warningRepo
 		opts.WarningMemberReader = memberReader
+	}
+	if cfg.FeatureWarningSettingsEnabled {
+		warningSettingsRepo, err := warningSettingsRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.WarningSettingsRepository = warningSettingsRepo
 	}
 	if cfg.FeatureTranslateEnabled {
 		translator := externaladapter.NewGoogleTranslateClient()
@@ -591,6 +599,22 @@ func warningHistoryRepositoryFromMongo(mongoClient MongoClient) (*mongorepositor
 	repo, err := mongorepositories.NewWarningHistoryRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("warnings feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func warningSettingsRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.WarningSettingsRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("warning settings feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("warning settings feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewWarningSettingsRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("warning settings feature repository: %w", err)
 	}
 	return repo, nil
 }

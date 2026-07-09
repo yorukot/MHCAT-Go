@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 43
-- Matching command definitions: 43
+- Current Go command definitions: 44
+- Matching command definitions: 44
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 31
+- Legacy commands without Go definitions: 30
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -58,6 +58,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `語音經驗刪除` | `slashCommands/經驗系統/voice_set_delete.js` | matching-definition | none |
 | `語音經驗設定` | `slashCommands/經驗系統/voice_set.js` | matching-definition | none |
 | `警告紀錄` | `slashCommands/警告系統/warnings.js` | matching-definition | none |
+| `警告設定` | `slashCommands/警告系統/erros_set.js` | matching-definition | none |
 | `退出訊息設置` | `slashCommands/加入設置/leave_message.js` | matching-definition | none |
 | `防詐騙網址` | `slashCommands/群組防護/not_a_goodweb.js` | matching-definition | none |
 | `驗證` | `slashCommands/加入設置/verification.js` | matching-definition | none |
@@ -98,7 +99,6 @@ None.
 | `警告` | 警告系統 | `slashCommands/警告系統/warn.js` | 警告一個使用者 |
 | `警告全部清除` | 警告系統 | `slashCommands/警告系統/remove-all-warnings.js` | 清除一個使用者的全部警告 |
 | `警告清除` | 警告系統 | `slashCommands/警告系統/remove-warn.js` | 清除一個使用者的某個警告 |
-| `警告設定` | 警告系統 | `slashCommands/警告系統/erros_set.js` | 警告的各種設定 |
 | `選取身分組-按鈕` | 管理系統 | `slashCommands/管理系統/releadd.js` | 設定領取身分組的消息(點按鈕自動增加身分組) |
 | `選取身分組-表情符號` | 管理系統 | `slashCommands/管理系統/role.js` | 設定領取身分組的消息-點按鈕自動增加身分組(如要更改某個表情符號所給予的身分組，請一樣打這個指令) |
 | `選取身分組刪除-表情符號` | 管理系統 | `slashCommands/管理系統/role_delete.js` | 選取身分組刪除-表情符號版(進行刪除) |

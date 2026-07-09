@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo/documents"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 )
 
 func TestWarningDocumentToDomain(t *testing.T) {
@@ -22,5 +23,16 @@ func TestWarningDocumentToDomain(t *testing.T) {
 	}
 	if got.Entries[0].ModeratorID != "mod-1" || got.Entries[0].Reason != "reason" || got.Entries[0].Time != "2026-07-04" {
 		t.Fatalf("entry = %#v", got.Entries[0])
+	}
+}
+
+func TestWarningSettingsDocumentFromDomainStoresLegacyShape(t *testing.T) {
+	doc := documents.WarningSettingsDocumentFromDomain(domain.WarningSettings{
+		GuildID:   "guild-1",
+		Threshold: 3,
+		Action:    domain.WarningSettingsActionKick,
+	})
+	if doc.Guild != "guild-1" || doc.BanCount != "3" || doc.Move != domain.WarningSettingsActionKick {
+		t.Fatalf("document = %#v", doc)
 	}
 }

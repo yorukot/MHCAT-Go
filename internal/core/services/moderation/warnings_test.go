@@ -41,3 +41,33 @@ func TestWarningHistoryServiceMissingAndEmpty(t *testing.T) {
 		t.Fatalf("invalid err = %v", err)
 	}
 }
+
+func TestWarningSettingsServiceConfiguresSettings(t *testing.T) {
+	repo := fakemongo.NewWarningSettingsRepository()
+	service := moderation.WarningSettingsService{Repository: repo}
+	err := service.Configure(context.Background(), domain.WarningSettings{
+		GuildID:   " guild-1 ",
+		Threshold: 4,
+		Action:    " 踢出 ",
+	})
+	if err != nil {
+		t.Fatalf("configure settings: %v", err)
+	}
+	got := repo.Settings["guild-1"]
+	if got.Threshold != 4 || got.Action != domain.WarningSettingsActionKick {
+		t.Fatalf("saved settings = %#v", got)
+	}
+}
+
+func TestWarningSettingsServiceRejectsInvalidAndMissingRepository(t *testing.T) {
+	service := moderation.WarningSettingsService{}
+	err := service.Configure(context.Background(), domain.WarningSettings{GuildID: "guild-1", Threshold: 1, Action: domain.WarningSettingsActionBan})
+	if !errors.Is(err, ports.ErrWarningSettingsUnavailable) {
+		t.Fatalf("missing repository err = %v", err)
+	}
+	service.Repository = fakemongo.NewWarningSettingsRepository()
+	err = service.Configure(context.Background(), domain.WarningSettings{GuildID: "guild-1", Threshold: 0, Action: domain.WarningSettingsActionBan})
+	if !errors.Is(err, domain.ErrInvalidWarningSettings) {
+		t.Fatalf("invalid err = %v", err)
+	}
+}

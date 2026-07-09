@@ -489,6 +489,42 @@ func TestBuildRuntimeRoutesWarningsOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesWarningSettingsOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), WarningSettingsFeatureEnabled: true})
+	if err != nil {
+		t.Fatalf("build runtime with warning settings feature: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("警告設定", "", map[string]string{
+		"執行的動作":     "停權",
+		"幾次警告後執行動作": "3",
+	})
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("warning settings route should not be available without repository")
+	}
+
+	repo := fakemongo.NewWarningSettingsRepository()
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                        validTestConfig(),
+		WarningSettingsFeatureEnabled: true,
+		WarningSettingsRepository:     repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with warning settings repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch warning settings: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Description != "警告成功設為警告3次後\n執行停權" {
+		t.Fatalf("warning settings response = %#v", responder.Edits)
+	}
+	if got := repo.Settings["guild-1"]; got.Threshold != 3 || got.Action != "停權" {
+		t.Fatalf("saved warning settings = %#v", got)
+	}
+}
+
 func TestBuildRuntimeRoutesLoggingConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

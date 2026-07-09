@@ -32,10 +32,13 @@ The repository is read-only. It performs no warning writes, no warning deletes, 
 - The Go handler falls back to the stored moderator ID when a moderator member tag cannot be fetched, avoiding the legacy cached-member nil crash.
 - Internal errors are converted to a safe legacy-style red embed instead of exposing raw driver details.
 
+## Separate Warning Settings Slice
+
+`/警告設定` is implemented separately behind `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=false` and `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=false` by default. It writes only legacy `errors_sets` threshold/action config.
+
 ## Not Implemented
 
 - Warning creation/removal/escalation.
-- `errors_sets` config.
 - Bulk message clear/delete.
 - Kick/ban moderation actions.
 - Usage count writes.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -16,6 +17,7 @@ const (
 	warningManageMessagesPermission = int64(8192)
 	warningErrorColor               = 0xEA0000
 	warningHistoryColor             = 0x5865F2
+	warningSettingsSuccessColor     = 0x57F287
 )
 
 func (m Module) WarningHistoryHandler() interactions.Handler {
@@ -39,7 +41,35 @@ func (m Module) WarningHistoryHandler() interactions.Handler {
 		if err := responder.EditOriginal(ctx, warningHistoryMessage(history, targetName, moderatorTags)); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction)
+		return m.track(ctx, interaction, WarningHistoryCommandName, "warnings")
+	}
+}
+
+func (m Module) WarningSettingsHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		if !interaction.Actor.HasPermission(warningManageMessagesPermission) {
+			return responder.EditOriginal(ctx, warningErrorMessage("你需要有`訊息管理`才能使用此指令"))
+		}
+		action := warningStringOption(interaction, warningSettingsOptionAction)
+		threshold, ok := warningIntegerOption(interaction, warningSettingsOptionThreshold)
+		if !ok {
+			return responder.EditOriginal(ctx, warningErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+		}
+		settings := domain.WarningSettings{
+			GuildID:   interaction.Actor.GuildID,
+			Threshold: threshold,
+			Action:    action,
+		}
+		if err := m.settings.Configure(ctx, settings); err != nil {
+			return responder.EditOriginal(ctx, warningSettingsErrorMessage(err))
+		}
+		if err := responder.EditOriginal(ctx, warningSettingsMessage(settings)); err != nil {
+			return err
+		}
+		return m.track(ctx, interaction, WarningSettingsCommandName, "warning-settings")
 	}
 }
 
@@ -119,6 +149,28 @@ func warningHistoryErrorMessage(err error) responses.Message {
 	}
 }
 
+func warningSettingsErrorMessage(err error) responses.Message {
+	switch {
+	case errors.Is(err, domain.ErrInvalidWarningSettings):
+		return warningErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+	case errors.Is(err, ports.ErrWarningSettingsUnavailable):
+		return warningErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+	default:
+		return warningErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+	}
+}
+
+func warningSettingsMessage(settings domain.WarningSettings) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       "警告系統",
+			Description: fmt.Sprintf("警告成功設為警告%d次後\n執行%s", settings.Threshold, strings.TrimSpace(settings.Action)),
+			Color:       warningSettingsSuccessColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
 func warningErrorMessage(content string) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
@@ -129,14 +181,35 @@ func warningErrorMessage(content string) responses.Message {
 	}
 }
 
-func (m Module) track(ctx context.Context, interaction interactions.Interaction) error {
+func warningStringOption(interaction interactions.Interaction, name string) string {
+	if value, ok := interaction.CommandOptions[name]; ok {
+		return strings.TrimSpace(value.String)
+	}
+	return strings.TrimSpace(interaction.Options[name])
+}
+
+func warningIntegerOption(interaction interactions.Interaction, name string) (int64, bool) {
+	if value, ok := interaction.CommandOptions[name]; ok {
+		if value.Type == interactions.CommandOptionInteger {
+			return value.Int, true
+		}
+		if strings.TrimSpace(value.String) != "" {
+			parsed, err := strconv.ParseInt(strings.TrimSpace(value.String), 10, 64)
+			return parsed, err == nil
+		}
+	}
+	parsed, err := strconv.ParseInt(strings.TrimSpace(interaction.Options[name]), 10, 64)
+	return parsed, err == nil
+}
+
+func (m Module) track(ctx context.Context, interaction interactions.Interaction, commandName string, feature string) error {
 	if m.usage == nil {
 		return nil
 	}
 	return m.usage.TrackCommand(ctx, ports.UsageEvent{
-		CommandName: WarningHistoryCommandName,
+		CommandName: commandName,
 		UserID:      interaction.Actor.UserID,
 		GuildID:     interaction.Actor.GuildID,
-		Feature:     "warnings",
+		Feature:     feature,
 	})
 }

@@ -53,8 +53,10 @@ type RuntimeOptions struct {
 	WorkAdminRepository           ports.WorkAdminRepository
 	WorkFeatureEnabled            bool
 	WarningHistoryRepository      ports.WarningHistoryRepository
+	WarningSettingsRepository     ports.WarningSettingsRepository
 	WarningMemberReader           ports.DiscordGuildMemberReader
 	WarningsFeatureEnabled        bool
+	WarningSettingsFeatureEnabled bool
 	TranslateProvider             ports.Translator
 	TranslateFeatureEnabled       bool
 	BalanceRepository             ports.BalanceRepository
@@ -121,6 +123,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.WarningsFeatureEnabled {
 		definitions = append(definitions, featuremoderation.Definitions()...)
+	}
+	if opts.WarningSettingsFeatureEnabled {
+		definitions = append(definitions, featuremoderation.SettingsDefinitions()...)
 	}
 	if opts.TranslateFeatureEnabled && opts.TranslateProvider != nil {
 		definitions = append(definitions, commands.TranslateDefinition())
@@ -263,6 +268,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.WarningsFeatureEnabled && opts.WarningHistoryRepository != nil {
 		warningsModule := featuremoderation.NewModule(opts.WarningHistoryRepository, opts.WarningMemberReader, concreteDiscord, opts.UsageTracker)
 		if err := warningsModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.WarningSettingsFeatureEnabled && opts.WarningSettingsRepository != nil {
+		warningSettingsModule := featuremoderation.NewSettingsModule(opts.WarningSettingsRepository, opts.UsageTracker)
+		if err := warningSettingsModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}
