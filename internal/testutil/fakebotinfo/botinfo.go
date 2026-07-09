@@ -17,6 +17,7 @@ func (p Provider) BotInfo(context.Context) (ports.BotInfo, error) {
 
 type DiscordInfoProvider struct {
 	User       ports.DiscordUserInfo
+	Users      map[string]ports.DiscordUserInfo
 	Guild      ports.DiscordGuildInfo
 	UserErr    error
 	GuildErr   error
@@ -26,6 +27,11 @@ type DiscordInfoProvider struct {
 
 func (p *DiscordInfoProvider) UserInfo(_ context.Context, guildID string, userID string) (ports.DiscordUserInfo, error) {
 	p.UserCalls = append(p.UserCalls, guildID+":"+userID)
+	if p.Users != nil {
+		if user, ok := p.Users[userID]; ok {
+			return user, p.UserErr
+		}
+	}
 	return p.User, p.UserErr
 }
 

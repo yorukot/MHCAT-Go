@@ -279,6 +279,14 @@ func TestBuildRuntimeRoutesEconomySignInWithoutPublishingQuery(t *testing.T) {
 	if len(responder.Edits) != 1 || len(responder.Edits[0].Files) != 1 {
 		t.Fatalf("sign-in response = %#v", responder.Edits)
 	}
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Today: 1})
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction("簽到列表"), responder); err != nil {
+		t.Fatalf("dispatch sign-in list: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "`1`**人已經簽到") {
+		t.Fatalf("sign-in list response = %#v", responder.Edits)
+	}
 }
 
 func TestBuildRuntimeRoutesEconomySettingsWithoutPublishingQueryOrSignIn(t *testing.T) {

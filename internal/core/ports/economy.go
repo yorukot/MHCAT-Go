@@ -25,6 +25,7 @@ type EconomySignInRepository interface {
 	EconomyQueryRepository
 	SignIn(ctx context.Context, command domain.SignInCommand) (domain.SignInResult, error)
 	GetSignCalendar(ctx context.Context, guildID string, userID string, year string, month string) (domain.SignCalendar, error)
+	ListCoinBalances(ctx context.Context, guildID string) ([]domain.CoinBalance, error)
 }
 
 type EconomySettingsRepository interface {

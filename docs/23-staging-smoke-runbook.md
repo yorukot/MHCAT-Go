@@ -43,7 +43,7 @@ export MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true
 ```
 
-Set both together only in an isolated staging database when testing `/簽到`. Do not enable production sign-in until duplicate audits for `coins`/`sign_lists`, the unique-key/index plan, and the daily reset job ownership are complete.
+Set both together only in an isolated staging database when testing `/簽到` and `/簽到列表`. Do not enable production sign-in until duplicate audits for `coins`/`sign_lists`, the unique-key/index plan, and the daily reset job ownership are complete.
 
 Optional economy settings smoke flags:
 
@@ -312,7 +312,7 @@ For economy sign-in staging smoke, expected additionally:
 
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true`;
 - `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`;
-- plan includes managed `簽到`;
+- plan includes managed `簽到` and `簽到列表`;
 - plan still performs no create/update/delete during dry-run.
 
 For economy settings staging smoke, expected additionally:
@@ -448,7 +448,7 @@ If economy query inclusion is enabled, expected:
 
 If economy sign-in inclusion is enabled, expected:
 
-- create/update managed `簽到` only in addition to the utility commands;
+- create/update managed `簽到` and `簽到列表` only in addition to the utility commands;
 - no command deletion;
 - no bulk overwrite;
 - no global command mutation.

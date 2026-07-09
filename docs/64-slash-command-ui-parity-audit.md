@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 34
-- Matching command definitions: 34
+- Current Go command definitions: 35
+- Matching command definitions: 35
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 40
+- Legacy commands without Go definitions: 39
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -39,6 +39,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `私人頻道刪除` | `slashCommands/私人頻道/ticket_delete.js` | matching-definition | none |
 | `私人頻道設置` | `slashCommands/私人頻道/ticket.js` | matching-definition | none |
 | `簽到` | `slashCommands/代幣系統/sing.js` | matching-definition | none |
+| `簽到列表` | `slashCommands/代幣系統/sing_list.js` | matching-definition | none |
 | `統計系統查詢` | `slashCommands/統計系統/number.js` | matching-definition | none |
 | `翻譯` | `slashCommands/實用工具/translate.js` | matching-definition | none |
 | `聊天經驗刪除` | `slashCommands/經驗系統/text_set_delete.js` | matching-definition | none |
@@ -79,7 +80,6 @@ None.
 | `扭蛋獎池刪除` | 扭蛋系統 | `slashCommands/扭蛋系統/gift_delete.js` | 刪除扭蛋的獎池 |
 | `扭蛋獎池增加` | 扭蛋系統 | `slashCommands/扭蛋系統/giftadd.js` | 增加扭蛋的獎池 |
 | `查看餘額` | 管理系統 | `slashCommands/管理系統/check_price.js` | 查看剩餘餘額 |
-| `簽到列表` | 代幣系統 | `slashCommands/代幣系統/sing_list.js` | 查看今天有誰簽到了 |
 | `統計系統刪除` | 統計系統 | `slashCommands/統計系統/number_delete.js` | 刪除統計消息 |
 | `統計系統創建` | 統計系統 | `slashCommands/統計系統/number_create.js` | 創建統計消息 |
 | `統計身分組人數` | 統計系統 | `slashCommands/統計系統/role_create.js` | 統計某個特定的身分組的人數 |

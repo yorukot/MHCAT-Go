@@ -15,6 +15,7 @@
 - For account-age member-gate smoke, use only a disposable staging member and enable `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`.
 - For anti-scam config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG=true` with `MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED=true`.
 - For anti-scam report smoke, use a safe staging webhook endpoint and pair `MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT=true` with `MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED=true` plus `MHCAT_REPORT_WEBHOOK_URL` or `REPORT_WEBHOOK`.
+- For economy sign-in smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true` with `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`.
 - For lottery disabled-command smoke, pair `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true` with `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`; it should only return the legacy unavailable embed and must not create a lottery.
 - Run `scripts/staging/command-sync-dry-run.sh`.
 - Review the diff plan before apply.
@@ -35,6 +36,7 @@
 - If account-age member-gate smoke is enabled, join with a disposable too-new staging member and verify the legacy DM, kick reason, optional log embed, and that join-role/welcome side effects do not run after the kick.
 - If anti-scam config smoke is enabled, run `/防詐騙網址` twice and verify `good_webs.open` toggles true then false.
 - If anti-scam report smoke is enabled, run `/詐騙網址回報` with a safe staging URL, verify the webhook payload, then seed `not_a_good_webs.web` with the same URL and verify the duplicate error.
+- If economy sign-in smoke is enabled, run `/簽到`, then run `/簽到列表` and verify the public `簽到人數資訊` embed plus `discord.txt`.
 - If lottery disabled-command smoke is enabled, run `/抽獎設置` with placeholder options and verify the ephemeral unavailable embed.
 - Verify no duplicate initial response and no raw internal error.
 - Verify no command deletion or bulk overwrite happened.

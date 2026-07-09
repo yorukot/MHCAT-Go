@@ -5,6 +5,7 @@ import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 const (
 	CoinQueryCommandName       = "代幣查詢"
 	SignInCommandName          = "簽到"
+	SignInListCommandName      = "簽到列表"
 	EconomySettingsCommandName = "coin-related-settings"
 	manageMessagesPermission   = "8192"
 	textChannelType            = 0
@@ -16,7 +17,7 @@ func Definitions() []commands.Definition {
 }
 
 func SignInDefinitions() []commands.Definition {
-	return []commands.Definition{SignInDefinition()}
+	return []commands.Definition{SignInDefinition(), SignInListDefinition()}
 }
 
 func SettingsDefinitions() []commands.Definition {
@@ -46,6 +47,16 @@ func SignInDefinition() commands.Definition {
 		Type:        commands.CommandTypeChatInput,
 		Name:        SignInCommandName,
 		Description: "簽到來獲得代幣",
+		DocsURL:     "https://docsmhcat.yorukot.me/docs/snig",
+		Ownership:   commands.ManagedOwnership("economy-signin", commands.ScopeGuild),
+	}
+}
+
+func SignInListDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        SignInListCommandName,
+		Description: "查看今天有誰簽到了",
 		DocsURL:     "https://docsmhcat.yorukot.me/docs/snig",
 		Ownership:   commands.ManagedOwnership("economy-signin", commands.ScopeGuild),
 	}

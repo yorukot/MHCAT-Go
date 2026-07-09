@@ -1,10 +1,11 @@
 # Economy Sign-In Slice
 
-Status: first gated write slice for legacy `/簽到`.
+Status: gated write slice for legacy `/簽到` plus read-only legacy `/簽到列表`.
 
 ## Implemented
 
 - Local slash command definition for `簽到`.
+- Local slash command definition for `簽到列表`.
 - Runtime handler behind `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=false` by default.
 - Command-sync include gate `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=false` by default.
 - Staging preflight and shell-script pairing checks.
@@ -18,6 +19,9 @@ Status: first gated write slice for legacy `/簽到`.
 - Legacy sign navigation IDs like `/<user>_sing{2026}-[7]` remain accepted by the typed parser/router.
 - Mongo repository writes only `coins` and `sign_lists`.
 - Calendar updates use `$addToSet` instead of the legacy duplicate-prone full object replacement.
+- `/簽到列表` defers publicly, reads `coins` by guild and `gift_changes.time`, and edits to the legacy `簽到人數資訊` embed with `discord.txt`.
+- `/簽到列表` preserves the legacy daily marker mode (`coin.today == 1`) and rolling cooldown mode (`now - coin.today < gift_changes.time` and `> 0`).
+- `/簽到列表` does not write to Mongo.
 
 ## Intentional Legacy Bug Fixes
 
@@ -26,6 +30,7 @@ Status: first gated write slice for legacy `/簽到`.
 - The handler routes by typed `RouteKey`; it does not use legacy `customId.includes("sing")`.
 - The sign-list day write is attempted only after a successful coin award.
 - New versioned custom IDs are bounded by Discord's 100-character limit.
+- `/簽到列表` uses the current Discord username from member lookup rather than legacy `username#discriminator`, because Discord no longer consistently exposes discriminators through the current info port. Missing lookups still render the legacy `使用者已消失!` fallback.
 
 ## Production Blockers
 
@@ -47,6 +52,11 @@ scripts/staging/command-sync-dry-run.sh
 ```
 
 Do not run command-sync apply until the dry-run plan is reviewed.
+
+Smoke `/簽到列表` in both modes if possible:
+
+- daily mode: ensure `gift_changes.time` is missing or `0`, set at least one staging `coins.today=1`, and verify the count, `有`/`沒有` text, inline names, and `discord.txt`;
+- rolling mode: set `gift_changes.time` to a positive cooldown, use staging `coins.today` Unix timestamps, and verify the exported `簽到時間:` values use Taipei time.
 
 ## Duplicate Audit
 

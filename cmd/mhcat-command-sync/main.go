@@ -264,7 +264,7 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 		expected = append(expected, "代幣查詢")
 	}
 	if cfg.IncludeEconomySignIn {
-		expected = append(expected, "簽到")
+		expected = append(expected, featureeconomy.SignInCommandName, featureeconomy.SignInListCommandName)
 	}
 	if cfg.IncludeEconomySettings {
 		expected = append(expected, featureeconomy.EconomySettingsCommandName)

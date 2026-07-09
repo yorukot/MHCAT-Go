@@ -11,6 +11,7 @@ import (
 type EconomyRepository struct {
 	mu             sync.Mutex
 	Balances       map[string]domain.CoinBalance
+	balanceOrder   []string
 	Configs        map[string]domain.EconomyConfig
 	Calendars      map[string]domain.SignCalendar
 	SignInResult   *domain.SignInResult
@@ -57,7 +58,11 @@ func (r *EconomyRepository) GetEconomyConfig(ctx context.Context, guildID string
 func (r *EconomyRepository) PutBalance(balance domain.CoinBalance) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.Balances[economyBalanceKey(balance.GuildID, balance.UserID)] = balance
+	key := economyBalanceKey(balance.GuildID, balance.UserID)
+	if _, ok := r.Balances[key]; !ok {
+		r.balanceOrder = append(r.balanceOrder, key)
+	}
+	r.Balances[key] = balance
 }
 
 func (r *EconomyRepository) PutConfig(config domain.EconomyConfig) {
@@ -117,6 +122,22 @@ func (r *EconomyRepository) GetSignCalendar(ctx context.Context, guildID string,
 		return domain.SignCalendar{GuildID: guildID, UserID: userID, Date: map[string]map[string][]string{}}, nil
 	}
 	return cloneSignCalendar(calendar), nil
+}
+
+func (r *EconomyRepository) ListCoinBalances(ctx context.Context, guildID string) ([]domain.CoinBalance, error) {
+	if err := r.ready(ctx); err != nil {
+		return nil, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	balances := []domain.CoinBalance{}
+	for _, key := range r.balanceOrder {
+		balance := r.Balances[key]
+		if balance.GuildID == guildID {
+			balances = append(balances, balance)
+		}
+	}
+	return balances, nil
 }
 
 func (r *EconomyRepository) PutCalendar(calendar domain.SignCalendar) {

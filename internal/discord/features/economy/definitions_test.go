@@ -27,6 +27,28 @@ func TestCoinQueryDefinitionMatchesLegacyCommand(t *testing.T) {
 	}
 }
 
+func TestSignInDefinitionsMatchLegacyCommands(t *testing.T) {
+	definitions := SignInDefinitions()
+	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}, definitions)
+	if err := commands.ValidateRegistry(registry); err != nil {
+		t.Fatalf("validate registry: %v", err)
+	}
+	if len(definitions) != 2 {
+		t.Fatalf("definitions = %#v", definitions)
+	}
+	if definitions[0].Name != SignInCommandName || definitions[0].Description != "簽到來獲得代幣" {
+		t.Fatalf("sign-in definition = %#v", definitions[0])
+	}
+	if definitions[1].Name != SignInListCommandName || definitions[1].Description != "查看今天有誰簽到了" {
+		t.Fatalf("sign-in list definition = %#v", definitions[1])
+	}
+	for _, definition := range definitions {
+		if !commands.IsManagedForScope(definition, commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}) {
+			t.Fatalf("definition should be managed for guild scope: %#v", definition)
+		}
+	}
+}
+
 func TestSettingsDefinitionMatchesLegacyCommand(t *testing.T) {
 	definition := SettingsDefinition()
 	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}, []commands.Definition{definition})

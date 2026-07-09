@@ -646,8 +646,10 @@ func TestCommandSyncIncludeEconomySignInStagingDryRunIncludesDefinition(t *testi
 	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
 		t.Fatalf("dry-run performed writes: %#v", fake)
 	}
-	if !strings.Contains(stdout, "簽到") {
-		t.Fatalf("economy sign-in command missing from dry-run output: %q", stdout)
+	for _, name := range []string{"簽到", "簽到列表"} {
+		if !strings.Contains(stdout, name) {
+			t.Fatalf("economy sign-in command %q missing from dry-run output: %q", name, stdout)
+		}
 	}
 }
 

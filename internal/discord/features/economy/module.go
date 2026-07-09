@@ -1,6 +1,9 @@
 package economy
 
 import (
+	"crypto/rand"
+	"math/big"
+
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreeconomy "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/economy"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
@@ -10,10 +13,12 @@ import (
 type Module struct {
 	query        coreeconomy.CoinQueryService
 	signIn       coreeconomy.SignInService
+	signInList   coreeconomy.SignInListService
 	settings     coreeconomy.SettingsService
 	discord      ports.DiscordInfoProvider
 	usage        ports.UsageTracker
 	clock        ports.Clock
+	color        func() int
 	defs         []commands.Definition
 	feature      string
 	queryEnabled bool
@@ -24,6 +29,7 @@ func NewModule(repo ports.EconomyQueryRepository, discordInfo ports.DiscordInfoP
 		query:        coreeconomy.CoinQueryService{Repository: repo},
 		discord:      discordInfo,
 		usage:        usage,
+		color:        legacyRandomColor,
 		defs:         Definitions(),
 		feature:      "economy-query",
 		queryEnabled: true,
@@ -33,6 +39,7 @@ func NewModule(repo ports.EconomyQueryRepository, discordInfo ports.DiscordInfoP
 func NewModuleWithSignIn(queryRepo ports.EconomyQueryRepository, signInRepo ports.EconomySignInRepository, discordInfo ports.DiscordInfoProvider, clock ports.Clock, usage ports.UsageTracker) Module {
 	module := NewModule(queryRepo, discordInfo, usage)
 	module.signIn = coreeconomy.SignInService{Repository: signInRepo}
+	module.signInList = coreeconomy.SignInListService{Repository: signInRepo}
 	module.clock = clock
 	module.defs = append(module.defs, SignInDefinitions()...)
 	module.feature = "economy"
@@ -41,11 +48,15 @@ func NewModuleWithSignIn(queryRepo ports.EconomyQueryRepository, signInRepo port
 
 func NewSignInOnlyModule(repo ports.EconomySignInRepository, discordInfo ports.DiscordInfoProvider, clock ports.Clock, usage ports.UsageTracker) Module {
 	return Module{
-		query:   coreeconomy.CoinQueryService{Repository: repo},
-		signIn:  coreeconomy.SignInService{Repository: repo},
+		query:  coreeconomy.CoinQueryService{Repository: repo},
+		signIn: coreeconomy.SignInService{Repository: repo},
+		signInList: coreeconomy.SignInListService{
+			Repository: repo,
+		},
 		discord: discordInfo,
 		usage:   usage,
 		clock:   clock,
+		color:   legacyRandomColor,
 		defs:    SignInDefinitions(),
 		feature: "economy-signin",
 	}
@@ -60,6 +71,7 @@ func NewSettingsModule(repo ports.EconomySettingsRepository, discordInfo ports.D
 		settings: coreeconomy.SettingsService{Repository: repo},
 		discord:  discordInfo,
 		usage:    usage,
+		color:    legacyRandomColor,
 		defs:     SettingsDefinitions(),
 		feature:  "economy-settings",
 	}
@@ -83,6 +95,9 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 		if err := router.RegisterSlash("簽到", m.SignInHandler()); err != nil {
 			return err
 		}
+		if err := router.RegisterSlash(SignInListCommandName, m.SignInListHandler()); err != nil {
+			return err
+		}
 		for _, key := range []interactions.RouteKey{
 			{Kind: interactions.TypeComponent, Version: "v1", Feature: "economy", Action: "sign_page"},
 			{Kind: interactions.TypeComponent, Version: "legacy", Feature: "economy", Action: "sign_page", Legacy: true},
@@ -98,4 +113,13 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 		}
 	}
 	return nil
+}
+
+func legacyRandomColor() int {
+	max := big.NewInt(0xFFFFFF + 1)
+	value, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		return coinQuerySuccessColor
+	}
+	return int(value.Int64())
 }

@@ -65,6 +65,33 @@ func (r *EconomyRepository) GetCoinBalance(ctx context.Context, guildID string, 
 	return document.ToDomain(), ctx.Err()
 }
 
+func (r *EconomyRepository) ListCoinBalances(ctx context.Context, guildID string) ([]domain.CoinBalance, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return nil, domain.ErrInvalidEconomyQuery
+	}
+	cursor, err := r.coins.Find(ctx, bson.D{{Key: "guild", Value: guildID}})
+	if err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("list coin balances: %w", err))
+	}
+	defer cursor.Close(ctx)
+	balances := []domain.CoinBalance{}
+	for cursor.Next(ctx) {
+		var document documents.CoinDocument
+		if err := cursor.Decode(&document); err != nil {
+			return nil, mhcatmongo.MapError(fmt.Errorf("decode coin balance: %w", err))
+		}
+		balances = append(balances, document.ToDomain())
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("iterate coin balances: %w", err))
+	}
+	return balances, ctx.Err()
+}
+
 func (r *EconomyRepository) GetEconomyConfig(ctx context.Context, guildID string) (domain.EconomyConfig, error) {
 	guildID = strings.TrimSpace(guildID)
 	if guildID == "" {

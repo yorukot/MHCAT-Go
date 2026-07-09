@@ -22,7 +22,7 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_QUERY:-false}" = "true" ] && [ "${MHC
   exit 1
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED:-false}" != "true" ]; then
-  echo "refusing command sync: economy sign-in command dry-run requires MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true for staging runtime parity" >&2
+  echo "refusing command sync: economy sign-in commands dry-run requires MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED:-false}" != "true" ]; then
@@ -130,9 +130,9 @@ else
   echo "staging command sync dry-run: economy query command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN:-false}" = "true" ]; then
-  echo "staging command sync dry-run: including economy sign-in command for review" >&2
+  echo "staging command sync dry-run: including economy sign-in commands for review" >&2
 else
-  echo "staging command sync dry-run: economy sign-in command is excluded" >&2
+  echo "staging command sync dry-run: economy sign-in commands are excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS:-false}" = "true" ]; then
   echo "staging command sync dry-run: including economy settings command for review" >&2

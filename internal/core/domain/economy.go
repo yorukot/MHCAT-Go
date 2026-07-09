@@ -73,6 +73,19 @@ type SignInResult struct {
 	SignedAt    time.Time
 }
 
+type SignInListEntry struct {
+	UserID       string
+	SignedAtUnix int64
+	ShowSignedAt bool
+}
+
+type SignInListResult struct {
+	GuildID       string
+	ActorUserID   string
+	Entries       []SignInListEntry
+	RollingWindow bool
+}
+
 type EconomySettingsCommand struct {
 	GuildID           string
 	GachaCost         int64

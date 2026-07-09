@@ -38,7 +38,7 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_QUERY:-false}" = "true" ] && [ "${MHC
   exit 1
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED:-false}" != "true" ]; then
-  echo "refusing apply: economy sign-in command apply requires MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true for staging runtime parity" >&2
+  echo "refusing apply: economy sign-in commands apply requires MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED:-false}" != "true" ]; then
@@ -147,9 +147,9 @@ else
   echo "staging command sync apply: economy query command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN:-false}" = "true" ]; then
-  echo "staging command sync apply: including economy sign-in command" >&2
+  echo "staging command sync apply: including economy sign-in commands" >&2
 else
-  echo "staging command sync apply: economy sign-in command is excluded" >&2
+  echo "staging command sync apply: economy sign-in commands are excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS:-false}" = "true" ]; then
   echo "staging command sync apply: including economy settings command" >&2

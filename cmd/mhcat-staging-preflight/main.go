@@ -301,9 +301,9 @@ func economySignInCommandSync(lookup lookupFunc) checkResult {
 		return checkResult{Name: "economy-signin-command-sync", Status: statusFail, Message: err.Error()}
 	}
 	if includeEconomySignIn {
-		return checkResult{Name: "economy-signin-command-sync", Status: statusPass, Message: "economy sign-in command sync include is enabled for staging review"}
+		return checkResult{Name: "economy-signin-command-sync", Status: statusPass, Message: "economy sign-in commands sync include is enabled for staging review"}
 	}
-	return checkResult{Name: "economy-signin-command-sync", Status: statusSkipped, Message: "economy sign-in command sync include is disabled"}
+	return checkResult{Name: "economy-signin-command-sync", Status: statusSkipped, Message: "economy sign-in commands sync include is disabled"}
 }
 
 func economySignInRuntimePairing(lookup lookupFunc) checkResult {
@@ -319,7 +319,7 @@ func economySignInRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "economy-signin-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true requires MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true in the staging runtime"}
 	}
 	if includeEconomySignIn && economySignInEnabled {
-		return checkResult{Name: "economy-signin-runtime-pairing", Status: statusPass, Message: "economy sign-in command sync and runtime feature flag are paired"}
+		return checkResult{Name: "economy-signin-runtime-pairing", Status: statusPass, Message: "economy sign-in commands sync and runtime feature flag are paired"}
 	}
 	if economySignInEnabled {
 		return checkResult{Name: "economy-signin-runtime-pairing", Status: statusWarn, Message: "economy sign-in runtime is enabled but command sync include is disabled"}
