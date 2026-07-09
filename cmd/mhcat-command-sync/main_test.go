@@ -841,6 +841,37 @@ func TestCommandSyncIncludeAutoChatConfigStagingDryRunIncludesDefinitions(t *tes
 	}
 }
 
+func TestCommandSyncIncludeAutoNotificationConfigRequiresStagingMode(t *testing.T) {
+	env := baseCommandSyncEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG"] = "true"
+	exitCode, _, stderr, fake := runWithFakeClient(t, nil, env, &fakediscord.CommandSyncClient{}, defaultCommandRegistry)
+	if exitCode == 0 {
+		t.Fatal("expected include auto-notification config without staging mode to fail")
+	}
+	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
+		t.Fatalf("unsafe include auto-notification config performed writes: %#v", fake)
+	}
+	if !strings.Contains(stderr, "MHCAT_STAGING_MODE") {
+		t.Fatalf("expected staging mode error, stderr=%q", stderr)
+	}
+}
+
+func TestCommandSyncIncludeAutoNotificationConfigStagingDryRunIncludesDefinitions(t *testing.T) {
+	env := stagingCommandSyncEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG"] = "true"
+	fake := &fakediscord.CommandSyncClient{}
+	exitCode, stdout, stderr, _ := runWithFakeClient(t, nil, env, fake, defaultCommandRegistry)
+	if exitCode != 0 {
+		t.Fatalf("expected auto-notification config dry-run to pass, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
+		t.Fatalf("dry-run performed writes: %#v", fake)
+	}
+	if !strings.Contains(stdout, "自動通知列表") || !strings.Contains(stdout, "自動通知刪除") {
+		t.Fatalf("expected auto-notification definitions in stdout=%q", stdout)
+	}
+}
+
 func TestCommandSyncIncludeAntiScamConfigRequiresStagingMode(t *testing.T) {
 	env := baseCommandSyncEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG"] = "true"

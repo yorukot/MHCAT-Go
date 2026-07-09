@@ -65,6 +65,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG:-false}" = "true" ] && [ "${M
   echo "refusing apply: autochat config command apply requires MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: auto-notification config command apply requires MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED:-false}" != "true" ]; then
   echo "refusing apply: anti-scam config command apply requires MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -184,6 +188,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG:-false}" = "true" ]; then
   echo "staging command sync apply: including autochat config commands" >&2
 else
   echo "staging command sync apply: autochat config commands are excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync apply: including auto-notification config commands" >&2
+else
+  echo "staging command sync apply: auto-notification config commands are excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG:-false}" = "true" ]; then
   echo "staging command sync apply: including anti-scam config command" >&2

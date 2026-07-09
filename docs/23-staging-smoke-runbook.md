@@ -90,6 +90,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true
 
 Set both together only when testing `/查看餘額`. This path reads `chatgpt_gets.price`, does not require Message Content intent, and does not write Mongo feature data.
 
+Optional auto-notification config smoke flags:
+
+```bash
+export MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true
+```
+
+Set both together only when testing `/自動通知列表` and `/自動通知刪除`. This path reads/deletes `cron_sets` rows and may clean abandoned setup drafts whose `cron` is null or missing. It does not enable `automatic-notification`, the cron modal/select flow, Message Content intent, recurring scheduler ownership, or notification sends.
+
 Optional logging-config smoke flags:
 
 ```bash
@@ -260,6 +269,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=true`, confirm `MHCAT_FEATURE_WARNINGS_ENABLED=true` and the staging guild has safe warning-history fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`, confirm `MHCAT_FEATURE_TRANSLATE_ENABLED=true` and external translate calls are allowed for the staging bot.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database has safe `cron_sets` fixtures for list/delete.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`, confirm `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true` and the selected log channel is staging-only.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true` and the staging database has safe gacha fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true`, confirm `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true` and that the expected result is only the unavailable embed.
@@ -358,6 +368,13 @@ For balance-query staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`;
 - `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true`;
 - plan includes managed `查看餘額`;
+- plan still performs no create/update/delete during dry-run.
+
+For auto-notification config staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`;
+- `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true`;
+- plan includes managed `自動通知列表` and `自動通知刪除`;
 - plan still performs no create/update/delete during dry-run.
 
 For logging-config staging smoke, expected additionally:
@@ -498,6 +515,13 @@ If logging-config inclusion is enabled, expected:
 - no bulk overwrite;
 - no global command mutation.
 
+If auto-notification config inclusion is enabled, expected:
+
+- create/update managed `自動通知列表` and `自動通知刪除` only in addition to the utility commands;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
 If verification-config inclusion is enabled, expected:
 
 - create/update managed `驗證設置` only in addition to the utility commands;
@@ -564,6 +588,16 @@ If translate flags were enabled and command sync apply was reviewed:
 - `/翻譯 要的翻譯:你好 目標語言:en`;
 - verify the loading embed appears before the final translated embed;
 - verify provider failures return a safe red error embed and do not expose raw provider details.
+
+If auto-notification config flags were enabled and command sync apply was reviewed:
+
+- create or confirm a safe staging `cron_sets` active row with `guild`, `id`, `cron`, and `channel`;
+- optionally create a disposable staging draft row with null or missing `cron`;
+- run `/自動通知列表` and verify the legacy list embed includes active rows and does not render pending drafts;
+- verify the pending draft row was cleaned from staging data;
+- run `/自動通知刪除 id:<active id>` and verify the legacy green delete embed appears;
+- run `/自動通知刪除 id:<missing id>` and verify the legacy red missing-id tutorial embed appears;
+- verify no `automatic-notification` setup modal, scheduler job, channel send, index creation, or Message Content intent was involved.
 
 If announcement relay was explicitly enabled:
 
@@ -678,6 +712,7 @@ Verify:
 - no Mongo feature write happened.
   - Exception: ticket smoke writes the legacy-compatible `tickets` config only after successful modal submit.
   - Exception: logging-config smoke writes the legacy-compatible `loggings` config only after the setup select is submitted.
+  - Exception: auto-notification config smoke deletes selected `cron_sets` rows and abandoned pending drafts only.
 
 ## 6. Record Result
 

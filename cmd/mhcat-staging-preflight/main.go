@@ -103,6 +103,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		balanceQueryRuntimePairing(lookup),
 		autoChatConfigCommandSync(lookup),
 		autoChatConfigRuntimePairing(lookup),
+		autoNotificationConfigCommandSync(lookup),
+		autoNotificationConfigRuntimePairing(lookup),
 		antiScamConfigCommandSync(lookup),
 		antiScamConfigRuntimePairing(lookup),
 		antiScamReportCommandSync(lookup),
@@ -519,6 +521,38 @@ func autoChatConfigRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "autochat-config-runtime-pairing", Status: statusWarn, Message: "autochat config runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "autochat-config-runtime-pairing", Status: statusSkipped, Message: "autochat config runtime and command sync include are disabled"}
+}
+
+func autoNotificationConfigCommandSync(lookup lookupFunc) checkResult {
+	includeAutoNotification, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG")
+	if err != nil {
+		return checkResult{Name: "auto-notification-config-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeAutoNotification {
+		return checkResult{Name: "auto-notification-config-command-sync", Status: statusPass, Message: "auto-notification config command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "auto-notification-config-command-sync", Status: statusSkipped, Message: "auto-notification config command sync include is disabled"}
+}
+
+func autoNotificationConfigRuntimePairing(lookup lookupFunc) checkResult {
+	includeAutoNotification, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG")
+	if err != nil {
+		return checkResult{Name: "auto-notification-config-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	autoNotificationEnabled, err := boolValue(lookup, "MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED")
+	if err != nil {
+		return checkResult{Name: "auto-notification-config-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeAutoNotification && !autoNotificationEnabled {
+		return checkResult{Name: "auto-notification-config-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true requires MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true in the staging runtime"}
+	}
+	if includeAutoNotification && autoNotificationEnabled {
+		return checkResult{Name: "auto-notification-config-runtime-pairing", Status: statusPass, Message: "auto-notification config command sync and runtime feature flag are paired"}
+	}
+	if autoNotificationEnabled {
+		return checkResult{Name: "auto-notification-config-runtime-pairing", Status: statusWarn, Message: "auto-notification config runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "auto-notification-config-runtime-pairing", Status: statusSkipped, Message: "auto-notification config runtime and command sync include are disabled"}
 }
 
 func antiScamConfigCommandSync(lookup lookupFunc) checkResult {

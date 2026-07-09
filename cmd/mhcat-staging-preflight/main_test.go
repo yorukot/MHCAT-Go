@@ -467,6 +467,43 @@ func TestPreflightWarnsWhenAutoChatConfigRuntimeEnabledWithoutCommandSync(t *tes
 	}
 }
 
+func TestPreflightRejectsAutoNotificationConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "auto-notification-config-runtime-pairing status=fail") {
+		t.Fatalf("expected auto-notification config pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsAutoNotificationConfigCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG"] = "true"
+	env["MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "auto-notification-config-command-sync status=pass") || !strings.Contains(stdout, "auto-notification-config-runtime-pairing status=pass") {
+		t.Fatalf("expected auto-notification config pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenAutoNotificationConfigRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "auto-notification-config-runtime-pairing status=warn") {
+		t.Fatalf("expected auto-notification config runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsAntiScamConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG"] = "true"

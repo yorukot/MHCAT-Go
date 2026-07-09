@@ -22,6 +22,7 @@ import (
 	featurelogging "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/logging"
 	featurelottery "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/lottery"
 	featuremoderation "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/moderation"
+	featurenotifications "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/notifications"
 	featureonboarding "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/onboarding"
 	featurepoll "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/poll"
 	featuresafety "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/safety"
@@ -101,6 +102,7 @@ func CurrentGoDefinitions() []commands.Definition {
 	definitions = append(definitions, featuremoderation.Definitions()...)
 	definitions = append(definitions, featurebalance.Definitions()...)
 	definitions = append(definitions, featureautochat.Definitions()...)
+	definitions = append(definitions, featurenotifications.Definitions()...)
 	definitions = append(definitions, featuresafety.Definitions()...)
 	definitions = append(definitions, featurelogging.Definitions()...)
 	definitions = append(definitions, featuregacha.Definitions()...)

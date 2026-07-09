@@ -19,6 +19,7 @@ import (
 	featurelogging "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/logging"
 	featurelottery "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/lottery"
 	featuremoderation "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/moderation"
+	featurenotifications "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/notifications"
 	featureonboarding "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/onboarding"
 	featurepoll "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/poll"
 	featuresafety "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/safety"
@@ -56,6 +57,7 @@ type RuntimeOptions struct {
 	TranslateFeatureEnabled       bool
 	BalanceRepository             ports.BalanceRepository
 	AutoChatConfigRepository      ports.AutoChatConfigRepository
+	AutoNotificationRepository    ports.AutoNotificationScheduleRepository
 	AntiScamConfigRepository      ports.AntiScamConfigRepository
 	ScamURLCatalogRepository      ports.ScamURLCatalog
 	ScamReportSender              ports.ScamReportSender
@@ -123,6 +125,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.AutoChatConfigRepository != nil {
 		definitions = append(definitions, featureautochat.Definitions()...)
+	}
+	if opts.AutoNotificationRepository != nil {
+		definitions = append(definitions, featurenotifications.Definitions()...)
 	}
 	if opts.AntiScamConfigRepository != nil {
 		definitions = append(definitions, featuresafety.ConfigDefinitions()...)
@@ -262,6 +267,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.AutoChatConfigRepository != nil {
 		autoChatModule := featureautochat.NewModule(opts.AutoChatConfigRepository, opts.UsageTracker)
 		if err := autoChatModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.AutoNotificationRepository != nil {
+		notificationModule := featurenotifications.NewModule(opts.AutoNotificationRepository, concreteDiscord, opts.UsageTracker)
+		if err := notificationModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

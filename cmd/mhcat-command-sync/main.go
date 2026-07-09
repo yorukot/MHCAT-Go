@@ -20,6 +20,7 @@ import (
 	featurelogging "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/logging"
 	featurelottery "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/lottery"
 	featuremoderation "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/moderation"
+	featurenotifications "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/notifications"
 	featureonboarding "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/onboarding"
 	featurepoll "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/poll"
 	featuresafety "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/safety"
@@ -205,6 +206,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeAutoChatConfig {
 		definitions = append(definitions, featureautochat.Definitions()...)
 	}
+	if cfg.IncludeAutoNotificationConfig {
+		definitions = append(definitions, featurenotifications.Definitions()...)
+	}
 	if cfg.IncludeAntiScamConfig {
 		definitions = append(definitions, featuresafety.ConfigDefinitions()...)
 	}
@@ -287,6 +291,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeAutoChatConfig {
 		expected = append(expected, featureautochat.AutoChatSetCommandName, featureautochat.AutoChatDeleteCommandName)
+	}
+	if cfg.IncludeAutoNotificationConfig {
+		expected = append(expected, featurenotifications.AutoNotificationListCommandName, featurenotifications.AutoNotificationDeleteCommandName)
 	}
 	if cfg.IncludeAntiScamConfig {
 		expected = append(expected, featuresafety.AntiScamCommandName)

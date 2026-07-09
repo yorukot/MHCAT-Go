@@ -73,6 +73,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeAutoChatConfig {
 		t.Fatal("include autochat config must default false")
 	}
+	if cfg.IncludeAutoNotificationConfig {
+		t.Fatal("include auto-notification config must default false")
+	}
 	if cfg.IncludeAntiScamConfig {
 		t.Fatal("include anti-scam config must default false")
 	}
@@ -963,6 +966,48 @@ func TestCommandSyncIncludeAutoChatConfigStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeAutoChatConfig {
 		t.Fatal("expected include autochat config to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeAutoNotificationConfigRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                                 "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                        "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                         "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include auto-notification config without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeAutoNotificationConfigRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                                 "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                        "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                            "global",
+		"MHCAT_STAGING_MODE":                                  "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include auto-notification config with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeAutoNotificationConfigStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                                 "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                        "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                         "guild",
+		"MHCAT_STAGING_MODE":                                  "true",
+		"MHCAT_STAGING_GUILD_ID":                              "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeAutoNotificationConfig {
+		t.Fatal("expected include auto-notification config to be enabled explicitly")
 	}
 }
 

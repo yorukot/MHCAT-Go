@@ -358,6 +358,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.AutoChatConfigRepository = autoChatRepo
 	}
+	if cfg.FeatureAutoNotificationConfigEnabled {
+		autoNotificationRepo, err := autoNotificationScheduleRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.AutoNotificationRepository = autoNotificationRepo
+	}
 	if cfg.FeatureAntiScamConfigEnabled {
 		antiScamRepo, err := antiScamConfigRepositoryFromMongo(mongoClient)
 		if err != nil {
@@ -599,6 +606,22 @@ func autoChatConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositor
 	repo, err := mongorepositories.NewAutoChatConfigRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("autochat config feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func autoNotificationScheduleRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.AutoNotificationScheduleRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("auto-notification config feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("auto-notification config feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewAutoNotificationScheduleRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("auto-notification config feature repository: %w", err)
 	}
 	return repo, nil
 }

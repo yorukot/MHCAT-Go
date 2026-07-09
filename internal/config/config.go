@@ -26,6 +26,7 @@ const (
 	DefaultFeatureTranslateEnabled              = false
 	DefaultFeatureBalanceQueryEnabled           = false
 	DefaultFeatureAutoChatConfigEnabled         = false
+	DefaultFeatureAutoNotificationConfigEnabled = false
 	DefaultFeatureAntiScamConfigEnabled         = false
 	DefaultFeatureAntiScamReportEnabled         = false
 	DefaultFeatureLoggingConfigEnabled          = false
@@ -78,6 +79,7 @@ type Config struct {
 	FeatureTranslateEnabled              bool
 	FeatureBalanceQueryEnabled           bool
 	FeatureAutoChatConfigEnabled         bool
+	FeatureAutoNotificationConfigEnabled bool
 	FeatureAntiScamConfigEnabled         bool
 	FeatureAntiScamReportEnabled         bool
 	FeatureLoggingConfigEnabled          bool

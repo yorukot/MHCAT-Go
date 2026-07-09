@@ -651,6 +651,36 @@ func TestBuildRuntimeRoutesAutoChatConfigOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesAutoNotificationConfigOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteraction("自動通知列表")
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("auto-notification config route should not be available without repository")
+	}
+
+	repo := fakemongo.NewAutoNotificationScheduleRepository()
+	repo.Schedules["guild-1"] = []domain.AutoNotificationSchedule{{GuildID: "guild-1", ID: "schedule-1", Cron: "0 9 * * 1", ChannelID: "channel-1"}}
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                     validTestConfig(),
+		AutoNotificationRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with auto-notification repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch auto-notification list: %v", err)
+	}
+	if len(responder.Replies) != 1 || !strings.Contains(responder.Replies[0].Embeds[0].Description, "schedule-1") {
+		t.Fatalf("replies = %#v", responder.Replies)
+	}
+}
+
 func TestBuildRuntimeRoutesBalanceQueryOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
