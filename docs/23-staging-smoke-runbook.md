@@ -108,6 +108,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true
 
 Set both together only when testing `/刪除訊息` in disposable staging channels. This path deletes recent Discord messages, requires Manage Messages, requires Administrator above 200 requested messages, refuses more than 1000, and writes no Mongo data.
 
+Optional delete-data smoke flags:
+
+```bash
+export MHCAT_FEATURE_DELETE_DATA_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=true
+```
+
+Set both together only when testing `/刪除資料` against disposable staging config rows. This path deletes selected guild-scoped legacy config rows for join/leave messages, logging, stats, autochat, verification, text/voice XP, or ticket settings.
+
 Optional translate smoke flags:
 
 ```bash
@@ -334,6 +343,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=true`, confirm `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=true` and the staging database has disposable `warndbs` fixtures for warning-removal commands.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=true`, confirm `MHCAT_FEATURE_WARNING_ISSUE_ENABLED=true`, the staging database has disposable `warndbs` fixtures, and target test members can safely receive warning DMs/kick/ban actions.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true`, confirm `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`, the target channel is disposable, and test messages can be safely deleted.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=true`, confirm `MHCAT_FEATURE_DELETE_DATA_ENABLED=true` and the selected staging config rows are disposable.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`, confirm `MHCAT_FEATURE_TRANSLATE_ENABLED=true` and external translate calls are allowed for the staging bot.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true` and the staging database has only disposable `codes` fixtures for `/兌換`.
@@ -452,6 +462,13 @@ For message-cleanup staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true`;
 - `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`;
 - plan includes managed `刪除訊息`;
+- plan still performs no create/update/delete during dry-run.
+
+For delete-data staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=true`;
+- `MHCAT_FEATURE_DELETE_DATA_ENABLED=true`;
+- plan includes managed `刪除資料`;
 - plan still performs no create/update/delete during dry-run.
 
 For translate staging smoke, expected additionally:
@@ -648,6 +665,13 @@ If message-cleanup inclusion is enabled, expected:
 - no bulk overwrite;
 - no global command mutation.
 
+If delete-data inclusion is enabled, expected:
+
+- create/update managed `刪除資料` only in addition to the utility commands;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
 If translate inclusion is enabled, expected:
 
 - create/update managed `翻譯` only in addition to the utility commands;
@@ -774,6 +798,14 @@ If message-cleanup flags were enabled and command sync apply was reviewed:
 - with a non-Administrator test moderator, run `/刪除訊息 刪除數量:201` and verify the legacy permission error appears;
 - optionally run `/刪除訊息 刪除數量:10 使用者:<test user>` and verify only that user's recent test messages are targeted;
 - verify no Mongo feature data or indexes changed.
+
+If delete-data flags were enabled and command sync apply was reviewed:
+
+- seed one disposable staging config row for the selected target collection;
+- run `/刪除資料` and verify the legacy destructive warning embed and `delete-data` select appear;
+- select the seeded target and verify the ephemeral legacy success content appears;
+- repeat with a missing target and verify the legacy missing-config content appears;
+- verify only the selected guild-scoped disposable rows were deleted and no indexes were created.
 
 If auto-notification config flags were enabled and command sync apply was reviewed:
 
@@ -907,6 +939,7 @@ Verify:
 - no Mongo feature write happened.
   - Exception: ticket smoke writes the legacy-compatible `tickets` config only after successful modal submit.
   - Exception: logging-config smoke writes the legacy-compatible `loggings` config only after the setup select is submitted.
+  - Exception: delete-data smoke deletes selected disposable staging config rows only.
   - Exception: auto-notification config smoke deletes selected `cron_sets` rows and abandoned pending drafts only.
   - Exception: voice-room config smoke writes/deletes legacy-compatible `voice_channels` rows only.
 

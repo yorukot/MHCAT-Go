@@ -644,6 +644,51 @@ func TestBuildRuntimeRoutesMessageCleanupOnlyWithCleaner(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesDeleteDataOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), DeleteDataFeatureEnabled: true})
+	if err != nil {
+		t.Fatalf("build runtime with delete data feature: %v", err)
+	}
+	interaction := fakediscord.SlashInteraction("刪除資料")
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("delete data route should not be available without repository")
+	}
+
+	repo := fakemongo.NewDeleteDataRepository()
+	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		DeleteDataFeatureEnabled: true,
+		DeleteDataRepository:     repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with delete data repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch delete data slash: %v", err)
+	}
+	if len(responder.Follow) != 1 || responder.Follow[0].Embeds[0].Title != "<:trashbin:995991389043163257> 刪除資料" {
+		t.Fatalf("delete data prompt = %#v", responder.Follow)
+	}
+
+	component := fakediscord.ComponentInteractionFromID("delete-data")
+	component.Actor.PermissionBits = 8192
+	component.Values = []string{string(domain.DeleteDataTargetAutoChat)}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), component, responder); err != nil {
+		t.Fatalf("dispatch delete data component: %v", err)
+	}
+	if len(repo.Deleted) != 1 || repo.Deleted[0].Target != domain.DeleteDataTargetAutoChat {
+		t.Fatalf("deleted = %#v", repo.Deleted)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Content, "成功刪除該設定") {
+		t.Fatalf("delete data response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesLoggingConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

@@ -2,8 +2,10 @@ package moderation
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"errors"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +30,7 @@ const (
 	cleanupAdminThreshold           = 200
 	cleanupPermissionLabel          = "訊息管理(刪除超過200則需要有權限)"
 	cleanupSuccessColor             = 0x57F287
+	deleteDataFallbackColor         = 0xEA0000
 )
 
 func (m Module) WarningHistoryHandler() interactions.Handler {
@@ -207,6 +210,46 @@ func (m Module) CleanupHandler() interactions.Handler {
 			return err
 		}
 		return m.track(ctx, interaction, CleanupCommandName, "message-cleanup")
+	}
+}
+
+func (m Module) DeleteDataPromptHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		if !interaction.Actor.HasPermission(warningManageMessagesPermission) {
+			return responder.EditOriginal(ctx, warningErrorMessage("你需要有`訊息管理`才能使用此指令"))
+		}
+		if err := responder.FollowUp(ctx, deleteDataPromptMessage()); err != nil {
+			return err
+		}
+		return m.track(ctx, interaction, DeleteDataCommandName, "delete-data")
+	}
+}
+
+func (m Module) DeleteDataSelectHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{Ephemeral: true}); err != nil {
+			return err
+		}
+		if !interaction.Actor.HasPermission(warningManageMessagesPermission) {
+			return responder.EditOriginal(ctx, deleteDataContentMessage("<a:Discord_AnimatedNo:1015989839809757295> **| 你需要有`訊息管理`才能使用此指令**"))
+		}
+		target, ok := selectedDeleteDataTarget(interaction)
+		if !ok {
+			return responder.EditOriginal(ctx, deleteDataContentMessage("<a:Discord_AnimatedNo:1015989839809757295> **| 你沒有設定過這個選項!**"))
+		}
+		if err := m.deleteData.Delete(ctx, domain.DeleteDataRequest{GuildID: interaction.Actor.GuildID, Target: target}); err != nil {
+			if errors.Is(err, ports.ErrDeleteDataTargetMissing) {
+				return responder.EditOriginal(ctx, deleteDataContentMessage("<a:Discord_AnimatedNo:1015989839809757295> **| 你沒有設定過這個選項!**"))
+			}
+			return responder.EditOriginal(ctx, deleteDataContentMessage("<a:Discord_AnimatedNo:1015989839809757295> **| 你沒有設定過這個選項!**"))
+		}
+		if err := responder.EditOriginal(ctx, deleteDataContentMessage("<a:green_tick:994529015652163614> **| 成功刪除該設定!**")); err != nil {
+			return err
+		}
+		return m.track(ctx, interaction, DeleteDataCommandName, "delete-data")
 	}
 }
 
@@ -420,6 +463,80 @@ func cleanupSuccessMessage(deleted int, requested int) responses.Message {
 		AllowedMentions: &responses.AllowedMentions{},
 		Ephemeral:       true,
 	}
+}
+
+func deleteDataPromptMessage() responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       "<:trashbin:995991389043163257> 刪除資料",
+			Description: "<a:NukeExplosion:986558305885368321>這邊刪除的都是全刪!!!\n<:warning:985590881698590730> 一但刪除將__**無法復原**__，請三思!\n<:warning:985590881698590730> 一但刪除將__**無法復原**__，請三思!",
+			Color:       deleteDataRandomColor(),
+			Footer: &responses.EmbedFooter{
+				Text:    "請三思!!!",
+				IconURL: "https://media.discordapp.net/attachments/991337796960784424/996749656161779853/6lnjr0.gif",
+			},
+			Thumbnail: &responses.EmbedImage{URL: "https://media.discordapp.net/attachments/991337796960784424/996749656161779853/6lnjr0.gif"},
+		}},
+		Components: []responses.ComponentRow{{Components: []responses.Component{{
+			Type:        responses.ComponentTypeSelect,
+			CustomID:    "delete-data",
+			Placeholder: "🗑 選擇你要刪除的資料!",
+			MinValues:   1,
+			MaxValues:   1,
+			Options:     deleteDataSelectOptions(),
+		}}}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func deleteDataSelectOptions() []responses.SelectOption {
+	emojis := map[domain.DeleteDataTarget]string{
+		domain.DeleteDataTargetJoinMessage:  "<:joines:953970547849592884>",
+		domain.DeleteDataTargetLeaveMessage: "<:leaves:956444050792280084>",
+		domain.DeleteDataTargetLogging:      "<:logfile:985948561625710663>",
+		domain.DeleteDataTargetStats:        "<:statistics:986108146747600928>",
+		domain.DeleteDataTargetTextXP:       "<:xp:990254386792005663>",
+		domain.DeleteDataTargetVoiceXP:      "<:Voice:994844272790610011>",
+		domain.DeleteDataTargetAutoChat:     "<:ChatBot:956863473910947850>",
+		domain.DeleteDataTargetVerification: "<:tickmark:985949769224556614>",
+		domain.DeleteDataTargetTicket:       "<:ticket:985945491093205073>",
+	}
+	targets := domain.LegacyDeleteDataTargets()
+	options := make([]responses.SelectOption, 0, len(targets))
+	for _, target := range targets {
+		label := string(target)
+		options = append(options, responses.SelectOption{
+			Label:       label,
+			Description: "🗑 " + label + " 刪除!",
+			Value:       label,
+			Emoji:       emojis[target],
+		})
+	}
+	return options
+}
+
+func deleteDataContentMessage(content string) responses.Message {
+	return responses.Message{
+		Content:         content,
+		AllowedMentions: &responses.AllowedMentions{},
+		Ephemeral:       true,
+	}
+}
+
+func selectedDeleteDataTarget(interaction interactions.Interaction) (domain.DeleteDataTarget, bool) {
+	if len(interaction.Values) == 0 {
+		return "", false
+	}
+	return domain.ParseDeleteDataTarget(interaction.Values[0])
+}
+
+func deleteDataRandomColor() int {
+	max := big.NewInt(0x1000000)
+	value, err := cryptorand.Int(cryptorand.Reader, max)
+	if err != nil {
+		return deleteDataFallbackColor
+	}
+	return int(value.Int64())
 }
 
 func (m Module) sendWarningRemovalDM(ctx context.Context, interaction interactions.Interaction, userID string, all bool) {

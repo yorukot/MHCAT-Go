@@ -53,6 +53,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP:-false}" = "true" ] && [ "${M
   echo "refusing command sync: message cleanup command dry-run requires MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA:-false}" = "true" ] && [ "${MHCAT_FEATURE_DELETE_DATA_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: delete data command dry-run requires MHCAT_FEATURE_DELETE_DATA_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ] && [ "${MHCAT_FEATURE_TRANSLATE_ENABLED:-false}" != "true" ]; then
   echo "refusing command sync: translate command dry-run requires MHCAT_FEATURE_TRANSLATE_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -204,6 +208,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP:-false}" = "true" ]; then
   echo "staging command sync dry-run: including message cleanup command for review" >&2
 else
   echo "staging command sync dry-run: message cleanup command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including delete data command for review" >&2
+else
+  echo "staging command sync dry-run: delete data command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ]; then
   echo "staging command sync dry-run: including translate command for review" >&2

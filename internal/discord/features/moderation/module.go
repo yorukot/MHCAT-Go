@@ -12,6 +12,7 @@ type Module struct {
 	settings      coremoderation.WarningSettingsService
 	issue         coremoderation.WarningIssueService
 	removal       coremoderation.WarningRemovalService
+	deleteData    coremoderation.DeleteDataService
 	members       ports.DiscordGuildMemberReader
 	discord       ports.DiscordInfoProvider
 	direct        ports.DiscordDirectMessagePort
@@ -69,6 +70,13 @@ func NewCleanupModule(cleaner ports.DiscordMessageCleaner, usage ports.UsageTrac
 	}
 }
 
+func NewDeleteDataModule(repo ports.DeleteDataRepository, usage ports.UsageTracker) Module {
+	return Module{
+		deleteData: coremoderation.DeleteDataService{Repository: repo},
+		usage:      usage,
+	}
+}
+
 func (m Module) Name() string {
 	return "warnings"
 }
@@ -90,6 +98,9 @@ func (m Module) Commands() []commands.Definition {
 	if m.cleaner != nil {
 		definitions = append(definitions, CleanupDefinitions()...)
 	}
+	if m.deleteData.Repository != nil {
+		definitions = append(definitions, DeleteDataDefinitions()...)
+	}
 	if len(definitions) > 0 {
 		return definitions
 	}
@@ -98,6 +109,7 @@ func (m Module) Commands() []commands.Definition {
 	definitions = append(definitions, RemovalDefinitions()...)
 	definitions = append(definitions, IssueDefinitions()...)
 	definitions = append(definitions, CleanupDefinitions()...)
+	definitions = append(definitions, DeleteDataDefinitions()...)
 	return definitions
 }
 
@@ -127,6 +139,14 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 	}
 	if m.cleaner != nil {
 		if err := router.RegisterSlash(CleanupCommandName, m.CleanupHandler()); err != nil {
+			return err
+		}
+	}
+	if m.deleteData.Repository != nil {
+		if err := router.RegisterSlash(DeleteDataCommandName, m.DeleteDataPromptHandler()); err != nil {
+			return err
+		}
+		if err := router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: "legacy", Feature: "admin", Action: "delete_data_select", Legacy: true}, m.DeleteDataSelectHandler()); err != nil {
 			return err
 		}
 	}

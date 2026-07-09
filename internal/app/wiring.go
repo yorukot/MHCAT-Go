@@ -63,11 +63,13 @@ type RuntimeOptions struct {
 	WarningIssueHierarchy         ports.DiscordMemberHierarchyInspector
 	WarningIssueMessagePort       ports.DiscordMessagePort
 	MessageCleaner                ports.DiscordMessageCleaner
+	DeleteDataRepository          ports.DeleteDataRepository
 	WarningsFeatureEnabled        bool
 	WarningSettingsFeatureEnabled bool
 	WarningRemovalFeatureEnabled  bool
 	WarningIssueFeatureEnabled    bool
 	MessageCleanupFeatureEnabled  bool
+	DeleteDataFeatureEnabled      bool
 	TranslateProvider             ports.Translator
 	TranslateFeatureEnabled       bool
 	BalanceRepository             ports.BalanceRepository
@@ -146,6 +148,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.MessageCleanupFeatureEnabled && opts.MessageCleaner != nil {
 		definitions = append(definitions, featuremoderation.CleanupDefinitions()...)
+	}
+	if opts.DeleteDataFeatureEnabled && opts.DeleteDataRepository != nil {
+		definitions = append(definitions, featuremoderation.DeleteDataDefinitions()...)
 	}
 	if opts.TranslateFeatureEnabled && opts.TranslateProvider != nil {
 		definitions = append(definitions, commands.TranslateDefinition())
@@ -312,6 +317,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.MessageCleanupFeatureEnabled && opts.MessageCleaner != nil {
 		cleanupModule := featuremoderation.NewCleanupModule(opts.MessageCleaner, opts.UsageTracker)
 		if err := cleanupModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.DeleteDataFeatureEnabled && opts.DeleteDataRepository != nil {
+		deleteDataModule := featuremoderation.NewDeleteDataModule(opts.DeleteDataRepository, opts.UsageTracker)
+		if err := deleteDataModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

@@ -42,9 +42,10 @@ The repository is read-only. It performs no warning writes, no warning deletes, 
 
 `/刪除訊息` is implemented separately behind `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=false` and `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=false` by default. It deletes recent Discord messages only and writes no Mongo data.
 
+`/刪除資料` is implemented separately behind `MHCAT_FEATURE_DELETE_DATA_ENABLED=false` and `MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=false` by default. It shows the legacy destructive select UI and deletes only the selected guild-scoped legacy config target.
+
 ## Not Implemented
 
-- `/刪除資料` destructive data deletion.
 - Usage count writes.
 - Unique indexes on `warndbs`.
 
@@ -61,3 +62,4 @@ The repository is read-only. It performs no warning writes, no warning deletes, 
 - Command-sync and staging-preflight flag pairing.
 - Warning issue append, DM, timestamp, role hierarchy, and threshold kick/ban behavior.
 - Message cleanup permission gates, request mapping, and legacy completion embed.
+- Delete-data target mapping, permission gates, legacy prompt, and success/missing select responses.

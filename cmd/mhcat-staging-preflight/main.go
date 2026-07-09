@@ -105,6 +105,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		warningIssueRuntimePairing(lookup),
 		messageCleanupCommandSync(lookup),
 		messageCleanupRuntimePairing(lookup),
+		deleteDataCommandSync(lookup),
+		deleteDataRuntimePairing(lookup),
 		translateCommandSync(lookup),
 		translateRuntimePairing(lookup),
 		balanceQueryCommandSync(lookup),
@@ -567,6 +569,38 @@ func messageCleanupRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "message-cleanup-runtime-pairing", Status: statusWarn, Message: "message cleanup runtime is enabled but message cleanup command sync include is disabled"}
 	}
 	return checkResult{Name: "message-cleanup-runtime-pairing", Status: statusSkipped, Message: "message cleanup runtime and command sync include are disabled"}
+}
+
+func deleteDataCommandSync(lookup lookupFunc) checkResult {
+	includeDeleteData, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA")
+	if err != nil {
+		return checkResult{Name: "delete-data-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeDeleteData {
+		return checkResult{Name: "delete-data-command-sync", Status: statusPass, Message: "delete data command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "delete-data-command-sync", Status: statusSkipped, Message: "delete data command sync include is disabled"}
+}
+
+func deleteDataRuntimePairing(lookup lookupFunc) checkResult {
+	includeDeleteData, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA")
+	if err != nil {
+		return checkResult{Name: "delete-data-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	deleteDataEnabled, err := boolValue(lookup, "MHCAT_FEATURE_DELETE_DATA_ENABLED")
+	if err != nil {
+		return checkResult{Name: "delete-data-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeDeleteData && !deleteDataEnabled {
+		return checkResult{Name: "delete-data-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=true requires MHCAT_FEATURE_DELETE_DATA_ENABLED=true in the staging runtime"}
+	}
+	if includeDeleteData && deleteDataEnabled {
+		return checkResult{Name: "delete-data-runtime-pairing", Status: statusPass, Message: "delete data command sync and runtime feature flag are paired"}
+	}
+	if deleteDataEnabled {
+		return checkResult{Name: "delete-data-runtime-pairing", Status: statusWarn, Message: "delete data runtime is enabled but delete data command sync include is disabled"}
+	}
+	return checkResult{Name: "delete-data-runtime-pairing", Status: statusSkipped, Message: "delete data runtime and command sync include are disabled"}
 }
 
 func translateCommandSync(lookup lookupFunc) checkResult {

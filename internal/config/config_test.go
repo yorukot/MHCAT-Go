@@ -141,6 +141,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureMessageCleanupEnabled {
 		t.Fatal("message cleanup feature must be disabled by default")
 	}
+	if cfg.FeatureDeleteDataEnabled {
+		t.Fatal("delete data feature must be disabled by default")
+	}
 	if cfg.FeatureTranslateEnabled {
 		t.Fatal("translate feature must be disabled by default")
 	}
@@ -821,6 +824,21 @@ func TestFeatureMessageCleanupConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureMessageCleanupEnabled {
 		t.Fatal("expected message cleanup feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureDeleteDataConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":               "token",
+		"MHCAT_MONGODB_URI":                 "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":            "mhcat",
+		"MHCAT_FEATURE_DELETE_DATA_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureDeleteDataEnabled {
+		t.Fatal("expected delete data feature to be enabled explicitly")
 	}
 }
 

@@ -127,3 +127,19 @@ func TestCleanupDefinitionMatchesLegacyShape(t *testing.T) {
 		t.Fatalf("validate registry: %v", err)
 	}
 }
+
+func TestDeleteDataDefinitionMatchesLegacyShape(t *testing.T) {
+	definition := DeleteDataDefinition()
+	if definition.Name != "刪除資料" || definition.Description != "刪除之前設置過的資料" {
+		t.Fatalf("definition = %#v", definition)
+	}
+	if len(definition.Options) != 0 {
+		t.Fatalf("options = %#v", definition.Options)
+	}
+	if !commands.IsManagedForScope(definition, commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}) {
+		t.Fatal("delete-data command should be managed for guild staging")
+	}
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, DeleteDataDefinitions())); err != nil {
+		t.Fatalf("validate registry: %v", err)
+	}
+}

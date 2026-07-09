@@ -8,6 +8,7 @@ const WarningRemoveCommandName = "警告清除"
 const WarningRemoveAllCommandName = "警告全部清除"
 const WarningIssueCommandName = "警告"
 const CleanupCommandName = "刪除訊息"
+const DeleteDataCommandName = "刪除資料"
 
 const (
 	warningSettingsOptionAction    = "執行的動作"
@@ -37,6 +38,10 @@ func IssueDefinitions() []commands.Definition {
 
 func CleanupDefinitions() []commands.Definition {
 	return []commands.Definition{CleanupDefinition()}
+}
+
+func DeleteDataDefinitions() []commands.Definition {
+	return []commands.Definition{DeleteDataDefinition()}
 }
 
 func WarningHistoryDefinition() commands.Definition {
@@ -162,5 +167,14 @@ func CleanupDefinition() commands.Definition {
 				Required:    false,
 			},
 		},
+	}
+}
+
+func DeleteDataDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        DeleteDataCommandName,
+		Description: "刪除之前設置過的資料",
+		Ownership:   commands.ManagedOwnership("delete-data", commands.ScopeGuild),
 	}
 }

@@ -563,6 +563,117 @@ func TestCleanupRequestsMessagesAndRendersLegacyCompletion(t *testing.T) {
 	}
 }
 
+func TestDeleteDataPromptRequiresManageMessages(t *testing.T) {
+	repo := fakemongo.NewDeleteDataRepository()
+	module := NewDeleteDataModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	interaction := deleteDataSlashInteraction()
+	interaction.Actor.PermissionBits = 0
+
+	if err := module.DeleteDataPromptHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 || responder.Defers[0].Ephemeral {
+		t.Fatalf("defers = %#v", responder.Defers)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(responder.Follow) != 0 {
+		t.Fatalf("prompt should not be sent without permission: %#v", responder.Follow)
+	}
+}
+
+func TestDeleteDataPromptRendersLegacyMenu(t *testing.T) {
+	repo := fakemongo.NewDeleteDataRepository()
+	usage := &fakeusage.Tracker{}
+	module := NewDeleteDataModule(repo, usage)
+	responder := fakediscord.NewResponder()
+
+	if err := module.DeleteDataPromptHandler()(context.Background(), deleteDataSlashInteraction(), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Follow) != 1 || len(responder.Follow[0].Embeds) != 1 {
+		t.Fatalf("followups = %#v", responder.Follow)
+	}
+	embed := responder.Follow[0].Embeds[0]
+	if embed.Title != "<:trashbin:995991389043163257> 刪除資料" || !strings.Contains(embed.Description, "一但刪除將__**無法復原**__") || embed.Footer == nil || embed.Thumbnail == nil {
+		t.Fatalf("embed = %#v", embed)
+	}
+	if len(responder.Follow[0].Components) != 1 || len(responder.Follow[0].Components[0].Components) != 1 {
+		t.Fatalf("components = %#v", responder.Follow[0].Components)
+	}
+	selectMenu := responder.Follow[0].Components[0].Components[0]
+	if selectMenu.CustomID != "delete-data" || selectMenu.Placeholder != "🗑 選擇你要刪除的資料!" || len(selectMenu.Options) != 9 {
+		t.Fatalf("select menu = %#v", selectMenu)
+	}
+	for index, target := range domain.LegacyDeleteDataTargets() {
+		option := selectMenu.Options[index]
+		if option.Label != string(target) || option.Value != string(target) || option.Description != "🗑 "+string(target)+" 刪除!" || option.Emoji == "" {
+			t.Fatalf("option %d = %#v", index, option)
+		}
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != DeleteDataCommandName || usage.Events[0].Feature != "delete-data" {
+		t.Fatalf("usage events = %#v", usage.Events)
+	}
+}
+
+func TestDeleteDataSelectDeletesTargetWithLegacySuccess(t *testing.T) {
+	repo := fakemongo.NewDeleteDataRepository()
+	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
+	usage := &fakeusage.Tracker{}
+	module := NewDeleteDataModule(repo, usage)
+	responder := fakediscord.NewResponder()
+
+	if err := module.DeleteDataSelectHandler()(context.Background(), deleteDataComponentInteraction(domain.DeleteDataTargetAutoChat), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral {
+		t.Fatalf("defers = %#v", responder.Defers)
+	}
+	if len(repo.Deleted) != 1 || repo.Deleted[0].Target != domain.DeleteDataTargetAutoChat {
+		t.Fatalf("deleted = %#v", repo.Deleted)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Content != "<a:green_tick:994529015652163614> **| 成功刪除該設定!**" || !responder.Edits[0].Ephemeral {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != DeleteDataCommandName || usage.Events[0].Feature != "delete-data" {
+		t.Fatalf("usage events = %#v", usage.Events)
+	}
+}
+
+func TestDeleteDataSelectMissingUsesLegacyContent(t *testing.T) {
+	repo := fakemongo.NewDeleteDataRepository()
+	module := NewDeleteDataModule(repo, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.DeleteDataSelectHandler()(context.Background(), deleteDataComponentInteraction(domain.DeleteDataTargetTicket), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Content != "<a:Discord_AnimatedNo:1015989839809757295> **| 你沒有設定過這個選項!**" {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestDeleteDataSelectRequiresManageMessages(t *testing.T) {
+	repo := fakemongo.NewDeleteDataRepository()
+	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
+	module := NewDeleteDataModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	interaction := deleteDataComponentInteraction(domain.DeleteDataTargetAutoChat)
+	interaction.Actor.PermissionBits = 0
+
+	if err := module.DeleteDataSelectHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(repo.Deleted) != 0 {
+		t.Fatalf("delete should not run without permission: %#v", repo.Deleted)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Content, "訊息管理") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func warningHistoryInteraction(userID string) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(WarningHistoryCommandName, "", map[string]string{"使用者": userID})
 	interaction.Actor.PermissionBits = warningManageMessagesPermission
@@ -621,5 +732,18 @@ func cleanupInteraction(count string, userID string) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(CleanupCommandName, "", options)
 	interaction.Actor.PermissionBits = warningManageMessagesPermission
 	interaction.ChannelID = "channel-1"
+	return interaction
+}
+
+func deleteDataSlashInteraction() interactions.Interaction {
+	interaction := fakediscord.SlashInteraction(DeleteDataCommandName)
+	interaction.Actor.PermissionBits = warningManageMessagesPermission
+	return interaction
+}
+
+func deleteDataComponentInteraction(target domain.DeleteDataTarget) interactions.Interaction {
+	interaction := fakediscord.ComponentInteractionFromID("delete-data")
+	interaction.Actor.PermissionBits = warningManageMessagesPermission
+	interaction.Values = []string{string(target)}
 	return interaction
 }

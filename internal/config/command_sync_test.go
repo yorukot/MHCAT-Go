@@ -82,6 +82,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeMessageCleanup {
 		t.Fatal("include message cleanup must default false")
 	}
+	if cfg.IncludeDeleteData {
+		t.Fatal("include delete data must default false")
+	}
 	if cfg.IncludeBalanceQuery {
 		t.Fatal("include balance query must default false")
 	}
@@ -1158,6 +1161,48 @@ func TestCommandSyncIncludeMessageCleanupStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeMessageCleanup {
 		t.Fatal("expected include message cleanup to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeDeleteDataRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                    "token",
+		"MHCAT_DISCORD_APPLICATION_ID":           "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":            "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include delete data without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeDeleteDataRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                    "token",
+		"MHCAT_DISCORD_APPLICATION_ID":           "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":               "global",
+		"MHCAT_STAGING_MODE":                     "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include delete data with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeDeleteDataStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                    "token",
+		"MHCAT_DISCORD_APPLICATION_ID":           "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":            "guild",
+		"MHCAT_STAGING_MODE":                     "true",
+		"MHCAT_STAGING_GUILD_ID":                 "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeDeleteData {
+		t.Fatal("expected include delete data to be enabled explicitly")
 	}
 }
 

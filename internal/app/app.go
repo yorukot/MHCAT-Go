@@ -274,6 +274,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		WarningRemovalFeatureEnabled:  cfg.FeatureWarningRemovalEnabled,
 		WarningIssueFeatureEnabled:    cfg.FeatureWarningIssueEnabled,
 		MessageCleanupFeatureEnabled:  cfg.FeatureMessageCleanupEnabled,
+		DeleteDataFeatureEnabled:      cfg.FeatureDeleteDataEnabled,
 		TranslateFeatureEnabled:       cfg.FeatureTranslateEnabled,
 		LotteryDisabledCommandEnabled: cfg.FeatureLotteryDisabledCommandEnabled,
 		StatsQueryEnabled:             cfg.FeatureStatsQueryEnabled,
@@ -391,6 +392,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 			return nil, err
 		}
 		opts.MessageCleaner = sideEffects
+	}
+	if cfg.FeatureDeleteDataEnabled {
+		deleteDataRepo, err := deleteDataRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.DeleteDataRepository = deleteDataRepo
 	}
 	if cfg.FeatureTranslateEnabled {
 		translator := externaladapter.NewGoogleTranslateClient()
@@ -659,6 +667,22 @@ func warningSettingsRepositoryFromMongo(mongoClient MongoClient) (*mongoreposito
 	repo, err := mongorepositories.NewWarningSettingsRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("warning settings feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func deleteDataRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.DeleteDataRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("delete data feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("delete data feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewDeleteDataRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("delete data feature repository: %w", err)
 	}
 	return repo, nil
 }
