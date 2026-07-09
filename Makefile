@@ -1,4 +1,4 @@
-.PHONY: fmt test vet build run bot-run-no-gateway bot-smoke-gateway command-sync-dry-run economy-reset-dry-run economy-reset-apply-confirmed work-payout-dry-run scheduler-lease-status staging-preflight staging-command-sync-dry-run staging-command-sync-apply-guild-confirmed staging-gateway-smoke-confirmed mongo-compose-up mongo-compose-down mongo-compose-ps mongo-local-audit mongo-audit mongo-index-dry-run feature-test check
+.PHONY: fmt test vet build run bot-run-no-gateway bot-smoke-gateway command-sync-dry-run parity-audit economy-reset-dry-run economy-reset-apply-confirmed work-payout-dry-run scheduler-lease-status staging-preflight staging-command-sync-dry-run staging-command-sync-apply-guild-confirmed staging-gateway-smoke-confirmed mongo-compose-up mongo-compose-down mongo-compose-ps mongo-local-audit mongo-audit mongo-index-dry-run feature-test check
 
 fmt:
 	go fmt ./...
@@ -18,6 +18,7 @@ build:
 	go build ./cmd/mhcat-economy-reset
 	go build ./cmd/mhcat-scheduler-lease
 	go build ./cmd/mhcat-work-payout
+	go build -o .gocache/parity-audit ./tools/parity-audit
 
 run:
 	go run ./cmd/mhcat-bot
@@ -30,6 +31,9 @@ bot-smoke-gateway:
 
 command-sync-dry-run:
 	go run ./cmd/mhcat-command-sync --dry-run
+
+parity-audit:
+	go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 economy-reset-dry-run:
 	go run ./cmd/mhcat-economy-reset --dry-run

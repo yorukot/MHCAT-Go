@@ -21,7 +21,7 @@ Status: Phase 1 consolidated. Legacy has only a live Discord login smoke test; t
 
 ## Table-Driven Command Tests
 
-- Command metadata snapshot for all 74 slash command modules.
+- Command metadata snapshot for all 74 slash command modules via `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown`.
 - Command names, descriptions, options, choices, localizations, default permissions, cooldown metadata.
 - Handler selection by command name.
 - Public vs ephemeral/deferred response metadata.
@@ -147,4 +147,4 @@ Run `go test -race ./...` when implementation exists. Race-prone flows:
 - Wave 3: Mongo repository contracts, compatibility fixtures, index dry-run tests.
 - Wave 4: Discord fake adapter, responder, router, permission/cooldown tests.
 - Wave 5+: per-feature parity tests before checklist moves to tested/verified.
-- Final: `go fmt`, `go test`, `go vet`, `go test -race` if feasible, `go build` for bot and tools.
+- Final: `go fmt`, `go test`, `go vet`, `go test -race` if feasible, `go build` for bot and tools, and the slash-command UI parity audit.
