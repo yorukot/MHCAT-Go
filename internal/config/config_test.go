@@ -180,6 +180,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureGachaPrizeListEnabled {
 		t.Fatal("gacha prize-list feature must be disabled by default")
 	}
+	if cfg.FeatureGachaPrizeDeleteEnabled {
+		t.Fatal("gacha prize-delete feature must be disabled by default")
+	}
 	if cfg.FeatureLotteryDisabledCommandEnabled {
 		t.Fatal("lottery disabled-command feature must be disabled by default")
 	}
@@ -567,6 +570,21 @@ func TestFeatureGachaPrizeListConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureGachaPrizeListEnabled {
 		t.Fatal("expected gacha prize-list feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureGachaPrizeDeleteConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                      "token",
+		"MHCAT_MONGODB_URI":                        "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                   "mhcat",
+		"MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureGachaPrizeDeleteEnabled {
+		t.Fatal("expected gacha prize-delete feature to be enabled explicitly")
 	}
 }
 

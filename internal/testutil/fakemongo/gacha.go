@@ -38,6 +38,21 @@ func (r *GachaRepository) GetGachaConfig(ctx context.Context, guildID string) (d
 	return config, nil
 }
 
+func (r *GachaRepository) DeleteGachaPrize(ctx context.Context, guildID string, prizeName string) (domain.GachaPrize, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.GachaPrize{}, err
+	}
+	prizes := r.Prizes[guildID]
+	for index, prize := range prizes {
+		if prize.Name != prizeName {
+			continue
+		}
+		r.Prizes[guildID] = append(append([]domain.GachaPrize(nil), prizes[:index]...), prizes[index+1:]...)
+		return prize, nil
+	}
+	return domain.GachaPrize{}, ports.ErrGachaPrizeMissing
+}
+
 func (r *GachaRepository) ready(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -46,3 +61,4 @@ func (r *GachaRepository) ready(ctx context.Context) error {
 }
 
 var _ ports.GachaPrizePoolRepository = (*GachaRepository)(nil)
+var _ ports.GachaPrizeDeleteRepository = (*GachaRepository)(nil)

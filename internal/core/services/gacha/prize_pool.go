@@ -19,6 +19,10 @@ type PrizePoolService struct {
 	Repository ports.GachaPrizePoolRepository
 }
 
+type PrizeDeleteService struct {
+	Repository ports.GachaPrizeDeleteRepository
+}
+
 func (s PrizePoolService) Query(ctx context.Context, guildID string) (domain.GachaPrizePool, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.GachaPrizePool{}, err
@@ -54,4 +58,16 @@ func (s PrizePoolService) Query(ctx context.Context, guildID string) (domain.Gac
 		Config:      config,
 		ConfigFound: configFound,
 	}, ctx.Err()
+}
+
+func (s PrizeDeleteService) Delete(ctx context.Context, guildID string, prizeName string) (domain.GachaPrize, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.GachaPrize{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	prizeName = strings.TrimSpace(prizeName)
+	if guildID == "" || prizeName == "" || s.Repository == nil {
+		return domain.GachaPrize{}, domain.ErrInvalidGachaQuery
+	}
+	return s.Repository.DeleteGachaPrize(ctx, guildID, prizeName)
 }

@@ -41,6 +41,7 @@ const (
 	DefaultCommandSyncIncludeAntiScamReport         = false
 	DefaultCommandSyncIncludeLoggingConfig          = false
 	DefaultCommandSyncIncludeGachaPrizeList         = false
+	DefaultCommandSyncIncludeGachaPrizeDelete       = false
 	DefaultCommandSyncIncludeLotteryDisabledCommand = false
 	DefaultCommandSyncIncludeStatsQuery             = false
 	DefaultCommandSyncIncludeStatsDelete            = false
@@ -99,6 +100,7 @@ type CommandSyncConfig struct {
 	IncludeAntiScamReport         bool
 	IncludeLoggingConfig          bool
 	IncludeGachaPrizeList         bool
+	IncludeGachaPrizeDelete       bool
 	IncludeLotteryDisabledCommand bool
 	IncludeStatsQuery             bool
 	IncludeStatsDelete            bool
@@ -172,6 +174,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeAntiScamReport:         DefaultCommandSyncIncludeAntiScamReport,
 		IncludeLoggingConfig:          DefaultCommandSyncIncludeLoggingConfig,
 		IncludeGachaPrizeList:         DefaultCommandSyncIncludeGachaPrizeList,
+		IncludeGachaPrizeDelete:       DefaultCommandSyncIncludeGachaPrizeDelete,
 		IncludeLotteryDisabledCommand: DefaultCommandSyncIncludeLotteryDisabledCommand,
 		IncludeStatsQuery:             DefaultCommandSyncIncludeStatsQuery,
 		IncludeStatsDelete:            DefaultCommandSyncIncludeStatsDelete,
@@ -275,6 +278,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeGachaPrizeList, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST", DefaultCommandSyncIncludeGachaPrizeList); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeGachaPrizeDelete, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE", DefaultCommandSyncIncludeGachaPrizeDelete); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeLotteryDisabledCommand, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND", DefaultCommandSyncIncludeLotteryDisabledCommand); err != nil {
@@ -565,6 +571,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeGachaPrizeDelete {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeLotteryDisabledCommand {

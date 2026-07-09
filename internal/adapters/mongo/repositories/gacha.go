@@ -82,4 +82,25 @@ func (r *GachaRepository) GetGachaConfig(ctx context.Context, guildID string) (d
 	return document.ToDomain(), ctx.Err()
 }
 
+func (r *GachaRepository) DeleteGachaPrize(ctx context.Context, guildID string, prizeName string) (domain.GachaPrize, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.GachaPrize{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	prizeName = strings.TrimSpace(prizeName)
+	if guildID == "" || prizeName == "" {
+		return domain.GachaPrize{}, domain.ErrInvalidGachaQuery
+	}
+	var document documents.GiftDocument
+	err := r.gifts.FindOneAndDelete(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "gift_name", Value: prizeName}}).Decode(&document)
+	if err != nil {
+		if err == drivermongo.ErrNoDocuments {
+			return domain.GachaPrize{}, ports.ErrGachaPrizeMissing
+		}
+		return domain.GachaPrize{}, mhcatmongo.MapError(fmt.Errorf("delete gacha prize: %w", err))
+	}
+	return document.ToDomain(), ctx.Err()
+}
+
 var _ ports.GachaPrizePoolRepository = (*GachaRepository)(nil)
+var _ ports.GachaPrizeDeleteRepository = (*GachaRepository)(nil)

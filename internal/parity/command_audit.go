@@ -117,6 +117,7 @@ func CurrentGoDefinitions() []commands.Definition {
 	definitions = append(definitions, featuresafety.Definitions()...)
 	definitions = append(definitions, featurelogging.Definitions()...)
 	definitions = append(definitions, featuregacha.Definitions()...)
+	definitions = append(definitions, featuregacha.PrizeDeleteDefinitions()...)
 	definitions = append(definitions, featurelottery.Definitions()...)
 	definitions = append(definitions, featurestats.Definitions()...)
 	definitions = append(definitions, featurebirthday.Definitions()...)

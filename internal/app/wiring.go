@@ -84,6 +84,7 @@ type RuntimeOptions struct {
 	ScamReportSender              ports.ScamReportSender
 	LoggingConfigRepository       ports.LoggingConfigRepository
 	GachaPrizePoolRepository      ports.GachaPrizePoolRepository
+	GachaPrizeDeleteRepository    ports.GachaPrizeDeleteRepository
 	LotteryDisabledCommandEnabled bool
 	StatsQueryEnabled             bool
 	StatsDeleteRepository         ports.StatsConfigRepository
@@ -194,7 +195,10 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		definitions = append(definitions, featurelogging.Definitions()...)
 	}
 	if opts.GachaPrizePoolRepository != nil {
-		definitions = append(definitions, featuregacha.Definitions()...)
+		definitions = append(definitions, featuregacha.PrizeListDefinitions()...)
+	}
+	if opts.GachaPrizeDeleteRepository != nil {
+		definitions = append(definitions, featuregacha.PrizeDeleteDefinitions()...)
 	}
 	if opts.LotteryDisabledCommandEnabled {
 		definitions = append(definitions, featurelottery.Definitions()...)
@@ -412,8 +416,8 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 			return nil, err
 		}
 	}
-	if opts.GachaPrizePoolRepository != nil {
-		gachaModule := featuregacha.NewModule(opts.GachaPrizePoolRepository, concreteDiscord, opts.UsageTracker)
+	if opts.GachaPrizePoolRepository != nil || opts.GachaPrizeDeleteRepository != nil {
+		gachaModule := featuregacha.NewModuleWithRepositories(opts.GachaPrizePoolRepository, opts.GachaPrizeDeleteRepository, concreteDiscord, opts.UsageTracker)
 		if err := gachaModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

@@ -15,9 +15,12 @@ import (
 )
 
 const (
-	gachaErrorColor          = 0xED4245
-	legacyGachaFallbackGuild = "這個伺服器"
-	discordEmbedFieldLimit   = 25
+	gachaErrorColor                  = 0xED4245
+	gachaPrizeDeleteSuccessColor     = 0x53FF53
+	gachaManageMessagesPermissionBit = int64(8192)
+	legacyDoneEmoji                  = "<a:green_tick:994529015652163614>"
+	legacyGachaFallbackGuild         = "這個伺服器"
+	discordEmbedFieldLimit           = 25
 )
 
 func (m Module) PrizeListHandler() interactions.Handler {
@@ -31,7 +34,7 @@ func (m Module) PrizeListHandler() interactions.Handler {
 				if editErr := responder.EditOriginal(ctx, gachaErrorMessage("目前獎池沒有任何獎品喔!")); editErr != nil {
 					return editErr
 				}
-				return m.track(ctx, interaction)
+				return m.track(ctx, interaction, GachaPrizeListCommandName, "gacha-prize-list")
 			}
 			return responder.EditOriginal(ctx, gachaErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 		}
@@ -39,7 +42,30 @@ func (m Module) PrizeListHandler() interactions.Handler {
 		if err := responder.EditOriginal(ctx, legacyPrizePoolMessage(result, guildName, interaction.Actor.UserTag, interaction.Actor.AvatarURL, m.color())); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction)
+		return m.track(ctx, interaction, GachaPrizeListCommandName, "gacha-prize-list")
+	}
+}
+
+func (m Module) PrizeDeleteHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		if !interaction.Actor.HasPermission(gachaManageMessagesPermissionBit) {
+			return responder.EditOriginal(ctx, gachaErrorMessage("你需要有`訊息管理`才能使用此指令"))
+		}
+		prizeName := gachaStringOption(interaction, gachaPrizeNameOption)
+		prize, err := m.deleteService.Delete(ctx, interaction.Actor.GuildID, prizeName)
+		if err != nil {
+			if errors.Is(err, ports.ErrGachaPrizeMissing) {
+				return responder.EditOriginal(ctx, gachaErrorMessage("找不到這個獎品!"))
+			}
+			return responder.EditOriginal(ctx, gachaErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+		}
+		if err := responder.EditOriginal(ctx, gachaPrizeDeleteSuccessMessage(prize)); err != nil {
+			return err
+		}
+		return m.track(ctx, interaction, GachaPrizeDeleteCommandName, "gacha-prize-delete")
 	}
 }
 
@@ -147,14 +173,37 @@ func gachaErrorMessage(content string) responses.Message {
 	}
 }
 
-func (m Module) track(ctx context.Context, interaction interactions.Interaction) error {
+func gachaPrizeDeleteSuccessMessage(prize domain.GachaPrize) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       legacyDoneEmoji + "成功刪除!",
+			Description: "獎品名:" + strings.TrimSpace(prize.Name),
+			Color:       gachaPrizeDeleteSuccessColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func gachaStringOption(interaction interactions.Interaction, names ...string) string {
+	for _, name := range names {
+		if value := strings.TrimSpace(interaction.Options[name]); value != "" {
+			return value
+		}
+		if option, ok := interaction.CommandOptions[name]; ok {
+			return strings.TrimSpace(option.String)
+		}
+	}
+	return ""
+}
+
+func (m Module) track(ctx context.Context, interaction interactions.Interaction, commandName string, feature string) error {
 	if m.usage == nil {
 		return nil
 	}
 	return m.usage.TrackCommand(ctx, ports.UsageEvent{
-		CommandName: GachaPrizeListCommandName,
+		CommandName: commandName,
 		UserID:      interaction.Actor.UserID,
 		GuildID:     interaction.Actor.GuildID,
-		Feature:     "gacha-prize-list",
+		Feature:     feature,
 	})
 }

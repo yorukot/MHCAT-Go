@@ -467,12 +467,17 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.LoggingConfigRepository = loggingRepo
 	}
-	if cfg.FeatureGachaPrizeListEnabled {
-		gachaRepo, err := gachaPrizePoolRepositoryFromMongo(mongoClient)
+	if cfg.FeatureGachaPrizeListEnabled || cfg.FeatureGachaPrizeDeleteEnabled {
+		gachaRepo, err := gachaRepositoryFromMongo(mongoClient)
 		if err != nil {
 			return nil, err
 		}
-		opts.GachaPrizePoolRepository = gachaRepo
+		if cfg.FeatureGachaPrizeListEnabled {
+			opts.GachaPrizePoolRepository = gachaRepo
+		}
+		if cfg.FeatureGachaPrizeDeleteEnabled {
+			opts.GachaPrizeDeleteRepository = gachaRepo
+		}
 	}
 	if cfg.FeatureStatsDeleteEnabled {
 		statsRepo, err := statsConfigRepositoryFromMongo(mongoClient)
@@ -875,18 +880,18 @@ func scamURLCatalogRepositoryFromMongo(mongoClient MongoClient) (*mongorepositor
 	return repo, nil
 }
 
-func gachaPrizePoolRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.GachaRepository, error) {
+func gachaRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.GachaRepository, error) {
 	concrete, ok := mongoClient.(*mongoadapter.Client)
 	if !ok {
-		return nil, fmt.Errorf("gacha prize-list feature requires default mongo client")
+		return nil, fmt.Errorf("gacha feature requires default mongo client")
 	}
 	database, err := concrete.Database()
 	if err != nil {
-		return nil, fmt.Errorf("gacha prize-list feature database: %w", err)
+		return nil, fmt.Errorf("gacha feature database: %w", err)
 	}
 	repo, err := mongorepositories.NewGachaRepositoryFromDatabase(database)
 	if err != nil {
-		return nil, fmt.Errorf("gacha prize-list feature repository: %w", err)
+		return nil, fmt.Errorf("gacha feature repository: %w", err)
 	}
 	return repo, nil
 }

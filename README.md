@@ -55,6 +55,7 @@ This module currently provides:
 - gated `/自動通知列表` and `/自動通知刪除` config-maintenance commands with rollback-compatible `cron_sets` reads/deletes.
 - gated `/set-log-channel` logging-configuration command and `loggin_create`-compatible select route; event log emitters remain disabled.
 - gated read-only `/扭蛋獎池查詢` prize-pool query with legacy embed text and rollback-compatible `gifts`/`gift_changes` reads.
+- gated `/扭蛋獎池刪除` prize delete command with legacy Manage Messages permission, success/error embeds, and one-row `gifts` deletion by `{guild,gift_name}`.
 - gated config-only `/公告頻道設置` command with legacy subcommands, embeds, and rollback-compatible `guilds`/`ann_all_sets` writes.
 - gated bound announcement message relay from legacy `ann_message.js`, disabled by default and requiring explicit gateway/message-content flags.
 - gated config-only `/聊天經驗設定` and `/聊天經驗刪除` commands with legacy embed/preview UI and rollback-compatible `text_xp_channels` writes.
@@ -111,6 +112,7 @@ Implemented utility commands:
 - `/自動通知列表` and `/自動通知刪除` when explicitly enabled with `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true`
 - `/set-log-channel` when explicitly enabled with `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true`
 - `/扭蛋獎池查詢` when explicitly enabled with `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true`
+- `/扭蛋獎池刪除` when explicitly enabled with `MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=true`
 - `/抽獎設置` disabled-command parity response when explicitly enabled with `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`
 - `/統計系統查詢` when explicitly enabled with `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`
 - `/統計系統刪除` when explicitly enabled with `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`
@@ -146,7 +148,7 @@ Implemented event features:
 
 Not implemented yet:
 
-- role button, remaining economy game/shop/reset writes, text/voice XP accrual, rank cards, gacha draw/add/edit/delete/shop, gift, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats channel creation/role-count/rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
+- role button, remaining economy game/shop/reset writes, text/voice XP accrual, rank cards, gacha draw/add/edit/shop, gift, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats channel creation/role-count/rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete, and the daily reset is either run by the explicit one-shot tool under an operator process or owned by a future lease-backed scheduler.
 
@@ -202,6 +204,7 @@ Safe defaults:
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=false`
+- `MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=false`
 - `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=false`
 - `MHCAT_FEATURE_STATS_QUERY_ENABLED=false`
 - `MHCAT_FEATURE_STATS_DELETE_ENABLED=false`
@@ -281,6 +284,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=false`
@@ -529,6 +533,8 @@ The `/翻譯` command is available only when `MHCAT_FEATURE_TRANSLATE_ENABLED=tr
 The `/set-log-channel` command is available only when `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. This command writes only the legacy-compatible `loggings` config and does not enable logging event emitters.
 
 The `/扭蛋獎池查詢` command is available only when `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST=true`; staging preflight rejects unpaired sync/runtime flags. This command reads `gifts` and `gift_changes` only. It does not draw prizes, decrement inventory, mutate coins, send DMs, create indexes, or enable shop behavior.
+
+The `/扭蛋獎池刪除` command is available only when `MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires Manage Messages and deletes one legacy `gifts` row matching `{guild,gift_name}`, returning the legacy success/error embeds. It does not draw prizes, decrement inventory counts, mutate coins, send DMs, create indexes, or enable shop behavior. Test only against disposable staging gacha data.
 
 The `/抽獎設置` disabled-command parity response is available only when `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command preserves the current legacy unavailable embed and does not create lottery rows, send lottery panels, register lottery buttons, write Mongo, or enable old `lotter*` component behavior.
 

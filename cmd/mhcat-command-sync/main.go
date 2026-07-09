@@ -248,7 +248,10 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 		definitions = append(definitions, featurelogging.Definitions()...)
 	}
 	if cfg.IncludeGachaPrizeList {
-		definitions = append(definitions, featuregacha.Definitions()...)
+		definitions = append(definitions, featuregacha.PrizeListDefinitions()...)
+	}
+	if cfg.IncludeGachaPrizeDelete {
+		definitions = append(definitions, featuregacha.PrizeDeleteDefinitions()...)
 	}
 	if cfg.IncludeLotteryDisabledCommand {
 		definitions = append(definitions, featurelottery.Definitions()...)
@@ -377,6 +380,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeGachaPrizeList {
 		expected = append(expected, featuregacha.GachaPrizeListCommandName)
+	}
+	if cfg.IncludeGachaPrizeDelete {
+		expected = append(expected, featuregacha.GachaPrizeDeleteCommandName)
 	}
 	if cfg.IncludeLotteryDisabledCommand {
 		expected = append(expected, featurelottery.LotteryCreateCommandName)

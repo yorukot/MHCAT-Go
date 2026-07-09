@@ -847,6 +847,45 @@ func TestBuildRuntimeRoutesGachaPrizeListOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesGachaPrizeDeleteOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("扭蛋獎池刪除", "", map[string]string{"獎品名稱": "大獎"})
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("gacha prize-delete route should not be available without repository")
+	}
+
+	repo := fakemongo.NewGachaRepository()
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 10, Count: 1}}
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                     validTestConfig(),
+		GachaPrizeDeleteRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with gacha prize-delete repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch gacha prize-delete: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "成功刪除") {
+		t.Fatalf("gacha prize-delete response = %#v", responder.Edits)
+	}
+	if len(repo.Prizes["guild-1"]) != 0 {
+		t.Fatalf("prize should be deleted: %#v", repo.Prizes["guild-1"])
+	}
+
+	responder = fakediscord.NewResponder()
+	listInteraction := fakediscord.SlashInteraction("扭蛋獎池查詢")
+	if err := dispatcher.Dispatch(context.Background(), listInteraction, responder); err == nil {
+		t.Fatal("gacha prize-list route should not be available with delete-only repository")
+	}
+}
+
 func TestBuildRuntimeRoutesLotteryDisabledCommandOnlyWhenEnabled(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
