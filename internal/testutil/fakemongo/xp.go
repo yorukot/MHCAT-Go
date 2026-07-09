@@ -195,6 +195,50 @@ func (r *XPAdminRepository) SaveVoiceXPProfile(ctx context.Context, profile doma
 	return nil
 }
 
+func (r *XPAdminRepository) DeleteTextXPProfile(ctx context.Context, guildID string, userID string) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	key := xpProfileKey(guildID, userID)
+	if _, ok := r.TextProfiles[key]; !ok {
+		return ports.ErrTextXPProfileMissing
+	}
+	delete(r.TextProfiles, key)
+	return nil
+}
+
+func (r *XPAdminRepository) DeleteVoiceXPProfile(ctx context.Context, guildID string, userID string) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	key := xpProfileKey(guildID, userID)
+	if _, ok := r.VoiceProfiles[key]; !ok {
+		return ports.ErrVoiceXPProfileMissing
+	}
+	delete(r.VoiceProfiles, key)
+	return nil
+}
+
+func (r *XPAdminRepository) DeleteTextXPGuild(ctx context.Context, guildID string) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	if deleteXPProfileGuild(r.TextProfiles, guildID) == 0 {
+		return ports.ErrTextXPProfileMissing
+	}
+	return nil
+}
+
+func (r *XPAdminRepository) DeleteVoiceXPGuild(ctx context.Context, guildID string) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	if deleteXPProfileGuild(r.VoiceProfiles, guildID) == 0 {
+		return ports.ErrVoiceXPProfileMissing
+	}
+	return nil
+}
+
 func (r *TextXPConfigRepository) ready(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -260,8 +304,22 @@ func xpProfileKey(guildID string, userID string) string {
 	return strings.TrimSpace(guildID) + "/" + strings.TrimSpace(userID)
 }
 
+func deleteXPProfileGuild(profiles map[string]domain.XPProfile, guildID string) int {
+	guildID = strings.TrimSpace(guildID)
+	deleted := 0
+	for key, profile := range profiles {
+		if strings.TrimSpace(profile.GuildID) != guildID && !strings.HasPrefix(key, guildID+"/") {
+			continue
+		}
+		delete(profiles, key)
+		deleted++
+	}
+	return deleted
+}
+
 var _ ports.TextXPConfigRepository = (*TextXPConfigRepository)(nil)
 var _ ports.VoiceXPConfigRepository = (*VoiceXPConfigRepository)(nil)
 var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
 var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)
 var _ ports.XPAdminRepository = (*XPAdminRepository)(nil)
+var _ ports.XPResetRepository = (*XPAdminRepository)(nil)

@@ -12,6 +12,7 @@ const (
 	TextXPRewardRoleCommandName  = "聊天經驗身分組設定"
 	VoiceXPRewardRoleCommandName = "語音經驗身分組設定"
 	XPAdminCommandName           = "經驗值改變"
+	XPResetCommandName           = "經驗值重製"
 	manageMessagesPermission     = "8192"
 	kickMembersPermission        = "2"
 )
@@ -38,6 +39,10 @@ func RewardRoleDefinitions() []commands.Definition {
 
 func AdminDefinitions() []commands.Definition {
 	return []commands.Definition{XPAdminDefinition()}
+}
+
+func ResetDefinitions() []commands.Definition {
+	return []commands.Definition{XPResetDefinition()}
 }
 
 func TextXPProfileDefinition() commands.Definition {
@@ -167,6 +172,35 @@ func XPAdminDefinition() commands.Definition {
 				Options: []commands.Option{
 					{Type: commands.OptionTypeUser, Name: "使用者", Description: "要增加的對象!", Required: true},
 					{Type: commands.OptionTypeInteger, Name: "經驗值", Description: "要增加多少經驗值!", Required: true},
+				},
+			},
+		},
+	}
+}
+
+func XPResetDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        XPResetCommandName,
+		Description: "重製整個伺服器的經驗",
+		Ownership:   commands.ManagedOwnership("xp-reset", commands.ScopeGuild),
+		Options: []commands.Option{
+			{Type: commands.OptionTypeSubCommand, Name: "聊天經驗重製", Description: "重製整個伺服器的聊天經驗"},
+			{Type: commands.OptionTypeSubCommand, Name: "語音經驗重製", Description: "重製整個伺服器的語音經驗"},
+			{
+				Type:        commands.OptionTypeSubCommand,
+				Name:        "重製個人語音經驗",
+				Description: "重製某人的語音經驗",
+				Options: []commands.Option{
+					{Type: commands.OptionTypeUser, Name: "使用者", Description: "選擇你要重製經驗的使用者!", Required: true},
+				},
+			},
+			{
+				Type:        commands.OptionTypeSubCommand,
+				Name:        "重製個人聊天經驗",
+				Description: "重製某人的聊天經驗",
+				Options: []commands.Option{
+					{Type: commands.OptionTypeUser, Name: "使用者", Description: "選擇你要重製經驗的使用者!", Required: true},
 				},
 			},
 		},

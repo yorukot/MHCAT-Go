@@ -197,6 +197,22 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN:-false}" = "true" ] && [ "${MHCAT_FE
   echo "refusing apply: XP admin command apply requires MHCAT_FEATURE_XP_ADMIN_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET:-false}" = "true" ] && [ "${MHCAT_FEATURE_XP_RESET_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: XP reset command apply requires MHCAT_FEATURE_XP_RESET_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_FEATURE_XP_RESET_ENABLED:-false}" = "true" ] && [ "${MHCAT_DISCORD_ENABLE_GATEWAY:-false}" != "true" ]; then
+  echo "refusing apply: XP reset runtime requires MHCAT_DISCORD_ENABLE_GATEWAY=true for staging confirmation parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_FEATURE_XP_RESET_ENABLED:-false}" = "true" ] && [ "${MHCAT_DISCORD_GUILD_MESSAGES_INTENT:-false}" != "true" ]; then
+  echo "refusing apply: XP reset runtime requires MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true for staging confirmation parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_FEATURE_XP_RESET_ENABLED:-false}" = "true" ] && [ "${MHCAT_DISCORD_MESSAGE_CONTENT_INTENT:-false}" != "true" ]; then
+  echo "refusing apply: XP reset runtime requires MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true for staging confirmation parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED:-false}" != "true" ]; then
   echo "refusing apply: voice-room config commands apply requires MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -436,6 +452,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN:-false}" = "true" ]; then
   echo "staging command sync apply: including XP admin command" >&2
 else
   echo "staging command sync apply: XP admin command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET:-false}" = "true" ]; then
+  echo "staging command sync apply: including XP reset command 經驗值重製" >&2
+else
+  echo "staging command sync apply: XP reset command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG:-false}" = "true" ]; then
   echo "staging command sync apply: including voice-room config commands" >&2

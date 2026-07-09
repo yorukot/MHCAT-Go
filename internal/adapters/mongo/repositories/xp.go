@@ -228,6 +228,22 @@ func (r *XPAdminRepository) SaveVoiceXPProfile(ctx context.Context, profile doma
 	return saveAdminXPProfile(ctx, r.voiceProfiles, profile, "voice", true)
 }
 
+func (r *XPAdminRepository) DeleteTextXPProfile(ctx context.Context, guildID string, userID string) error {
+	return deleteAdminXPProfile(ctx, r.textProfiles, guildID, userID, ports.ErrTextXPProfileMissing, "text")
+}
+
+func (r *XPAdminRepository) DeleteVoiceXPProfile(ctx context.Context, guildID string, userID string) error {
+	return deleteAdminXPProfile(ctx, r.voiceProfiles, guildID, userID, ports.ErrVoiceXPProfileMissing, "voice")
+}
+
+func (r *XPAdminRepository) DeleteTextXPGuild(ctx context.Context, guildID string) error {
+	return deleteAdminXPGuild(ctx, r.textProfiles, guildID, ports.ErrTextXPProfileMissing, "text")
+}
+
+func (r *XPAdminRepository) DeleteVoiceXPGuild(ctx context.Context, guildID string) error {
+	return deleteAdminXPGuild(ctx, r.voiceProfiles, guildID, ports.ErrVoiceXPProfileMissing, "voice")
+}
+
 func nullableTrimmedString(value string) any {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -387,6 +403,43 @@ func saveAdminXPProfile(ctx context.Context, collection *drivermongo.Collection,
 	return ctx.Err()
 }
 
+func deleteAdminXPProfile(ctx context.Context, collection *drivermongo.Collection, guildID string, userID string, missing error, label string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	guildID = strings.TrimSpace(guildID)
+	userID = strings.TrimSpace(userID)
+	if guildID == "" || userID == "" {
+		return domain.ErrInvalidXPAdjustment
+	}
+	result, err := collection.DeleteMany(ctx, xpProfileFilter(guildID, userID))
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("delete admin %s xp profile: %w", label, err))
+	}
+	if result.DeletedCount == 0 {
+		return missing
+	}
+	return ctx.Err()
+}
+
+func deleteAdminXPGuild(ctx context.Context, collection *drivermongo.Collection, guildID string, missing error, label string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return domain.ErrInvalidXPAdjustment
+	}
+	result, err := collection.DeleteMany(ctx, bson.D{{Key: "guild", Value: guildID}})
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("delete admin %s xp guild: %w", label, err))
+	}
+	if result.DeletedCount == 0 {
+		return missing
+	}
+	return ctx.Err()
+}
+
 func xpProfileFilter(guildID string, userID string) bson.D {
 	return bson.D{{Key: "guild", Value: strings.TrimSpace(guildID)}, {Key: "member", Value: strings.TrimSpace(userID)}}
 }
@@ -414,3 +467,4 @@ var _ ports.VoiceXPConfigRepository = (*VoiceXPConfigRepository)(nil)
 var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
 var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)
 var _ ports.XPAdminRepository = (*XPAdminRepository)(nil)
+var _ ports.XPResetRepository = (*XPAdminRepository)(nil)

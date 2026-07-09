@@ -237,6 +237,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureXPAdminEnabled {
 		t.Fatal("XP admin feature must be disabled by default")
 	}
+	if cfg.FeatureXPResetEnabled {
+		t.Fatal("XP reset feature must be disabled by default")
+	}
 	if cfg.FeatureVoiceRoomConfigEnabled {
 		t.Fatal("voice-room config feature must be disabled by default")
 	}
@@ -344,6 +347,50 @@ func TestFeatureXPAdminParses(t *testing.T) {
 	}
 	if !cfg.FeatureXPAdminEnabled {
 		t.Fatal("expected XP admin feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureXPResetParsesWithRequiredGatewayIntents(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                  "token",
+		"MHCAT_MONGODB_URI":                    "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":               "mhcat",
+		"MHCAT_FEATURE_XP_RESET_ENABLED":       "true",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":         "true",
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":  "true",
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureXPResetEnabled {
+		t.Fatal("expected XP reset feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureXPResetRequiresGatewayMessagesAndMessageContent(t *testing.T) {
+	base := map[string]string{
+		"MHCAT_DISCORD_TOKEN":                  "token",
+		"MHCAT_MONGODB_URI":                    "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":               "mhcat",
+		"MHCAT_FEATURE_XP_RESET_ENABLED":       "true",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":         "true",
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":  "true",
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT": "true",
+	}
+	for key := range map[string]struct{}{
+		"MHCAT_DISCORD_ENABLE_GATEWAY":         {},
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":  {},
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT": {},
+	} {
+		env := map[string]string{}
+		for k, v := range base {
+			env[k] = v
+		}
+		env[key] = "false"
+		if _, err := LoadWithLookup(mapLookup(env)); err == nil {
+			t.Fatalf("expected XP reset config without %s to fail", key)
+		}
 	}
 }
 

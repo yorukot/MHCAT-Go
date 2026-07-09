@@ -168,6 +168,9 @@ func buildReport(lookup lookupFunc) []checkResult {
 		xpProfileDisabledRuntimePairing(lookup),
 		xpAdminCommandSync(lookup),
 		xpAdminRuntimePairing(lookup),
+		xpResetCommandSync(lookup),
+		xpResetRuntimePairing(lookup),
+		xpResetRuntimeReadiness(lookup),
 		voiceRoomConfigCommandSync(lookup),
 		voiceRoomConfigRuntimePairing(lookup),
 		voiceRoomLockCommandSync(lookup),
@@ -239,13 +242,20 @@ func messageContentIntent(lookup lookupFunc) checkResult {
 	if err != nil {
 		return checkResult{Name: "message-content-intent", Status: statusFail, Message: err.Error()}
 	}
+	xpResetEnabled, err := boolValue(lookup, "MHCAT_FEATURE_XP_RESET_ENABLED")
+	if err != nil {
+		return checkResult{Name: "message-content-intent", Status: statusFail, Message: err.Error()}
+	}
 	if !messageContent {
 		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is disabled"}
 	}
 	if relayEnabled {
 		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for announcement relay only"}
 	}
-	return checkResult{Name: "message-content-intent", Status: statusFail, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT must be false unless MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true"}
+	if xpResetEnabled {
+		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for XP reset confirmation only"}
+	}
+	return checkResult{Name: "message-content-intent", Status: statusFail, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT must be false unless MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true or MHCAT_FEATURE_XP_RESET_ENABLED=true"}
 }
 
 func ticketCommandSync(lookup lookupFunc) checkResult {
@@ -1632,6 +1642,74 @@ func xpAdminRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "xp-admin-runtime-pairing", Status: statusWarn, Message: "XP admin runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "xp-admin-runtime-pairing", Status: statusSkipped, Message: "XP admin runtime and command sync include are disabled"}
+}
+
+func xpResetCommandSync(lookup lookupFunc) checkResult {
+	includeXPReset, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET")
+	if err != nil {
+		return checkResult{Name: "xp-reset-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeXPReset {
+		return checkResult{Name: "xp-reset-command-sync", Status: statusPass, Message: "XP reset command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "xp-reset-command-sync", Status: statusSkipped, Message: "XP reset command sync include is disabled"}
+}
+
+func xpResetRuntimePairing(lookup lookupFunc) checkResult {
+	includeXPReset, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET")
+	if err != nil {
+		return checkResult{Name: "xp-reset-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	xpResetEnabled, err := boolValue(lookup, "MHCAT_FEATURE_XP_RESET_ENABLED")
+	if err != nil {
+		return checkResult{Name: "xp-reset-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeXPReset && !xpResetEnabled {
+		return checkResult{Name: "xp-reset-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET=true requires MHCAT_FEATURE_XP_RESET_ENABLED=true in the staging runtime"}
+	}
+	if includeXPReset && xpResetEnabled {
+		return checkResult{Name: "xp-reset-runtime-pairing", Status: statusPass, Message: "XP reset command sync and runtime feature flag are paired"}
+	}
+	if xpResetEnabled {
+		return checkResult{Name: "xp-reset-runtime-pairing", Status: statusWarn, Message: "XP reset runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "xp-reset-runtime-pairing", Status: statusSkipped, Message: "XP reset runtime and command sync include are disabled"}
+}
+
+func xpResetRuntimeReadiness(lookup lookupFunc) checkResult {
+	xpResetEnabled, err := boolValue(lookup, "MHCAT_FEATURE_XP_RESET_ENABLED")
+	if err != nil {
+		return checkResult{Name: "xp-reset-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !xpResetEnabled {
+		return checkResult{Name: "xp-reset-runtime-readiness", Status: statusSkipped, Message: "XP reset runtime is disabled"}
+	}
+	gatewayEnabled, err := boolValue(lookup, "MHCAT_DISCORD_ENABLE_GATEWAY")
+	if err != nil {
+		return checkResult{Name: "xp-reset-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	guildMessages, err := boolValue(lookup, "MHCAT_DISCORD_GUILD_MESSAGES_INTENT")
+	if err != nil {
+		return checkResult{Name: "xp-reset-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	messageContent, err := boolValue(lookup, "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT")
+	if err != nil {
+		return checkResult{Name: "xp-reset-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	var missing []string
+	if !gatewayEnabled {
+		missing = append(missing, "MHCAT_DISCORD_ENABLE_GATEWAY=true")
+	}
+	if !guildMessages {
+		missing = append(missing, "MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true")
+	}
+	if !messageContent {
+		missing = append(missing, "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true")
+	}
+	if len(missing) > 0 {
+		return checkResult{Name: "xp-reset-runtime-readiness", Status: statusFail, Message: "XP reset requires " + strings.Join(missing, ", ")}
+	}
+	return checkResult{Name: "xp-reset-runtime-readiness", Status: statusPass, Message: "XP reset gateway and message content gates are explicit"}
 }
 
 func voiceRoomConfigCommandSync(lookup lookupFunc) checkResult {

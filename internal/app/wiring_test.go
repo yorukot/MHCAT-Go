@@ -1752,6 +1752,40 @@ func TestBuildRuntimeRoutesXPAdminOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesXPResetOnlyWithDependencies(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("經驗值重製", "重製個人聊天經驗", map[string]string{"使用者": "user-2"})
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("XP reset route should not be available without dependencies")
+	}
+
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-2"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-2", XP: 10, Level: 1}
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:             validTestConfig(),
+		XPResetRepository:  repo,
+		XPResetMessagePort: fakediscord.NewSideEffects(),
+		XPResetGuildInfo:   &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "user-1"}},
+	})
+	if err != nil {
+		t.Fatalf("build runtime with XP reset: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch XP reset: %v", err)
+	}
+	if _, ok := repo.TextProfiles["guild-1/user-2"]; ok {
+		t.Fatal("XP reset route did not delete text profile")
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Content, "成功清除<@user-2>的聊天經驗") {
+		t.Fatalf("XP reset response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesJoinRoleConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

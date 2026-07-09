@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
 
@@ -45,5 +46,62 @@ func TestAdminServiceRejectsInvalidAdjustment(t *testing.T) {
 	_, err := service.AddTextXP(context.Background(), domain.XPAdjustment{GuildID: "guild-1", Delta: 1})
 	if !errors.Is(err, domain.ErrInvalidXPAdjustment) {
 		t.Fatalf("expected invalid adjustment, got %v", err)
+	}
+}
+
+func TestResetServiceDeletesIndividualProfiles(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 10, Level: 1}
+	repo.VoiceProfiles["guild-1/user-2"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-2", XP: 20, Level: 2}
+	service := ResetService{Repository: repo}
+
+	if err := service.ResetTextProfile(context.Background(), " guild-1 ", " user-1 "); err != nil {
+		t.Fatalf("reset text profile: %v", err)
+	}
+	if _, ok := repo.TextProfiles["guild-1/user-1"]; ok {
+		t.Fatal("text profile was not deleted")
+	}
+	if err := service.ResetVoiceProfile(context.Background(), "guild-1", "user-2"); err != nil {
+		t.Fatalf("reset voice profile: %v", err)
+	}
+	if _, ok := repo.VoiceProfiles["guild-1/user-2"]; ok {
+		t.Fatal("voice profile was not deleted")
+	}
+}
+
+func TestResetServiceReturnsMissingForAbsentProfile(t *testing.T) {
+	service := ResetService{Repository: fakemongo.NewXPAdminRepository()}
+
+	err := service.ResetTextProfile(context.Background(), "guild-1", "user-1")
+	if !errors.Is(err, ports.ErrTextXPProfileMissing) {
+		t.Fatalf("expected missing text profile, got %v", err)
+	}
+	err = service.ResetVoiceProfile(context.Background(), "guild-1", "user-1")
+	if !errors.Is(err, ports.ErrVoiceXPProfileMissing) {
+		t.Fatalf("expected missing voice profile, got %v", err)
+	}
+}
+
+func TestResetServiceDeletesGuildProfiles(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1"}
+	repo.TextProfiles["guild-2/user-2"] = domain.XPProfile{GuildID: "guild-2", UserID: "user-2"}
+	repo.VoiceProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1"}
+	service := ResetService{Repository: repo}
+
+	if err := service.ResetTextGuild(context.Background(), " guild-1 "); err != nil {
+		t.Fatalf("reset text guild: %v", err)
+	}
+	if _, ok := repo.TextProfiles["guild-1/user-1"]; ok {
+		t.Fatal("guild text profile was not deleted")
+	}
+	if _, ok := repo.TextProfiles["guild-2/user-2"]; !ok {
+		t.Fatal("other guild text profile was deleted")
+	}
+	if err := service.ResetVoiceGuild(context.Background(), "guild-1"); err != nil {
+		t.Fatalf("reset voice guild: %v", err)
+	}
+	if _, ok := repo.VoiceProfiles["guild-1/user-1"]; ok {
+		t.Fatal("guild voice profile was not deleted")
 	}
 }

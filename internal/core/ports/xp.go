@@ -43,3 +43,10 @@ type XPAdminRepository interface {
 	GetVoiceXPProfile(ctx context.Context, guildID string, userID string) (domain.XPProfile, error)
 	SaveVoiceXPProfile(ctx context.Context, profile domain.XPProfile) error
 }
+
+type XPResetRepository interface {
+	DeleteTextXPProfile(ctx context.Context, guildID string, userID string) error
+	DeleteVoiceXPProfile(ctx context.Context, guildID string, userID string) error
+	DeleteTextXPGuild(ctx context.Context, guildID string) error
+	DeleteVoiceXPGuild(ctx context.Context, guildID string) error
+}

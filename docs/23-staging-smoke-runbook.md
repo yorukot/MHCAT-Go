@@ -344,6 +344,18 @@ export MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN=true
 
 Set both together only in an isolated staging database when testing `/經驗值改變`. This path writes `text_xps` or `voice_xps` profile rows with legacy string `xp` and `leavel` fields and sets `voice_xps.leavejoin` on voice-profile insert. It does not enable XP accrual, rank cards, automatic role assignment/removal, coin rewards, or gateway intents.
 
+Optional XP reset smoke flags:
+
+```bash
+export MHCAT_FEATURE_XP_RESET_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
+export MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
+```
+
+Set all five together only in an isolated staging guild/database when testing `/經驗值重製`. Use a guild-owner staging account and only disposable `text_xps`/`voice_xps` rows. Individual reset deletes the selected member row immediately; full-server reset waits for the legacy `^確認^` message before deleting guild XP rows.
+
 Optional voice-room config smoke flags:
 
 ```bash
@@ -458,7 +470,7 @@ Do not paste real values into committed docs.
 - Confirm token belongs to a staging Discord application.
 - Confirm staging guild is not production.
 - Confirm `MHCAT_COMMAND_SYNC_SCOPE` is unset or set to `guild`.
-- Confirm `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT` is unset or `false`, unless testing bound announcement relay with `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`.
+- Confirm `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT` is unset or `false`, unless testing bound announcement relay with `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true` or XP reset confirmation with `MHCAT_FEATURE_XP_RESET_ENABLED=true`.
 - Confirm `MHCAT_COMMAND_SYNC_ALLOW_DELETE=false`.
 - Confirm `MHCAT_COMMAND_SYNC_ALLOW_BULK_OVERWRITE=false`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TICKETS=true`, confirm `MHCAT_FEATURE_TICKETS_ENABLED=true`.
@@ -498,6 +510,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true`, confirm `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`, the staging database can safely write `chat_roles`/`voice_roles`, and the test roles are below the bot's highest role.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true`, confirm `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true` and that the expected result is only the replacement embed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN=true`, confirm `MHCAT_FEATURE_XP_ADMIN_ENABLED=true` and the staging database has only disposable `text_xps`/`voice_xps` rows for the test member.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET=true`, confirm `MHCAT_FEATURE_XP_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, the tester is the staging guild owner, and the staging database has only disposable `text_xps`/`voice_xps` rows for the reset target.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true`, confirm `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true` and the staging database can safely write/delete `voice_channels`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK=true`, confirm `MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED=true`, gateway and Voice State intent are enabled, and the staging database can safely replace disposable `lock_channels` rows.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=true`, confirm `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true`, the staging database can safely write `join_roles`, and the test role is below the bot's highest role.
@@ -782,6 +795,16 @@ For XP admin staging smoke, expected additionally:
 - plan includes managed `經驗值改變`;
 - `/經驗值改變` adjusts only disposable staging `text_xps`/`voice_xps` rows and performs no XP accrual or rank side effects.
 
+For XP reset staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET=true`;
+- `MHCAT_FEATURE_XP_RESET_ENABLED=true`;
+- `MHCAT_DISCORD_ENABLE_GATEWAY=true`;
+- `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`;
+- `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`;
+- plan includes managed `經驗值重製`;
+- plan still performs no create/update/delete during dry-run.
+
 For voice-room config staging smoke, expected additionally:
 
 - `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true`;
@@ -1001,6 +1024,13 @@ If XP reward-role config inclusion is enabled, expected:
 If XP admin inclusion is enabled, expected:
 
 - create/update managed `經驗值改變` only in addition to the utility commands and other explicitly included features;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
+If XP reset inclusion is enabled, expected:
+
+- create/update managed `經驗值重製` only in addition to the utility commands and other explicitly included features;
 - no command deletion;
 - no bulk overwrite;
 - no global command mutation.
@@ -1229,6 +1259,18 @@ If XP admin flags were enabled and command sync apply was reviewed:
 - verify a member without Kick Members receives the legacy red permission embed;
 - verify no XP accrual, rank rendering, automatic role assignment/removal, coin reward, gateway intent, index, or usage-counter write happened.
 
+If XP reset flags were enabled and command sync apply was reviewed:
+
+- seed disposable staging `text_xps` and `voice_xps` rows for one test member plus at least one additional guild row if testing full-server reset;
+- run `/經驗值重製 重製個人聊天經驗 使用者:<staging member>` as the staging guild owner and verify the selected member's `text_xps` row is deleted;
+- run `/經驗值重製 重製個人語音經驗 使用者:<staging member>` and verify the selected member's `voice_xps` row is deleted;
+- run the same individual reset against a missing profile and verify the legacy red `這位使用者還沒有任何的經驗值喔!` embed;
+- run `/經驗值重製 聊天經驗重製`, verify the legacy warning prompt appears, type a wrong confirmation once, and verify the reset is cancelled without deleting rows;
+- rerun `/經驗值重製 聊天經驗重製`, type `^確認^` in the same channel as the same owner within 60 seconds, and verify all staging guild `text_xps` rows are deleted;
+- repeat the full-server confirmation path for `/經驗值重製 語音經驗重製` against disposable `voice_xps` rows;
+- verify non-owner attempts return the legacy red permission embed and no rows are deleted;
+- verify no XP accrual, rank rendering, automatic role assignment/removal, coin reward, index, or usage-counter write happened.
+
 If voice-room config flags were enabled and command sync apply was reviewed:
 
 - run `/語音包廂設置` with a staging voice or stage channel, a `設定頻道名稱` template containing `{name}`, `是否予許房主上鎖`, and optional `設定人數上限`;
@@ -1265,6 +1307,7 @@ Verify:
   - Exception: delete-data smoke deletes selected disposable staging config rows only.
   - Exception: auto-notification config smoke writes/completes disposable setup `cron_sets` rows, sends a setup preview, and deletes selected rows and abandoned pending drafts only.
   - Exception: voice-room config smoke writes/deletes legacy-compatible `voice_channels` rows only.
+  - Exception: XP reset smoke deletes disposable staging `text_xps`/`voice_xps` rows only after an individual reset command or full-reset `^確認^` confirmation.
 
 ## 6. Record Result
 

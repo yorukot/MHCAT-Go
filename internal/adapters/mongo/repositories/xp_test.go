@@ -91,6 +91,16 @@ func TestVoiceXPProfileUpdateSetsLegacyLeaveJoinOnInsert(t *testing.T) {
 	}
 }
 
+func TestXPProfileDeleteFiltersUseLegacyFields(t *testing.T) {
+	filter := xpProfileFilter(" guild-1 ", " user-1 ")
+	if value := documentValue(t, filter, "guild"); value != "guild-1" {
+		t.Fatalf("guild = %#v", value)
+	}
+	if value := documentValue(t, filter, "member"); value != "user-1" {
+		t.Fatalf("member = %#v", value)
+	}
+}
+
 func documentValue(t *testing.T, doc any, key string) any {
 	t.Helper()
 	switch typed := doc.(type) {

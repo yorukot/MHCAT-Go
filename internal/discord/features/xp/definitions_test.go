@@ -147,6 +147,36 @@ func TestAdminDefinitionMatchesLegacy(t *testing.T) {
 	}
 }
 
+func TestResetDefinitionMatchesLegacy(t *testing.T) {
+	definition := XPResetDefinition()
+	if definition.Name != XPResetCommandName || definition.Description != "重製整個伺服器的經驗" {
+		t.Fatalf("reset definition = %#v", definition)
+	}
+	if definition.DefaultMemberPermissions != nil {
+		t.Fatalf("reset command should not set Discord-side permissions: %#v", definition.DefaultMemberPermissions)
+	}
+	if definition.Ownership == nil || definition.Ownership.Owner != commands.OwnerMHCATRefactor || definition.Ownership.SinceWave != "xp-reset" {
+		t.Fatalf("reset ownership = %#v", definition.Ownership)
+	}
+	if len(definition.Options) != 4 {
+		t.Fatalf("reset options = %#v", definition.Options)
+	}
+	expected := []string{"聊天經驗重製", "語音經驗重製", "重製個人語音經驗", "重製個人聊天經驗"}
+	for i, name := range expected {
+		if definition.Options[i].Type != commands.OptionTypeSubCommand || definition.Options[i].Name != name {
+			t.Fatalf("reset option %d = %#v", i, definition.Options[i])
+		}
+	}
+	for _, option := range definition.Options[2:] {
+		if len(option.Options) != 1 || option.Options[0].Type != commands.OptionTypeUser || option.Options[0].Name != "使用者" || option.Options[0].Description != "選擇你要重製經驗的使用者!" || !option.Options[0].Required {
+			t.Fatalf("reset user option = %#v", option.Options)
+		}
+	}
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, ResetDefinitions())); err != nil {
+		t.Fatalf("validate reset: %v", err)
+	}
+}
+
 func TestTextAndVoiceDefinitionsAreSeparateGates(t *testing.T) {
 	for _, definition := range TextDefinitions() {
 		if definition.Name == VoiceXPSetCommandName || definition.Name == VoiceXPDeleteCommandName {
@@ -174,6 +204,12 @@ func TestTextAndVoiceDefinitionsAreSeparateGates(t *testing.T) {
 		switch definition.Name {
 		case TextXPSetCommandName, TextXPDeleteCommandName, VoiceXPSetCommandName, VoiceXPDeleteCommandName, TextXPProfileCommandName, VoiceXPProfileCommandName, TextXPRewardRoleCommandName, VoiceXPRewardRoleCommandName:
 			t.Fatalf("admin definitions leaked another XP command: %#v", definition)
+		}
+	}
+	for _, definition := range ResetDefinitions() {
+		switch definition.Name {
+		case TextXPSetCommandName, TextXPDeleteCommandName, VoiceXPSetCommandName, VoiceXPDeleteCommandName, TextXPProfileCommandName, VoiceXPProfileCommandName, TextXPRewardRoleCommandName, VoiceXPRewardRoleCommandName, XPAdminCommandName:
+			t.Fatalf("reset definitions leaked another XP command: %#v", definition)
 		}
 	}
 }

@@ -611,6 +611,19 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.XPAdminRepository = xpAdminRepo
 	}
+	if cfg.FeatureXPResetEnabled {
+		xpResetRepo, err := xpAdminRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "XP reset feature")
+		if err != nil {
+			return nil, err
+		}
+		opts.XPResetRepository = xpResetRepo
+		opts.XPResetMessagePort = sideEffects
+		opts.XPResetGuildInfo = discordInfoProvider(session)
+	}
 	if cfg.FeatureVoiceRoomConfigEnabled {
 		voiceRoomRepo, err := voiceRoomConfigRepositoryFromMongo(mongoClient)
 		if err != nil {

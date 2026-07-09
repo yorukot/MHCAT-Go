@@ -4,9 +4,13 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakebotinfo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
@@ -315,6 +319,233 @@ func TestAdminHandlerRequiresKickMembers(t *testing.T) {
 	}
 }
 
+func TestResetHandlerRequiresGuildOwner(t *testing.T) {
+	module := NewResetModule(
+		fakemongo.NewXPAdminRepository(),
+		&fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "owner-1"}},
+		fakediscord.NewSideEffects(),
+		nil,
+		&xpResetTestClock{now: time.Unix(1000, 0)},
+	)
+	interaction := fakediscord.SlashInteractionWithOptions(XPResetCommandName, "重製個人聊天經驗", map[string]string{"使用者": "user-2"})
+	responder := fakediscord.NewResponder()
+
+	if err := module.ResetHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "你必須擁有`服主`才能使用") {
+		t.Fatalf("owner response = %#v", responder.Edits)
+	}
+}
+
+func TestResetHandlerDeletesIndividualProfiles(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-2"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-2", XP: 20, Level: 1}
+	repo.VoiceProfiles["guild-1/user-3"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-3", XP: 30, Level: 2}
+	usage := &fakeusage.Tracker{}
+	module := NewResetModule(
+		repo,
+		&fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "user-1"}},
+		fakediscord.NewSideEffects(),
+		usage,
+		&xpResetTestClock{now: time.Unix(1000, 0)},
+	)
+
+	textInteraction := fakediscord.SlashInteractionWithOptions(XPResetCommandName, "重製個人聊天經驗", map[string]string{"使用者": "user-2"})
+	responder := fakediscord.NewResponder()
+	if err := module.ResetHandler()(context.Background(), textInteraction, responder); err != nil {
+		t.Fatalf("text handler: %v", err)
+	}
+	if _, ok := repo.TextProfiles["guild-1/user-2"]; ok {
+		t.Fatal("text profile was not deleted")
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Content != doneEmoji+" | 成功清除<@user-2>的聊天經驗" {
+		t.Fatalf("text response = %#v", responder.Edits)
+	}
+
+	voiceInteraction := fakediscord.SlashInteractionWithOptions(XPResetCommandName, "重製個人語音經驗", nil)
+	voiceInteraction.CommandOptions = map[string]interactions.CommandOptionValue{
+		"使用者": {Type: interactions.CommandOptionUser, String: "user-3"},
+	}
+	responder = fakediscord.NewResponder()
+	if err := module.ResetHandler()(context.Background(), voiceInteraction, responder); err != nil {
+		t.Fatalf("voice handler: %v", err)
+	}
+	if _, ok := repo.VoiceProfiles["guild-1/user-3"]; ok {
+		t.Fatal("voice profile was not deleted")
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Content != doneEmoji+" | 成功清除<@user-3>的語音經驗" {
+		t.Fatalf("voice response = %#v", responder.Edits)
+	}
+	if len(usage.Events) != 2 || usage.Events[0].CommandName != XPResetCommandName || usage.Events[0].Feature != "xp-reset" {
+		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
+func TestResetHandlerReportsMissingIndividualProfile(t *testing.T) {
+	module := NewResetModule(
+		fakemongo.NewXPAdminRepository(),
+		&fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "user-1"}},
+		fakediscord.NewSideEffects(),
+		nil,
+		&xpResetTestClock{now: time.Unix(1000, 0)},
+	)
+	interaction := fakediscord.SlashInteractionWithOptions(XPResetCommandName, "重製個人聊天經驗", map[string]string{"使用者": "user-2"})
+	responder := fakediscord.NewResponder()
+
+	if err := module.ResetHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "這位使用者還沒有任何的經驗值喔!") {
+		t.Fatalf("missing response = %#v", responder.Edits)
+	}
+}
+
+func TestResetHandlerArmsGuildResetWarning(t *testing.T) {
+	module := NewResetModule(
+		fakemongo.NewXPAdminRepository(),
+		&fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "user-1"}},
+		fakediscord.NewSideEffects(),
+		nil,
+		&xpResetTestClock{now: time.Unix(1000, 0)},
+	)
+	interaction := fakediscord.SlashInteractionWithOptions(XPResetCommandName, "聊天經驗重製", nil)
+	interaction.ChannelID = "channel-1"
+	responder := fakediscord.NewResponder()
+
+	if err := module.ResetHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Content != xpResetWarningContent {
+		t.Fatalf("warning response = %#v", responder.Edits)
+	}
+}
+
+func TestResetConfirmationCancelsOnWrongContent(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-2"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-2"}
+	sideEffects := fakediscord.NewSideEffects()
+	clock := &xpResetTestClock{now: time.Unix(1000, 0)}
+	module := NewResetModule(
+		repo,
+		&fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "user-1"}},
+		sideEffects,
+		nil,
+		clock,
+	)
+	interaction := fakediscord.SlashInteractionWithOptions(XPResetCommandName, "聊天經驗重製", nil)
+	interaction.ChannelID = "channel-1"
+	if err := module.ResetHandler()(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("arm handler: %v", err)
+	}
+
+	err := module.ConfirmationHandler()(context.Background(), events.Event{
+		Type:      events.TypeMessageCreate,
+		GuildID:   "guild-1",
+		ChannelID: "channel-1",
+		UserID:    "user-1",
+		Content:   "確認",
+		CreatedAt: clock.now.Add(time.Second),
+	})
+	if err != nil {
+		t.Fatalf("confirm handler: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 || !strings.Contains(sideEffects.Sent[0].Message.Embeds[0].Title, "你輸入了錯誤的確認!因此視為取消還原") {
+		t.Fatalf("wrong confirmation response = %#v", sideEffects.Sent)
+	}
+	if _, ok := repo.TextProfiles["guild-1/user-2"]; !ok {
+		t.Fatal("profile should not be deleted after wrong confirmation")
+	}
+
+	err = module.ConfirmationHandler()(context.Background(), events.Event{
+		Type:      events.TypeMessageCreate,
+		GuildID:   "guild-1",
+		ChannelID: "channel-1",
+		UserID:    "user-1",
+		Content:   xpResetConfirmContent,
+		CreatedAt: clock.now.Add(2 * time.Second),
+	})
+	if err != nil {
+		t.Fatalf("second confirm handler: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 {
+		t.Fatalf("confirmation should be one-shot, sends = %#v", sideEffects.Sent)
+	}
+}
+
+func TestResetConfirmationDeletesGuildProfiles(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.VoiceProfiles["guild-1/user-2"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-2"}
+	repo.VoiceProfiles["guild-2/user-3"] = domain.XPProfile{GuildID: "guild-2", UserID: "user-3"}
+	sideEffects := fakediscord.NewSideEffects()
+	clock := &xpResetTestClock{now: time.Unix(1000, 0)}
+	module := NewResetModule(
+		repo,
+		&fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "user-1"}},
+		sideEffects,
+		nil,
+		clock,
+	)
+	interaction := fakediscord.SlashInteractionWithOptions(XPResetCommandName, "語音經驗重製", nil)
+	interaction.ChannelID = "channel-1"
+	if err := module.ResetHandler()(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("arm handler: %v", err)
+	}
+
+	err := module.ConfirmationHandler()(context.Background(), events.Event{
+		Type:      events.TypeMessageCreate,
+		GuildID:   "guild-1",
+		ChannelID: "channel-1",
+		UserID:    "user-1",
+		Content:   xpResetConfirmContent,
+		CreatedAt: clock.now.Add(time.Second),
+	})
+	if err != nil {
+		t.Fatalf("confirm handler: %v", err)
+	}
+	if _, ok := repo.VoiceProfiles["guild-1/user-2"]; ok {
+		t.Fatal("guild voice profile was not deleted")
+	}
+	if _, ok := repo.VoiceProfiles["guild-2/user-3"]; !ok {
+		t.Fatal("other guild voice profile was deleted")
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != deleteEmoji+"成功刪除伺服器內所有語音經驗" {
+		t.Fatalf("success response = %#v", sideEffects.Sent)
+	}
+}
+
+func TestResetConfirmationReportsNoGuildData(t *testing.T) {
+	sideEffects := fakediscord.NewSideEffects()
+	clock := &xpResetTestClock{now: time.Unix(1000, 0)}
+	module := NewResetModule(
+		fakemongo.NewXPAdminRepository(),
+		&fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "user-1"}},
+		sideEffects,
+		nil,
+		clock,
+	)
+	interaction := fakediscord.SlashInteractionWithOptions(XPResetCommandName, "聊天經驗重製", nil)
+	interaction.ChannelID = "channel-1"
+	if err := module.ResetHandler()(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("arm handler: %v", err)
+	}
+
+	err := module.ConfirmationHandler()(context.Background(), events.Event{
+		Type:      events.TypeMessageCreate,
+		GuildID:   "guild-1",
+		ChannelID: "channel-1",
+		UserID:    "user-1",
+		Content:   xpResetConfirmContent,
+		CreatedAt: clock.now.Add(time.Second),
+	})
+	if err != nil {
+		t.Fatalf("confirm handler: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 || !strings.Contains(sideEffects.Sent[0].Message.Embeds[0].Title, "伺服器沒有任何聊天經驗的資料!") {
+		t.Fatalf("missing guild response = %#v", sideEffects.Sent)
+	}
+}
+
 func TestRewardRoleAddDeleteAndQueryHandlers(t *testing.T) {
 	textRepo := fakemongo.NewTextXPRewardRoleRepository()
 	voiceRepo := fakemongo.NewVoiceXPRewardRoleRepository()
@@ -369,6 +600,14 @@ func TestRewardRoleAddDeleteAndQueryHandlers(t *testing.T) {
 	if len(usage.Events) != 3 || usage.Events[0].Feature != "text-xp-role-config" {
 		t.Fatalf("usage = %#v", usage.Events)
 	}
+}
+
+type xpResetTestClock struct {
+	now time.Time
+}
+
+func (c *xpResetTestClock) Now() time.Time {
+	return c.now
 }
 
 func TestRewardRoleRejectsPermissionRoleAndMissingDelete(t *testing.T) {

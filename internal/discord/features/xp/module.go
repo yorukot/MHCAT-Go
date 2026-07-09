@@ -1,9 +1,12 @@
 package xp
 
 import (
+	"time"
+
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/xp"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 )
 
@@ -33,6 +36,15 @@ type RewardRoleModule struct {
 type AdminModule struct {
 	service coreservice.AdminService
 	usage   ports.UsageTracker
+}
+
+type ResetModule struct {
+	service       coreservice.ResetService
+	guilds        ports.DiscordInfoProvider
+	messages      ports.DiscordMessagePort
+	usage         ports.UsageTracker
+	clock         ports.Clock
+	confirmations *resetConfirmationStore
 }
 
 func NewModule(repo ports.TextXPConfigRepository, messages ports.DiscordMessagePort, usage ports.UsageTracker) Module {
@@ -71,6 +83,23 @@ func NewAdminModule(repo ports.XPAdminRepository, usage ports.UsageTracker) Admi
 	}
 }
 
+func NewResetModule(repo ports.XPResetRepository, guilds ports.DiscordInfoProvider, messages ports.DiscordMessagePort, usage ports.UsageTracker, clock ports.Clock) ResetModule {
+	confirmations := defaultResetConfirmationStore
+	if clock == nil {
+		clock = ports.SystemClock{}
+	} else {
+		confirmations = newResetConfirmationStore(clock, time.Minute)
+	}
+	return ResetModule{
+		service:       coreservice.ResetService{Repository: repo},
+		guilds:        guilds,
+		messages:      messages,
+		usage:         usage,
+		clock:         clock,
+		confirmations: confirmations,
+	}
+}
+
 func (m Module) Name() string {
 	return "text-xp-config"
 }
@@ -91,6 +120,10 @@ func (m AdminModule) Name() string {
 	return "xp-admin"
 }
 
+func (m ResetModule) Name() string {
+	return "xp-reset"
+}
+
 func (m Module) Commands() []commands.Definition {
 	return TextDefinitions()
 }
@@ -109,6 +142,10 @@ func (m RewardRoleModule) Commands() []commands.Definition {
 
 func (m AdminModule) Commands() []commands.Definition {
 	return AdminDefinitions()
+}
+
+func (m ResetModule) Commands() []commands.Definition {
+	return ResetDefinitions()
 }
 
 func (m Module) RegisterRoutes(router *interactions.Router) error {
@@ -147,4 +184,14 @@ func (m RewardRoleModule) RegisterRoutes(router *interactions.Router) error {
 
 func (m AdminModule) RegisterRoutes(router *interactions.Router) error {
 	return router.RegisterSlash(XPAdminCommandName, m.AdminHandler())
+}
+
+func (m ResetModule) RegisterRoutes(router *interactions.Router) error {
+	return router.RegisterSlash(XPResetCommandName, m.ResetHandler())
+}
+
+func (m ResetModule) RegisterEventRoutes(dispatcher *events.Dispatcher) {
+	if dispatcher != nil {
+		dispatcher.Register(events.TypeMessageCreate, m.ConfirmationHandler())
+	}
 }

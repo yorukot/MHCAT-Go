@@ -172,6 +172,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeXPAdmin {
 		t.Fatal("include XP admin must default false")
 	}
+	if cfg.IncludeXPReset {
+		t.Fatal("include XP reset must default false")
+	}
 	if cfg.IncludeVoiceRoomConfig {
 		t.Fatal("include voice-room config must default false")
 	}
@@ -363,6 +366,48 @@ func TestCommandSyncIncludeXPAdminStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeXPAdmin {
 		t.Fatal("expected include XP admin to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeXPResetRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                 "token",
+		"MHCAT_DISCORD_APPLICATION_ID":        "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":         "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include XP reset without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeXPResetRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                 "token",
+		"MHCAT_DISCORD_APPLICATION_ID":        "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":            "global",
+		"MHCAT_STAGING_MODE":                  "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include XP reset with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeXPResetStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                 "token",
+		"MHCAT_DISCORD_APPLICATION_ID":        "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":         "guild",
+		"MHCAT_STAGING_MODE":                  "true",
+		"MHCAT_STAGING_GUILD_ID":              "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeXPReset {
+		t.Fatal("expected include XP reset to be enabled explicitly")
 	}
 }
 

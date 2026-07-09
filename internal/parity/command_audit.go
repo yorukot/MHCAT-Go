@@ -128,6 +128,7 @@ func CurrentGoDefinitions() []commands.Definition {
 	definitions = append(definitions, featurexp.RewardRoleDefinitions()...)
 	definitions = append(definitions, featurexp.DisabledProfileDefinitions()...)
 	definitions = append(definitions, featurexp.AdminDefinitions()...)
+	definitions = append(definitions, featurexp.ResetDefinitions()...)
 	definitions = append(definitions, featurevoice.Definitions()...)
 	definitions = append(definitions, featurevoice.LockDefinitions()...)
 	definitions = append(definitions, featureonboarding.JoinRoleDefinitions()...)

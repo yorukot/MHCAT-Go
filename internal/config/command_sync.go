@@ -59,6 +59,7 @@ const (
 	DefaultCommandSyncIncludeXPRoleConfig           = false
 	DefaultCommandSyncIncludeXPProfileDisabled      = false
 	DefaultCommandSyncIncludeXPAdmin                = false
+	DefaultCommandSyncIncludeXPReset                = false
 	DefaultCommandSyncIncludeVoiceRoomConfig        = false
 	DefaultCommandSyncIncludeVoiceRoomLock          = false
 	DefaultCommandSyncIncludeJoinRoleConfig         = false
@@ -125,6 +126,7 @@ type CommandSyncConfig struct {
 	IncludeXPRoleConfig           bool
 	IncludeXPProfileDisabled      bool
 	IncludeXPAdmin                bool
+	IncludeXPReset                bool
 	IncludeVoiceRoomConfig        bool
 	IncludeVoiceRoomLock          bool
 	IncludeJoinRoleConfig         bool
@@ -206,6 +208,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeXPRoleConfig:           DefaultCommandSyncIncludeXPRoleConfig,
 		IncludeXPProfileDisabled:      DefaultCommandSyncIncludeXPProfileDisabled,
 		IncludeXPAdmin:                DefaultCommandSyncIncludeXPAdmin,
+		IncludeXPReset:                DefaultCommandSyncIncludeXPReset,
 		IncludeVoiceRoomConfig:        DefaultCommandSyncIncludeVoiceRoomConfig,
 		IncludeVoiceRoomLock:          DefaultCommandSyncIncludeVoiceRoomLock,
 		IncludeJoinRoleConfig:         DefaultCommandSyncIncludeJoinRoleConfig,
@@ -353,6 +356,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeXPAdmin, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN", DefaultCommandSyncIncludeXPAdmin); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeXPReset, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET", DefaultCommandSyncIncludeXPReset); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeVoiceRoomConfig, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG", DefaultCommandSyncIncludeVoiceRoomConfig); err != nil {
@@ -757,6 +763,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeXPReset {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeVoiceRoomConfig {

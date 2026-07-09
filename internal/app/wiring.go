@@ -115,6 +115,9 @@ type RuntimeOptions struct {
 	XPRewardRoleInspector         ports.DiscordRoleInspector
 	XPProfileDisabledEnabled      bool
 	XPAdminRepository             ports.XPAdminRepository
+	XPResetRepository             ports.XPResetRepository
+	XPResetMessagePort            ports.DiscordMessagePort
+	XPResetGuildInfo              ports.DiscordInfoProvider
 	VoiceRoomConfigRepository     ports.VoiceRoomConfigRepository
 	VoiceRoomLockRepository       ports.VoiceRoomLockRepository
 	JoinRoleConfigRepository      ports.JoinRoleConfigRepository
@@ -139,6 +142,11 @@ type RuntimeOptions struct {
 const translateInteractionTimeout = 10 * time.Second
 
 func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
+	concreteDiscord := discordInfoProvider(opts.Session)
+	xpResetGuilds := opts.XPResetGuildInfo
+	if xpResetGuilds == nil {
+		xpResetGuilds = concreteDiscord
+	}
 	definitions := commands.BuiltinDefinitions()
 	if opts.TicketConfigRepository != nil {
 		definitions = append(definitions, featureticket.Definitions()...)
@@ -266,6 +274,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.XPAdminRepository != nil {
 		definitions = append(definitions, featurexp.AdminDefinitions()...)
 	}
+	if xpResetRuntimeEnabled(opts, xpResetGuilds) {
+		definitions = append(definitions, featurexp.ResetDefinitions()...)
+	}
 	if opts.VoiceRoomConfigRepository != nil {
 		definitions = append(definitions, featurevoice.Definitions()...)
 	}
@@ -301,7 +312,6 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	)
 	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
 
-	concreteDiscord := discordInfoProvider(opts.Session)
 	module := featureutility.NewModuleWithDiscordInfo(registry, botInfoProvider(opts.Session), concreteDiscord, clockOrSystem(opts.Clock), nil)
 	if opts.TranslateFeatureEnabled && opts.TranslateProvider != nil {
 		module = featureutility.NewModuleWithTranslator(registry, botInfoProvider(opts.Session), concreteDiscord, opts.TranslateProvider, clockOrSystem(opts.Clock), nil)
@@ -553,6 +563,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 			return nil, err
 		}
 	}
+	if xpResetRuntimeEnabled(opts, xpResetGuilds) {
+		xpResetModule := featurexp.NewResetModule(opts.XPResetRepository, xpResetGuilds, opts.XPResetMessagePort, opts.UsageTracker, nil)
+		if err := xpResetModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
 	if opts.VoiceRoomConfigRepository != nil {
 		voiceModule := featurevoice.NewModule(opts.VoiceRoomConfigRepository, opts.UsageTracker)
 		if err := voiceModule.RegisterRoutes(router); err != nil {
@@ -607,6 +623,10 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 
 func verificationFlowRuntimeEnabled(opts RuntimeOptions) bool {
 	return opts.VerificationFlowRepository != nil && opts.VerificationRolePort != nil
+}
+
+func xpResetRuntimeEnabled(opts RuntimeOptions, guilds ports.DiscordInfoProvider) bool {
+	return opts.XPResetRepository != nil && opts.XPResetMessagePort != nil && guilds != nil
 }
 
 func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session DiscordSession, mongoClient MongoClient) (*discordevents.Dispatcher, error) {
@@ -684,6 +704,17 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 			return nil, err
 		}
 		featureonboarding.NewLeaveMessageDeliveryModule(repo, sideEffects).RegisterEventRoutes(dispatcher)
+	}
+	if cfg.FeatureXPResetEnabled {
+		repo, err := xpAdminRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "XP reset feature")
+		if err != nil {
+			return nil, err
+		}
+		featurexp.NewResetModule(repo, discordInfoProvider(session), sideEffects, nil, nil).RegisterEventRoutes(dispatcher)
 	}
 	return dispatcher, nil
 }

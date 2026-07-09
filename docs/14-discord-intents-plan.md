@@ -8,10 +8,10 @@ Status: Phase 1.5 Gate B input. Legacy evidence: `MHCAT/index.js` enables Guilds
 | --- | --- | --- | --- | --- | --- |
 | `Guilds` | Slash commands, guild/channel/role metadata, Ready/GuildCreate, most interaction features | No | None | Bot cannot operate core guild interactions | Enabled in dev and prod |
 | `GuildMembers` | Welcome/leave messages, join roles, account-age checks, member remove logging, some role/member fetch paths; slash `/驗證` uses interaction member data plus REST role/nickname side effects and does not require member-event handling by itself | Partially | Use interaction member data and REST fetch-on-demand for command paths; keep intent for join/leave/account-age event features | Join/leave automation, account-age policy, and member remove logging stop working | Disabled by default; enable with `ENABLE_GUILD_MEMBERS_INTENT=true` for parity event features |
-| `GuildMessages` | Text XP, chatbot, anti-scam, announcement message listeners, legacy prefix/restart message, message logging | Partially | Convert operator commands to slash; use interactions/components/modals for new flows; keep only for message-event features | Text XP, chatbot, anti-scam, and message logging stop working | Disabled by default; enable when message-event features are enabled |
+| `GuildMessages` | Text XP, chatbot, anti-scam, announcement message listeners, XP reset `^確認^` confirmation, legacy prefix/restart message, message logging | Partially | Convert operator commands to slash; use interactions/components/modals for new flows; keep only for message-event features | Text XP, chatbot, anti-scam, XP reset confirmation, and message logging stop working | Disabled by default; enable when message-event features are enabled |
 | `GuildMessageReactions` | Reaction roles and reaction logging | Partially | Prefer buttons/selects for new role assignment; keep for legacy reaction-role parity | Reaction role add/remove and reaction logs stop working | Disabled by default; enable with reaction-role/logging feature flags |
 | `GuildVoiceStates` | Voice XP, dynamic voice rooms, voice lock, voice join/leave state | No for those features | None; REST cannot replace voice state events | Voice XP and dynamic voice channels stop working | Disabled by default; enable with `ENABLE_VOICE_STATE_INTENT=true` for voice features |
-| `MessageContent` | Legacy restart text, prefix handler, text XP content checks, chatbot prompts, anti-scam URL scanning, announcement/chat listeners, some message logging | Yes for restart/prefix; no for content-driven features unless redesigned | Replace restart with owner-only slash command or out-of-band process restart; convert admin flows to slash/modal/component; content features require explicit opt-in or redesign | Content-based XP/chatbot/anti-scam/logging stop working or lose detail | Disabled in dev and prod by default; enable only with `ENABLE_MESSAGE_CONTENT_INTENT=true` and documented feature flags |
+| `MessageContent` | Legacy restart text, prefix handler, text XP content checks, chatbot prompts, anti-scam URL scanning, announcement/chat listeners, XP reset `^確認^` confirmation, some message logging | Yes for restart/prefix; no for content-driven features unless redesigned | Replace restart with owner-only slash command or out-of-band process restart; convert admin flows to slash/modal/component; content features require explicit opt-in or redesign | Content-based XP/chatbot/anti-scam/logging and XP reset confirmation stop working or lose detail | Disabled in dev and prod by default; enable only with `ENABLE_MESSAGE_CONTENT_INTENT=true` and documented feature flags |
 
 ## Feature Decisions
 
@@ -26,6 +26,7 @@ Features that truly require Message Content if preserved as-is:
 - Anti-scam URL scanning.
 - Message create/update/delete logging with content.
 - Legacy announcement/chat message handlers. The Go bound announcement relay is implemented only when `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true` and requires `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`.
+- XP reset full-server confirmation. The Go `/經驗值重製` slice is implemented only when `MHCAT_FEATURE_XP_RESET_ENABLED=true` and requires `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`.
 
 Features that should not keep Message Content:
 
@@ -88,7 +89,11 @@ Current approved Message Content exception:
 
 ```txt
 Announcement bound relay: MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true
-Required additional flags: MHCAT_DISCORD_ENABLE_GATEWAY=true, MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
+Required flags: MHCAT_DISCORD_ENABLE_GATEWAY=true, MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true, MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
+Default: disabled
+
+XP reset confirmation: MHCAT_FEATURE_XP_RESET_ENABLED=true
+Required flags: MHCAT_DISCORD_ENABLE_GATEWAY=true, MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true, MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 Default: disabled
 ```
 

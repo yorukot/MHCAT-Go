@@ -75,6 +75,22 @@ func TestPreflightAcceptsMessageContentOnlyForAnnouncementRelay(t *testing.T) {
 	}
 }
 
+func TestPreflightAcceptsMessageContentForXPReset(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_XP_RESET_ENABLED"] = "true"
+	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_DISCORD_GUILD_MESSAGES_INTENT"] = "true"
+	env["MHCAT_DISCORD_MESSAGE_CONTENT_INTENT"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "message-content-intent status=pass") || !strings.Contains(stdout, "xp-reset-runtime-readiness status=pass") {
+		t.Fatalf("expected XP reset message content pass checks, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsAnnouncementRelayWithoutRequiredGatewayFlags(t *testing.T) {
 	for key, want := range map[string]string{
 		"MHCAT_DISCORD_ENABLE_GATEWAY":         "MHCAT_DISCORD_ENABLE_GATEWAY=true",
@@ -1650,6 +1666,71 @@ func TestPreflightWarnsWhenXPAdminRuntimeEnabledWithoutCommandSync(t *testing.T)
 	}
 	if !strings.Contains(stdout, "xp-admin-runtime-pairing status=warn") {
 		t.Fatalf("expected XP admin runtime warning, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightRejectsXPResetCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "xp-reset-runtime-pairing status=fail") {
+		t.Fatalf("expected XP reset pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsXPResetCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET"] = "true"
+	env["MHCAT_FEATURE_XP_RESET_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_DISCORD_GUILD_MESSAGES_INTENT"] = "true"
+	env["MHCAT_DISCORD_MESSAGE_CONTENT_INTENT"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "xp-reset-command-sync status=pass") || !strings.Contains(stdout, "xp-reset-runtime-pairing status=pass") || !strings.Contains(stdout, "xp-reset-runtime-readiness status=pass") {
+		t.Fatalf("expected XP reset pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenXPResetRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_XP_RESET_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_DISCORD_GUILD_MESSAGES_INTENT"] = "true"
+	env["MHCAT_DISCORD_MESSAGE_CONTENT_INTENT"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "xp-reset-runtime-pairing status=warn") {
+		t.Fatalf("expected XP reset runtime warning, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightRejectsXPResetRuntimeWithoutGatewayMessagesOrContent(t *testing.T) {
+	for key, want := range map[string]string{
+		"MHCAT_DISCORD_ENABLE_GATEWAY":         "MHCAT_DISCORD_ENABLE_GATEWAY=true",
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":  "MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true",
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT": "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true",
+	} {
+		env := validEnv()
+		env["MHCAT_FEATURE_XP_RESET_ENABLED"] = "true"
+		env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+		env["MHCAT_DISCORD_GUILD_MESSAGES_INTENT"] = "true"
+		env["MHCAT_DISCORD_MESSAGE_CONTENT_INTENT"] = "true"
+		env[key] = "false"
+		code, stdout, _ := runPreflight(t, nil, env)
+		if code == 0 {
+			t.Fatalf("expected XP reset without %s to fail", key)
+		}
+		if !strings.Contains(stdout, "xp-reset-runtime-readiness status=fail") || !strings.Contains(stdout, want) {
+			t.Fatalf("expected XP reset readiness failure %q, stdout=%q", want, stdout)
+		}
 	}
 }
 
