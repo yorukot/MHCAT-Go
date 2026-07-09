@@ -43,3 +43,56 @@ func TestBirthdayProfileValidateIdentity(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestValidateBirthdayDatePreservesLegacyBounds(t *testing.T) {
+	year := 2000
+	if err := ValidateBirthdayDate(&year, 2, 29, 2026); err != nil {
+		t.Fatalf("validate date: %v", err)
+	}
+	for _, tc := range []struct {
+		name  string
+		year  *int
+		month int
+		day   int
+		want  error
+	}{
+		{name: "old year", year: intPtr(1899), month: 1, day: 1, want: ErrInvalidBirthdayYear},
+		{name: "future year", year: intPtr(2027), month: 1, day: 1, want: ErrInvalidBirthdayYear},
+		{name: "month low", year: &year, month: 0, day: 1, want: ErrInvalidBirthdayMonth},
+		{name: "month high", year: &year, month: 13, day: 1, want: ErrInvalidBirthdayMonth},
+		{name: "day low", year: &year, month: 1, day: 0, want: ErrInvalidBirthdayDay},
+		{name: "day high", year: &year, month: 4, day: 31, want: ErrInvalidBirthdayDay},
+		{name: "feb high", year: &year, month: 2, day: 30, want: ErrInvalidBirthdayDay},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := ValidateBirthdayDate(tc.year, tc.month, tc.day, 2026); !errors.Is(err, tc.want) {
+				t.Fatalf("err = %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestBirthdayProfileValidateDateTimeRequiresLegacyMinuteStep(t *testing.T) {
+	year, month, day, hour, minute := 2001, 12, 31, 23, 55
+	profile := BirthdayProfile{
+		GuildID:       "guild-1",
+		UserID:        "user-1",
+		BirthdayYear:  &year,
+		BirthdayMonth: &month,
+		BirthdayDay:   &day,
+		SendHour:      &hour,
+		SendMinute:    &minute,
+	}
+	if err := profile.ValidateDateTime(); err != nil {
+		t.Fatalf("validate date/time: %v", err)
+	}
+	badMinute := 56
+	profile.SendMinute = &badMinute
+	if err := profile.ValidateDateTime(); !errors.Is(err, ErrInvalidBirthdayTime) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func intPtr(value int) *int {
+	return &value
+}

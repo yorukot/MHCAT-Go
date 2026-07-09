@@ -18,6 +18,19 @@ type BirthdayConfigRepository struct {
 	ProfileSaved []domain.BirthdayProfile
 }
 
+func (r *BirthdayConfigRepository) FindBirthdayConfig(ctx context.Context, guildID string) (domain.BirthdayConfig, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.BirthdayConfig{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	config, ok := r.Configs[strings.TrimSpace(guildID)]
+	if !ok {
+		return domain.BirthdayConfig{}, ports.ErrBirthdayConfigMissing
+	}
+	return config, nil
+}
+
 func (r *BirthdayConfigRepository) SaveBirthdayConfig(ctx context.Context, config domain.BirthdayConfig) error {
 	if err := ctx.Err(); err != nil {
 		return err

@@ -5,9 +5,11 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 )
@@ -16,6 +18,8 @@ const (
 	permissionManageMessages = int64(8192)
 	birthdaySuccessColor     = 0x57F287
 	birthdayErrorColor       = 0xED4245
+	birthdayAddTimeout       = 5 * time.Minute
+	birthdayDateAddDocsPath  = "allcommands/生日系統/birthday_date_add"
 )
 
 func (m Module) Handler() interactions.Handler {
@@ -26,6 +30,8 @@ func (m Module) Handler() interactions.Handler {
 		switch interaction.Subcommand {
 		case subcommandConfig:
 			return m.handleConfig(ctx, interaction, responder)
+		case subcommandAdd:
+			return m.handleAdd(ctx, interaction, responder)
 		case subcommandDelete:
 			return m.handleDelete(ctx, interaction, responder)
 		case subcommandAllowAdmin:
@@ -35,6 +41,114 @@ func (m Module) Handler() interactions.Handler {
 		default:
 			return responder.EditOriginal(ctx, stagedUnavailableMessage())
 		}
+	}
+}
+
+func (m Module) handleAdd(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+	year, ok := optionalIntOption(interaction, optionBirthdayYear)
+	if !ok {
+		invalidYear := 1899
+		year = &invalidYear
+	}
+	month, ok := intOption(interaction, optionBirthdayMonth)
+	if !ok {
+		month = 0
+	}
+	day, ok := intOption(interaction, optionBirthdayDay)
+	if !ok {
+		day = 0
+	}
+	targetUserID := firstOption(interaction, optionUser)
+	if strings.TrimSpace(targetUserID) == "" {
+		targetUserID = interaction.Actor.UserID
+	}
+	now := m.now()
+	profile, err := m.profileService.PrepareAdd(ctx, domain.BirthdayAddRequest{
+		GuildID:                interaction.Actor.GuildID,
+		ActorUserID:            interaction.Actor.UserID,
+		TargetUserID:           targetUserID,
+		ActorCanManageMessages: interaction.Actor.HasPermission(permissionManageMessages),
+		BirthdayYear:           year,
+		BirthdayMonth:          month,
+		BirthdayDay:            day,
+		CurrentYear:            now.Year(),
+	})
+	if err != nil {
+		return responder.EditOriginal(ctx, birthdayErrorFromError(err))
+	}
+	if m.pendingAdds == nil {
+		return responder.EditOriginal(ctx, birthdayErrorMessage("很抱歉，出現了未知的錯誤，請重試!", ""))
+	}
+	expiresAt := now.Add(birthdayAddTimeout)
+	stateID := m.pendingAdds.create(pendingBirthdayAdd{
+		OwnerUserID: interaction.Actor.UserID,
+		Profile:     profile,
+		ExpiresAt:   expiresAt,
+	})
+	customID, err := birthdayAddCustomID("hour", stateID)
+	if err != nil {
+		m.pendingAdds.delete(stateID)
+		return responder.EditOriginal(ctx, birthdayErrorFromError(err))
+	}
+	if err := responder.EditOriginal(ctx, m.hourSelectMessage(customID, expiresAt, interaction.Actor.AvatarURL)); err != nil {
+		m.pendingAdds.delete(stateID)
+		return err
+	}
+	return m.track(ctx, interaction)
+}
+
+func (m Module) HourSelectHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		stateID, ok := birthdayStateIDFromCustomID(interaction.CustomID, "hour")
+		if !ok || m.pendingAdds == nil {
+			return responder.Reply(ctx, birthdayAddEphemeralError("請重新執行`/生日系統 增加`設定生日日期"))
+		}
+		now := m.now()
+		entry, ok := m.pendingAdds.get(stateID, now)
+		if !ok {
+			return responder.Reply(ctx, birthdayAddEphemeralError("請重新執行`/生日系統 增加`設定生日日期"))
+		}
+		if entry.OwnerUserID != interaction.Actor.UserID {
+			return responder.Reply(ctx, birthdayAddEphemeralError("你不能操作這個生日設定選單!"))
+		}
+		hour, ok := selectedInt(interaction)
+		if !ok || hour < 0 || hour > 23 {
+			return responder.Reply(ctx, birthdayAddEphemeralError("很抱歉，出現了未知的錯誤，請重試!"))
+		}
+		entry, ok = m.pendingAdds.setHour(stateID, now, hour)
+		if !ok {
+			return responder.Reply(ctx, birthdayAddEphemeralError("請重新執行`/生日系統 增加`設定生日日期"))
+		}
+		customID, err := birthdayAddCustomID("minute", stateID)
+		if err != nil {
+			return responder.Reply(ctx, birthdayAddEphemeralError("很抱歉，出現了未知的錯誤，請重試!"))
+		}
+		return responder.UpdateMessage(ctx, m.minuteSelectMessage(customID, entry.ExpiresAt, interaction.Actor.AvatarURL))
+	}
+}
+
+func (m Module) MinuteSelectHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		stateID, ok := birthdayStateIDFromCustomID(interaction.CustomID, "minute")
+		if !ok || m.pendingAdds == nil {
+			return responder.Reply(ctx, birthdayAddEphemeralError("請重新執行`/生日系統 增加`設定生日日期"))
+		}
+		entry, ok := m.pendingAdds.get(stateID, m.now())
+		if !ok || !entry.HasHour {
+			return responder.Reply(ctx, birthdayAddEphemeralError("請重新執行`/生日系統 增加`設定生日日期"))
+		}
+		if entry.OwnerUserID != interaction.Actor.UserID {
+			return responder.Reply(ctx, birthdayAddEphemeralError("你不能操作這個生日設定選單!"))
+		}
+		minute, ok := selectedInt(interaction)
+		if !ok || minute < 0 || minute > 55 || minute%5 != 0 {
+			return responder.Reply(ctx, birthdayAddEphemeralError("很抱歉，出現了未知的錯誤，請重試!"))
+		}
+		if err := m.profileService.SaveDateTime(ctx, entry.Profile, entry.Hour, minute); err != nil {
+			return responder.Reply(ctx, birthdayAddEphemeralErrorMessage(birthdayErrorFromError(err)))
+		}
+		m.pendingAdds.delete(stateID)
+		return responder.UpdateMessage(ctx, m.birthdayAddSuccessMessage(entry.Profile, entry.Hour, minute))
 	}
 }
 
@@ -65,7 +179,7 @@ func (m Module) handleConfig(ctx context.Context, interaction interactions.Inter
 
 func (m Module) handleDelete(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
 	if !interaction.Actor.HasPermission(permissionManageMessages) {
-		return responder.EditOriginal(ctx, birthdayErrorMessage("你需要有`訊息管理`才能使用此指令", "allcommands/生日系統/birthday_date_add"))
+		return responder.EditOriginal(ctx, birthdayErrorMessage("你需要有`訊息管理`才能使用此指令", birthdayDateAddDocsPath))
 	}
 	userID := firstOption(interaction, optionUser)
 	if err := m.profileService.Delete(ctx, interaction.Actor.GuildID, userID); err != nil {
@@ -97,12 +211,65 @@ func (m Module) handleList(ctx context.Context, interaction interactions.Interac
 		return responder.EditOriginal(ctx, birthdayProfileErrorMessage(err, "很抱歉，出現了未知的錯誤，請重試!"))
 	}
 	if len(profiles) == 0 {
-		return responder.EditOriginal(ctx, birthdayErrorMessage("還沒有任何人有進行生日設置喔!", "allcommands/生日系統/birthday_date_add"))
+		return responder.EditOriginal(ctx, birthdayErrorMessage("還沒有任何人有進行生日設置喔!", birthdayDateAddDocsPath))
 	}
 	if err := responder.EditOriginal(ctx, listMessage(profiles)); err != nil {
 		return err
 	}
 	return m.track(ctx, interaction)
+}
+
+func (m Module) hourSelectMessage(customID string, expiresAt time.Time, avatarURL string) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       "<:cake:1065654305983570041> 生日系統祝福語設定",
+			Description: "**<:24hours:1022059604747747379> 請選取你的生日通知要在幾點發送**\n**<a:warn:1000814885506129990> 你必須在<t:" + strconv.FormatInt(expiresAt.Unix(), 10) + ":R>選取完畢(超過時間將會無法選取)**",
+			Color:       m.legacyColor(),
+			Footer:      &responses.EmbedFooter{Text: "有問題都可以前往支援伺服器詢問", IconURL: avatarURL},
+		}},
+		Components: []responses.ComponentRow{{Components: []responses.Component{{
+			Type:        responses.ComponentTypeSelect,
+			CustomID:    customID,
+			Placeholder: "請選擇要在幾點發送(24hr制)",
+			MinValues:   1,
+			MaxValues:   1,
+			Options:     legacyBirthdayHourOptions(),
+		}}}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func (m Module) minuteSelectMessage(customID string, expiresAt time.Time, avatarURL string) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       "<:cake:1065654305983570041> 生日系統祝福語設定",
+			Description: "<:60minutes:1022059603153924156> **請選取你的生日通知要在幾分發送**\n**<a:warn:1000814885506129990> 你必須在<t:" + strconv.FormatInt(expiresAt.Unix(), 10) + ":R>選取完畢(超過時間將會無法選取)**",
+			Color:       m.legacyColor(),
+			Footer:      &responses.EmbedFooter{Text: "有問題都可以前往支援伺服器詢問", IconURL: avatarURL},
+		}},
+		Components: []responses.ComponentRow{{Components: []responses.Component{{
+			Type:        responses.ComponentTypeSelect,
+			CustomID:    customID,
+			Placeholder: "請選擇要在幾分發送",
+			MinValues:   1,
+			MaxValues:   1,
+			Options:     legacyBirthdayMinuteOptions(),
+		}}}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func (m Module) birthdayAddSuccessMessage(profile domain.BirthdayProfile, hour int, minute int) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<:cake:1065654305983570041> 生日系統祝福語設定",
+			Description: "<a:green_tick:994529015652163614> 恭喜你設定完成了!\n" +
+				"**<a:arrow_pink:996242460294512690> 以下是<@" + strings.TrimSpace(profile.UserID) + ">的生日日期:**`" + profileDate(profile) + "`\n" +
+				"**通知時間為:**`" + strconv.Itoa(hour) + ":" + strconv.Itoa(minute) + "`",
+			Color: m.legacyColor(),
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
 }
 
 func configSuccessMessage(config domain.BirthdayConfig) responses.Message {
@@ -201,6 +368,22 @@ func optionalIntString(value *int) string {
 
 func birthdayErrorFromError(err error) responses.Message {
 	switch {
+	case errors.Is(err, ports.ErrBirthdayConfigMissing):
+		return birthdayErrorMessage("請先請管理員進行祝福語設定", birthdayDateAddDocsPath)
+	case errors.Is(err, domain.ErrBirthdayManageMessagesRequired):
+		return birthdayErrorMessage("你需要有`訊息管理`才能使用此指令", birthdayDateAddDocsPath)
+	case errors.Is(err, domain.ErrBirthdaySelfOnly):
+		return birthdayErrorMessage("你只擁有設定自己生日日期的權限!", birthdayDateAddDocsPath)
+	case errors.Is(err, domain.ErrBirthdayAdminNotAllowed):
+		return birthdayErrorMessage("該名使用者不允許管理員設定他的生日日期!", birthdayDateAddDocsPath)
+	case errors.Is(err, domain.ErrInvalidBirthdayYear):
+		return birthdayErrorMessage("請輸入有效的年份!", birthdayDateAddDocsPath)
+	case errors.Is(err, domain.ErrInvalidBirthdayMonth):
+		return birthdayErrorMessage("請輸入有效的月份!", birthdayDateAddDocsPath)
+	case errors.Is(err, domain.ErrInvalidBirthdayDay):
+		return birthdayErrorMessage("請輸入有效的日期!", birthdayDateAddDocsPath)
+	case errors.Is(err, domain.ErrInvalidBirthdayTime):
+		return birthdayErrorMessage("很抱歉，出現了未知的錯誤，請重試!", "")
 	case errors.Is(err, domain.ErrInvalidBirthdayConfig):
 		return birthdayErrorMessage("很抱歉，出現了未知的錯誤，請重試!", "")
 	default:
@@ -211,12 +394,23 @@ func birthdayErrorFromError(err error) responses.Message {
 func birthdayProfileErrorMessage(err error, missingText string) responses.Message {
 	switch {
 	case errors.Is(err, ports.ErrBirthdayProfileMissing):
-		return birthdayErrorMessage(missingText, "allcommands/生日系統/birthday_date_add")
+		return birthdayErrorMessage(missingText, birthdayDateAddDocsPath)
 	case errors.Is(err, domain.ErrInvalidBirthdayProfile):
 		return birthdayErrorMessage("很抱歉，出現了未知的錯誤，請重試!", "")
 	default:
 		return birthdayErrorMessage("很抱歉，出現了未知的錯誤，請重試!", "")
 	}
+}
+
+func birthdayAddEphemeralError(content string) responses.Message {
+	message := birthdayErrorMessage(content, birthdayDateAddDocsPath)
+	message.Ephemeral = true
+	return message
+}
+
+func birthdayAddEphemeralErrorMessage(message responses.Message) responses.Message {
+	message.Ephemeral = true
+	return message
 }
 
 func birthdayErrorMessage(content string, docsPath string) responses.Message {
@@ -234,6 +428,71 @@ func birthdayErrorMessage(content string, docsPath string) responses.Message {
 	}
 }
 
+func legacyBirthdayHourOptions() []responses.SelectOption {
+	return []responses.SelectOption{
+		{Label: "1點", Description: "凌晨1點", Value: "1", Emoji: "<:moon:1022055227194605599>"},
+		{Label: "2點", Description: "凌晨2點", Value: "2", Emoji: "<:moon:1022055227194605599>"},
+		{Label: "3點", Description: "凌晨3點", Value: "3", Emoji: "<:moon:1022055227194605599>"},
+		{Label: "4點", Description: "凌晨4點", Value: "4", Emoji: "<:moon:1022055227194605599>"},
+		{Label: "5點", Description: "早上5點", Value: "5", Emoji: "<:morning:1022055616203726888>"},
+		{Label: "6點", Description: "早上6點", Value: "6", Emoji: "<:morning:1022055616203726888>"},
+		{Label: "7點", Description: "早上7點", Value: "7", Emoji: "<:morning:1022055616203726888>"},
+		{Label: "8點", Description: "早上8點", Value: "8", Emoji: "<:morning:1022055616203726888>"},
+		{Label: "9點", Description: "早上9點", Value: "9", Emoji: "<:morning:1022055616203726888>"},
+		{Label: "10點", Description: "早上10點", Value: "10", Emoji: "<:morning:1022055616203726888>"},
+		{Label: "11點", Description: "中午11點", Value: "11", Emoji: "<:sun:1022055614458904596>"},
+		{Label: "12點", Description: "中午12點", Value: "12", Emoji: "<:sun:1022055614458904596>"},
+		{Label: "13點", Description: "中午1點", Value: "13", Emoji: "<:sun:1022055614458904596>"},
+		{Label: "14點", Description: "下午2點", Value: "14", Emoji: "<:sun1:1022055612294647839>"},
+		{Label: "15點", Description: "下午3點", Value: "15", Emoji: "<:sun1:1022055612294647839>"},
+		{Label: "16點", Description: "下午4點", Value: "16", Emoji: "<:sun1:1022055612294647839>"},
+		{Label: "17點", Description: "下午5點", Value: "17", Emoji: "<:sun1:1022055612294647839>"},
+		{Label: "18點", Description: "晚上6點", Value: "18", Emoji: "<:forest:1022055611044732998>"},
+		{Label: "19點", Description: "晚上7點", Value: "19", Emoji: "<:forest:1022055611044732998>"},
+		{Label: "20點", Description: "晚上8點", Value: "20", Emoji: "<:forest:1022055611044732998>"},
+		{Label: "21點", Description: "晚上9點", Value: "21", Emoji: "<:forest:1022055611044732998>"},
+		{Label: "22點", Description: "晚上10點", Value: "22", Emoji: "<:forest:1022055611044732998>"},
+		{Label: "23點", Description: "晚上11點", Value: "23", Emoji: "<:forest:1022055611044732998>"},
+		{Label: "24點(0點)", Description: "凌晨12點(0點)", Value: "0", Emoji: "<:moon:1022055227194605599>"},
+	}
+}
+
+func legacyBirthdayMinuteOptions() []responses.SelectOption {
+	return []responses.SelectOption{
+		{Label: "0分", Description: "每個你選取的小時的0分", Value: "0", Emoji: "<:time:1022057997515640852>"},
+		{Label: "5分", Description: "每個你選取的小時的5分", Value: "5", Emoji: "<:time:1022057997515640852>"},
+		{Label: "10分", Description: "每個你選取的小時的10分", Value: "10", Emoji: "<:time:1022057997515640852>"},
+		{Label: "15分", Description: "每個你選取的小時的15分", Value: "15", Emoji: "<:15minutes:1022058003752570933>"},
+		{Label: "20分", Description: "每個你選取的小時的20分", Value: "20", Emoji: "<:15minutes:1022058003752570933>"},
+		{Label: "25分", Description: "每個你選取的小時的25分", Value: "25", Emoji: "<:15minutes:1022058003752570933>"},
+		{Label: "30分", Description: "每個你選取的小時的30分", Value: "30", Emoji: "<:30minutes:1022058001722527744>"},
+		{Label: "35分", Description: "每個你選取的小時的35分", Value: "35", Emoji: "<:30minutes:1022058001722527744>"},
+		{Label: "40分", Description: "每個你選取的小時的40分", Value: "40", Emoji: "<:30minutes:1022058001722527744>"},
+		{Label: "45分", Description: "每個你選取的小時的45分", Value: "45", Emoji: "<:45minutes:1022057999881228288>"},
+		{Label: "50分", Description: "每個你選取的小時的50分", Value: "50", Emoji: "<:45minutes:1022057999881228288>"},
+		{Label: "55分", Description: "每個你選取的小時的55分", Value: "55", Emoji: "<:45minutes:1022057999881228288>"},
+	}
+}
+
+func birthdayAddCustomID(action string, stateID string) (string, error) {
+	payload, err := customid.StateIDPayload(stateID)
+	if err != nil {
+		return "", err
+	}
+	return customid.Encode(customid.InteractionKindComponent, "birthday", action, payload)
+}
+
+func birthdayStateIDFromCustomID(raw string, action string) (string, bool) {
+	parsed, err := customid.ParseComponent(raw)
+	if err != nil || parsed.Version != customid.VersionV1 || parsed.Feature != "birthday" || parsed.Action != action {
+		return "", false
+	}
+	if parsed.Payload.Kind != customid.PayloadState || strings.TrimSpace(parsed.Payload.StateID) == "" {
+		return "", false
+	}
+	return parsed.Payload.StateID, true
+}
+
 func firstOption(interaction interactions.Interaction, names ...string) string {
 	for _, name := range names {
 		if value := strings.TrimSpace(interaction.Options[name]); value != "" {
@@ -246,6 +505,48 @@ func firstOption(interaction interactions.Interaction, names ...string) string {
 		}
 	}
 	return ""
+}
+
+func intOption(interaction interactions.Interaction, name string) (int, bool) {
+	if option, ok := interaction.CommandOptions[name]; ok && option.Type == interactions.CommandOptionInteger {
+		return int(option.Int), true
+	}
+	value, ok := interaction.Options[name]
+	if !ok {
+		return 0, false
+	}
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil {
+		return 0, false
+	}
+	return parsed, true
+}
+
+func optionalIntOption(interaction interactions.Interaction, name string) (*int, bool) {
+	if option, ok := interaction.CommandOptions[name]; ok && option.Type == interactions.CommandOptionInteger {
+		value := int(option.Int)
+		return &value, true
+	}
+	value, ok := interaction.Options[name]
+	if !ok || strings.TrimSpace(value) == "" {
+		return nil, true
+	}
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil {
+		return nil, false
+	}
+	return &parsed, true
+}
+
+func selectedInt(interaction interactions.Interaction) (int, bool) {
+	if len(interaction.Values) == 0 {
+		return 0, false
+	}
+	parsed, err := strconv.Atoi(strings.TrimSpace(interaction.Values[0]))
+	if err != nil {
+		return 0, false
+	}
+	return parsed, true
 }
 
 func boolOption(interaction interactions.Interaction, name string) (bool, bool) {

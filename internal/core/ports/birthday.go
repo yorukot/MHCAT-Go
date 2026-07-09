@@ -8,8 +8,10 @@ import (
 )
 
 var ErrBirthdayProfileMissing = errors.New("birthday profile is missing")
+var ErrBirthdayConfigMissing = errors.New("birthday config is missing")
 
 type BirthdayConfigRepository interface {
+	FindBirthdayConfig(ctx context.Context, guildID string) (domain.BirthdayConfig, error)
 	SaveBirthdayConfig(ctx context.Context, config domain.BirthdayConfig) error
 	FindBirthdayProfile(ctx context.Context, guildID string, userID string) (domain.BirthdayProfile, error)
 	SaveBirthdayProfile(ctx context.Context, profile domain.BirthdayProfile) error

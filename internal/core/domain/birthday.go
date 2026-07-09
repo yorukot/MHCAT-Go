@@ -7,6 +7,13 @@ import (
 
 var ErrInvalidBirthdayConfig = errors.New("invalid birthday config")
 var ErrInvalidBirthdayProfile = errors.New("invalid birthday profile")
+var ErrInvalidBirthdayYear = errors.New("invalid birthday year")
+var ErrInvalidBirthdayMonth = errors.New("invalid birthday month")
+var ErrInvalidBirthdayDay = errors.New("invalid birthday day")
+var ErrInvalidBirthdayTime = errors.New("invalid birthday time")
+var ErrBirthdayManageMessagesRequired = errors.New("birthday manage messages permission required")
+var ErrBirthdaySelfOnly = errors.New("birthday self only")
+var ErrBirthdayAdminNotAllowed = errors.New("birthday admin not allowed")
 
 type BirthdayConfig struct {
 	GuildID                    string
@@ -28,6 +35,17 @@ type BirthdayProfile struct {
 	AllowAdmin    bool
 }
 
+type BirthdayAddRequest struct {
+	GuildID                string
+	ActorUserID            string
+	TargetUserID           string
+	ActorCanManageMessages bool
+	BirthdayYear           *int
+	BirthdayMonth          int
+	BirthdayDay            int
+	CurrentYear            int
+}
+
 func (c BirthdayConfig) Validate() error {
 	if strings.TrimSpace(c.GuildID) == "" ||
 		strings.TrimSpace(c.Message) == "" ||
@@ -41,11 +59,76 @@ func (c BirthdayConfig) Validate() error {
 	return nil
 }
 
+func (p BirthdayProfile) ValidateDate() error {
+	if err := p.ValidateIdentity(); err != nil {
+		return err
+	}
+	if p.BirthdayMonth == nil {
+		return ErrInvalidBirthdayMonth
+	}
+	if p.BirthdayDay == nil {
+		return ErrInvalidBirthdayDay
+	}
+	return ValidateBirthdayDate(p.BirthdayYear, *p.BirthdayMonth, *p.BirthdayDay, 9999)
+}
+
+func (p BirthdayProfile) ValidateDateTime() error {
+	if err := p.ValidateDate(); err != nil {
+		return err
+	}
+	if p.SendHour == nil || *p.SendHour < 0 || *p.SendHour > 23 {
+		return ErrInvalidBirthdayTime
+	}
+	if p.SendMinute == nil || *p.SendMinute < 0 || *p.SendMinute > 55 || *p.SendMinute%5 != 0 {
+		return ErrInvalidBirthdayTime
+	}
+	return nil
+}
+
 func (p BirthdayProfile) ValidateIdentity() error {
 	if strings.TrimSpace(p.GuildID) == "" || strings.TrimSpace(p.UserID) == "" {
 		return ErrInvalidBirthdayProfile
 	}
 	return nil
+}
+
+func ValidateBirthdayAddRequest(request BirthdayAddRequest) error {
+	if strings.TrimSpace(request.GuildID) == "" || strings.TrimSpace(request.ActorUserID) == "" {
+		return ErrInvalidBirthdayProfile
+	}
+	targetUserID := strings.TrimSpace(request.TargetUserID)
+	if targetUserID == "" {
+		targetUserID = strings.TrimSpace(request.ActorUserID)
+	}
+	if targetUserID != strings.TrimSpace(request.ActorUserID) && !request.ActorCanManageMessages {
+		return ErrBirthdaySelfOnly
+	}
+	return ValidateBirthdayDate(request.BirthdayYear, request.BirthdayMonth, request.BirthdayDay, request.CurrentYear)
+}
+
+func ValidateBirthdayDate(year *int, month int, day int, currentYear int) error {
+	if year != nil && (*year < 1900 || (currentYear > 0 && *year > currentYear)) {
+		return ErrInvalidBirthdayYear
+	}
+	switch {
+	case month < 1 || month > 12:
+		return ErrInvalidBirthdayMonth
+	case day < 1 || day > maxBirthdayDay(month):
+		return ErrInvalidBirthdayDay
+	default:
+		return nil
+	}
+}
+
+func maxBirthdayDay(month int) int {
+	switch month {
+	case 1, 3, 5, 7, 8, 10, 12:
+		return 31
+	case 4, 6, 9, 11:
+		return 30
+	default:
+		return 29
+	}
 }
 
 func validLegacyBirthdayUTCOffset(value string) bool {

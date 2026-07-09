@@ -44,6 +44,24 @@ func NewBirthdayConfigRepositoryFromDatabase(database *drivermongo.Database) (*B
 	)
 }
 
+func (r *BirthdayConfigRepository) FindBirthdayConfig(ctx context.Context, guildID string) (domain.BirthdayConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.BirthdayConfig{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return domain.BirthdayConfig{}, domain.ErrInvalidBirthdayConfig
+	}
+	var document documents.BirthdayConfigDocument
+	if err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document); err != nil {
+		if mhcatmongo.ErrorIs(mhcatmongo.MapError(err), mhcatmongo.ErrorKindNotFound) {
+			return domain.BirthdayConfig{}, ports.ErrBirthdayConfigMissing
+		}
+		return domain.BirthdayConfig{}, mhcatmongo.MapError(fmt.Errorf("find birthday config: %w", err))
+	}
+	return document.ToDomain(), ctx.Err()
+}
+
 func (r *BirthdayConfigRepository) SaveBirthdayConfig(ctx context.Context, config domain.BirthdayConfig) error {
 	if err := ctx.Err(); err != nil {
 		return err

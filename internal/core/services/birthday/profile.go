@@ -42,6 +42,74 @@ func (s ProfileService) SetAllowAdmin(ctx context.Context, guildID string, userI
 	return s.repo.SaveBirthdayProfile(ctx, profile)
 }
 
+func (s ProfileService) PrepareAdd(ctx context.Context, request domain.BirthdayAddRequest) (domain.BirthdayProfile, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.BirthdayProfile{}, err
+	}
+	if s.repo == nil {
+		return domain.BirthdayProfile{}, domain.ErrInvalidBirthdayProfile
+	}
+	request.GuildID = strings.TrimSpace(request.GuildID)
+	request.ActorUserID = strings.TrimSpace(request.ActorUserID)
+	request.TargetUserID = strings.TrimSpace(request.TargetUserID)
+	if request.TargetUserID == "" {
+		request.TargetUserID = request.ActorUserID
+	}
+	if request.GuildID == "" || request.ActorUserID == "" || request.TargetUserID == "" {
+		return domain.BirthdayProfile{}, domain.ErrInvalidBirthdayProfile
+	}
+	config, err := s.repo.FindBirthdayConfig(ctx, request.GuildID)
+	if err != nil {
+		return domain.BirthdayProfile{}, err
+	}
+	if !config.EveryoneCanSetBirthdayDate && !request.ActorCanManageMessages {
+		return domain.BirthdayProfile{}, domain.ErrBirthdayManageMessagesRequired
+	}
+	if request.TargetUserID != request.ActorUserID && !request.ActorCanManageMessages {
+		return domain.BirthdayProfile{}, domain.ErrBirthdaySelfOnly
+	}
+	if request.TargetUserID != request.ActorUserID && request.ActorCanManageMessages {
+		profile, err := s.repo.FindBirthdayProfile(ctx, request.GuildID, request.TargetUserID)
+		if err != nil && !errors.Is(err, ports.ErrBirthdayProfileMissing) {
+			return domain.BirthdayProfile{}, err
+		}
+		if err == nil && !profile.AllowAdmin {
+			return domain.BirthdayProfile{}, domain.ErrBirthdayAdminNotAllowed
+		}
+	}
+	if err := domain.ValidateBirthdayDate(request.BirthdayYear, request.BirthdayMonth, request.BirthdayDay, request.CurrentYear); err != nil {
+		return domain.BirthdayProfile{}, err
+	}
+	month := request.BirthdayMonth
+	day := request.BirthdayDay
+	return domain.BirthdayProfile{
+		GuildID:       request.GuildID,
+		UserID:        request.TargetUserID,
+		BirthdayYear:  intPointerOrNil(request.BirthdayYear),
+		BirthdayMonth: &month,
+		BirthdayDay:   &day,
+		AllowAdmin:    true,
+	}, nil
+}
+
+func (s ProfileService) SaveDateTime(ctx context.Context, profile domain.BirthdayProfile, hour int, minute int) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if s.repo == nil {
+		return domain.ErrInvalidBirthdayProfile
+	}
+	profile.GuildID = strings.TrimSpace(profile.GuildID)
+	profile.UserID = strings.TrimSpace(profile.UserID)
+	profile.SendHour = &hour
+	profile.SendMinute = &minute
+	profile.AllowAdmin = true
+	if err := profile.ValidateDateTime(); err != nil {
+		return err
+	}
+	return s.repo.SaveBirthdayProfile(ctx, profile)
+}
+
 func (s ProfileService) Delete(ctx context.Context, guildID string, userID string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -69,4 +137,12 @@ func (s ProfileService) List(ctx context.Context, guildID string) ([]domain.Birt
 		return nil, domain.ErrInvalidBirthdayProfile
 	}
 	return s.repo.ListBirthdayProfiles(ctx, guildID)
+}
+
+func intPointerOrNil(value *int) *int {
+	if value == nil {
+		return nil
+	}
+	copied := *value
+	return &copied
 }

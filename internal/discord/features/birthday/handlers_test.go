@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
@@ -82,10 +83,158 @@ func TestHandlerAcceptsTypedBooleanCommandOption(t *testing.T) {
 	}
 }
 
-func TestHandlerReturnsStagedUnavailableForBirthdayDateSubcommands(t *testing.T) {
+func TestHandlerAddMissingConfigUsesLegacyError(t *testing.T) {
 	module := NewModule(&fakemongo.BirthdayConfigRepository{}, nil)
 	responder := fakediscord.NewResponder()
-	interaction := fakediscord.SlashInteractionWithOptions(BirthdayCommandName, subcommandAdd, map[string]string{})
+	interaction := birthdayAddSlash()
+
+	if err := module.Handler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "請先請管理員進行祝福語設定") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestHandlerAddInvalidYearUsesLegacyError(t *testing.T) {
+	module := birthdayAddModule(birthdayAddRepo(true), nil)
+	responder := fakediscord.NewResponder()
+	interaction := birthdayAddSlash()
+	interaction.Options[optionBirthdayYear] = "2027"
+
+	if err := module.Handler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "請輸入有效的年份") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestHandlerAddRendersLegacyHourSelect(t *testing.T) {
+	usage := &fakeusage.Tracker{}
+	module := birthdayAddModule(birthdayAddRepo(true), usage)
+	responder := fakediscord.NewResponder()
+	interaction := birthdayAddSlash()
+
+	if err := module.Handler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Components) != 1 {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	edit := responder.Edits[0]
+	embed := edit.Embeds[0]
+	if embed.Title != "<:cake:1065654305983570041> 生日系統祝福語設定" || embed.Color != 0x123456 || embed.Footer == nil || embed.Footer.IconURL != "https://example.test/avatar.png" {
+		t.Fatalf("embed = %#v", embed)
+	}
+	if !strings.Contains(embed.Description, "<:24hours:1022059604747747379>") || !strings.Contains(embed.Description, "<t:1700000300:R>") {
+		t.Fatalf("description = %q", embed.Description)
+	}
+	selectMenu := edit.Components[0].Components[0]
+	if selectMenu.Placeholder != "請選擇要在幾點發送(24hr制)" || !strings.HasPrefix(selectMenu.CustomID, "mhcat:v1:birthday:hour:state=") || len(selectMenu.Options) != 24 {
+		t.Fatalf("select = %#v", selectMenu)
+	}
+	if selectMenu.Options[0].Label != "1點" || selectMenu.Options[23].Label != "24點(0點)" || selectMenu.Options[23].Value != "0" {
+		t.Fatalf("options = %#v", selectMenu.Options)
+	}
+	if len(usage.Events) != 1 || usage.Events[0].Feature != "birthday-config" {
+		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
+func TestHourSelectUpdatesToMinuteSelect(t *testing.T) {
+	module := birthdayAddModule(birthdayAddRepo(true), nil)
+	start := fakediscord.NewResponder()
+	if err := module.Handler()(context.Background(), birthdayAddSlash(), start); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	hourCustomID := start.Edits[0].Components[0].Components[0].CustomID
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.ComponentInteractionFromID(hourCustomID)
+	interaction.Values = []string{"8"}
+
+	if err := module.HourSelectHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("hour handler: %v", err)
+	}
+	if len(responder.Updates) != 1 || len(responder.Updates[0].Components) != 1 {
+		t.Fatalf("updates = %#v", responder.Updates)
+	}
+	update := responder.Updates[0]
+	if !strings.Contains(update.Embeds[0].Description, "<:60minutes:1022059603153924156>") {
+		t.Fatalf("embed = %#v", update.Embeds[0])
+	}
+	selectMenu := update.Components[0].Components[0]
+	if selectMenu.Placeholder != "請選擇要在幾分發送" || !strings.HasPrefix(selectMenu.CustomID, "mhcat:v1:birthday:minute:state=") || len(selectMenu.Options) != 12 {
+		t.Fatalf("select = %#v", selectMenu)
+	}
+	if selectMenu.Options[3].Label != "15分" || selectMenu.Options[11].Value != "55" {
+		t.Fatalf("options = %#v", selectMenu.Options)
+	}
+}
+
+func TestMinuteSelectSavesProfileAndRendersLegacySuccess(t *testing.T) {
+	repo := birthdayAddRepo(true)
+	module := birthdayAddModule(repo, nil)
+	start := fakediscord.NewResponder()
+	if err := module.Handler()(context.Background(), birthdayAddSlash(), start); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	hourResponder := fakediscord.NewResponder()
+	hourInteraction := fakediscord.ComponentInteractionFromID(start.Edits[0].Components[0].Components[0].CustomID)
+	hourInteraction.Values = []string{"8"}
+	if err := module.HourSelectHandler()(context.Background(), hourInteraction, hourResponder); err != nil {
+		t.Fatalf("hour handler: %v", err)
+	}
+	minuteResponder := fakediscord.NewResponder()
+	minuteInteraction := fakediscord.ComponentInteractionFromID(hourResponder.Updates[0].Components[0].Components[0].CustomID)
+	minuteInteraction.Values = []string{"30"}
+
+	if err := module.MinuteSelectHandler()(context.Background(), minuteInteraction, minuteResponder); err != nil {
+		t.Fatalf("minute handler: %v", err)
+	}
+	saved := repo.Profiles["guild-1/user-1"]
+	if saved.BirthdayYear == nil || *saved.BirthdayYear != 2000 || saved.BirthdayMonth == nil || *saved.BirthdayMonth != 7 || saved.SendHour == nil || *saved.SendHour != 8 || saved.SendMinute == nil || *saved.SendMinute != 30 || !saved.AllowAdmin {
+		t.Fatalf("saved = %#v", saved)
+	}
+	if len(minuteResponder.Updates) != 1 || len(minuteResponder.Updates[0].Components) != 0 {
+		t.Fatalf("updates = %#v", minuteResponder.Updates)
+	}
+	description := minuteResponder.Updates[0].Embeds[0].Description
+	if !strings.Contains(description, "以下是<@user-1>的生日日期:**`2000/7/9`") || !strings.Contains(description, "通知時間為:**`8:30`") {
+		t.Fatalf("description = %q", description)
+	}
+	if minuteResponder.Updates[0].AllowedMentions == nil {
+		t.Fatalf("allowed mentions not set: %#v", minuteResponder.Updates[0])
+	}
+}
+
+func TestBirthdayAddWrongActorCannotConsumeState(t *testing.T) {
+	repo := birthdayAddRepo(true)
+	module := birthdayAddModule(repo, nil)
+	start := fakediscord.NewResponder()
+	if err := module.Handler()(context.Background(), birthdayAddSlash(), start); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.ComponentInteractionFromID(start.Edits[0].Components[0].Components[0].CustomID)
+	interaction.Actor.UserID = "user-2"
+	interaction.Values = []string{"8"}
+
+	if err := module.HourSelectHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("hour handler: %v", err)
+	}
+	if len(responder.Replies) != 1 || !responder.Replies[0].Ephemeral || len(responder.Updates) != 0 {
+		t.Fatalf("replies=%#v updates=%#v", responder.Replies, responder.Updates)
+	}
+	if len(repo.ProfileSaved) != 0 {
+		t.Fatalf("profile should not be saved: %#v", repo.ProfileSaved)
+	}
+}
+
+func TestHandlerReturnsStagedUnavailableForUnknownBirthdaySubcommand(t *testing.T) {
+	module := NewModule(&fakemongo.BirthdayConfigRepository{}, nil)
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteractionWithOptions(BirthdayCommandName, "未實作", map[string]string{})
 
 	if err := module.Handler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
@@ -202,4 +351,43 @@ func birthdayConfigSlash() interactions.Interaction {
 	})
 	interaction.Actor.PermissionBits = permissionManageMessages
 	return interaction
+}
+
+func birthdayAddSlash() interactions.Interaction {
+	interaction := fakediscord.SlashInteractionWithOptions(BirthdayCommandName, subcommandAdd, map[string]string{
+		optionBirthdayMonth: "7",
+		optionBirthdayDay:   "9",
+		optionBirthdayYear:  "2000",
+	})
+	interaction.Actor.AvatarURL = "https://example.test/avatar.png"
+	return interaction
+}
+
+func birthdayAddModule(repo *fakemongo.BirthdayConfigRepository, usage *fakeusage.Tracker) Module {
+	module := NewModuleWithClock(repo, nil, birthdayFixedClock{now: time.Unix(1700000000, 0)})
+	if usage != nil {
+		module = NewModuleWithClock(repo, usage, birthdayFixedClock{now: time.Unix(1700000000, 0)})
+	}
+	module.color = func() int { return 0x123456 }
+	return module
+}
+
+func birthdayAddRepo(everyoneCanSet bool) *fakemongo.BirthdayConfigRepository {
+	return &fakemongo.BirthdayConfigRepository{Configs: map[string]domain.BirthdayConfig{
+		"guild-1": {
+			GuildID:                    "guild-1",
+			Message:                    "{user} 生日快樂",
+			UTCOffset:                  "+08:00",
+			ChannelID:                  "channel-1",
+			EveryoneCanSetBirthdayDate: everyoneCanSet,
+		},
+	}}
+}
+
+type birthdayFixedClock struct {
+	now time.Time
+}
+
+func (c birthdayFixedClock) Now() time.Time {
+	return c.now
 }

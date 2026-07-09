@@ -14,6 +14,7 @@ Status: implemented behind explicit runtime and command-sync gates.
 This slice implements:
 
 - `/生日系統 祝福語設定`
+- `/生日系統 增加`
 - `/生日系統 是否允許管理員設定`
 - `/生日系統 刪除`
 - `/生日系統 生日列表`
@@ -26,7 +27,7 @@ The command definition preserves all five legacy subcommands:
 - `是否允許管理員設定`
 - `生日列表`
 
-`增加` still returns a staged unavailable embed because the legacy path depends on a two-step `hour_menu` / `min_menu` select collector. That component flow needs a separate design for state ownership and legacy generic custom ID compatibility.
+`增加` implements the legacy two-step hour/minute select flow and writes the selected date/time into `birthdays` after the minute selection is completed.
 
 ## UI/UX Parity
 
@@ -45,6 +46,9 @@ The implemented config path preserves:
 The implemented profile paths preserve:
 
 - public defer/edit response flow
+- `/生日系統 增加` legacy config-required, Manage Messages, self-only, admin-opt-out, year, month, and day validation errors
+- `/生日系統 增加` hour select title, description, placeholder, footer text, 24 hour options, and 5-minute-step minute options
+- `/生日系統 增加` final success title and visible date/time description
 - `刪除` runtime Manage Messages permission check
 - delete success title `<:trashbin:995991389043163257> 刪除生日日期資料`
 - allow-admin success title `<a:green_tick:994529015652163614> 成功變更資料`
@@ -54,6 +58,15 @@ The implemented profile paths preserve:
 - legacy missing-data errors for delete and list
 
 The command definition intentionally does not set Discord-side default member permissions. Legacy registered the command without a default permission gate and enforced Manage Messages inside the command body for the config/admin paths.
+
+The legacy `hour_menu` and `min_menu` custom IDs are not registered by the Go router. They are generic IDs reused by unrelated legacy flows, so registering them broadly would risk handling the wrong live message. Go uses versioned IDs:
+
+- `mhcat:v1:birthday:hour:state=<id>`
+- `mhcat:v1:birthday:minute:state=<id>`
+
+The state ID points to process-local pending state with the same five-minute lifetime as the legacy Discord collector. If the Go process restarts or the state expires, the user must rerun `/生日系統 增加`.
+
+The Go add flow writes only after the minute selection succeeds. Legacy deletes an existing `birthday` row before showing the hour select, which can lose data if the user times out. Go keeps the existing row unchanged until the replacement date/time is complete; this is an intentional data-safety fix.
 
 ## Mongo Compatibility
 
@@ -87,9 +100,18 @@ Fields:
 
 The Go repository updates all duplicate `{guild,user}` rows before falling back to an upsert when no row exists. `刪除` deletes duplicate `{guild,user}` rows to keep rollback-compatible data cleanup. It does not create indexes during bot startup; `{guild:1,user:1}` remains duplicate-audit gated.
 
+`增加` writes:
+
+- `birthday_year`
+- `birthday_month`
+- `birthday_day`
+- `send_msg_hour`
+- `send_msg_min`
+- `allow: true`
+
 `是否允許管理員設定` intentionally fixes a clear legacy bug: the Node command deletes or creates the replacement `birthday` document but never calls `save()`, even though it replies that the setting changed. Go persists the stated `allow` value and preserves existing birthday date/time fields when present. If no profile exists, Go writes a legacy-compatible placeholder row with null date/time fields.
 
-The list response suppresses allowed mentions while preserving visible `<@user>` text. This differs from legacy ping behavior as a safety fix to avoid notifying every listed member.
+The list and add-success responses suppress allowed mentions while preserving visible `<@user>` text. This differs from legacy ping behavior as a safety fix to avoid notifying listed or configured members from management flows.
 
 ## Gates
 
@@ -111,8 +133,6 @@ Both flags must be paired in staging. `mhcat-staging-preflight` and the staging 
 
 This slice does not implement:
 
-- birthday date add writes in `birthdays`
-- `hour_menu` and `min_menu` component flows
 - birthday notification sends
 - temporary birthday role add/remove
 - recurring birthday scheduler ownership
@@ -128,6 +148,7 @@ The scheduler block in `handler/gift.js` is commented out in legacy, so this sli
 5. Apply guild-scoped command sync only after the paired gate checks pass.
 6. Verify `/生日系統 祝福語設定` writes `birthday_sets` and renders the legacy success embed.
 7. Verify `/生日系統 是否允許管理員設定` writes `birthdays.allow` and preserves/nulls date fields as expected.
-8. Verify `/生日系統 刪除` deletes the target staging user's `birthdays` row and preserves the legacy missing-data error.
-9. Verify `/生日系統 生日列表` renders the legacy list embed and `discord.txt` attachment without firing mention pings.
-10. Verify `/生日系統 增加` still returns the staged unavailable embed.
+8. Verify `/生日系統 增加` renders the hour select, then the minute select, then writes `birthdays` date/time fields with `allow: true`.
+9. Verify stale or cross-user birthday add component clicks return an ephemeral retry/error message and do not update the public prompt.
+10. Verify `/生日系統 刪除` deletes the target staging user's `birthdays` row and preserves the legacy missing-data error.
+11. Verify `/生日系統 生日列表` renders the legacy list embed and `discord.txt` attachment without firing mention pings.

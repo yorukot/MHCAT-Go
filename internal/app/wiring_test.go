@@ -681,6 +681,48 @@ func TestBuildRuntimeRoutesBirthdayConfigOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesBirthdayAddComponentsWithRepository(t *testing.T) {
+	repo := &fakemongo.BirthdayConfigRepository{Configs: map[string]domain.BirthdayConfig{
+		"guild-1": {
+			GuildID:                    "guild-1",
+			Message:                    "{user} 生日快樂",
+			UTCOffset:                  "+08:00",
+			ChannelID:                  "channel-1",
+			EveryoneCanSetBirthdayDate: true,
+		},
+	}}
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		BirthdayConfigRepository: repo,
+		Clock:                    appFixedClock{now: time.Unix(1700000000, 0)},
+	})
+	if err != nil {
+		t.Fatalf("build runtime with birthday repo: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("生日系統", "增加", map[string]string{
+		"生日月份": "7",
+		"生日日期": "9",
+		"生日年份": "2000",
+	})
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch birthday add: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Components) != 1 {
+		t.Fatalf("birthday add prompt = %#v", responder.Edits)
+	}
+	hourCustomID := responder.Edits[0].Components[0].Components[0].CustomID
+	componentResponder := fakediscord.NewResponder()
+	component := fakediscord.ComponentInteractionFromID(hourCustomID)
+	component.Values = []string{"8"}
+	if err := dispatcher.Dispatch(context.Background(), component, componentResponder); err != nil {
+		t.Fatalf("dispatch birthday hour component: %v", err)
+	}
+	if len(componentResponder.Updates) != 1 || !strings.Contains(componentResponder.Updates[0].Embeds[0].Description, "請選取你的生日通知要在幾分發送") {
+		t.Fatalf("birthday hour update = %#v", componentResponder.Updates)
+	}
+}
+
 func TestBuildRuntimeRoutesAnnouncementConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
@@ -1030,4 +1072,12 @@ func TestBuildRuntimeRoutesTranslateOnlyWithProvider(t *testing.T) {
 
 func timeNowForTest() time.Time {
 	return time.Date(2026, 7, 4, 10, 30, 0, 0, time.FixedZone("Asia/Taipei", 8*60*60))
+}
+
+type appFixedClock struct {
+	now time.Time
+}
+
+func (c appFixedClock) Now() time.Time {
+	return c.now
 }
