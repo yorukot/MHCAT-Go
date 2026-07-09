@@ -30,6 +30,8 @@ type SideEffects struct {
 	ChannelCount      int
 	TextChannelCount  int
 	VoiceChannelCount int
+	RoleNames         map[string]string
+	RoleMemberCounts  map[string]int
 	MemberTagValues   map[string]string
 	AssignableRoles   map[string]bool
 	MissingRoles      map[string]bool
@@ -87,7 +89,7 @@ type BanAction struct {
 }
 
 func NewSideEffects() *SideEffects {
-	return &SideEffects{MemberTagValues: map[string]string{}, AssignableRoles: map[string]bool{}, MissingRoles: map[string]bool{}, ModerationAllowed: map[string]bool{}, nextChannel: 1, nextMessage: 1}
+	return &SideEffects{RoleNames: map[string]string{}, RoleMemberCounts: map[string]int{}, MemberTagValues: map[string]string{}, AssignableRoles: map[string]bool{}, MissingRoles: map[string]bool{}, ModerationAllowed: map[string]bool{}, nextChannel: 1, nextMessage: 1}
 }
 
 func (s *SideEffects) FindChannelByID(ctx context.Context, guildID string, channelID string) (ports.ChannelRef, error) {
@@ -164,6 +166,35 @@ func (s *SideEffects) GuildStats(ctx context.Context, guildID string) (domain.St
 		}
 	}
 	return snapshot, nil
+}
+
+func (s *SideEffects) RoleStats(ctx context.Context, guildID string, roleID string) (domain.StatsRoleSnapshot, error) {
+	if err := s.ready(ctx); err != nil {
+		return domain.StatsRoleSnapshot{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.MissingRoles != nil && s.MissingRoles[guildID+"/"+roleID] {
+		return domain.StatsRoleSnapshot{}, ports.ErrDiscordRoleMissing
+	}
+	roleName := ""
+	if s.RoleNames != nil {
+		roleName = s.RoleNames[guildID+"/"+roleID]
+		if roleName == "" {
+			roleName = s.RoleNames[roleID]
+		}
+	}
+	if roleName == "" {
+		return domain.StatsRoleSnapshot{}, ports.ErrDiscordRoleMissing
+	}
+	count := 0
+	if s.RoleMemberCounts != nil {
+		count = s.RoleMemberCounts[guildID+"/"+roleID]
+		if count == 0 {
+			count = s.RoleMemberCounts[roleID]
+		}
+	}
+	return domain.StatsRoleSnapshot{RoleID: roleID, RoleName: roleName, MemberCount: count}, nil
 }
 
 func (s *SideEffects) CountNonBotMembers(ctx context.Context, guildID string) (int, error) {
@@ -415,5 +446,7 @@ var _ ports.DiscordDirectMessagePort = (*SideEffects)(nil)
 var _ ports.DiscordRolePort = (*SideEffects)(nil)
 var _ ports.DiscordMemberPort = (*SideEffects)(nil)
 var _ ports.DiscordMemberHierarchyInspector = (*SideEffects)(nil)
+var _ ports.DiscordGuildStatsReader = (*SideEffects)(nil)
+var _ ports.DiscordRoleStatsReader = (*SideEffects)(nil)
 var _ ports.DiscordGuildMemberReader = (*SideEffects)(nil)
 var _ ports.DiscordRoleInspector = (*SideEffects)(nil)

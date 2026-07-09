@@ -50,3 +50,19 @@ func TestModuleRegistersStatsCreateRoute(t *testing.T) {
 		t.Fatalf("register routes: %v", err)
 	}
 }
+
+func TestModuleRegistersStatsRoleRoute(t *testing.T) {
+	discord := fakediscord.NewSideEffects()
+	repo := fakemongo.NewStatsConfigRepository()
+	module := NewRoleModule(repo, repo, discord, discord, nil, "bot-1")
+	if module.Name() != "stats-role-count" {
+		t.Fatalf("name = %q", module.Name())
+	}
+	if len(module.Commands()) != 1 || module.Commands()[0].Name != StatsRoleCommandName {
+		t.Fatalf("commands = %#v", module.Commands())
+	}
+	router := interactions.NewRouter()
+	if err := module.RegisterRoutes(router); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+}

@@ -122,6 +122,7 @@ Implemented utility commands:
 - `/抽獎設置` disabled-command parity response when explicitly enabled with `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`
 - `/統計系統查詢` when explicitly enabled with `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`
 - `/統計系統創建` when explicitly enabled with `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`
+- `/統計身分組人數` when explicitly enabled with `MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=true`
 - `/統計系統刪除` when explicitly enabled with `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`
 - `/公告頻道設置` when explicitly enabled with `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`
 - `/公告發送` modal preview/confirm/send flow when explicitly enabled with `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true`
@@ -156,7 +157,7 @@ Implemented event features:
 
 Not implemented yet:
 
-- role button, remaining economy game/shop/reset writes, text/voice XP accrual, rank cards, gacha draw/shop, gift delivery, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats channel creation/role-count/rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
+- role button, remaining economy game/shop/reset writes, text/voice XP accrual, rank cards, gacha draw/shop, gift delivery, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete, and the daily reset is either run by the explicit one-shot tool under an operator process or owned by a future lease-backed scheduler.
 
@@ -221,6 +222,7 @@ Safe defaults:
 - `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=false`
 - `MHCAT_FEATURE_STATS_QUERY_ENABLED=false`
 - `MHCAT_FEATURE_STATS_CREATE_ENABLED=false`
+- `MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=false`
 - `MHCAT_FEATURE_STATS_DELETE_ENABLED=false`
 - `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=false`
@@ -306,6 +308,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_SEND=false`
@@ -566,7 +569,9 @@ The `/抽獎設置` disabled-command parity response is available only when `MHC
 
 The `/統計系統查詢` command is available only when `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command preserves the legacy static stats help embed and does not read/write Mongo, create/delete channels, rename channels, create indexes, or enable `channel_status` scheduler behavior.
 
-The `/統計系統創建` command is available only when `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires Manage Messages, creates the legacy stats category plus base member/user/bot channels, can add the legacy channel-count/text-count/voice-count stat channels after the base row exists, and writes rollback-compatible `numbers` rows. It does not create `role_number` rows, implement `/統計身分組人數`, delete Discord channels, create indexes, or enable the `channel_status` rename scheduler. Test only in an isolated staging guild/database because it creates Discord channels and writes `numbers`.
+The `/統計系統創建` command is available only when `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires Manage Messages, creates the legacy stats category plus base member/user/bot channels, can add the legacy channel-count/text-count/voice-count stat channels after the base row exists, and writes rollback-compatible `numbers` rows. It does not delete Discord channels, create indexes, or enable the `channel_status` rename scheduler. Test only in an isolated staging guild/database because it creates Discord channels and writes `numbers`.
+
+The `/統計身分組人數` command is available only when `MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires Manage Messages, requires an existing `/統計系統創建` base config, creates a text or voice stat channel named `<role name>: <member count>`, and replaces the legacy `role_numbers` row for `{guild,role}`. It does not delete old stat channels, create indexes, or enable the `channel_status` rename scheduler. Test only in an isolated staging guild/database because it creates Discord channels and writes `role_numbers`.
 
 The `/統計系統刪除` command is available only when `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires Manage Messages, deletes legacy `numbers` rows for the guild, and preserves the legacy success/error embeds. It does not delete Discord channels, create indexes, or enable `channel_status`.
 

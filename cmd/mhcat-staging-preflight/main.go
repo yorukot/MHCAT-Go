@@ -147,6 +147,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		statsQueryRuntimePairing(lookup),
 		statsCreateCommandSync(lookup),
 		statsCreateRuntimePairing(lookup),
+		statsRoleCountCommandSync(lookup),
+		statsRoleCountRuntimePairing(lookup),
 		statsDeleteCommandSync(lookup),
 		statsDeleteRuntimePairing(lookup),
 		birthdayConfigCommandSync(lookup),
@@ -1285,6 +1287,38 @@ func statsCreateRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "stats-create-runtime-pairing", Status: statusWarn, Message: "stats create runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "stats-create-runtime-pairing", Status: statusSkipped, Message: "stats create runtime and command sync include are disabled"}
+}
+
+func statsRoleCountCommandSync(lookup lookupFunc) checkResult {
+	includeStats, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT")
+	if err != nil {
+		return checkResult{Name: "stats-role-count-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeStats {
+		return checkResult{Name: "stats-role-count-command-sync", Status: statusPass, Message: "stats role-count command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "stats-role-count-command-sync", Status: statusSkipped, Message: "stats role-count command sync include is disabled"}
+}
+
+func statsRoleCountRuntimePairing(lookup lookupFunc) checkResult {
+	includeStats, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT")
+	if err != nil {
+		return checkResult{Name: "stats-role-count-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	statsEnabled, err := boolValue(lookup, "MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED")
+	if err != nil {
+		return checkResult{Name: "stats-role-count-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeStats && !statsEnabled {
+		return checkResult{Name: "stats-role-count-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT=true requires MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=true in the staging runtime"}
+	}
+	if includeStats && statsEnabled {
+		return checkResult{Name: "stats-role-count-runtime-pairing", Status: statusPass, Message: "stats role-count command sync and runtime feature flag are paired"}
+	}
+	if statsEnabled {
+		return checkResult{Name: "stats-role-count-runtime-pairing", Status: statusWarn, Message: "stats role-count runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "stats-role-count-runtime-pairing", Status: statusSkipped, Message: "stats role-count runtime and command sync include are disabled"}
 }
 
 func statsDeleteRuntimePairing(lookup lookupFunc) checkResult {

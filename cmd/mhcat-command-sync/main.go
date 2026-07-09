@@ -274,6 +274,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeStatsCreate {
 		definitions = append(definitions, featurestats.CreateDefinitions()...)
 	}
+	if cfg.IncludeStatsRoleCount {
+		definitions = append(definitions, featurestats.RoleDefinitions()...)
+	}
 	if cfg.IncludeStatsDelete {
 		definitions = append(definitions, featurestats.DeleteDefinitions()...)
 	}
@@ -422,6 +425,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeStatsCreate {
 		expected = append(expected, featurestats.StatsCreateCommandName)
+	}
+	if cfg.IncludeStatsRoleCount {
+		expected = append(expected, featurestats.StatsRoleCommandName)
 	}
 	if cfg.IncludeStatsDelete {
 		expected = append(expected, featurestats.StatsDeleteCommandName)

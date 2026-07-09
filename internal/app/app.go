@@ -522,6 +522,20 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		opts.StatsCreateChannelPort = sideEffects
 		opts.StatsCreateGuildStats = sideEffects
 	}
+	if cfg.FeatureStatsRoleCountEnabled {
+		statsRepo, err := statsConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "stats role-count feature")
+		if err != nil {
+			return nil, err
+		}
+		opts.StatsRoleStatsRepository = statsRepo
+		opts.StatsRoleConfigRepository = statsRepo
+		opts.StatsRoleChannelPort = sideEffects
+		opts.StatsRoleStatsReader = sideEffects
+	}
 	if cfg.FeatureBirthdayConfigEnabled {
 		birthdayRepo, err := birthdayConfigRepositoryFromMongo(mongoClient)
 		if err != nil {

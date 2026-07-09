@@ -9,13 +9,14 @@ import (
 )
 
 type StatsConfigRepository struct {
-	mu      sync.Mutex
-	Configs map[string]domain.StatsConfig
-	Err     error
+	mu          sync.Mutex
+	Configs     map[string]domain.StatsConfig
+	RoleConfigs map[string]domain.StatsRoleConfig
+	Err         error
 }
 
 func NewStatsConfigRepository() *StatsConfigRepository {
-	return &StatsConfigRepository{Configs: map[string]domain.StatsConfig{}}
+	return &StatsConfigRepository{Configs: map[string]domain.StatsConfig{}, RoleConfigs: map[string]domain.StatsRoleConfig{}}
 }
 
 func (r *StatsConfigRepository) Put(config domain.StatsConfig) {
@@ -90,4 +91,26 @@ func (r *StatsConfigRepository) DeleteStatsConfig(ctx context.Context, guildID s
 	return config, nil
 }
 
+func (r *StatsConfigRepository) SaveStatsRoleConfig(ctx context.Context, config domain.StatsRoleConfig) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if r.Err != nil {
+		return r.Err
+	}
+	config = config.Normalize()
+	if config.GuildID == "" || config.ChannelID == "" || config.ChannelName == "" || config.RoleID == "" {
+		return domain.ErrInvalidStatsConfigRequest
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.RoleConfigs[statsRoleKey(config.GuildID, config.RoleID)] = config
+	return nil
+}
+
+func statsRoleKey(guildID string, roleID string) string {
+	return guildID + "/" + roleID
+}
+
 var _ ports.StatsConfigRepository = (*StatsConfigRepository)(nil)
+var _ ports.StatsRoleConfigRepository = (*StatsConfigRepository)(nil)

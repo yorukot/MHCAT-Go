@@ -1160,6 +1160,47 @@ func TestBuildRuntimeRoutesStatsCreateOnlyWithDependencies(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesStatsRoleOnlyWithDependencies(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("統計身分組人數", "", map[string]string{"統計頻道類型": "文字頻道", "身分組": "role-1"})
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("stats role route should not be available without dependencies")
+	}
+
+	repo := fakemongo.NewStatsConfigRepository()
+	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "parent-1"})
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.Channels = append(sideEffects.Channels, ports.ChannelRef{GuildID: "guild-1", ChannelID: "parent-1", Name: "stats", Type: 4})
+	sideEffects.RoleNames["guild-1/role-1"] = "VIP"
+	sideEffects.RoleMemberCounts["guild-1/role-1"] = 5
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                    validTestConfig(),
+		StatsRoleStatsRepository:  repo,
+		StatsRoleConfigRepository: repo,
+		StatsRoleChannelPort:      sideEffects,
+		StatsRoleStatsReader:      sideEffects,
+		BotUserID:                 "bot-1",
+	})
+	if err != nil {
+		t.Fatalf("build runtime with stats role: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch stats role: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "統計特定身分組成功創建") {
+		t.Fatalf("stats role response = %#v", responder.Edits)
+	}
+	if len(sideEffects.Created) != 1 || repo.RoleConfigs["guild-1/role-1"].ChannelName != "5" {
+		t.Fatalf("created=%#v repo=%#v", sideEffects.Created, repo.RoleConfigs)
+	}
+}
+
 func TestBuildRuntimeRoutesXPRoleConfigOnlyWithRepositories(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

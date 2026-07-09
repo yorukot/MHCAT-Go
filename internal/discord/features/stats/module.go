@@ -15,12 +15,14 @@ const legacyRandomColorFallback = 0x5865F2
 type Module struct {
 	service       corestats.ConfigService
 	createService corestats.CreateService
+	roleService   corestats.RoleCreateService
 	usage         ports.UsageTracker
 	color         func() int
 	defs          []commands.Definition
 	feature       string
 	queryEnabled  bool
 	createEnabled bool
+	roleEnabled   bool
 	deleteEnabled bool
 	botUserID     string
 }
@@ -69,6 +71,23 @@ func NewCreateModule(repo ports.StatsConfigRepository, channels ports.DiscordCha
 	}
 }
 
+func NewRoleModule(statsRepo ports.StatsConfigRepository, roleRepo ports.StatsRoleConfigRepository, channels ports.DiscordChannelPort, roles ports.DiscordRoleStatsReader, usage ports.UsageTracker, botUserID string) Module {
+	return Module{
+		roleService: corestats.RoleCreateService{
+			StatsRepository: statsRepo,
+			RoleRepository:  roleRepo,
+			Channels:        channels,
+			Roles:           roles,
+		},
+		usage:       usage,
+		color:       func() int { return legacyRandomColorFallback },
+		defs:        RoleDefinitions(),
+		feature:     "stats-role-count",
+		roleEnabled: true,
+		botUserID:   botUserID,
+	}
+}
+
 func (m Module) Name() string {
 	return m.feature
 }
@@ -85,6 +104,11 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 	}
 	if m.createEnabled {
 		if err := router.RegisterSlash(StatsCreateCommandName, m.CreateHandler()); err != nil {
+			return err
+		}
+	}
+	if m.roleEnabled {
+		if err := router.RegisterSlash(StatsRoleCommandName, m.RoleHandler()); err != nil {
 			return err
 		}
 	}

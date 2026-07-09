@@ -29,6 +29,7 @@
 - For redeem smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true` with `MHCAT_FEATURE_REDEEM_ENABLED=true`; seed only disposable `codes` rows.
 - For lottery disabled-command smoke, pair `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true` with `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`; it should only return the legacy unavailable embed and must not create a lottery.
 - For stats create smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true` with `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`; it creates Discord channels and writes `numbers`.
+- For stats role-count smoke, use an isolated staging guild/database with an existing stats `numbers` row and pair `MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT=true` with `MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=true`; it creates a Discord channel and writes `role_numbers`.
 - For stats delete smoke, use only disposable staging `numbers` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true` with `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`; it deletes guild-scoped config rows and does not delete Discord channels.
 - For message cleanup smoke, use only a disposable staging channel and pair `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true` with `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`; it deletes recent Discord messages and writes no Mongo data.
 - For delete-data smoke, use only disposable staging config rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=true` with `MHCAT_FEATURE_DELETE_DATA_ENABLED=true`; it deletes selected guild-scoped legacy config rows.
@@ -64,6 +65,7 @@
 - If redeem smoke is enabled, seed a fresh staging `codes` row, run `/兌換`, verify the ephemeral success embed, verify the code was deleted and `chatgpt_gets.price` was credited, then verify missing and expired codes return the legacy red embeds.
 - If lottery disabled-command smoke is enabled, run `/抽獎設置` with placeholder options and verify the ephemeral unavailable embed.
 - If stats create smoke is enabled, run `/統計系統創建` in the isolated staging guild, verify the stats category plus member/user/bot channels are created, verify the `numbers` row, then add one optional channel-count stat.
+- If stats role-count smoke is enabled, run `/統計身分組人數` for a disposable role, verify the success embed references the created channel, verify the channel name is `<role name>: <member count>`, and verify the `role_numbers` row is replaced for that guild/role.
 - If stats delete smoke is enabled, seed a disposable `numbers` row for the staging guild, run `/統計系統刪除`, verify the legacy success embed, confirm the guild `numbers` row is deleted, and confirm Discord channels are untouched.
 - If message cleanup smoke is enabled, run `/刪除訊息` only in the disposable channel, verify the ephemeral `清理完成!` embed, and verify over-1000 and over-200-without-Administrator errors before broader deletion tests.
 - If delete-data smoke is enabled, run `/刪除資料`, verify the legacy destructive select UI, select only a disposable seeded config target, and confirm the legacy success/missing responses plus guild-scoped row deletion.

@@ -97,6 +97,10 @@ type RuntimeOptions struct {
 	StatsCreateRepository         ports.StatsConfigRepository
 	StatsCreateChannelPort        ports.DiscordChannelPort
 	StatsCreateGuildStats         ports.DiscordGuildStatsReader
+	StatsRoleStatsRepository      ports.StatsConfigRepository
+	StatsRoleConfigRepository     ports.StatsRoleConfigRepository
+	StatsRoleChannelPort          ports.DiscordChannelPort
+	StatsRoleStatsReader          ports.DiscordRoleStatsReader
 	StatsDeleteRepository         ports.StatsConfigRepository
 	BirthdayConfigRepository      ports.BirthdayConfigRepository
 	AnnouncementConfigRepository  ports.AnnouncementConfigRepository
@@ -231,6 +235,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.StatsCreateRepository != nil && opts.StatsCreateChannelPort != nil && opts.StatsCreateGuildStats != nil {
 		definitions = append(definitions, featurestats.CreateDefinitions()...)
+	}
+	if opts.StatsRoleStatsRepository != nil && opts.StatsRoleConfigRepository != nil && opts.StatsRoleChannelPort != nil && opts.StatsRoleStatsReader != nil {
+		definitions = append(definitions, featurestats.RoleDefinitions()...)
 	}
 	if opts.StatsDeleteRepository != nil {
 		definitions = append(definitions, featurestats.DeleteDefinitions()...)
@@ -481,6 +488,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.StatsCreateRepository != nil && opts.StatsCreateChannelPort != nil && opts.StatsCreateGuildStats != nil {
 		statsModule := featurestats.NewCreateModule(opts.StatsCreateRepository, opts.StatsCreateChannelPort, opts.StatsCreateGuildStats, opts.UsageTracker, opts.BotUserID)
+		if err := statsModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.StatsRoleStatsRepository != nil && opts.StatsRoleConfigRepository != nil && opts.StatsRoleChannelPort != nil && opts.StatsRoleStatsReader != nil {
+		statsModule := featurestats.NewRoleModule(opts.StatsRoleStatsRepository, opts.StatsRoleConfigRepository, opts.StatsRoleChannelPort, opts.StatsRoleStatsReader, opts.UsageTracker, opts.BotUserID)
 		if err := statsModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

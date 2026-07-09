@@ -54,6 +54,33 @@ func (m Module) CreateHandler() interactions.Handler {
 	}
 }
 
+func (m Module) RoleHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if m.roleService.StatsRepository == nil || m.roleService.RoleRepository == nil || m.roleService.Channels == nil || m.roleService.Roles == nil {
+			return domain.ErrInvalidStatsConfigRequest
+		}
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		if !interaction.Actor.HasPermission(permissionManageMessages) {
+			return responder.EditOriginal(ctx, statsErrorMessage("你需要有`訊息管理`才能使用此指令"))
+		}
+		config, err := m.roleService.Create(ctx, corestats.RoleCreateRequest{
+			GuildID:     interaction.Actor.GuildID,
+			ChannelType: firstStatsOption(interaction, statsOptionChannelType),
+			RoleID:      firstStatsOption(interaction, statsOptionRole),
+			BotUserID:   m.botUserID,
+		})
+		if err != nil {
+			return responder.EditOriginal(ctx, statsRoleErrorMessage(err))
+		}
+		if err := responder.EditOriginal(ctx, statsRoleSuccessMessage(config.ChannelID)); err != nil {
+			return err
+		}
+		return m.track(ctx, interaction, StatsRoleCommandName, "stats-role-count")
+	}
+}
+
 func (m Module) DeleteHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
 		if m.service.Repository == nil {
@@ -76,6 +103,28 @@ func (m Module) DeleteHandler() interactions.Handler {
 			return err
 		}
 		return m.track(ctx, interaction, StatsDeleteCommandName, "stats-delete")
+	}
+}
+
+func statsRoleSuccessMessage(channelID string) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       "統計特定身分組成功創建",
+			Description: "已成功為您創建統計特定身分組\n頻道:<#" + channelID + "> 名字可以更改喔，不要動到數字就好awa",
+			Color:       statsSuccessColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func statsRoleErrorMessage(err error) responses.Message {
+	switch {
+	case errors.Is(err, domain.ErrInvalidStatsChannelType):
+		return statsErrorMessage("你沒有進行設置要文字頻道還是語音頻道!或是你打錯了!")
+	case errors.Is(err, ports.ErrStatsConfigMissing):
+		return statsErrorMessage("你還沒創建過統計頻道，請先使用`/統計系統創建`")
+	default:
+		return statsErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
 	}
 }
 

@@ -11,6 +11,7 @@ var ErrInvalidStatsChannelType = errors.New("invalid stats channel type")
 var ErrInvalidStatsOption = errors.New("invalid stats option")
 var ErrStatsOptionRequired = errors.New("stats option is required")
 var ErrStatsChannelAlreadyExists = errors.New("stats channel already exists")
+var ErrStatsRoleRequired = errors.New("stats role is required")
 
 const (
 	StatsChannelTypeText  = "文字頻道"
@@ -30,6 +31,12 @@ type StatsSnapshot struct {
 	VoiceChannelCount int
 }
 
+type StatsRoleSnapshot struct {
+	RoleID      string
+	RoleName    string
+	MemberCount int
+}
+
 type StatsConfig struct {
 	GuildID           string
 	ParentID          string
@@ -45,6 +52,22 @@ type StatsConfig struct {
 	TextNumberName    string
 	VoiceNumberID     string
 	VoiceNumberName   string
+}
+
+type StatsRoleConfig struct {
+	GuildID     string
+	ChannelID   string
+	ChannelName string
+	RoleID      string
+}
+
+func (c StatsRoleConfig) Normalize() StatsRoleConfig {
+	return StatsRoleConfig{
+		GuildID:     strings.TrimSpace(c.GuildID),
+		ChannelID:   strings.TrimSpace(c.ChannelID),
+		ChannelName: strings.TrimSpace(c.ChannelName),
+		RoleID:      strings.TrimSpace(c.RoleID),
+	}
 }
 
 func (c StatsConfig) Normalize() StatsConfig {

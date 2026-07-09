@@ -247,6 +247,54 @@ func (c SideEffectClient) GuildStats(ctx context.Context, guildID string) (domai
 	return snapshot, ctx.Err()
 }
 
+func (c SideEffectClient) RoleStats(ctx context.Context, guildID string, roleID string) (domain.StatsRoleSnapshot, error) {
+	session, err := c.session()
+	if err != nil {
+		return domain.StatsRoleSnapshot{}, err
+	}
+	roles, err := session.GuildRoles(guildID, dgo.WithContext(ctx))
+	if err != nil {
+		return domain.StatsRoleSnapshot{}, fmt.Errorf("list discord guild roles: %w", err)
+	}
+	roleName := ""
+	for _, role := range roles {
+		if role != nil && role.ID == roleID {
+			roleName = role.Name
+			break
+		}
+	}
+	if roleName == "" {
+		return domain.StatsRoleSnapshot{}, ports.ErrDiscordRoleMissing
+	}
+	after := ""
+	count := 0
+	for {
+		members, err := session.GuildMembers(guildID, after, 1000, dgo.WithContext(ctx))
+		if err != nil {
+			return domain.StatsRoleSnapshot{}, fmt.Errorf("list discord guild members for role stats: %w", err)
+		}
+		if len(members) == 0 {
+			break
+		}
+		for _, member := range members {
+			if member == nil || member.User == nil {
+				continue
+			}
+			after = member.User.ID
+			if memberHasRole(member.Roles, roleID) {
+				count++
+			}
+		}
+		if len(members) < 1000 {
+			break
+		}
+		if err := ctx.Err(); err != nil {
+			return domain.StatsRoleSnapshot{}, err
+		}
+	}
+	return domain.StatsRoleSnapshot{RoleID: roleID, RoleName: roleName, MemberCount: count}, ctx.Err()
+}
+
 func (c SideEffectClient) CountNonBotMembers(ctx context.Context, guildID string) (int, error) {
 	session, err := c.session()
 	if err != nil {
@@ -279,6 +327,15 @@ func (c SideEffectClient) CountNonBotMembers(ctx context.Context, guildID string
 		}
 	}
 	return count, ctx.Err()
+}
+
+func memberHasRole(roleIDs []string, roleID string) bool {
+	for _, candidate := range roleIDs {
+		if candidate == roleID {
+			return true
+		}
+	}
+	return false
 }
 
 func (c SideEffectClient) MemberTag(ctx context.Context, guildID string, userID string) (string, bool, error) {

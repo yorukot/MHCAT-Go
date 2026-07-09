@@ -48,6 +48,7 @@ const (
 	DefaultFeatureLotteryDisabledCommandEnabled = false
 	DefaultFeatureStatsQueryEnabled             = false
 	DefaultFeatureStatsCreateEnabled            = false
+	DefaultFeatureStatsRoleCountEnabled         = false
 	DefaultFeatureStatsDeleteEnabled            = false
 	DefaultFeatureBirthdayConfigEnabled         = false
 	DefaultFeatureAnnouncementConfigEnabled     = false
@@ -122,6 +123,7 @@ type Config struct {
 	FeatureLotteryDisabledCommandEnabled bool
 	FeatureStatsQueryEnabled             bool
 	FeatureStatsCreateEnabled            bool
+	FeatureStatsRoleCountEnabled         bool
 	FeatureStatsDeleteEnabled            bool
 	FeatureBirthdayConfigEnabled         bool
 	FeatureAnnouncementConfigEnabled     bool

@@ -16,8 +16,11 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
+const StatsRoleConfigCollectionName = "role_numbers"
+
 type StatsConfigRepository struct {
-	numbers *drivermongo.Collection
+	numbers     *drivermongo.Collection
+	roleNumbers *drivermongo.Collection
 }
 
 func NewStatsConfigRepository(numbers *drivermongo.Collection) (*StatsConfigRepository, error) {
@@ -27,11 +30,21 @@ func NewStatsConfigRepository(numbers *drivermongo.Collection) (*StatsConfigRepo
 	return &StatsConfigRepository{numbers: numbers}, nil
 }
 
+func NewStatsConfigRepositoryWithRoleNumbers(numbers *drivermongo.Collection, roleNumbers *drivermongo.Collection) (*StatsConfigRepository, error) {
+	if numbers == nil {
+		return nil, errors.New("numbers collection is required")
+	}
+	if roleNumbers == nil {
+		return nil, errors.New("role_numbers collection is required")
+	}
+	return &StatsConfigRepository{numbers: numbers, roleNumbers: roleNumbers}, nil
+}
+
 func NewStatsConfigRepositoryFromDatabase(database *drivermongo.Database) (*StatsConfigRepository, error) {
 	if database == nil {
 		return nil, errors.New("mongo database is required")
 	}
-	return NewStatsConfigRepository(database.Collection(StatsConfigCollectionName))
+	return NewStatsConfigRepositoryWithRoleNumbers(database.Collection(StatsConfigCollectionName), database.Collection(StatsRoleConfigCollectionName))
 }
 
 func (r *StatsConfigRepository) GetStatsConfig(ctx context.Context, guildID string) (domain.StatsConfig, error) {
@@ -120,8 +133,33 @@ func (r *StatsConfigRepository) DeleteStatsConfig(ctx context.Context, guildID s
 	return document.ToDomain().Normalize(), ctx.Err()
 }
 
+func (r *StatsConfigRepository) SaveStatsRoleConfig(ctx context.Context, config domain.StatsRoleConfig) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	config = config.Normalize()
+	if config.GuildID == "" || config.ChannelID == "" || config.ChannelName == "" || config.RoleID == "" {
+		return domain.ErrInvalidStatsConfigRequest
+	}
+	if r.roleNumbers == nil {
+		return errors.New("role_numbers collection is required")
+	}
+	filter := statsRoleConfigFilter(config.GuildID, config.RoleID)
+	if _, err := r.roleNumbers.DeleteMany(ctx, filter); err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("replace stats role config: %w", err))
+	}
+	if _, err := r.roleNumbers.InsertOne(ctx, documents.StatsRoleConfigDocumentFromDomain(config)); err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("save stats role config: %w", err))
+	}
+	return ctx.Err()
+}
+
 func statsConfigFilter(guildID string) bson.D {
 	return bson.D{{Key: "guild", Value: strings.TrimSpace(guildID)}}
+}
+
+func statsRoleConfigFilter(guildID string, roleID string) bson.D {
+	return bson.D{{Key: "guild", Value: strings.TrimSpace(guildID)}, {Key: "role", Value: strings.TrimSpace(roleID)}}
 }
 
 func statsConfigUpdate(config domain.StatsConfig, upsert bool) bson.D {
@@ -194,3 +232,4 @@ func statsOptionalFields(option string) (string, string, bool) {
 }
 
 var _ ports.StatsConfigRepository = (*StatsConfigRepository)(nil)
+var _ ports.StatsRoleConfigRepository = (*StatsConfigRepository)(nil)

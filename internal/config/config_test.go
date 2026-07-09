@@ -204,6 +204,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureStatsCreateEnabled {
 		t.Fatal("stats create feature must be disabled by default")
 	}
+	if cfg.FeatureStatsRoleCountEnabled {
+		t.Fatal("stats role-count feature must be disabled by default")
+	}
 	if cfg.FeatureStatsDeleteEnabled {
 		t.Fatal("stats delete feature must be disabled by default")
 	}
@@ -723,6 +726,21 @@ func TestFeatureStatsCreateConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureStatsCreateEnabled {
 		t.Fatal("expected stats create feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureStatsRoleCountConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                    "token",
+		"MHCAT_MONGODB_URI":                      "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                 "mhcat",
+		"MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureStatsRoleCountEnabled {
+		t.Fatal("expected stats role-count feature to be enabled explicitly")
 	}
 }
 

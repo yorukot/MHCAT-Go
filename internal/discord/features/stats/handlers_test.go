@@ -182,6 +182,92 @@ func TestCreateHandlerAddsOptionalStatsChannel(t *testing.T) {
 	}
 }
 
+func TestRoleHandlerRequiresManageMessages(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "parent-1"})
+	discord := fakediscord.NewSideEffects()
+	discord.RoleNames["guild-1/role-1"] = "VIP"
+	module := NewRoleModule(repo, repo, discord, discord, nil, "bot-1")
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteractionWithOptions(StatsRoleCommandName, "", map[string]string{
+		statsOptionChannelType: "文字頻道",
+		statsOptionRole:        "role-1",
+	})
+
+	if err := module.RoleHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 {
+		t.Fatalf("defers = %#v", responder.Defers)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "你需要有`訊息管理`") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(discord.Created) != 0 {
+		t.Fatalf("created channels = %#v", discord.Created)
+	}
+}
+
+func TestRoleHandlerMissingBaseStatsUsesLegacyError(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	discord := fakediscord.NewSideEffects()
+	discord.RoleNames["guild-1/role-1"] = "VIP"
+	module := NewRoleModule(repo, repo, discord, discord, nil, "")
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteractionWithOptions(StatsRoleCommandName, "", map[string]string{
+		statsOptionChannelType: "文字頻道",
+		statsOptionRole:        "role-1",
+	})
+	interaction.Actor.PermissionBits = permissionManageMessages
+
+	if err := module.RoleHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "你還沒創建過統計頻道") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(discord.Created) != 0 {
+		t.Fatalf("created channels = %#v", discord.Created)
+	}
+}
+
+func TestRoleHandlerCreatesLegacyRoleStatsChannel(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "parent-1"})
+	discord := fakediscord.NewSideEffects()
+	discord.Channels = append(discord.Channels, ports.ChannelRef{GuildID: "guild-1", ChannelID: "parent-1", Name: "stats", Type: 4})
+	discord.RoleNames["guild-1/role-1"] = "VIP"
+	discord.RoleMemberCounts["guild-1/role-1"] = 6
+	usage := &fakeusage.Tracker{}
+	module := NewRoleModule(repo, repo, discord, discord, usage, "bot-1")
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteractionWithOptions(StatsRoleCommandName, "", map[string]string{
+		statsOptionChannelType: "文字頻道",
+		statsOptionRole:        "role-1",
+	})
+	interaction.Actor.PermissionBits = permissionManageMessages
+
+	if err := module.RoleHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 || len(responder.Edits) != 1 {
+		t.Fatalf("defers=%#v edits=%#v", responder.Defers, responder.Edits)
+	}
+	embed := responder.Edits[0].Embeds[0]
+	if embed.Title != "統計特定身分組成功創建" || !strings.Contains(embed.Description, "頻道:<#created-channel-1> 名字可以更改喔，不要動到數字就好awa") {
+		t.Fatalf("embed = %#v", embed)
+	}
+	if len(discord.Created) != 1 || discord.Created[0].Name != "VIP: 6" || discord.Created[0].ParentID != "parent-1" {
+		t.Fatalf("created channels = %#v", discord.Created)
+	}
+	if saved := repo.RoleConfigs["guild-1/role-1"]; saved.ChannelID != "created-channel-1" || saved.ChannelName != "6" || saved.RoleID != "role-1" {
+		t.Fatalf("saved role config = %#v", saved)
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != StatsRoleCommandName || usage.Events[0].Feature != "stats-role-count" {
+		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
 func TestDeleteHandlerDeletesStatsConfigWithLegacySuccess(t *testing.T) {
 	repo := fakemongo.NewStatsConfigRepository()
 	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "parent-1"})

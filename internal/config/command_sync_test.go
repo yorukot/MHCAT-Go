@@ -142,6 +142,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeStatsCreate {
 		t.Fatal("include stats create must default false")
 	}
+	if cfg.IncludeStatsRoleCount {
+		t.Fatal("include stats role count must default false")
+	}
 	if cfg.IncludeStatsDelete {
 		t.Fatal("include stats delete must default false")
 	}
@@ -864,6 +867,48 @@ func TestCommandSyncIncludeStatsCreateStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeStatsCreate {
 		t.Fatal("expected include stats create to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeStatsRoleCountRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                 "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include stats role-count without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeStatsRoleCountRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                    "global",
+		"MHCAT_STAGING_MODE":                          "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include stats role-count with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeStatsRoleCountStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                 "guild",
+		"MHCAT_STAGING_MODE":                          "true",
+		"MHCAT_STAGING_GUILD_ID":                      "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeStatsRoleCount {
+		t.Fatal("expected include stats role-count to be enabled explicitly")
 	}
 }
 

@@ -19,6 +19,23 @@ type StatsConfigDocument struct {
 	VoiceNumberName   *string `bson:"voicenumber_name" json:"voicenumber_name"`
 }
 
+type StatsRoleConfigDocument struct {
+	Guild       string `bson:"guild" json:"guild"`
+	Channel     string `bson:"channel" json:"channel"`
+	ChannelName string `bson:"channel_name" json:"channel_name"`
+	Role        string `bson:"role" json:"role"`
+}
+
+func StatsRoleConfigDocumentFromDomain(config domain.StatsRoleConfig) StatsRoleConfigDocument {
+	config = config.Normalize()
+	return StatsRoleConfigDocument{
+		Guild:       config.GuildID,
+		Channel:     config.ChannelID,
+		ChannelName: config.ChannelName,
+		Role:        config.RoleID,
+	}
+}
+
 func (d StatsConfigDocument) ToDomain() domain.StatsConfig {
 	return domain.StatsConfig{
 		GuildID:           d.Guild,

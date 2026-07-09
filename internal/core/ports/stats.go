@@ -16,6 +16,14 @@ type StatsConfigRepository interface {
 	DeleteStatsConfig(ctx context.Context, guildID string) (domain.StatsConfig, error)
 }
 
+type StatsRoleConfigRepository interface {
+	SaveStatsRoleConfig(ctx context.Context, config domain.StatsRoleConfig) error
+}
+
 type DiscordGuildStatsReader interface {
 	GuildStats(ctx context.Context, guildID string) (domain.StatsSnapshot, error)
+}
+
+type DiscordRoleStatsReader interface {
+	RoleStats(ctx context.Context, guildID string, roleID string) (domain.StatsRoleSnapshot, error)
 }
