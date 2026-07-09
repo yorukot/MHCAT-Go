@@ -344,6 +344,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		translator := externaladapter.NewGoogleTranslateClient()
 		opts.TranslateProvider = translator
 	}
+	if cfg.FeatureAutoChatConfigEnabled {
+		autoChatRepo, err := autoChatConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.AutoChatConfigRepository = autoChatRepo
+	}
 	if cfg.FeatureLoggingConfigEnabled {
 		loggingRepo, err := loggingConfigRepositoryFromMongo(mongoClient)
 		if err != nil {
@@ -554,6 +561,22 @@ func loggingConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositori
 	repo, err := mongorepositories.NewLoggingConfigRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("logging config feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func autoChatConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.AutoChatConfigRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("autochat config feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("autochat config feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewAutoChatConfigRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("autochat config feature repository: %w", err)
 	}
 	return repo, nil
 }

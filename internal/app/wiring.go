@@ -11,6 +11,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 	discordevents "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	featureannouncements "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/announcements"
+	featureautochat "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/autochat"
 	featurebirthday "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/birthday"
 	featureeconomy "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/economy"
 	featuregacha "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/gacha"
@@ -51,6 +52,7 @@ type RuntimeOptions struct {
 	WarningsFeatureEnabled        bool
 	TranslateProvider             ports.Translator
 	TranslateFeatureEnabled       bool
+	AutoChatConfigRepository      ports.AutoChatConfigRepository
 	LoggingConfigRepository       ports.LoggingConfigRepository
 	GachaPrizePoolRepository      ports.GachaPrizePoolRepository
 	LotteryDisabledCommandEnabled bool
@@ -109,6 +111,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.TranslateFeatureEnabled && opts.TranslateProvider != nil {
 		definitions = append(definitions, commands.TranslateDefinition())
+	}
+	if opts.AutoChatConfigRepository != nil {
+		definitions = append(definitions, featureautochat.Definitions()...)
 	}
 	if opts.LoggingConfigRepository != nil {
 		definitions = append(definitions, featurelogging.Definitions()...)
@@ -230,6 +235,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.LoggingConfigRepository != nil {
 		loggingModule := featurelogging.NewModule(opts.LoggingConfigRepository, opts.UsageTracker)
 		if err := loggingModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.AutoChatConfigRepository != nil {
+		autoChatModule := featureautochat.NewModule(opts.AutoChatConfigRepository, opts.UsageTracker)
+		if err := autoChatModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

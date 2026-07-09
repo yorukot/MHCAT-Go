@@ -41,6 +41,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ] && [ "${MHCAT_F
   echo "refusing command sync: translate command dry-run requires MHCAT_FEATURE_TRANSLATE_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: autochat config command dry-run requires MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_LOGGING_CONFIG_ENABLED:-false}" != "true" ]; then
   echo "refusing command sync: logging config command dry-run requires MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -137,6 +141,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ]; then
   echo "staging command sync dry-run: including translate command for review" >&2
 else
   echo "staging command sync dry-run: translate command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including autochat config commands for review" >&2
+else
+  echo "staging command sync dry-run: autochat config commands are excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG:-false}" = "true" ]; then
   echo "staging command sync dry-run: including logging config command for review" >&2

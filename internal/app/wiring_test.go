@@ -608,6 +608,41 @@ func TestBuildRuntimeRoutesStatsQueryOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesAutoChatConfigOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("自動聊天頻道", "", map[string]string{
+		"頻道": "channel-1",
+	})
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("autochat config route should not be available without repository")
+	}
+
+	repo := fakemongo.NewAutoChatConfigRepository()
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		AutoChatConfigRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with autochat repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch autochat config: %v", err)
+	}
+	saved, ok := repo.Last()
+	if !ok || saved.GuildID != "guild-1" || saved.ChannelID != "channel-1" {
+		t.Fatalf("saved = %#v ok=%v", saved, ok)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "自動聊天頻道成功創建") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesBirthdayConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

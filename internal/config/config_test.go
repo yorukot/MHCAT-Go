@@ -132,6 +132,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureTranslateEnabled {
 		t.Fatal("translate feature must be disabled by default")
 	}
+	if cfg.FeatureAutoChatConfigEnabled {
+		t.Fatal("autochat config feature must be disabled by default")
+	}
 	if cfg.FeatureLoggingConfigEnabled {
 		t.Fatal("logging config feature must be disabled by default")
 	}
@@ -440,6 +443,21 @@ func TestFeatureBirthdayConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureBirthdayConfigEnabled {
 		t.Fatal("expected birthday config feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureAutoChatConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                   "token",
+		"MHCAT_MONGODB_URI":                     "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                "mhcat",
+		"MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureAutoChatConfigEnabled {
+		t.Fatal("expected autochat config feature to be enabled explicitly")
 	}
 }
 

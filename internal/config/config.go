@@ -24,6 +24,7 @@ const (
 	DefaultFeatureWorkEnabled                   = false
 	DefaultFeatureWarningsEnabled               = false
 	DefaultFeatureTranslateEnabled              = false
+	DefaultFeatureAutoChatConfigEnabled         = false
 	DefaultFeatureLoggingConfigEnabled          = false
 	DefaultFeatureGachaPrizeListEnabled         = false
 	DefaultFeatureLotteryDisabledCommandEnabled = false
@@ -72,6 +73,7 @@ type Config struct {
 	FeatureWorkEnabled                   bool
 	FeatureWarningsEnabled               bool
 	FeatureTranslateEnabled              bool
+	FeatureAutoChatConfigEnabled         bool
 	FeatureLoggingConfigEnabled          bool
 	FeatureGachaPrizeListEnabled         bool
 	FeatureLotteryDisabledCommandEnabled bool

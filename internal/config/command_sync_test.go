@@ -67,6 +67,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeWork {
 		t.Fatal("include work must default false")
 	}
+	if cfg.IncludeAutoChatConfig {
+		t.Fatal("include autochat config must default false")
+	}
 	if cfg.IncludeLoggingConfig {
 		t.Fatal("include logging config must default false")
 	}
@@ -867,6 +870,48 @@ func TestCommandSyncIncludeTranslateStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeTranslate {
 		t.Fatal("expected include translate to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeAutoChatConfigRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include autochat config without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeAutoChatConfigRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                   "global",
+		"MHCAT_STAGING_MODE":                         "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include autochat config with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeAutoChatConfigStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                "guild",
+		"MHCAT_STAGING_MODE":                         "true",
+		"MHCAT_STAGING_GUILD_ID":                     "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeAutoChatConfig {
+		t.Fatal("expected include autochat config to be enabled explicitly")
 	}
 }
 
