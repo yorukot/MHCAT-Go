@@ -643,6 +643,39 @@ func TestBuildRuntimeRoutesAutoChatConfigOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesAntiScamConfigOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteraction("防詐騙網址")
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("anti-scam config route should not be available without repository")
+	}
+
+	repo := fakemongo.NewAntiScamConfigRepository()
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		AntiScamConfigRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with anti-scam config repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch anti-scam config: %v", err)
+	}
+	saved, ok := repo.Last()
+	if !ok || saved.GuildID != "guild-1" || !saved.Open {
+		t.Fatalf("saved = %#v ok=%v", saved, ok)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "您的防詐騙啟用狀態已改為:\ntrue") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesBirthdayConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

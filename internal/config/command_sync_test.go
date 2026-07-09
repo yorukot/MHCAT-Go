@@ -70,6 +70,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeAutoChatConfig {
 		t.Fatal("include autochat config must default false")
 	}
+	if cfg.IncludeAntiScamConfig {
+		t.Fatal("include anti-scam config must default false")
+	}
 	if cfg.IncludeLoggingConfig {
 		t.Fatal("include logging config must default false")
 	}
@@ -912,6 +915,48 @@ func TestCommandSyncIncludeAutoChatConfigStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeAutoChatConfig {
 		t.Fatal("expected include autochat config to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeAntiScamConfigRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                 "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include anti-scam config without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeAntiScamConfigRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                    "global",
+		"MHCAT_STAGING_MODE":                          "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include anti-scam config with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeAntiScamConfigStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                 "guild",
+		"MHCAT_STAGING_MODE":                          "true",
+		"MHCAT_STAGING_GUILD_ID":                      "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeAntiScamConfig {
+		t.Fatal("expected include anti-scam config to be enabled explicitly")
 	}
 }
 

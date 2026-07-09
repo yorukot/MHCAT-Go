@@ -26,6 +26,7 @@ const (
 	DefaultCommandSyncIncludeWarnings               = false
 	DefaultCommandSyncIncludeTranslate              = false
 	DefaultCommandSyncIncludeAutoChatConfig         = false
+	DefaultCommandSyncIncludeAntiScamConfig         = false
 	DefaultCommandSyncIncludeLoggingConfig          = false
 	DefaultCommandSyncIncludeGachaPrizeList         = false
 	DefaultCommandSyncIncludeLotteryDisabledCommand = false
@@ -66,6 +67,7 @@ type CommandSyncConfig struct {
 	IncludeWarnings               bool
 	IncludeTranslate              bool
 	IncludeAutoChatConfig         bool
+	IncludeAntiScamConfig         bool
 	IncludeLoggingConfig          bool
 	IncludeGachaPrizeList         bool
 	IncludeLotteryDisabledCommand bool
@@ -121,6 +123,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeWarnings:               DefaultCommandSyncIncludeWarnings,
 		IncludeTranslate:              DefaultCommandSyncIncludeTranslate,
 		IncludeAutoChatConfig:         DefaultCommandSyncIncludeAutoChatConfig,
+		IncludeAntiScamConfig:         DefaultCommandSyncIncludeAntiScamConfig,
 		IncludeLoggingConfig:          DefaultCommandSyncIncludeLoggingConfig,
 		IncludeGachaPrizeList:         DefaultCommandSyncIncludeGachaPrizeList,
 		IncludeLotteryDisabledCommand: DefaultCommandSyncIncludeLotteryDisabledCommand,
@@ -176,6 +179,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeAutoChatConfig, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG", DefaultCommandSyncIncludeAutoChatConfig); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeAntiScamConfig, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG", DefaultCommandSyncIncludeAntiScamConfig); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeLoggingConfig, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG", DefaultCommandSyncIncludeLoggingConfig); err != nil {
@@ -337,6 +343,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeAntiScamConfig {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeLoggingConfig {

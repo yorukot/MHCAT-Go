@@ -135,6 +135,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureAutoChatConfigEnabled {
 		t.Fatal("autochat config feature must be disabled by default")
 	}
+	if cfg.FeatureAntiScamConfigEnabled {
+		t.Fatal("anti-scam config feature must be disabled by default")
+	}
 	if cfg.FeatureLoggingConfigEnabled {
 		t.Fatal("logging config feature must be disabled by default")
 	}
@@ -236,6 +239,21 @@ func TestFeatureVoiceXPConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureVoiceXPConfigEnabled {
 		t.Fatal("expected voice XP config feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureAntiScamConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                    "token",
+		"MHCAT_MONGODB_URI":                      "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                 "mhcat",
+		"MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureAntiScamConfigEnabled {
+		t.Fatal("expected anti-scam config feature to be enabled explicitly")
 	}
 }
 

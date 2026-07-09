@@ -20,6 +20,7 @@ import (
 	featuremoderation "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/moderation"
 	featureonboarding "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/onboarding"
 	featurepoll "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/poll"
+	featuresafety "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/safety"
 	featurestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/stats"
 	featureticket "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/ticket"
 	featureutility "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/utility"
@@ -53,6 +54,7 @@ type RuntimeOptions struct {
 	TranslateProvider             ports.Translator
 	TranslateFeatureEnabled       bool
 	AutoChatConfigRepository      ports.AutoChatConfigRepository
+	AntiScamConfigRepository      ports.AntiScamConfigRepository
 	LoggingConfigRepository       ports.LoggingConfigRepository
 	GachaPrizePoolRepository      ports.GachaPrizePoolRepository
 	LotteryDisabledCommandEnabled bool
@@ -114,6 +116,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.AutoChatConfigRepository != nil {
 		definitions = append(definitions, featureautochat.Definitions()...)
+	}
+	if opts.AntiScamConfigRepository != nil {
+		definitions = append(definitions, featuresafety.Definitions()...)
 	}
 	if opts.LoggingConfigRepository != nil {
 		definitions = append(definitions, featurelogging.Definitions()...)
@@ -241,6 +246,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.AutoChatConfigRepository != nil {
 		autoChatModule := featureautochat.NewModule(opts.AutoChatConfigRepository, opts.UsageTracker)
 		if err := autoChatModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.AntiScamConfigRepository != nil {
+		antiScamModule := featuresafety.NewModule(opts.AntiScamConfigRepository, opts.UsageTracker)
+		if err := antiScamModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

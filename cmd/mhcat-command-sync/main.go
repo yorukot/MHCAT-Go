@@ -21,6 +21,7 @@ import (
 	featuremoderation "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/moderation"
 	featureonboarding "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/onboarding"
 	featurepoll "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/poll"
+	featuresafety "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/safety"
 	featurestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/stats"
 	featureticket "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/ticket"
 	featurework "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/work"
@@ -200,6 +201,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeAutoChatConfig {
 		definitions = append(definitions, featureautochat.Definitions()...)
 	}
+	if cfg.IncludeAntiScamConfig {
+		definitions = append(definitions, featuresafety.Definitions()...)
+	}
 	if cfg.IncludeLoggingConfig {
 		definitions = append(definitions, featurelogging.Definitions()...)
 	}
@@ -273,6 +277,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeAutoChatConfig {
 		expected = append(expected, featureautochat.AutoChatSetCommandName, featureautochat.AutoChatDeleteCommandName)
+	}
+	if cfg.IncludeAntiScamConfig {
+		expected = append(expected, featuresafety.AntiScamCommandName)
 	}
 	if cfg.IncludeLoggingConfig {
 		expected = append(expected, featurelogging.LoggingConfigCommandName)

@@ -430,6 +430,43 @@ func TestPreflightWarnsWhenAutoChatConfigRuntimeEnabledWithoutCommandSync(t *tes
 	}
 }
 
+func TestPreflightRejectsAntiScamConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "anti-scam-config-runtime-pairing status=fail") {
+		t.Fatalf("expected anti-scam config pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsAntiScamConfigCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG"] = "true"
+	env["MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "anti-scam-config-command-sync status=pass") || !strings.Contains(stdout, "anti-scam-config-runtime-pairing status=pass") {
+		t.Fatalf("expected anti-scam config pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenAntiScamConfigRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "anti-scam-config-runtime-pairing status=warn") {
+		t.Fatalf("expected anti-scam config runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsLoggingConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG"] = "true"

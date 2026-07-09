@@ -351,6 +351,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.AutoChatConfigRepository = autoChatRepo
 	}
+	if cfg.FeatureAntiScamConfigEnabled {
+		antiScamRepo, err := antiScamConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.AntiScamConfigRepository = antiScamRepo
+	}
 	if cfg.FeatureLoggingConfigEnabled {
 		loggingRepo, err := loggingConfigRepositoryFromMongo(mongoClient)
 		if err != nil {
@@ -577,6 +584,22 @@ func autoChatConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositor
 	repo, err := mongorepositories.NewAutoChatConfigRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("autochat config feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func antiScamConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.AntiScamConfigRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("anti-scam config feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("anti-scam config feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewAntiScamConfigRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("anti-scam config feature repository: %w", err)
 	}
 	return repo, nil
 }

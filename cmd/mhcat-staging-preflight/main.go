@@ -101,6 +101,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		translateRuntimePairing(lookup),
 		autoChatConfigCommandSync(lookup),
 		autoChatConfigRuntimePairing(lookup),
+		antiScamConfigCommandSync(lookup),
+		antiScamConfigRuntimePairing(lookup),
 		loggingConfigCommandSync(lookup),
 		loggingConfigRuntimePairing(lookup),
 		gachaPrizeListCommandSync(lookup),
@@ -481,6 +483,38 @@ func autoChatConfigRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "autochat-config-runtime-pairing", Status: statusWarn, Message: "autochat config runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "autochat-config-runtime-pairing", Status: statusSkipped, Message: "autochat config runtime and command sync include are disabled"}
+}
+
+func antiScamConfigCommandSync(lookup lookupFunc) checkResult {
+	includeAntiScam, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG")
+	if err != nil {
+		return checkResult{Name: "anti-scam-config-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeAntiScam {
+		return checkResult{Name: "anti-scam-config-command-sync", Status: statusPass, Message: "anti-scam config command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "anti-scam-config-command-sync", Status: statusSkipped, Message: "anti-scam config command sync include is disabled"}
+}
+
+func antiScamConfigRuntimePairing(lookup lookupFunc) checkResult {
+	includeAntiScam, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG")
+	if err != nil {
+		return checkResult{Name: "anti-scam-config-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	antiScamEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED")
+	if err != nil {
+		return checkResult{Name: "anti-scam-config-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeAntiScam && !antiScamEnabled {
+		return checkResult{Name: "anti-scam-config-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG=true requires MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED=true in the staging runtime"}
+	}
+	if includeAntiScam && antiScamEnabled {
+		return checkResult{Name: "anti-scam-config-runtime-pairing", Status: statusPass, Message: "anti-scam config command sync and runtime feature flag are paired"}
+	}
+	if antiScamEnabled {
+		return checkResult{Name: "anti-scam-config-runtime-pairing", Status: statusWarn, Message: "anti-scam config runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "anti-scam-config-runtime-pairing", Status: statusSkipped, Message: "anti-scam config runtime and command sync include are disabled"}
 }
 
 func loggingConfigCommandSync(lookup lookupFunc) checkResult {
