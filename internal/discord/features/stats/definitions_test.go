@@ -22,6 +22,22 @@ func TestQueryDefinitionMatchesLegacyMetadata(t *testing.T) {
 	}
 }
 
+func TestDeleteDefinitionMatchesLegacyMetadata(t *testing.T) {
+	definition := DeleteDefinition()
+	if definition.Name != StatsDeleteCommandName {
+		t.Fatalf("name = %q", definition.Name)
+	}
+	if definition.Description != "刪除統計消息" {
+		t.Fatalf("description = %q", definition.Description)
+	}
+	if len(definition.Options) != 0 {
+		t.Fatalf("options = %#v", definition.Options)
+	}
+	if definition.DefaultMemberPermissions == nil || *definition.DefaultMemberPermissions != manageMessagesPermission {
+		t.Fatalf("permissions = %#v", definition.DefaultMemberPermissions)
+	}
+}
+
 func TestDefinitionsValidate(t *testing.T) {
 	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, Definitions())); err != nil {
 		t.Fatalf("validate definitions: %v", err)

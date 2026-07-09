@@ -1061,6 +1061,43 @@ func TestPreflightWarnsWhenStatsQueryRuntimeEnabledWithoutCommandSync(t *testing
 	}
 }
 
+func TestPreflightRejectsStatsDeleteCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "stats-delete-runtime-pairing status=fail") {
+		t.Fatalf("expected stats delete pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsStatsDeleteCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE"] = "true"
+	env["MHCAT_FEATURE_STATS_DELETE_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "stats-delete-command-sync status=pass") || !strings.Contains(stdout, "stats-delete-runtime-pairing status=pass") {
+		t.Fatalf("expected stats delete pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenStatsDeleteRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_STATS_DELETE_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "stats-delete-runtime-pairing status=warn") {
+		t.Fatalf("expected stats delete runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsBirthdayConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_BIRTHDAY_CONFIG"] = "true"

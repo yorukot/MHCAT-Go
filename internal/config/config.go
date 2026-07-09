@@ -42,6 +42,7 @@ const (
 	DefaultFeatureGachaPrizeListEnabled         = false
 	DefaultFeatureLotteryDisabledCommandEnabled = false
 	DefaultFeatureStatsQueryEnabled             = false
+	DefaultFeatureStatsDeleteEnabled            = false
 	DefaultFeatureBirthdayConfigEnabled         = false
 	DefaultFeatureAnnouncementConfigEnabled     = false
 	DefaultFeatureAnnouncementSendEnabled       = false
@@ -106,6 +107,7 @@ type Config struct {
 	FeatureGachaPrizeListEnabled         bool
 	FeatureLotteryDisabledCommandEnabled bool
 	FeatureStatsQueryEnabled             bool
+	FeatureStatsDeleteEnabled            bool
 	FeatureBirthdayConfigEnabled         bool
 	FeatureAnnouncementConfigEnabled     bool
 	FeatureAnnouncementSendEnabled       bool

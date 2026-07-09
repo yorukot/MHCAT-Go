@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	corestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/stats"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 )
@@ -12,8 +13,13 @@ import (
 const legacyRandomColorFallback = 0x5865F2
 
 type Module struct {
-	usage ports.UsageTracker
-	color func() int
+	service       corestats.ConfigService
+	usage         ports.UsageTracker
+	color         func() int
+	defs          []commands.Definition
+	feature       string
+	queryEnabled  bool
+	deleteEnabled bool
 }
 
 func NewModule(usage ports.UsageTracker) Module {
@@ -24,19 +30,46 @@ func NewModuleWithColor(usage ports.UsageTracker, color func() int) Module {
 	if color == nil {
 		color = func() int { return legacyRandomColorFallback }
 	}
-	return Module{usage: usage, color: color}
+	return Module{
+		usage:        usage,
+		color:        color,
+		defs:         QueryDefinitions(),
+		feature:      "stats-query",
+		queryEnabled: true,
+	}
+}
+
+func NewDeleteModule(repo ports.StatsConfigRepository, usage ports.UsageTracker) Module {
+	return Module{
+		service:       corestats.ConfigService{Repository: repo},
+		usage:         usage,
+		color:         func() int { return legacyRandomColorFallback },
+		defs:          DeleteDefinitions(),
+		feature:       "stats-delete",
+		deleteEnabled: true,
+	}
 }
 
 func (m Module) Name() string {
-	return "stats-query"
+	return m.feature
 }
 
 func (m Module) Commands() []commands.Definition {
-	return Definitions()
+	return append([]commands.Definition(nil), m.defs...)
 }
 
 func (m Module) RegisterRoutes(router *interactions.Router) error {
-	return router.RegisterSlash(StatsQueryCommandName, m.QueryHandler())
+	if m.queryEnabled {
+		if err := router.RegisterSlash(StatsQueryCommandName, m.QueryHandler()); err != nil {
+			return err
+		}
+	}
+	if m.deleteEnabled {
+		if err := router.RegisterSlash(StatsDeleteCommandName, m.DeleteHandler()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func legacyRandomColor() int {

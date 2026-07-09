@@ -111,6 +111,7 @@ Implemented utility commands:
 - `/扭蛋獎池查詢` when explicitly enabled with `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true`
 - `/抽獎設置` disabled-command parity response when explicitly enabled with `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`
 - `/統計系統查詢` when explicitly enabled with `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`
+- `/統計系統刪除` when explicitly enabled with `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`
 - `/公告頻道設置` when explicitly enabled with `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`
 - `/公告發送` modal preview/confirm/send flow when explicitly enabled with `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true`
 - `/聊天經驗設定` and `/聊天經驗刪除` when explicitly enabled with `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`
@@ -141,7 +142,7 @@ Implemented event features:
 
 Not implemented yet:
 
-- role button, remaining economy game/shop/reset writes, text/voice XP accrual, rank cards, gacha draw/add/edit/delete/shop, gift, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats channel creation/deletion/rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
+- role button, remaining economy game/shop/reset writes, text/voice XP accrual, rank cards, gacha draw/add/edit/delete/shop, gift, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats channel creation/role-count/rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete, and the daily reset is either run by the explicit one-shot tool under an operator process or owned by a future lease-backed scheduler.
 
@@ -199,6 +200,7 @@ Safe defaults:
 - `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=false`
 - `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=false`
 - `MHCAT_FEATURE_STATS_QUERY_ENABLED=false`
+- `MHCAT_FEATURE_STATS_DELETE_ENABLED=false`
 - `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=false`
 - `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=false`
@@ -275,6 +277,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_SEND=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=false`
@@ -522,6 +525,8 @@ The `/扭蛋獎池查詢` command is available only when `MHCAT_FEATURE_GACHA_PR
 The `/抽獎設置` disabled-command parity response is available only when `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command preserves the current legacy unavailable embed and does not create lottery rows, send lottery panels, register lottery buttons, write Mongo, or enable old `lotter*` component behavior.
 
 The `/統計系統查詢` command is available only when `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command preserves the legacy static stats help embed and does not read/write Mongo, create/delete channels, rename channels, create indexes, or enable `channel_status` scheduler behavior.
+
+The `/統計系統刪除` command is available only when `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires Manage Messages, deletes legacy `numbers` rows for the guild, and preserves the legacy success/error embeds. It does not delete Discord channels, create indexes, or enable `channel_status`.
 
 The `/公告頻道設置` command is available only when `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes only the legacy-compatible `guilds.announcement_id` and `ann_all_sets` config rows and does not enable Message Content relay, user-message deletion, or bound announcement sends.
 

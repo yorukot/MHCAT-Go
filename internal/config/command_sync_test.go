@@ -124,6 +124,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeStatsQuery {
 		t.Fatal("include stats query must default false")
 	}
+	if cfg.IncludeStatsDelete {
+		t.Fatal("include stats delete must default false")
+	}
 	if cfg.IncludeBirthdayConfig {
 		t.Fatal("include birthday config must default false")
 	}
@@ -498,6 +501,48 @@ func TestCommandSyncIncludeStatsQueryStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeStatsQuery {
 		t.Fatal("expected include stats query to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeStatsDeleteRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":            "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":             "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include stats delete without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeStatsDeleteRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":            "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                "global",
+		"MHCAT_STAGING_MODE":                      "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include stats delete with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeStatsDeleteStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":            "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":             "guild",
+		"MHCAT_STAGING_MODE":                      "true",
+		"MHCAT_STAGING_GUILD_ID":                  "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeStatsDelete {
+		t.Fatal("expected include stats delete to be enabled explicitly")
 	}
 }
 

@@ -474,6 +474,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.GachaPrizePoolRepository = gachaRepo
 	}
+	if cfg.FeatureStatsDeleteEnabled {
+		statsRepo, err := statsConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.StatsDeleteRepository = statsRepo
+	}
 	if cfg.FeatureBirthdayConfigEnabled {
 		birthdayRepo, err := birthdayConfigRepositoryFromMongo(mongoClient)
 		if err != nil {
@@ -648,6 +655,22 @@ func economyProfileRepositoryFromMongo(mongoClient MongoClient) (*mongorepositor
 	repo, err := mongorepositories.NewEconomyProfileRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("economy profile feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func statsConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.StatsConfigRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("stats delete feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("stats delete feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewStatsConfigRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("stats delete feature repository: %w", err)
 	}
 	return repo, nil
 }

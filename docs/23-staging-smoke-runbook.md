@@ -216,6 +216,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=true
 
 Set both together only when testing `/統計系統查詢`. This path sends the legacy static help embed only; it does not write `Number`/`role_number`, create channels, rename channels, or enable `channel_status`.
 
+Optional stats delete smoke flags:
+
+```bash
+export MHCAT_FEATURE_STATS_DELETE_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true
+```
+
+Set both together only when testing `/統計系統刪除` against disposable staging `numbers` rows. This path deletes guild-scoped legacy stats config rows and does not delete Discord channels or enable `channel_status`.
+
 Optional announcement config smoke flags:
 
 ```bash
@@ -382,6 +391,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true` and the staging database has safe gacha fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true`, confirm `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true` and that the expected result is only the unavailable embed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=true`, confirm `MHCAT_FEATURE_STATS_QUERY_ENABLED=true` and that the expected result is only the static stats help embed.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true`, confirm `MHCAT_FEATURE_STATS_DELETE_ENABLED=true` and the staging database has disposable `numbers` rows.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG=true`, confirm `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`, the staging database can safely write `guilds` and `ann_all_sets`, and the expected result is only config changes.
 - If `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, the staging bound channel is safe for message deletion tests, and tag pings are expected to be suppressed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true`, confirm `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true` and the staging database can safely write `text_xp_channels`.
@@ -577,6 +587,13 @@ For stats query staging smoke, expected additionally:
 - `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`;
 - plan includes managed `統計系統查詢`;
 - `/統計系統查詢` returns the legacy static stats help embed and performs no Mongo or channel writes.
+
+For stats delete staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true`;
+- `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`;
+- plan includes managed `統計系統刪除`;
+- seed a disposable `numbers` row for the staging guild, run `/統計系統刪除`, and verify the row is deleted while Discord channels are untouched.
 
 For text-XP config staging smoke, expected additionally:
 

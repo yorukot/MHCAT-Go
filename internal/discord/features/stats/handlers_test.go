@@ -5,7 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
@@ -56,5 +59,81 @@ func TestQueryHandlerDoesNotDeferLikeLegacy(t *testing.T) {
 	}
 	if len(responder.Defers) != 0 || len(responder.Edits) != 0 {
 		t.Fatalf("unexpected defer/edit: defers=%#v edits=%#v", responder.Defers, responder.Edits)
+	}
+}
+
+func TestDeleteHandlerRequiresManageMessages(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "parent-1"})
+	module := NewDeleteModule(repo, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.DeleteHandler()(context.Background(), fakediscord.SlashInteraction(StatsDeleteCommandName), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 {
+		t.Fatalf("defers = %#v", responder.Defers)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "你需要有`訊息管理`") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if _, ok := repo.Configs["guild-1"]; !ok {
+		t.Fatal("permission failure should not delete stats config")
+	}
+}
+
+func TestDeleteHandlerDeletesStatsConfigWithLegacySuccess(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "parent-1"})
+	usage := &fakeusage.Tracker{}
+	module := NewDeleteModule(repo, usage)
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteraction(StatsDeleteCommandName)
+	interaction.Actor.PermissionBits = permissionManageMessages
+
+	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 || len(responder.Edits) != 1 {
+		t.Fatalf("defers=%#v edits=%#v", responder.Defers, responder.Edits)
+	}
+	if title := responder.Edits[0].Embeds[0].Title; title != "<a:greentick:980496858445135893> | 成功刪除，該類別以下的頻道我已經管不了囉!(類別id:parent-1)" {
+		t.Fatalf("title = %q", title)
+	}
+	if _, ok := repo.Configs["guild-1"]; ok {
+		t.Fatal("stats config should be deleted")
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != StatsDeleteCommandName || usage.Events[0].Feature != "stats-delete" {
+		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
+func TestDeleteHandlerMissingStatsConfigUsesLegacyError(t *testing.T) {
+	module := NewDeleteModule(fakemongo.NewStatsConfigRepository(), nil)
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteraction(StatsDeleteCommandName)
+	interaction.Actor.PermissionBits = permissionManageMessages
+
+	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "你還沒有創建過統計數據") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestDeleteHandlerUnknownErrorUsesSafeLegacyStyleError(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	repo.Err = ports.ErrCoinLimitExceeded
+	module := NewDeleteModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteraction(StatsDeleteCommandName)
+	interaction.Actor.PermissionBits = permissionManageMessages
+
+	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "未知的錯誤") {
+		t.Fatalf("edits = %#v", responder.Edits)
 	}
 }

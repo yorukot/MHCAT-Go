@@ -24,6 +24,7 @@
 - For balance query smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true` with `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true`.
 - For redeem smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true` with `MHCAT_FEATURE_REDEEM_ENABLED=true`; seed only disposable `codes` rows.
 - For lottery disabled-command smoke, pair `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true` with `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`; it should only return the legacy unavailable embed and must not create a lottery.
+- For stats delete smoke, use only disposable staging `numbers` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true` with `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`; it deletes guild-scoped config rows and does not delete Discord channels.
 - For message cleanup smoke, use only a disposable staging channel and pair `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true` with `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`; it deletes recent Discord messages and writes no Mongo data.
 - For delete-data smoke, use only disposable staging config rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=true` with `MHCAT_FEATURE_DELETE_DATA_ENABLED=true`; it deletes selected guild-scoped legacy config rows.
 - Run `scripts/staging/command-sync-dry-run.sh`.
@@ -54,6 +55,7 @@
 - If balance query smoke is enabled, run `/查看餘額` and verify the ephemeral green author embed reads `伺服器目前剩於餘額: <price>` or `0` when `chatgpt_gets` has no guild row.
 - If redeem smoke is enabled, seed a fresh staging `codes` row, run `/兌換`, verify the ephemeral success embed, verify the code was deleted and `chatgpt_gets.price` was credited, then verify missing and expired codes return the legacy red embeds.
 - If lottery disabled-command smoke is enabled, run `/抽獎設置` with placeholder options and verify the ephemeral unavailable embed.
+- If stats delete smoke is enabled, seed a disposable `numbers` row for the staging guild, run `/統計系統刪除`, verify the legacy success embed, confirm the guild `numbers` row is deleted, and confirm Discord channels are untouched.
 - If message cleanup smoke is enabled, run `/刪除訊息` only in the disposable channel, verify the ephemeral `清理完成!` embed, and verify over-1000 and over-200-without-Administrator errors before broader deletion tests.
 - If delete-data smoke is enabled, run `/刪除資料`, verify the legacy destructive select UI, select only a disposable seeded config target, and confirm the legacy success/missing responses plus guild-scoped row deletion.
 - Verify no duplicate initial response and no raw internal error.

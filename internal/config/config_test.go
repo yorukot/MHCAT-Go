@@ -186,6 +186,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureStatsQueryEnabled {
 		t.Fatal("stats query feature must be disabled by default")
 	}
+	if cfg.FeatureStatsDeleteEnabled {
+		t.Fatal("stats delete feature must be disabled by default")
+	}
 	if cfg.FeatureBirthdayConfigEnabled {
 		t.Fatal("birthday config feature must be disabled by default")
 	}
@@ -552,6 +555,21 @@ func TestFeatureStatsQueryConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureStatsQueryEnabled {
 		t.Fatal("expected stats query feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureStatsDeleteConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                "token",
+		"MHCAT_MONGODB_URI":                  "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":             "mhcat",
+		"MHCAT_FEATURE_STATS_DELETE_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureStatsDeleteEnabled {
+		t.Fatal("expected stats delete feature to be enabled explicitly")
 	}
 }
 

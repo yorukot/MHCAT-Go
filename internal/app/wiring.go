@@ -86,6 +86,7 @@ type RuntimeOptions struct {
 	GachaPrizePoolRepository      ports.GachaPrizePoolRepository
 	LotteryDisabledCommandEnabled bool
 	StatsQueryEnabled             bool
+	StatsDeleteRepository         ports.StatsConfigRepository
 	BirthdayConfigRepository      ports.BirthdayConfigRepository
 	AnnouncementConfigRepository  ports.AnnouncementConfigRepository
 	AnnouncementSendRepository    ports.AnnouncementChannelReader
@@ -195,7 +196,10 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		definitions = append(definitions, featurelottery.Definitions()...)
 	}
 	if opts.StatsQueryEnabled {
-		definitions = append(definitions, featurestats.Definitions()...)
+		definitions = append(definitions, featurestats.QueryDefinitions()...)
+	}
+	if opts.StatsDeleteRepository != nil {
+		definitions = append(definitions, featurestats.DeleteDefinitions()...)
 	}
 	if opts.BirthdayConfigRepository != nil {
 		definitions = append(definitions, featurebirthday.Definitions()...)
@@ -412,6 +416,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.StatsQueryEnabled {
 		statsModule := featurestats.NewModule(opts.UsageTracker)
+		if err := statsModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.StatsDeleteRepository != nil {
+		statsModule := featurestats.NewDeleteModule(opts.StatsDeleteRepository, opts.UsageTracker)
 		if err := statsModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

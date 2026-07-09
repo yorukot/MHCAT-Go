@@ -904,6 +904,36 @@ func TestBuildRuntimeRoutesStatsQueryOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesStatsDeleteOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteraction("統計系統刪除")
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("stats delete route should not be available without repository")
+	}
+
+	repo := fakemongo.NewStatsConfigRepository()
+	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "parent-1"})
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                validTestConfig(),
+		StatsDeleteRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with stats delete: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch stats delete: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "成功刪除") {
+		t.Fatalf("stats delete response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesAutoChatConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
