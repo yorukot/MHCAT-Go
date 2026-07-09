@@ -240,6 +240,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureXPResetEnabled {
 		t.Fatal("XP reset feature must be disabled by default")
 	}
+	if cfg.FeatureXPRankEnabled {
+		t.Fatal("XP rank feature must be disabled by default")
+	}
 	if cfg.FeatureVoiceRoomConfigEnabled {
 		t.Fatal("voice-room config feature must be disabled by default")
 	}
@@ -365,6 +368,21 @@ func TestFeatureXPResetParsesWithRequiredGatewayIntents(t *testing.T) {
 	}
 	if !cfg.FeatureXPResetEnabled {
 		t.Fatal("expected XP reset feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureXPRankParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":           "token",
+		"MHCAT_MONGODB_URI":             "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":        "mhcat",
+		"MHCAT_FEATURE_XP_RANK_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureXPRankEnabled {
+		t.Fatal("expected XP rank feature to be enabled explicitly")
 	}
 }
 

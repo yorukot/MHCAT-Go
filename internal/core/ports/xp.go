@@ -50,3 +50,8 @@ type XPResetRepository interface {
 	DeleteTextXPGuild(ctx context.Context, guildID string) error
 	DeleteVoiceXPGuild(ctx context.Context, guildID string) error
 }
+
+type XPRankRepository interface {
+	ListTextXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error)
+	ListVoiceXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error)
+}

@@ -175,6 +175,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeXPReset {
 		t.Fatal("include XP reset must default false")
 	}
+	if cfg.IncludeXPRank {
+		t.Fatal("include XP rank must default false")
+	}
 	if cfg.IncludeVoiceRoomConfig {
 		t.Fatal("include voice-room config must default false")
 	}
@@ -408,6 +411,48 @@ func TestCommandSyncIncludeXPResetStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeXPReset {
 		t.Fatal("expected include XP reset to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeXPRankRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                "token",
+		"MHCAT_DISCORD_APPLICATION_ID":       "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":        "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include XP rank without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeXPRankRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                "token",
+		"MHCAT_DISCORD_APPLICATION_ID":       "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":           "global",
+		"MHCAT_STAGING_MODE":                 "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include XP rank with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeXPRankStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                "token",
+		"MHCAT_DISCORD_APPLICATION_ID":       "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":        "guild",
+		"MHCAT_STAGING_MODE":                 "true",
+		"MHCAT_STAGING_GUILD_ID":             "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeXPRank {
+		t.Fatal("expected include XP rank to be enabled explicitly")
 	}
 }
 

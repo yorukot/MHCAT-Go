@@ -624,6 +624,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		opts.XPResetMessagePort = sideEffects
 		opts.XPResetGuildInfo = discordInfoProvider(session)
 	}
+	if cfg.FeatureXPRankEnabled {
+		xpRankRepo, err := xpAdminRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.XPRankRepository = xpRankRepo
+	}
 	if cfg.FeatureVoiceRoomConfigEnabled {
 		voiceRoomRepo, err := voiceRoomConfigRepositoryFromMongo(mongoClient)
 		if err != nil {

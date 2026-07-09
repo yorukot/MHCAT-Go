@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 66
-- Matching command definitions: 66
+- Current Go command definitions: 68
+- Matching command definitions: 68
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 8
+- Legacy commands without Go definitions: 6
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -61,6 +61,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `經驗值改變` | `slashCommands/經驗系統/xp_add.js` | matching-definition | none |
 | `經驗值重製` | `slashCommands/經驗系統/reset_xp.js` | matching-definition | none |
 | `翻譯` | `slashCommands/實用工具/translate.js` | matching-definition | none |
+| `聊天排行榜` | `slashCommands/經驗系統/text_rank.js` | matching-definition | none |
 | `聊天經驗` | `slashCommands/經驗系統/text_xp.js` | matching-definition | none |
 | `聊天經驗刪除` | `slashCommands/經驗系統/text_set_delete.js` | matching-definition | none |
 | `聊天經驗設定` | `slashCommands/經驗系統/text_set.js` | matching-definition | none |
@@ -72,6 +73,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `詐騙網址回報` | `slashCommands/群組防護/report_web.js` | matching-definition | none |
 | `語音包廂刪除` | `slashCommands/語音包廂/voice_channel_delete.js` | matching-definition | none |
 | `語音包廂設置` | `slashCommands/語音包廂/voice_channel.js` | matching-definition | none |
+| `語音排行榜` | `slashCommands/經驗系統/voice_rank.js` | matching-definition | none |
 | `語音經驗` | `slashCommands/經驗系統/voice_xp.js` | matching-definition | none |
 | `語音經驗刪除` | `slashCommands/經驗系統/voice_set_delete.js` | matching-definition | none |
 | `語音經驗設定` | `slashCommands/經驗系統/voice_set.js` | matching-definition | none |
@@ -97,8 +99,6 @@ None.
 | `代幣商店` | 代幣系統 | `slashCommands/代幣系統/ghp_shop.js` | 使用你所賺到的代幣買一些特別的東西吧! |
 | `代幣遊戲` | 代幣系統 | `slashCommands/代幣系統/game.js` | 遊玩有關代幣的小遊戲 |
 | `代幣重製` | 代幣系統 | `slashCommands/代幣系統/coin_rest.js` | 重製所有人的代幣，或者是進行代幣改變幣值 |
-| `聊天排行榜` | 經驗系統 | `slashCommands/經驗系統/text_rank.js` | 查詢聊天經驗的排行榜 |
-| `語音排行榜` | 經驗系統 | `slashCommands/經驗系統/voice_rank.js` | 查詢語音經驗的排行榜 |
 | `選取身分組-按鈕` | 管理系統 | `slashCommands/管理系統/releadd.js` | 設定領取身分組的消息(點按鈕自動增加身分組) |
 | `選取身分組-表情符號` | 管理系統 | `slashCommands/管理系統/role.js` | 設定領取身分組的消息-點按鈕自動增加身分組(如要更改某個表情符號所給予的身分組，請一樣打這個指令) |
 | `選取身分組刪除-表情符號` | 管理系統 | `slashCommands/管理系統/role_delete.js` | 選取身分組刪除-表情符號版(進行刪除) |

@@ -13,6 +13,8 @@ const (
 	VoiceXPRewardRoleCommandName = "語音經驗身分組設定"
 	XPAdminCommandName           = "經驗值改變"
 	XPResetCommandName           = "經驗值重製"
+	TextXPRankCommandName        = "聊天排行榜"
+	VoiceXPRankCommandName       = "語音排行榜"
 	manageMessagesPermission     = "8192"
 	kickMembersPermission        = "2"
 )
@@ -43,6 +45,10 @@ func AdminDefinitions() []commands.Definition {
 
 func ResetDefinitions() []commands.Definition {
 	return []commands.Definition{XPResetDefinition()}
+}
+
+func RankDefinitions() []commands.Definition {
+	return []commands.Definition{TextXPRankDefinition(), VoiceXPRankDefinition()}
 }
 
 func TextXPProfileDefinition() commands.Definition {
@@ -207,6 +213,14 @@ func XPResetDefinition() commands.Definition {
 	}
 }
 
+func TextXPRankDefinition() commands.Definition {
+	return xpRankDefinition(TextXPRankCommandName, "查詢聊天經驗的排行榜")
+}
+
+func VoiceXPRankDefinition() commands.Definition {
+	return xpRankDefinition(VoiceXPRankCommandName, "查詢語音經驗的排行榜")
+}
+
 func xpProfileDefinition(name string, description string) commands.Definition {
 	return commands.Definition{
 		Type:        commands.CommandTypeChatInput,
@@ -220,6 +234,15 @@ func xpProfileDefinition(name string, description string) commands.Definition {
 				Description: "輸入玩家!",
 			},
 		},
+	}
+}
+
+func xpRankDefinition(name string, description string) commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        name,
+		Description: description,
+		Ownership:   commands.ManagedOwnership("xp-rank", commands.ScopeGuild),
 	}
 }
 

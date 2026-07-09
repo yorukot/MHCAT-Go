@@ -132,6 +132,7 @@ Implemented utility commands:
 - `/聊天經驗` and `/語音經驗` disabled-command replacement responses when explicitly enabled with `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true`
 - `/經驗值改變` when explicitly enabled with `MHCAT_FEATURE_XP_ADMIN_ENABLED=true`
 - `/經驗值重製` when explicitly enabled with `MHCAT_FEATURE_XP_RESET_ENABLED=true`, gateway enabled, Guild Messages intent enabled, and Message Content intent enabled
+- `/聊天排行榜` and `/語音排行榜` when explicitly enabled with `MHCAT_FEATURE_XP_RANK_ENABLED=true`
 - `/語音包廂設置` and `/語音包廂刪除` when explicitly enabled with `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true`
 - `/上鎖頻道` when explicitly enabled with `MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED=true`, gateway enabled, and Voice State intent enabled
 - `/加入身份組設置` and `/加入身份組刪除` when explicitly enabled with `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true`
@@ -234,6 +235,7 @@ Safe defaults:
 - `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=false`
 - `MHCAT_FEATURE_XP_ADMIN_ENABLED=false`
 - `MHCAT_FEATURE_XP_RESET_ENABLED=false`
+- `MHCAT_FEATURE_XP_RANK_ENABLED=false`
 - `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED=false`
 - `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=false`
@@ -320,6 +322,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=false`
@@ -595,6 +598,8 @@ The `/聊天經驗` and `/語音經驗` disabled-command replacement responses a
 The `/經驗值改變` command is available only when `MHCAT_FEATURE_XP_ADMIN_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires Kick Members, adjusts one member's `text_xps` or `voice_xps` row with legacy `xp`/`leavel` strings, and sets `voice_xps.leavejoin=leave` when creating a voice profile. Test only against disposable staging XP rows until duplicate audits and XP ownership are reviewed. It does not enable XP accrual, rank cards, automatic role assignment/removal, coin rewards, gateway intents, or usage-counter writes.
 
 The `/經驗值重製` command is available only when `MHCAT_FEATURE_XP_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command preserves the legacy owner-only check, immediate individual text/voice XP deletes, and the full-server `^確認^` message confirmation before deleting all `text_xps` or `voice_xps` rows for a guild. Test only against disposable staging XP rows.
+
+The `/聊天排行榜` and `/語音排行榜` commands are available only when `MHCAT_FEATURE_XP_RANK_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK=true`; staging preflight and scripts reject unpaired sync/runtime flags. These commands read `text_xps`/`voice_xps`, render legacy-style `user-info.png` leaderboard pages with legacy rank buttons, and write no Mongo data. They do not enable XP accrual, `/聊天經驗` profile cards, automatic reward roles, coin rewards, gateway intents, or usage-counter writes.
 
 The `/語音包廂設置` and `/語音包廂刪除` commands are available only when `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true`; staging preflight and scripts reject unpaired sync/runtime flags. These commands only write/delete legacy-compatible `voice_channels` config rows and preserve the legacy visible success/error embeds. They do not enable `voiceStateUpdate`, create/move/delete dynamic voice channels, write `voice_channel_ids`, or run lock/password side effects.
 

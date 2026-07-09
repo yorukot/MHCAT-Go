@@ -228,6 +228,14 @@ func (r *XPAdminRepository) SaveVoiceXPProfile(ctx context.Context, profile doma
 	return saveAdminXPProfile(ctx, r.voiceProfiles, profile, "voice", true)
 }
 
+func (r *XPAdminRepository) ListTextXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error) {
+	return listAdminXPProfiles(ctx, r.textProfiles, guildID, "text")
+}
+
+func (r *XPAdminRepository) ListVoiceXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error) {
+	return listAdminXPProfiles(ctx, r.voiceProfiles, guildID, "voice")
+}
+
 func (r *XPAdminRepository) DeleteTextXPProfile(ctx context.Context, guildID string, userID string) error {
 	return deleteAdminXPProfile(ctx, r.textProfiles, guildID, userID, ports.ErrTextXPProfileMissing, "text")
 }
@@ -388,6 +396,33 @@ func getAdminXPProfile(ctx context.Context, collection *drivermongo.Collection, 
 	return document.ToDomain().Normalize(), ctx.Err()
 }
 
+func listAdminXPProfiles(ctx context.Context, collection *drivermongo.Collection, guildID string, label string) ([]domain.XPProfile, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return nil, domain.ErrInvalidXPRankQuery
+	}
+	cursor, err := collection.Find(ctx, bson.D{{Key: "guild", Value: guildID}})
+	if err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("list admin %s xp profiles: %w", label, err))
+	}
+	defer cursor.Close(ctx)
+	profiles := []domain.XPProfile{}
+	for cursor.Next(ctx) {
+		var document documents.XPProfileDocument
+		if err := cursor.Decode(&document); err != nil {
+			return nil, mhcatmongo.MapError(fmt.Errorf("decode admin %s xp profile: %w", label, err))
+		}
+		profiles = append(profiles, document.ToDomain().Normalize())
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("iterate admin %s xp profiles: %w", label, err))
+	}
+	return profiles, ctx.Err()
+}
+
 func saveAdminXPProfile(ctx context.Context, collection *drivermongo.Collection, profile domain.XPProfile, label string, voice bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -468,3 +503,4 @@ var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
 var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)
 var _ ports.XPAdminRepository = (*XPAdminRepository)(nil)
 var _ ports.XPResetRepository = (*XPAdminRepository)(nil)
+var _ ports.XPRankRepository = (*XPAdminRepository)(nil)

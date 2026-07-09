@@ -47,6 +47,12 @@ type ResetModule struct {
 	confirmations *resetConfirmationStore
 }
 
+type RankModule struct {
+	service coreservice.RankService
+	guilds  ports.DiscordInfoProvider
+	usage   ports.UsageTracker
+}
+
 func NewModule(repo ports.TextXPConfigRepository, messages ports.DiscordMessagePort, usage ports.UsageTracker) Module {
 	return Module{
 		service:  coreservice.TextConfigService{Repository: repo},
@@ -100,6 +106,14 @@ func NewResetModule(repo ports.XPResetRepository, guilds ports.DiscordInfoProvid
 	}
 }
 
+func NewRankModule(repo ports.XPRankRepository, guilds ports.DiscordInfoProvider, usage ports.UsageTracker) RankModule {
+	return RankModule{
+		service: coreservice.RankService{Repository: repo},
+		guilds:  guilds,
+		usage:   usage,
+	}
+}
+
 func (m Module) Name() string {
 	return "text-xp-config"
 }
@@ -124,6 +138,10 @@ func (m ResetModule) Name() string {
 	return "xp-reset"
 }
 
+func (m RankModule) Name() string {
+	return "xp-rank"
+}
+
 func (m Module) Commands() []commands.Definition {
 	return TextDefinitions()
 }
@@ -146,6 +164,10 @@ func (m AdminModule) Commands() []commands.Definition {
 
 func (m ResetModule) Commands() []commands.Definition {
 	return ResetDefinitions()
+}
+
+func (m RankModule) Commands() []commands.Definition {
+	return RankDefinitions()
 }
 
 func (m Module) RegisterRoutes(router *interactions.Router) error {
@@ -188,6 +210,19 @@ func (m AdminModule) RegisterRoutes(router *interactions.Router) error {
 
 func (m ResetModule) RegisterRoutes(router *interactions.Router) error {
 	return router.RegisterSlash(XPResetCommandName, m.ResetHandler())
+}
+
+func (m RankModule) RegisterRoutes(router *interactions.Router) error {
+	if err := router.RegisterSlash(TextXPRankCommandName, m.TextHandler()); err != nil {
+		return err
+	}
+	if err := router.RegisterSlash(VoiceXPRankCommandName, m.VoiceHandler()); err != nil {
+		return err
+	}
+	if err := router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: "legacy", Feature: "rank", Action: "text_page", Legacy: true}, m.TextPageHandler()); err != nil {
+		return err
+	}
+	return router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: "legacy", Feature: "rank", Action: "voice_page", Legacy: true}, m.VoicePageHandler())
 }
 
 func (m ResetModule) RegisterEventRoutes(dispatcher *events.Dispatcher) {

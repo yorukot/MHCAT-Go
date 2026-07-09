@@ -168,6 +168,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		xpProfileDisabledRuntimePairing(lookup),
 		xpAdminCommandSync(lookup),
 		xpAdminRuntimePairing(lookup),
+		xpRankCommandSync(lookup),
+		xpRankRuntimePairing(lookup),
 		xpResetCommandSync(lookup),
 		xpResetRuntimePairing(lookup),
 		xpResetRuntimeReadiness(lookup),
@@ -1642,6 +1644,38 @@ func xpAdminRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "xp-admin-runtime-pairing", Status: statusWarn, Message: "XP admin runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "xp-admin-runtime-pairing", Status: statusSkipped, Message: "XP admin runtime and command sync include are disabled"}
+}
+
+func xpRankCommandSync(lookup lookupFunc) checkResult {
+	includeXPRank, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK")
+	if err != nil {
+		return checkResult{Name: "xp-rank-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeXPRank {
+		return checkResult{Name: "xp-rank-command-sync", Status: statusPass, Message: "XP rank command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "xp-rank-command-sync", Status: statusSkipped, Message: "XP rank command sync include is disabled"}
+}
+
+func xpRankRuntimePairing(lookup lookupFunc) checkResult {
+	includeXPRank, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK")
+	if err != nil {
+		return checkResult{Name: "xp-rank-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	xpRankEnabled, err := boolValue(lookup, "MHCAT_FEATURE_XP_RANK_ENABLED")
+	if err != nil {
+		return checkResult{Name: "xp-rank-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeXPRank && !xpRankEnabled {
+		return checkResult{Name: "xp-rank-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK=true requires MHCAT_FEATURE_XP_RANK_ENABLED=true in the staging runtime"}
+	}
+	if includeXPRank && xpRankEnabled {
+		return checkResult{Name: "xp-rank-runtime-pairing", Status: statusPass, Message: "XP rank command sync and runtime feature flag are paired"}
+	}
+	if xpRankEnabled {
+		return checkResult{Name: "xp-rank-runtime-pairing", Status: statusWarn, Message: "XP rank runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "xp-rank-runtime-pairing", Status: statusSkipped, Message: "XP rank runtime and command sync include are disabled"}
 }
 
 func xpResetCommandSync(lookup lookupFunc) checkResult {

@@ -11,6 +11,7 @@ var ErrInvalidTextXPConfig = errors.New("invalid text xp config")
 var ErrInvalidVoiceXPConfig = errors.New("invalid voice xp config")
 var ErrInvalidXPRewardRoleConfig = errors.New("invalid xp reward role config")
 var ErrInvalidXPAdjustment = errors.New("invalid xp adjustment")
+var ErrInvalidXPRankQuery = errors.New("invalid xp rank query")
 
 type TextXPConfig struct {
 	GuildID   string

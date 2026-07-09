@@ -60,6 +60,7 @@ const (
 	DefaultFeatureXPProfileDisabledEnabled      = false
 	DefaultFeatureXPAdminEnabled                = false
 	DefaultFeatureXPResetEnabled                = false
+	DefaultFeatureXPRankEnabled                 = false
 	DefaultFeatureVoiceRoomConfigEnabled        = false
 	DefaultFeatureVoiceRoomLockEnabled          = false
 	DefaultFeatureJoinRoleConfigEnabled         = false
@@ -136,6 +137,7 @@ type Config struct {
 	FeatureXPProfileDisabledEnabled      bool
 	FeatureXPAdminEnabled                bool
 	FeatureXPResetEnabled                bool
+	FeatureXPRankEnabled                 bool
 	FeatureVoiceRoomConfigEnabled        bool
 	FeatureVoiceRoomLockEnabled          bool
 	FeatureJoinRoleConfigEnabled         bool

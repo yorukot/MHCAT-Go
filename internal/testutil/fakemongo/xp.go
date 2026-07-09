@@ -195,6 +195,20 @@ func (r *XPAdminRepository) SaveVoiceXPProfile(ctx context.Context, profile doma
 	return nil
 }
 
+func (r *XPAdminRepository) ListTextXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error) {
+	if err := r.ready(ctx); err != nil {
+		return nil, err
+	}
+	return filterXPProfiles(r.TextProfiles, guildID), nil
+}
+
+func (r *XPAdminRepository) ListVoiceXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error) {
+	if err := r.ready(ctx); err != nil {
+		return nil, err
+	}
+	return filterXPProfiles(r.VoiceProfiles, guildID), nil
+}
+
 func (r *XPAdminRepository) DeleteTextXPProfile(ctx context.Context, guildID string, userID string) error {
 	if err := r.ready(ctx); err != nil {
 		return err
@@ -317,9 +331,22 @@ func deleteXPProfileGuild(profiles map[string]domain.XPProfile, guildID string) 
 	return deleted
 }
 
+func filterXPProfiles(profiles map[string]domain.XPProfile, guildID string) []domain.XPProfile {
+	guildID = strings.TrimSpace(guildID)
+	out := []domain.XPProfile{}
+	for key, profile := range profiles {
+		if strings.TrimSpace(profile.GuildID) != guildID && !strings.HasPrefix(key, guildID+"/") {
+			continue
+		}
+		out = append(out, profile.Normalize())
+	}
+	return out
+}
+
 var _ ports.TextXPConfigRepository = (*TextXPConfigRepository)(nil)
 var _ ports.VoiceXPConfigRepository = (*VoiceXPConfigRepository)(nil)
 var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
 var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)
 var _ ports.XPAdminRepository = (*XPAdminRepository)(nil)
 var _ ports.XPResetRepository = (*XPAdminRepository)(nil)
+var _ ports.XPRankRepository = (*XPAdminRepository)(nil)

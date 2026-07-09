@@ -1786,6 +1786,53 @@ func TestBuildRuntimeRoutesXPResetOnlyWithDependencies(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesXPRankOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	viewerID := "123456789012345678"
+	interaction := fakediscord.SlashInteraction("聊天排行榜")
+	interaction.Actor.UserID = viewerID
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("XP rank route should not be available without repository")
+	}
+
+	repo := fakemongo.NewXPAdminRepository()
+	_ = repo.SaveTextXPProfile(context.Background(), domain.XPProfile{GuildID: "guild-1", UserID: viewerID, Level: 1, XP: 100})
+	_ = repo.SaveTextXPProfile(context.Background(), domain.XPProfile{GuildID: "guild-1", UserID: "222222222222222222", Level: 2, XP: 0})
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:           validTestConfig(),
+		XPRankRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with XP rank: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch XP rank: %v", err)
+	}
+	if len(responder.Replies) != 1 || len(responder.Replies[0].Embeds) != 1 {
+		t.Fatalf("XP rank loading reply = %#v", responder.Replies)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Files) != 1 || responder.Edits[0].Files[0].Name != "user-info.png" {
+		t.Fatalf("XP rank response = %#v", responder.Edits)
+	}
+	if len(responder.Edits[0].Components) != 2 {
+		t.Fatalf("XP rank components = %#v", responder.Edits[0].Components)
+	}
+
+	responder = fakediscord.NewResponder()
+	component := fakediscord.ComponentInteractionFromID("[" + viewerID + "]{0}text_rank")
+	if err := dispatcher.Dispatch(context.Background(), component, responder); err != nil {
+		t.Fatalf("dispatch XP rank pagination: %v", err)
+	}
+	if len(responder.Updates) != 1 || len(responder.Updates[0].Files) != 1 || responder.Updates[0].Files[0].Name != "user-info.png" {
+		t.Fatalf("XP rank pagination update = %#v", responder.Updates)
+	}
+}
+
 func TestBuildRuntimeRoutesJoinRoleConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

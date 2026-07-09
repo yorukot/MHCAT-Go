@@ -73,6 +73,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureXPProfileDisabledEnabled:      DefaultFeatureXPProfileDisabledEnabled,
 		FeatureXPAdminEnabled:                DefaultFeatureXPAdminEnabled,
 		FeatureXPResetEnabled:                DefaultFeatureXPResetEnabled,
+		FeatureXPRankEnabled:                 DefaultFeatureXPRankEnabled,
 		FeatureVoiceRoomConfigEnabled:        DefaultFeatureVoiceRoomConfigEnabled,
 		FeatureVoiceRoomLockEnabled:          DefaultFeatureVoiceRoomLockEnabled,
 		FeatureJoinRoleConfigEnabled:         DefaultFeatureJoinRoleConfigEnabled,
@@ -256,6 +257,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureXPResetEnabled, err = getBool(lookup, "MHCAT_FEATURE_XP_RESET_ENABLED", DefaultFeatureXPResetEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureXPRankEnabled, err = getBool(lookup, "MHCAT_FEATURE_XP_RANK_ENABLED", DefaultFeatureXPRankEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureVoiceRoomConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED", DefaultFeatureVoiceRoomConfigEnabled); err != nil {

@@ -201,6 +201,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET:-false}" = "true" ] && [ "${MHCAT_FE
   echo "refusing apply: XP reset command apply requires MHCAT_FEATURE_XP_RESET_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK:-false}" = "true" ] && [ "${MHCAT_FEATURE_XP_RANK_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: XP rank commands apply requires MHCAT_FEATURE_XP_RANK_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_FEATURE_XP_RESET_ENABLED:-false}" = "true" ] && [ "${MHCAT_DISCORD_ENABLE_GATEWAY:-false}" != "true" ]; then
   echo "refusing apply: XP reset runtime requires MHCAT_DISCORD_ENABLE_GATEWAY=true for staging confirmation parity" >&2
   exit 1
@@ -457,6 +461,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET:-false}" = "true" ]; then
   echo "staging command sync apply: including XP reset command 經驗值重製" >&2
 else
   echo "staging command sync apply: XP reset command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK:-false}" = "true" ]; then
+  echo "staging command sync apply: including XP rank commands 聊天排行榜/語音排行榜" >&2
+else
+  echo "staging command sync apply: XP rank commands are excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG:-false}" = "true" ]; then
   echo "staging command sync apply: including voice-room config commands" >&2

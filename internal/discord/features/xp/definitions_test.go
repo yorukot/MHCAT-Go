@@ -177,6 +177,34 @@ func TestResetDefinitionMatchesLegacy(t *testing.T) {
 	}
 }
 
+func TestRankDefinitionsMatchLegacy(t *testing.T) {
+	definitions := RankDefinitions()
+	if len(definitions) != 2 {
+		t.Fatalf("rank definitions = %#v", definitions)
+	}
+	expected := map[string]string{
+		TextXPRankCommandName:  "查詢聊天經驗的排行榜",
+		VoiceXPRankCommandName: "查詢語音經驗的排行榜",
+	}
+	for _, definition := range definitions {
+		if got := expected[definition.Name]; got == "" || definition.Description != got {
+			t.Fatalf("rank definition = %#v", definition)
+		}
+		if definition.DefaultMemberPermissions != nil {
+			t.Fatalf("rank command should not set Discord-side permissions: %#v", definition.DefaultMemberPermissions)
+		}
+		if len(definition.Options) != 0 {
+			t.Fatalf("rank command should not have options: %#v", definition.Options)
+		}
+		if definition.Ownership == nil || definition.Ownership.Owner != commands.OwnerMHCATRefactor || definition.Ownership.SinceWave != "xp-rank" {
+			t.Fatalf("rank ownership = %#v", definition.Ownership)
+		}
+	}
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, definitions)); err != nil {
+		t.Fatalf("validate rank: %v", err)
+	}
+}
+
 func TestTextAndVoiceDefinitionsAreSeparateGates(t *testing.T) {
 	for _, definition := range TextDefinitions() {
 		if definition.Name == VoiceXPSetCommandName || definition.Name == VoiceXPDeleteCommandName {
@@ -210,6 +238,12 @@ func TestTextAndVoiceDefinitionsAreSeparateGates(t *testing.T) {
 		switch definition.Name {
 		case TextXPSetCommandName, TextXPDeleteCommandName, VoiceXPSetCommandName, VoiceXPDeleteCommandName, TextXPProfileCommandName, VoiceXPProfileCommandName, TextXPRewardRoleCommandName, VoiceXPRewardRoleCommandName, XPAdminCommandName:
 			t.Fatalf("reset definitions leaked another XP command: %#v", definition)
+		}
+	}
+	for _, definition := range RankDefinitions() {
+		switch definition.Name {
+		case TextXPSetCommandName, TextXPDeleteCommandName, VoiceXPSetCommandName, VoiceXPDeleteCommandName, TextXPProfileCommandName, VoiceXPProfileCommandName, TextXPRewardRoleCommandName, VoiceXPRewardRoleCommandName, XPAdminCommandName, XPResetCommandName:
+			t.Fatalf("rank definitions leaked another XP command: %#v", definition)
 		}
 	}
 }

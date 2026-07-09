@@ -118,6 +118,7 @@ type RuntimeOptions struct {
 	XPResetRepository             ports.XPResetRepository
 	XPResetMessagePort            ports.DiscordMessagePort
 	XPResetGuildInfo              ports.DiscordInfoProvider
+	XPRankRepository              ports.XPRankRepository
 	VoiceRoomConfigRepository     ports.VoiceRoomConfigRepository
 	VoiceRoomLockRepository       ports.VoiceRoomLockRepository
 	JoinRoleConfigRepository      ports.JoinRoleConfigRepository
@@ -276,6 +277,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if xpResetRuntimeEnabled(opts, xpResetGuilds) {
 		definitions = append(definitions, featurexp.ResetDefinitions()...)
+	}
+	if opts.XPRankRepository != nil {
+		definitions = append(definitions, featurexp.RankDefinitions()...)
 	}
 	if opts.VoiceRoomConfigRepository != nil {
 		definitions = append(definitions, featurevoice.Definitions()...)
@@ -566,6 +570,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if xpResetRuntimeEnabled(opts, xpResetGuilds) {
 		xpResetModule := featurexp.NewResetModule(opts.XPResetRepository, xpResetGuilds, opts.XPResetMessagePort, opts.UsageTracker, nil)
 		if err := xpResetModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.XPRankRepository != nil {
+		xpRankModule := featurexp.NewRankModule(opts.XPRankRepository, concreteDiscord, opts.UsageTracker)
+		if err := xpRankModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

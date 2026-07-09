@@ -356,6 +356,15 @@ export MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 
 Set all five together only in an isolated staging guild/database when testing `/經驗值重製`. Use a guild-owner staging account and only disposable `text_xps`/`voice_xps` rows. Individual reset deletes the selected member row immediately; full-server reset waits for the legacy `^確認^` message before deleting guild XP rows.
 
+Optional XP rank smoke flags:
+
+```bash
+export MHCAT_FEATURE_XP_RANK_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK=true
+```
+
+Set both together only in an isolated staging database when testing `/聊天排行榜` and `/語音排行榜`. This path reads `text_xps`/`voice_xps` and renders legacy-style `user-info.png` leaderboard pages with legacy rank buttons. It does not enable XP accrual, `/聊天經驗` profile cards, automatic reward roles, coin rewards, gateway intents, indexes, or Mongo writes.
+
 Optional voice-room config smoke flags:
 
 ```bash
@@ -511,6 +520,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true`, confirm `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true` and that the expected result is only the replacement embed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN=true`, confirm `MHCAT_FEATURE_XP_ADMIN_ENABLED=true` and the staging database has only disposable `text_xps`/`voice_xps` rows for the test member.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET=true`, confirm `MHCAT_FEATURE_XP_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, the tester is the staging guild owner, and the staging database has only disposable `text_xps`/`voice_xps` rows for the reset target.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK=true`, confirm `MHCAT_FEATURE_XP_RANK_ENABLED=true` and the staging database has disposable `text_xps`/`voice_xps` rows for leaderboard rendering.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true`, confirm `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true` and the staging database can safely write/delete `voice_channels`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK=true`, confirm `MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED=true`, gateway and Voice State intent are enabled, and the staging database can safely replace disposable `lock_channels` rows.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=true`, confirm `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true`, the staging database can safely write `join_roles`, and the test role is below the bot's highest role.
@@ -805,6 +815,13 @@ For XP reset staging smoke, expected additionally:
 - plan includes managed `經驗值重製`;
 - plan still performs no create/update/delete during dry-run.
 
+For XP rank staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK=true`;
+- `MHCAT_FEATURE_XP_RANK_ENABLED=true`;
+- plan includes managed `聊天排行榜` and `語音排行榜`;
+- `/聊天排行榜` and `/語音排行榜` render `user-info.png` and perform no Mongo writes.
+
 For voice-room config staging smoke, expected additionally:
 
 - `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true`;
@@ -1031,6 +1048,13 @@ If XP admin inclusion is enabled, expected:
 If XP reset inclusion is enabled, expected:
 
 - create/update managed `經驗值重製` only in addition to the utility commands and other explicitly included features;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
+If XP rank inclusion is enabled, expected:
+
+- create/update managed `聊天排行榜` and `語音排行榜` only in addition to the utility commands and other explicitly included features;
 - no command deletion;
 - no bulk overwrite;
 - no global command mutation.
@@ -1270,6 +1294,14 @@ If XP reset flags were enabled and command sync apply was reviewed:
 - repeat the full-server confirmation path for `/經驗值重製 語音經驗重製` against disposable `voice_xps` rows;
 - verify non-owner attempts return the legacy red permission embed and no rows are deleted;
 - verify no XP accrual, rank rendering, automatic role assignment/removal, coin reward, index, or usage-counter write happened.
+
+If XP rank flags were enabled and command sync apply was reviewed:
+
+- seed disposable staging `text_xps` and `voice_xps` rows for several members, including the tester;
+- run `/聊天排行榜` and verify the loading embed is replaced by a `user-info.png` leaderboard with legacy pagination buttons;
+- run `/語音排行榜` and verify the same PNG/button behavior, including the legacy page label and viewer-target button;
+- click previous/next and viewer-target rank buttons where enabled and verify the message updates rather than sending a new public message;
+- verify no XP accrual, profile-card render, automatic role assignment/removal, coin reward, gateway intent, index, or Mongo write happened.
 
 If voice-room config flags were enabled and command sync apply was reviewed:
 

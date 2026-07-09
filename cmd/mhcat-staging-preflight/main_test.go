@@ -1669,6 +1669,43 @@ func TestPreflightWarnsWhenXPAdminRuntimeEnabledWithoutCommandSync(t *testing.T)
 	}
 }
 
+func TestPreflightRejectsXPRankCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "xp-rank-runtime-pairing status=fail") {
+		t.Fatalf("expected XP rank pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsXPRankCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK"] = "true"
+	env["MHCAT_FEATURE_XP_RANK_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "xp-rank-command-sync status=pass") || !strings.Contains(stdout, "xp-rank-runtime-pairing status=pass") {
+		t.Fatalf("expected XP rank pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenXPRankRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_XP_RANK_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "xp-rank-runtime-pairing status=warn") {
+		t.Fatalf("expected XP rank runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsXPResetCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_RESET"] = "true"

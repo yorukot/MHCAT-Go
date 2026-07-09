@@ -307,6 +307,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeXPReset {
 		definitions = append(definitions, featurexp.ResetDefinitions()...)
 	}
+	if cfg.IncludeXPRank {
+		definitions = append(definitions, featurexp.RankDefinitions()...)
+	}
 	if cfg.IncludeVoiceRoomConfig {
 		definitions = append(definitions, featurevoice.Definitions()...)
 	}
@@ -461,6 +464,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeXPReset {
 		expected = append(expected, featurexp.XPResetCommandName)
+	}
+	if cfg.IncludeXPRank {
+		expected = append(expected, featurexp.TextXPRankCommandName, featurexp.VoiceXPRankCommandName)
 	}
 	if cfg.IncludeVoiceRoomConfig {
 		expected = append(expected, featurevoice.VoiceRoomSetCommandName, featurevoice.VoiceRoomDeleteCommandName)
