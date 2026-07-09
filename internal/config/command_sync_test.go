@@ -151,6 +151,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeVoiceRoomConfig {
 		t.Fatal("include voice-room config must default false")
 	}
+	if cfg.IncludeVoiceRoomLock {
+		t.Fatal("include voice-room lock must default false")
+	}
 	if cfg.IncludeJoinRoleConfig {
 		t.Fatal("include join-role config must default false")
 	}
@@ -336,6 +339,48 @@ func TestCommandSyncIncludeVoiceRoomConfigStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeVoiceRoomConfig {
 		t.Fatal("expected include voice-room config to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeVoiceRoomLockRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include voice-room lock without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeVoiceRoomLockRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                   "global",
+		"MHCAT_STAGING_MODE":                         "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include voice-room lock with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeVoiceRoomLockStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                "guild",
+		"MHCAT_STAGING_MODE":                         "true",
+		"MHCAT_STAGING_GUILD_ID":                     "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeVoiceRoomLock {
+		t.Fatal("expected include voice-room lock to be enabled explicitly")
 	}
 }
 

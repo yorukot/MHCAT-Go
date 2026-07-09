@@ -1394,6 +1394,69 @@ func TestPreflightWarnsWhenVoiceRoomConfigRuntimeEnabledWithoutCommandSync(t *te
 	}
 }
 
+func TestPreflightRejectsVoiceRoomLockCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "voice-room-lock-runtime-pairing status=fail") {
+		t.Fatalf("expected voice-room lock pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsVoiceRoomLockCommandSyncWithRuntimeAndVoiceState(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK"] = "true"
+	env["MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_DISCORD_VOICE_STATE_INTENT"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "voice-room-lock-command-sync status=pass") ||
+		!strings.Contains(stdout, "voice-room-lock-runtime-pairing status=pass") ||
+		!strings.Contains(stdout, "voice-room-lock-runtime-readiness status=pass") {
+		t.Fatalf("expected voice-room lock pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenVoiceRoomLockRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_DISCORD_VOICE_STATE_INTENT"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "voice-room-lock-runtime-pairing status=warn") {
+		t.Fatalf("expected voice-room lock runtime warning, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightRejectsVoiceRoomLockRuntimeWithoutGatewayOrVoiceState(t *testing.T) {
+	for key, want := range map[string]string{
+		"MHCAT_DISCORD_ENABLE_GATEWAY":     "MHCAT_DISCORD_ENABLE_GATEWAY=true",
+		"MHCAT_DISCORD_VOICE_STATE_INTENT": "MHCAT_DISCORD_VOICE_STATE_INTENT=true",
+	} {
+		env := validEnv()
+		env["MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED"] = "true"
+		env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+		env["MHCAT_DISCORD_VOICE_STATE_INTENT"] = "true"
+		env[key] = "false"
+		code, stdout, _ := runPreflight(t, nil, env)
+		if code == 0 {
+			t.Fatalf("expected %s to fail", key)
+		}
+		if !strings.Contains(stdout, "voice-room-lock-runtime-readiness status=fail") || !strings.Contains(stdout, want) {
+			t.Fatalf("expected voice-room lock readiness failure %q, stdout=%q", want, stdout)
+		}
+	}
+}
+
 func TestPreflightRejectsJoinRoleConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG"] = "true"

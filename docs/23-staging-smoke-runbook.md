@@ -279,7 +279,18 @@ export MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true
 ```
 
-Set both together only in an isolated staging guild/database when testing `/語音包廂設置` and `/語音包廂刪除`. This path writes/deletes `voice_channels` config rows only; it does not enable Voice State intent, dynamic room creation/deletion, `voice_channel_ids`, `/上鎖頻道`, or lock passwords.
+Set both together only in an isolated staging guild/database when testing `/語音包廂設置` and `/語音包廂刪除`. This path writes/deletes `voice_channels` config rows only; by itself it does not enable Voice State intent, dynamic room creation/deletion, `voice_channel_ids`, `/上鎖頻道`, or lock passwords.
+
+Optional voice-room lock smoke flags:
+
+```bash
+export MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_DISCORD_VOICE_STATE_INTENT=true
+```
+
+Set all four together only in an isolated staging guild/database when testing `/上鎖頻道`. This path replaces an existing `lock_channels` row for the caller's current voice channel; it does not create dynamic rooms, write `voice_channel_ids`, move members, edit permission overwrites, or enable lock buttons/modals.
 
 Optional join-role config smoke flags:
 
@@ -408,6 +419,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true`, confirm `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`, the staging database can safely write `chat_roles`/`voice_roles`, and the test roles are below the bot's highest role.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true`, confirm `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true` and that the expected result is only the replacement embed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true`, confirm `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true` and the staging database can safely write/delete `voice_channels`.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK=true`, confirm `MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED=true`, gateway and Voice State intent are enabled, and the staging database can safely replace disposable `lock_channels` rows.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=true`, confirm `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true`, the staging database can safely write `join_roles`, and the test role is below the bot's highest role.
 - If `MHCAT_FEATURE_JOIN_ROLE_ASSIGNMENT_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`, the staging database has safe `join_roles` rows, and the target roles are below the bot's highest role.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WELCOME_MESSAGE_CONFIG=true`, confirm `MHCAT_FEATURE_WELCOME_MESSAGE_CONFIG_ENABLED=true` and the staging database can safely write `leave_messages`.
@@ -638,6 +650,14 @@ For voice-room config staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true`;
 - `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true`;
 - plan includes managed `語音包廂設置` and `語音包廂刪除`;
+
+For voice-room lock staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK=true`;
+- `MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED=true`;
+- `MHCAT_DISCORD_ENABLE_GATEWAY=true`;
+- `MHCAT_DISCORD_VOICE_STATE_INTENT=true`;
+- plan includes managed `上鎖頻道`;
 - plan still performs no create/update/delete during dry-run.
 
 For welcome-message config staging smoke, expected additionally:
@@ -844,6 +864,10 @@ If XP reward-role config inclusion is enabled, expected:
 If voice-room config inclusion is enabled, expected:
 
 - create/update managed `語音包廂設置` and `語音包廂刪除` only in addition to the utility commands;
+
+If voice-room lock inclusion is enabled, expected:
+
+- create/update managed `上鎖頻道` only in addition to the utility commands and other explicitly included features;
 - no command deletion;
 - no bulk overwrite;
 - no global command mutation.
@@ -1057,7 +1081,16 @@ If voice-room config flags were enabled and command sync apply was reviewed:
 - verify the staging `voice_channels` row contains `guild`, `ticket_channel`, `limit`, `name`, `parent`, and `lock`;
 - run `/語音包廂刪除` for the same trigger channel and verify the legacy delete embed appears and the matching staging rows are removed;
 - optionally configure a second trigger under a disposable staging category, run `/語音包廂刪除` for the category, and verify only rows with that `parent` are removed;
-- verify no Voice State intent, dynamic channel creation/deletion, `voice_channel_ids`, `lock_channel`, `/上鎖頻道`, or usage-counter write happened.
+- verify config-only smoke caused no Voice State intent use, dynamic channel creation/deletion, `voice_channel_ids`, `lock_channel`, `/上鎖頻道`, or usage-counter write.
+
+If voice-room lock flags were enabled and command sync apply was reviewed:
+
+- seed a disposable `lock_channels` row for the staging guild/current voice channel with the invoking user as `owner`;
+- join that staging voice channel and run `/上鎖頻道` with a password;
+- verify the legacy ephemeral success embed appears and the row is replaced with `lock_anser`, `owner`, `text_channel`, and empty `ok_people`;
+- run `/上鎖頻道` without `密碼` and verify the success embed shows `null` and `lock_anser` is null/empty in Mongo;
+- verify not-in-voice, missing lock row, and non-owner cases return the legacy red ephemeral errors;
+- verify no dynamic channel creation/deletion, `voice_channel_ids`, member moves, permission overwrites, lock buttons/modals, or usage-counter write happened.
 
 Verify:
 

@@ -94,6 +94,28 @@ func TestRuntimeInteractionChannelOptionMetadata(t *testing.T) {
 	}
 }
 
+func TestRuntimeInteractionPopulatesActorVoiceState(t *testing.T) {
+	session := testSession()
+	session.session.State = dgo.NewState()
+	if err := session.session.State.GuildAdd(&dgo.Guild{
+		ID: "guild-1",
+		VoiceStates: []*dgo.VoiceState{{
+			GuildID:   "guild-1",
+			UserID:    "user-1",
+			ChannelID: "voice-1",
+		}},
+	}); err != nil {
+		t.Fatalf("seed voice state: %v", err)
+	}
+	interaction, _, err := session.RuntimeInteraction(&dgo.InteractionCreate{Interaction: slashEvent("上鎖頻道", nil)})
+	if err != nil {
+		t.Fatalf("runtime interaction: %v", err)
+	}
+	if interaction.Actor.VoiceChannelID != "voice-1" {
+		t.Fatalf("voice channel id = %q", interaction.Actor.VoiceChannelID)
+	}
+}
+
 func TestRuntimeInteractionComponent(t *testing.T) {
 	session := testSession()
 	event := &dgo.Interaction{

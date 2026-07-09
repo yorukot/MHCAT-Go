@@ -146,6 +146,93 @@ func TestDeleteHandlerMissingMessagesMatchLegacy(t *testing.T) {
 	}
 }
 
+func TestLockHandlerSavesPassword(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{
+		GuildID:       "guild-1",
+		ChannelID:     "voice-1",
+		OwnerID:       "user-1",
+		TextChannelID: "old-text",
+	}
+	module := NewLockModule(repo, nil)
+	interaction := voiceLockInteraction("secret")
+	responder := fakediscord.NewResponder()
+	if err := module.LockHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("lock handler: %v", err)
+	}
+	saved, ok := repo.Last()
+	if !ok {
+		t.Fatal("expected saved lock")
+	}
+	if saved.GuildID != "guild-1" || saved.ChannelID != "voice-1" || saved.OwnerID != "user-1" || saved.TextChannelID != "text-1" || saved.Password != "secret" {
+		t.Fatalf("saved lock = %#v", saved)
+	}
+	if len(saved.AllowedUserIDs) != 0 {
+		t.Fatalf("allowed users should reset, got %#v", saved.AllowedUserIDs)
+	}
+	assertLockEmbed(t, responder, legacyDoneEmoji+" | 成功進行設定", legacyVoiceEmoji+" 你成功對語音包廂密碼進行設定為:secret")
+}
+
+func TestLockHandlerRequiresVoiceChannel(t *testing.T) {
+	module := NewLockModule(fakemongo.NewVoiceRoomLockRepository(), nil)
+	interaction := voiceLockInteraction("secret")
+	interaction.Actor.VoiceChannelID = ""
+	responder := fakediscord.NewResponder()
+	if err := module.LockHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("lock handler: %v", err)
+	}
+	assertLockEmbedContains(t, responder, "你不在一個語音包廂!")
+}
+
+func TestLockHandlerMissingLockMessageMatchesLegacy(t *testing.T) {
+	module := NewLockModule(fakemongo.NewVoiceRoomLockRepository(), nil)
+	responder := fakediscord.NewResponder()
+	if err := module.LockHandler()(context.Background(), voiceLockInteraction("secret"), responder); err != nil {
+		t.Fatalf("lock handler: %v", err)
+	}
+	assertLockEmbedContains(t, responder, "你不在語音包廂或該語音包廂不支援設密碼!")
+}
+
+func TestLockHandlerRejectsNonOwner(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{
+		GuildID:       "guild-1",
+		ChannelID:     "voice-1",
+		OwnerID:       "other-user",
+		TextChannelID: "text-1",
+	}
+	module := NewLockModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	if err := module.LockHandler()(context.Background(), voiceLockInteraction("secret"), responder); err != nil {
+		t.Fatalf("lock handler: %v", err)
+	}
+	assertLockEmbedContains(t, responder, "只有包廂房主可以設定!")
+}
+
+func TestLockHandlerEmptyPasswordStoresNullEquivalent(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{
+		GuildID:       "guild-1",
+		ChannelID:     "voice-1",
+		Password:      "old",
+		OwnerID:       "user-1",
+		TextChannelID: "old-text",
+	}
+	module := NewLockModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	if err := module.LockHandler()(context.Background(), voiceLockInteraction(""), responder); err != nil {
+		t.Fatalf("lock handler: %v", err)
+	}
+	saved, ok := repo.Last()
+	if !ok {
+		t.Fatal("expected saved lock")
+	}
+	if saved.Password != "" {
+		t.Fatalf("expected empty password, got %#v", saved)
+	}
+	assertLockEmbed(t, responder, legacyDoneEmoji+" | 成功進行設定", legacyVoiceEmoji+" 你成功對語音包廂密碼進行設定為:null")
+}
+
 func voiceSetInteraction() interactions.Interaction {
 	interaction := fakediscord.SlashInteraction(VoiceRoomSetCommandName)
 	interaction.Actor.PermissionBits = permissionManageMessages
@@ -172,6 +259,20 @@ func voiceSetInteraction() interactions.Interaction {
 	return interaction
 }
 
+func voiceLockInteraction(password string) interactions.Interaction {
+	interaction := fakediscord.SlashInteraction(VoiceRoomLockCommandName)
+	interaction.ChannelID = "text-1"
+	interaction.Actor.VoiceChannelID = "voice-1"
+	interaction.CommandOptions = map[string]interactions.CommandOptionValue{}
+	if password != "" {
+		interaction.CommandOptions[optionLockPassword] = interactions.CommandOptionValue{
+			Type:   interactions.CommandOptionString,
+			String: password,
+		}
+	}
+	return interaction
+}
+
 func assertEmbed(t *testing.T, responder *fakediscord.Responder, title string, description string) {
 	t.Helper()
 	if len(responder.Defers) != 1 {
@@ -194,5 +295,27 @@ func assertEmbedContains(t *testing.T, responder *fakediscord.Responder, text st
 	embed := responder.Edits[0].Embeds[0]
 	if !strings.Contains(embed.Title, text) && !strings.Contains(embed.Description, text) {
 		t.Fatalf("embed = %#v, want text %q", embed, text)
+	}
+}
+
+func assertLockEmbed(t *testing.T, responder *fakediscord.Responder, title string, description string) {
+	t.Helper()
+	assertEmbed(t, responder, title, description)
+	if !responder.Defers[0].Ephemeral {
+		t.Fatalf("lock response should defer ephemerally: %#v", responder.Defers)
+	}
+	if !responder.Edits[0].Ephemeral {
+		t.Fatalf("lock edit should be marked ephemeral: %#v", responder.Edits[0])
+	}
+}
+
+func assertLockEmbedContains(t *testing.T, responder *fakediscord.Responder, text string) {
+	t.Helper()
+	assertEmbedContains(t, responder, text)
+	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral {
+		t.Fatalf("lock response should defer ephemerally: %#v", responder.Defers)
+	}
+	if len(responder.Edits) != 1 || !responder.Edits[0].Ephemeral {
+		t.Fatalf("lock edit should be marked ephemeral: %#v", responder.Edits)
 	}
 }

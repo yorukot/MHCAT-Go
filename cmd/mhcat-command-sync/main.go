@@ -283,6 +283,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeVoiceRoomConfig {
 		definitions = append(definitions, featurevoice.Definitions()...)
 	}
+	if cfg.IncludeVoiceRoomLock {
+		definitions = append(definitions, featurevoice.LockDefinitions()...)
+	}
 	if cfg.IncludeJoinRoleConfig {
 		definitions = append(definitions, featureonboarding.JoinRoleDefinitions()...)
 	}
@@ -407,6 +410,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeVoiceRoomConfig {
 		expected = append(expected, featurevoice.VoiceRoomSetCommandName, featurevoice.VoiceRoomDeleteCommandName)
+	}
+	if cfg.IncludeVoiceRoomLock {
+		expected = append(expected, featurevoice.VoiceRoomLockCommandName)
 	}
 	if cfg.IncludeJoinRoleConfig {
 		expected = append(expected, featureonboarding.JoinRoleSetCommandName, featureonboarding.JoinRoleDeleteCommandName)

@@ -46,3 +46,27 @@ func TestDefinitionsMatchLegacyVoiceRoomCommands(t *testing.T) {
 		t.Fatalf("delete options = %#v", deleteDefinition.Options)
 	}
 }
+
+func TestLockDefinitionMatchesLegacyVoiceRoomCommand(t *testing.T) {
+	definitions := LockDefinitions()
+	if len(definitions) != 1 {
+		t.Fatalf("definitions len = %d", len(definitions))
+	}
+	lock := definitions[0]
+	if lock.Name != VoiceRoomLockCommandName || lock.Description != "設定語音包廂密碼" {
+		t.Fatalf("lock definition = %#v", lock)
+	}
+	if lock.DefaultMemberPermissions != nil {
+		t.Fatalf("lock command should not set default permissions, got %#v", lock.DefaultMemberPermissions)
+	}
+	if len(lock.Options) != 1 {
+		t.Fatalf("lock options = %#v", lock.Options)
+	}
+	option := lock.Options[0]
+	if option.Type != commands.OptionTypeString || option.Name != optionLockPassword || option.Required {
+		t.Fatalf("password option = %#v", option)
+	}
+	if option.Description != "設定該包廂密碼，如想不設定密碼，可直接忽略此選項" {
+		t.Fatalf("password option description = %q", option.Description)
+	}
+}

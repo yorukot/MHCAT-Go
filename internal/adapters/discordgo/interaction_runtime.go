@@ -20,5 +20,20 @@ func (s *Session) RuntimeInteraction(event *dgo.InteractionCreate) (interactions
 	if err != nil {
 		return interactions.Interaction{}, nil, err
 	}
+	s.populateActorVoiceState(&interaction)
 	return interaction, NewInteractionResponder(s.session, event.Interaction), nil
+}
+
+func (s *Session) populateActorVoiceState(interaction *interactions.Interaction) {
+	if interaction == nil || s == nil || s.session == nil || s.session.State == nil {
+		return
+	}
+	if interaction.Actor.GuildID == "" || interaction.Actor.UserID == "" {
+		return
+	}
+	voice, err := s.session.State.VoiceState(interaction.Actor.GuildID, interaction.Actor.UserID)
+	if err != nil || voice == nil {
+		return
+	}
+	interaction.Actor.VoiceChannelID = voice.ChannelID
 }

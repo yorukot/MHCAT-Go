@@ -92,6 +92,34 @@ func (m Module) DeleteHandler() interactions.Handler {
 	}
 }
 
+func (m LockModule) LockHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{Ephemeral: true}); err != nil {
+			return err
+		}
+		voiceChannelID := strings.TrimSpace(interaction.Actor.VoiceChannelID)
+		if voiceChannelID == "" {
+			return responder.EditOriginal(ctx, voiceLockErrorMessage("你不在一個語音包廂!"))
+		}
+		password := firstOption(interaction, optionLockPassword)
+		err := m.service.SetPassword(ctx, interaction.Actor.GuildID, voiceChannelID, interaction.Actor.UserID, interaction.ChannelID, password)
+		if err != nil {
+			switch {
+			case errors.Is(err, ports.ErrVoiceRoomLockMissing):
+				return responder.EditOriginal(ctx, voiceLockErrorMessage("你不在語音包廂或該語音包廂不支援設密碼!"))
+			case errors.Is(err, ports.ErrVoiceRoomLockNotOwner):
+				return responder.EditOriginal(ctx, voiceLockErrorMessage("只有包廂房主可以設定!"))
+			default:
+				return responder.EditOriginal(ctx, voiceUnknownError(err))
+			}
+		}
+		if err := responder.EditOriginal(ctx, voiceLockSuccessMessage(password)); err != nil {
+			return err
+		}
+		return m.track(ctx, interaction, VoiceRoomLockCommandName)
+	}
+}
+
 func voiceSetSuccessMessage() responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
@@ -137,6 +165,28 @@ func voiceErrorMessage(content string) responses.Message {
 			Color: voiceErrorColor,
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func voiceLockErrorMessage(content string) responses.Message {
+	message := voiceErrorMessage(content)
+	message.Ephemeral = true
+	return message
+}
+
+func voiceLockSuccessMessage(password string) responses.Message {
+	password = strings.TrimSpace(password)
+	if password == "" {
+		password = "null"
+	}
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       legacyDoneEmoji + " | 成功進行設定",
+			Description: legacyVoiceEmoji + " 你成功對語音包廂密碼進行設定為:" + password,
+			Color:       voiceSuccessColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+		Ephemeral:       true,
 	}
 }
 
@@ -193,5 +243,17 @@ func (m Module) track(ctx context.Context, interaction interactions.Interaction,
 		UserID:      interaction.Actor.UserID,
 		GuildID:     interaction.Actor.GuildID,
 		Feature:     "voice-room-config",
+	})
+}
+
+func (m LockModule) track(ctx context.Context, interaction interactions.Interaction, commandName string) error {
+	if m.usage == nil {
+		return nil
+	}
+	return m.usage.TrackCommand(ctx, ports.UsageEvent{
+		CommandName: commandName,
+		UserID:      interaction.Actor.UserID,
+		GuildID:     interaction.Actor.GuildID,
+		Feature:     "voice-room-lock",
 	})
 }

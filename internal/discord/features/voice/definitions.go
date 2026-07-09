@@ -5,6 +5,7 @@ import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 const (
 	VoiceRoomSetCommandName    = "語音包廂設置"
 	VoiceRoomDeleteCommandName = "語音包廂刪除"
+	VoiceRoomLockCommandName   = "上鎖頻道"
 	manageMessagesPermission   = "8192"
 
 	optionTriggerChannel = "語音頻道"
@@ -12,10 +13,15 @@ const (
 	optionOwnerLock      = "是否予許房主上鎖"
 	optionUserLimit      = "設定人數上限"
 	optionChannelOrGroup = "頻道或類別"
+	optionLockPassword   = "密碼"
 )
 
 func Definitions() []commands.Definition {
 	return []commands.Definition{SetDefinition(), DeleteDefinition()}
+}
+
+func LockDefinitions() []commands.Definition {
+	return []commands.Definition{LockDefinition()}
 }
 
 func SetDefinition() commands.Definition {
@@ -66,6 +72,20 @@ func DeleteDefinition() commands.Definition {
 			Name:        optionChannelOrGroup,
 			Description: "刪除加入某個頻道後會創建新頻道的那個`某個頻道`或是類別裡的所有設定",
 			Required:    true,
+		}},
+	}
+}
+
+func LockDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        VoiceRoomLockCommandName,
+		Description: "設定語音包廂密碼",
+		Ownership:   commands.ManagedOwnership("voice-room-lock", commands.ScopeGuild),
+		Options: []commands.Option{{
+			Type:        commands.OptionTypeString,
+			Name:        optionLockPassword,
+			Description: "設定該包廂密碼，如想不設定密碼，可直接忽略此選項",
 		}},
 	}
 }

@@ -52,6 +52,7 @@ const (
 	DefaultCommandSyncIncludeXPRoleConfig           = false
 	DefaultCommandSyncIncludeXPProfileDisabled      = false
 	DefaultCommandSyncIncludeVoiceRoomConfig        = false
+	DefaultCommandSyncIncludeVoiceRoomLock          = false
 	DefaultCommandSyncIncludeJoinRoleConfig         = false
 	DefaultCommandSyncIncludeWelcomeMessageConfig   = false
 	DefaultCommandSyncIncludeVerificationConfig     = false
@@ -109,6 +110,7 @@ type CommandSyncConfig struct {
 	IncludeXPRoleConfig           bool
 	IncludeXPProfileDisabled      bool
 	IncludeVoiceRoomConfig        bool
+	IncludeVoiceRoomLock          bool
 	IncludeJoinRoleConfig         bool
 	IncludeWelcomeMessageConfig   bool
 	IncludeVerificationConfig     bool
@@ -181,6 +183,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeXPRoleConfig:           DefaultCommandSyncIncludeXPRoleConfig,
 		IncludeXPProfileDisabled:      DefaultCommandSyncIncludeXPProfileDisabled,
 		IncludeVoiceRoomConfig:        DefaultCommandSyncIncludeVoiceRoomConfig,
+		IncludeVoiceRoomLock:          DefaultCommandSyncIncludeVoiceRoomLock,
 		IncludeJoinRoleConfig:         DefaultCommandSyncIncludeJoinRoleConfig,
 		IncludeWelcomeMessageConfig:   DefaultCommandSyncIncludeWelcomeMessageConfig,
 		IncludeVerificationConfig:     DefaultCommandSyncIncludeVerificationConfig,
@@ -305,6 +308,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeVoiceRoomConfig, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG", DefaultCommandSyncIncludeVoiceRoomConfig); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeVoiceRoomLock, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK", DefaultCommandSyncIncludeVoiceRoomLock); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeJoinRoleConfig, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG", DefaultCommandSyncIncludeJoinRoleConfig); err != nil {
@@ -647,6 +653,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeVoiceRoomLock {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeJoinRoleConfig {

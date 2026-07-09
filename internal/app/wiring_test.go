@@ -1624,6 +1624,46 @@ func TestBuildRuntimeRoutesVoiceRoomConfigOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesVoiceRoomLockOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("上鎖頻道", "", map[string]string{"密碼": "secret"})
+	interaction.Actor.VoiceChannelID = "voice-1"
+	interaction.ChannelID = "text-1"
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("voice-room lock route should not be available without repository")
+	}
+
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{
+		GuildID:       "guild-1",
+		ChannelID:     "voice-1",
+		OwnerID:       "user-1",
+		TextChannelID: "old-text",
+	}
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                  validTestConfig(),
+		VoiceRoomLockRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with voice-room lock repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch voice-room lock: %v", err)
+	}
+	saved, ok := repo.Last()
+	if !ok || saved.ChannelID != "voice-1" || saved.OwnerID != "user-1" || saved.TextChannelID != "text-1" || saved.Password != "secret" {
+		t.Fatalf("saved voice-room lock = %#v ok=%v", saved, ok)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "secret") {
+		t.Fatalf("voice-room lock response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesTranslateOnlyWithProvider(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), TranslateFeatureEnabled: true})
 	if err != nil {

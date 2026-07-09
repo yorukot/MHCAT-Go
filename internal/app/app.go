@@ -556,6 +556,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.VoiceRoomConfigRepository = voiceRoomRepo
 	}
+	if cfg.FeatureVoiceRoomLockEnabled {
+		voiceRoomLockRepo, err := voiceRoomLockRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.VoiceRoomLockRepository = voiceRoomLockRepo
+	}
 	if cfg.FeatureJoinRoleConfigEnabled {
 		joinRoleRepo, err := joinRoleConfigRepositoryFromMongo(mongoClient)
 		if err != nil {
@@ -992,6 +999,22 @@ func voiceRoomConfigRepositoryFromMongo(mongoClient MongoClient) (*mongoreposito
 	repo, err := mongorepositories.NewVoiceRoomConfigRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("voice-room config feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func voiceRoomLockRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.VoiceRoomLockRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("voice-room lock feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("voice-room lock feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewVoiceRoomLockRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("voice-room lock feature repository: %w", err)
 	}
 	return repo, nil
 }

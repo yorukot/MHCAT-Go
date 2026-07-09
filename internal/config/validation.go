@@ -85,6 +85,14 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_FEATURE_WELCOME_MESSAGE_DELIVERY_ENABLED requires MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureVoiceRoomLockEnabled {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordVoiceStateIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED requires MHCAT_DISCORD_VOICE_STATE_INTENT=true", ErrInvalidConfig)
+		}
+	}
 	if err := validateLegacyWelcomeSpecialConfig(cfg); err != nil {
 		return err
 	}

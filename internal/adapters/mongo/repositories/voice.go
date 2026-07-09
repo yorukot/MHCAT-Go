@@ -15,9 +15,16 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-const VoiceRoomConfigCollectionName = "voice_channels"
+const (
+	VoiceRoomConfigCollectionName = "voice_channels"
+	VoiceRoomLockCollectionName   = "lock_channels"
+)
 
 type VoiceRoomConfigRepository struct {
+	collection *drivermongo.Collection
+}
+
+type VoiceRoomLockRepository struct {
 	collection *drivermongo.Collection
 }
 
@@ -33,6 +40,20 @@ func NewVoiceRoomConfigRepositoryFromDatabase(database *drivermongo.Database) (*
 		return nil, errors.New("mongo database is required")
 	}
 	return NewVoiceRoomConfigRepository(database.Collection(VoiceRoomConfigCollectionName))
+}
+
+func NewVoiceRoomLockRepository(collection *drivermongo.Collection) (*VoiceRoomLockRepository, error) {
+	if collection == nil {
+		return nil, errors.New("mongo voice room lock collection is required")
+	}
+	return &VoiceRoomLockRepository{collection: collection}, nil
+}
+
+func NewVoiceRoomLockRepositoryFromDatabase(database *drivermongo.Database) (*VoiceRoomLockRepository, error) {
+	if database == nil {
+		return nil, errors.New("mongo database is required")
+	}
+	return NewVoiceRoomLockRepository(database.Collection(VoiceRoomLockCollectionName))
 }
 
 func (r *VoiceRoomConfigRepository) SaveVoiceRoomConfig(ctx context.Context, config domain.VoiceRoomConfig) error {
@@ -113,6 +134,45 @@ func (r *VoiceRoomConfigRepository) DeleteVoiceRoomConfigsByParent(ctx context.C
 	return ctx.Err()
 }
 
+func (r *VoiceRoomLockRepository) GetVoiceRoomLock(ctx context.Context, guildID string, channelID string) (domain.VoiceRoomLock, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.VoiceRoomLock{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	if guildID == "" || channelID == "" {
+		return domain.VoiceRoomLock{}, domain.ErrInvalidVoiceRoomLock
+	}
+	var document documents.VoiceRoomLockDocument
+	err := r.collection.FindOne(ctx, voiceRoomLockFilter(guildID, channelID)).Decode(&document)
+	if err != nil {
+		if errors.Is(err, drivermongo.ErrNoDocuments) {
+			return domain.VoiceRoomLock{}, ports.ErrVoiceRoomLockMissing
+		}
+		return domain.VoiceRoomLock{}, mhcatmongo.MapError(fmt.Errorf("get voice room lock: %w", err))
+	}
+	return document.ToDomain(), ctx.Err()
+}
+
+func (r *VoiceRoomLockRepository) SaveVoiceRoomLock(ctx context.Context, lock domain.VoiceRoomLock) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	lock = lock.Normalize()
+	if err := lock.Validate(); err != nil {
+		return err
+	}
+	document := documents.VoiceRoomLockDocumentFromDomain(lock)
+	filter := voiceRoomLockFilter(document.Guild, document.ChannelID)
+	if _, err := r.collection.DeleteMany(ctx, filter); err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("replace voice room lock: %w", err))
+	}
+	if _, err := r.collection.InsertOne(ctx, document); err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("insert voice room lock: %w", err))
+	}
+	return ctx.Err()
+}
+
 func voiceRoomConfigUpdate(document documents.VoiceRoomConfigDocument, upsert bool) (bson.D, error) {
 	builder := mhcatmongo.NewUpdate().
 		Set("limit", document.Limit).
@@ -126,4 +186,12 @@ func voiceRoomConfigUpdate(document documents.VoiceRoomConfigDocument, upsert bo
 	return builder.Build()
 }
 
+func voiceRoomLockFilter(guildID string, channelID string) bson.D {
+	return bson.D{
+		{Key: "guild", Value: strings.TrimSpace(guildID)},
+		{Key: "channel_id", Value: strings.TrimSpace(channelID)},
+	}
+}
+
 var _ ports.VoiceRoomConfigRepository = (*VoiceRoomConfigRepository)(nil)
+var _ ports.VoiceRoomLockRepository = (*VoiceRoomLockRepository)(nil)

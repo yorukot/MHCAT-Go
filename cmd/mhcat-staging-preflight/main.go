@@ -154,6 +154,9 @@ func buildReport(lookup lookupFunc) []checkResult {
 		xpProfileDisabledRuntimePairing(lookup),
 		voiceRoomConfigCommandSync(lookup),
 		voiceRoomConfigRuntimePairing(lookup),
+		voiceRoomLockCommandSync(lookup),
+		voiceRoomLockRuntimePairing(lookup),
+		voiceRoomLockRuntimeReadiness(lookup),
 		joinRoleConfigCommandSync(lookup),
 		joinRoleConfigRuntimePairing(lookup),
 		joinRoleAssignmentRuntimeReadiness(lookup),
@@ -1389,6 +1392,67 @@ func voiceRoomConfigRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "voice-room-config-runtime-pairing", Status: statusWarn, Message: "voice-room config runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "voice-room-config-runtime-pairing", Status: statusSkipped, Message: "voice-room config runtime and command sync include are disabled"}
+}
+
+func voiceRoomLockCommandSync(lookup lookupFunc) checkResult {
+	includeVoiceRoomLock, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK")
+	if err != nil {
+		return checkResult{Name: "voice-room-lock-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeVoiceRoomLock {
+		return checkResult{Name: "voice-room-lock-command-sync", Status: statusPass, Message: "voice-room lock command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "voice-room-lock-command-sync", Status: statusSkipped, Message: "voice-room lock command sync include is disabled"}
+}
+
+func voiceRoomLockRuntimePairing(lookup lookupFunc) checkResult {
+	includeVoiceRoomLock, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK")
+	if err != nil {
+		return checkResult{Name: "voice-room-lock-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	voiceRoomLockEnabled, err := boolValue(lookup, "MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED")
+	if err != nil {
+		return checkResult{Name: "voice-room-lock-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeVoiceRoomLock && !voiceRoomLockEnabled {
+		return checkResult{Name: "voice-room-lock-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_LOCK=true requires MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED=true in the staging runtime"}
+	}
+	if includeVoiceRoomLock && voiceRoomLockEnabled {
+		return checkResult{Name: "voice-room-lock-runtime-pairing", Status: statusPass, Message: "voice-room lock command sync and runtime feature flag are paired"}
+	}
+	if voiceRoomLockEnabled {
+		return checkResult{Name: "voice-room-lock-runtime-pairing", Status: statusWarn, Message: "voice-room lock runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "voice-room-lock-runtime-pairing", Status: statusSkipped, Message: "voice-room lock runtime and command sync include are disabled"}
+}
+
+func voiceRoomLockRuntimeReadiness(lookup lookupFunc) checkResult {
+	voiceRoomLockEnabled, err := boolValue(lookup, "MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED")
+	if err != nil {
+		return checkResult{Name: "voice-room-lock-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !voiceRoomLockEnabled {
+		return checkResult{Name: "voice-room-lock-runtime-readiness", Status: statusSkipped, Message: "voice-room lock runtime is disabled"}
+	}
+	var missing []string
+	gateway, err := boolValue(lookup, "MHCAT_DISCORD_ENABLE_GATEWAY")
+	if err != nil {
+		return checkResult{Name: "voice-room-lock-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !gateway {
+		missing = append(missing, "MHCAT_DISCORD_ENABLE_GATEWAY=true")
+	}
+	voiceState, err := boolValue(lookup, "MHCAT_DISCORD_VOICE_STATE_INTENT")
+	if err != nil {
+		return checkResult{Name: "voice-room-lock-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !voiceState {
+		missing = append(missing, "MHCAT_DISCORD_VOICE_STATE_INTENT=true")
+	}
+	if len(missing) > 0 {
+		return checkResult{Name: "voice-room-lock-runtime-readiness", Status: statusFail, Message: "voice-room lock requires " + strings.Join(missing, ", ")}
+	}
+	return checkResult{Name: "voice-room-lock-runtime-readiness", Status: statusPass, Message: "voice-room lock gateway and Voice State intent flags are enabled"}
 }
 
 func joinRoleConfigCommandSync(lookup lookupFunc) checkResult {

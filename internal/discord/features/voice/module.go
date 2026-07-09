@@ -12,9 +12,21 @@ type Module struct {
 	usage   ports.UsageTracker
 }
 
+type LockModule struct {
+	service coreservice.LockService
+	usage   ports.UsageTracker
+}
+
 func NewModule(repo ports.VoiceRoomConfigRepository, usage ports.UsageTracker) Module {
 	return Module{
 		service: coreservice.NewConfigService(repo),
+		usage:   usage,
+	}
+}
+
+func NewLockModule(repo ports.VoiceRoomLockRepository, usage ports.UsageTracker) LockModule {
+	return LockModule{
+		service: coreservice.NewLockService(repo),
 		usage:   usage,
 	}
 }
@@ -23,8 +35,16 @@ func (m Module) Name() string {
 	return "voice-room-config"
 }
 
+func (m LockModule) Name() string {
+	return "voice-room-lock"
+}
+
 func (m Module) Commands() []commands.Definition {
 	return Definitions()
+}
+
+func (m LockModule) Commands() []commands.Definition {
+	return LockDefinitions()
 }
 
 func (m Module) RegisterRoutes(router *interactions.Router) error {
@@ -32,4 +52,8 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 		return err
 	}
 	return router.RegisterSlash(VoiceRoomDeleteCommandName, m.DeleteHandler())
+}
+
+func (m LockModule) RegisterRoutes(router *interactions.Router) error {
+	return router.RegisterSlash(VoiceRoomLockCommandName, m.LockHandler())
 }
