@@ -321,6 +321,37 @@ func TestBuildRuntimeRoutesEconomySettingsWithoutPublishingQueryOrSignIn(t *test
 	}
 }
 
+func TestBuildRuntimeRoutesEconomyCoinAdminWithoutPublishingQueryOrSignIn(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                     validTestConfig(),
+		EconomyCoinAdminRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with economy coin-admin repo: %v", err)
+	}
+	for _, commandName := range []string{"代幣查詢", "簽到", "coin-related-settings"} {
+		responder := fakediscord.NewResponder()
+		if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction(commandName), responder); err == nil {
+			t.Fatalf("%s route should not be available with coin-admin repository alone", commandName)
+		}
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("代幣增加", "", map[string]string{
+		"使用者":   "user-2",
+		"增加或減少": "add",
+		"數量":    "25",
+	})
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch coin admin: %v", err)
+	}
+	balance, err := repo.GetCoinBalance(context.Background(), "guild-1", "user-2")
+	if err != nil || balance.Coins != 25 {
+		t.Fatalf("balance=%#v err=%v", balance, err)
+	}
+}
+
 func TestBuildRuntimeRoutesWorkOnlyWhenEnabled(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

@@ -1,9 +1,13 @@
 package economy
 
-import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
+import (
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
+)
 
 const (
 	CoinQueryCommandName       = "代幣查詢"
+	CoinAdminCommandName       = "代幣增加"
 	SignInCommandName          = "簽到"
 	SignInListCommandName      = "簽到列表"
 	EconomySettingsCommandName = "coin-related-settings"
@@ -22,6 +26,10 @@ func SignInDefinitions() []commands.Definition {
 
 func SettingsDefinitions() []commands.Definition {
 	return []commands.Definition{SettingsDefinition()}
+}
+
+func CoinAdminDefinitions() []commands.Definition {
+	return []commands.Definition{CoinAdminDefinition()}
 }
 
 func CoinQueryDefinition() commands.Definition {
@@ -59,6 +67,44 @@ func SignInListDefinition() commands.Definition {
 		Description: "查看今天有誰簽到了",
 		DocsURL:     "https://docsmhcat.yorukot.me/docs/snig",
 		Ownership:   commands.ManagedOwnership("economy-signin", commands.ScopeGuild),
+	}
+}
+
+func CoinAdminDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        CoinAdminCommandName,
+		Description: "改變扭蛋數量",
+		DocsURL:     "https://docsmhcat.yorukot.meocs/coin_increase",
+		Ownership:   commands.ManagedOwnership("economy-coin-admin", commands.ScopeGuild),
+		Options: []commands.Option{
+			{
+				Type:        commands.OptionTypeUser,
+				Name:        "使用者",
+				Description: "要改變的人",
+				Required:    true,
+			},
+			{
+				Type:        commands.OptionTypeString,
+				Name:        "增加或減少",
+				Description: "輸入這個獎品叫甚麼，以及簡單概述",
+				DescriptionLocalizations: map[string]string{
+					"en-US": "test",
+					"zh-TW": "tetse",
+				},
+				Required: true,
+				Choices: []commands.Choice{
+					{Name: "增加", Value: string(domain.CoinAdminOperationAdd)},
+					{Name: "減少", Value: string(domain.CoinAdminOperationReduce)},
+				},
+			},
+			{
+				Type:        commands.OptionTypeInteger,
+				Name:        "數量",
+				Description: "增加或減少的數量",
+				Required:    true,
+			},
+		},
 	}
 }
 

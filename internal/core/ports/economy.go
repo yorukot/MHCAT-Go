@@ -12,6 +12,7 @@ var (
 	ErrEconomyConfigMissing = errors.New("economy config not found")
 	ErrAlreadySignedIn      = errors.New("already signed in")
 	ErrCoinLimitExceeded    = errors.New("coin limit exceeded")
+	ErrCoinNegativeBalance  = errors.New("coin balance would be negative")
 )
 
 type EconomyQueryRepository interface {
@@ -30,4 +31,8 @@ type EconomySignInRepository interface {
 
 type EconomySettingsRepository interface {
 	SaveEconomyConfig(ctx context.Context, config domain.EconomyConfig) (domain.EconomyConfig, error)
+}
+
+type EconomyCoinAdminRepository interface {
+	AdjustCoinBalance(ctx context.Context, command domain.CoinAdminCommand) (domain.CoinAdminResult, error)
 }

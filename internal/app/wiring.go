@@ -48,6 +48,7 @@ type RuntimeOptions struct {
 	EconomyQueryRepository        ports.EconomyQueryRepository
 	EconomySignInRepository       ports.EconomySignInRepository
 	EconomySettingsRepository     ports.EconomySettingsRepository
+	EconomyCoinAdminRepository    ports.EconomyCoinAdminRepository
 	WorkInterfaceRepository       ports.WorkInterfaceRepository
 	WorkStartRepository           ports.WorkStartRepository
 	WorkAdminRepository           ports.WorkAdminRepository
@@ -130,6 +131,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.EconomySettingsRepository != nil {
 		definitions = append(definitions, featureeconomy.SettingsDefinitions()...)
+	}
+	if opts.EconomyCoinAdminRepository != nil {
+		definitions = append(definitions, featureeconomy.CoinAdminDefinitions()...)
 	}
 	if opts.WorkFeatureEnabled {
 		definitions = append(definitions, featurework.Definitions()...)
@@ -274,6 +278,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.EconomySettingsRepository != nil {
 		settingsModule := featureeconomy.NewSettingsModule(opts.EconomySettingsRepository, concreteDiscord, opts.UsageTracker)
 		if err := settingsModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.EconomyCoinAdminRepository != nil {
+		coinAdminModule := featureeconomy.NewCoinAdminModule(opts.EconomyCoinAdminRepository, concreteDiscord, opts.UsageTracker)
+		if err := coinAdminModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

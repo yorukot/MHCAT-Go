@@ -135,6 +135,67 @@ func (r *EconomyRepository) SaveEconomyConfig(ctx context.Context, config domain
 	return config, ctx.Err()
 }
 
+func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domain.CoinAdminCommand) (domain.CoinAdminResult, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.CoinAdminResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.CoinAdminResult{}, err
+	}
+	delta, err := command.SignedDelta()
+	if err != nil {
+		return domain.CoinAdminResult{}, err
+	}
+	current, err := r.GetCoinBalance(ctx, command.GuildID, command.UserID)
+	if err != nil {
+		if errors.Is(err, ports.ErrCoinBalanceNotFound) && command.Operation == domain.CoinAdminOperationAdd {
+			if command.Amount > coreeconomy.MaxLegacyCoinBalance {
+				return domain.CoinAdminResult{}, ports.ErrCoinLimitExceeded
+			}
+			balance := domain.CoinBalance{
+				GuildID: command.GuildID,
+				UserID:  command.UserID,
+				Coins:   command.Amount,
+				Today:   1,
+			}
+			if _, err := r.coins.InsertOne(ctx, bson.D{
+				{Key: "guild", Value: balance.GuildID},
+				{Key: "member", Value: balance.UserID},
+				{Key: "coin", Value: balance.Coins},
+				{Key: "today", Value: balance.Today},
+			}); err != nil {
+				return domain.CoinAdminResult{}, mhcatmongo.MapError(fmt.Errorf("create coin admin balance: %w", err))
+			}
+			return domain.CoinAdminResult{Balance: balance, Delta: delta, Created: true}, ctx.Err()
+		}
+		if errors.Is(err, ports.ErrCoinBalanceNotFound) && command.Operation == domain.CoinAdminOperationReduce {
+			return domain.CoinAdminResult{}, ports.ErrCoinNegativeBalance
+		}
+		return domain.CoinAdminResult{}, err
+	}
+	next := current.Coins + delta
+	if next < 0 {
+		return domain.CoinAdminResult{}, ports.ErrCoinNegativeBalance
+	}
+	if next > coreeconomy.MaxLegacyCoinBalance {
+		return domain.CoinAdminResult{}, ports.ErrCoinLimitExceeded
+	}
+	result, err := r.coins.UpdateMany(
+		ctx,
+		bson.D{{Key: "guild", Value: command.GuildID}, {Key: "member", Value: command.UserID}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: next}}}},
+	)
+	if err != nil {
+		return domain.CoinAdminResult{}, mhcatmongo.MapError(fmt.Errorf("adjust coin admin balance: %w", err))
+	}
+	if result.MatchedCount == 0 {
+		return domain.CoinAdminResult{}, ports.ErrCoinBalanceNotFound
+	}
+	current.Coins = next
+	return domain.CoinAdminResult{Balance: current, Delta: delta}, ctx.Err()
+}
+
 func (r *EconomyRepository) SignIn(ctx context.Context, command domain.SignInCommand) (domain.SignInResult, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.SignInResult{}, err

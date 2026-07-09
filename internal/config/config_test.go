@@ -123,6 +123,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureEconomySettingsEnabled {
 		t.Fatal("economy settings feature must be disabled by default")
 	}
+	if cfg.FeatureEconomyCoinAdminEnabled {
+		t.Fatal("economy coin-admin feature must be disabled by default")
+	}
 	if cfg.FeatureWorkEnabled {
 		t.Fatal("work feature must be disabled by default")
 	}
@@ -839,6 +842,21 @@ func TestFeatureDeleteDataConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureDeleteDataEnabled {
 		t.Fatal("expected delete data feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureEconomyCoinAdminConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                      "token",
+		"MHCAT_MONGODB_URI":                        "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                   "mhcat",
+		"MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureEconomyCoinAdminEnabled {
+		t.Fatal("expected economy coin-admin feature to be enabled explicitly")
 	}
 }
 

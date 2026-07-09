@@ -305,7 +305,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		opts.PollMessagePort = sideEffects
 		opts.PollMemberCounter = sideEffects
 	}
-	if cfg.FeatureEconomyQueryEnabled || cfg.FeatureEconomySignInEnabled {
+	if cfg.FeatureEconomyQueryEnabled || cfg.FeatureEconomySignInEnabled || cfg.FeatureEconomyCoinAdminEnabled {
 		economyRepo, err := economyRepositoryFromMongo(mongoClient)
 		if err != nil {
 			return nil, err
@@ -315,6 +315,9 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		if cfg.FeatureEconomySignInEnabled {
 			opts.EconomySignInRepository = economyRepo
+		}
+		if cfg.FeatureEconomyCoinAdminEnabled {
+			opts.EconomyCoinAdminRepository = economyRepo
 		}
 	}
 	if cfg.FeatureEconomySettingsEnabled {

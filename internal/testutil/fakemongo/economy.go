@@ -82,6 +82,43 @@ func (r *EconomyRepository) SaveEconomyConfig(ctx context.Context, config domain
 	return config, nil
 }
 
+func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domain.CoinAdminCommand) (domain.CoinAdminResult, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.CoinAdminResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.CoinAdminResult{}, err
+	}
+	delta, err := command.SignedDelta()
+	if err != nil {
+		return domain.CoinAdminResult{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	key := economyBalanceKey(command.GuildID, command.UserID)
+	balance, ok := r.Balances[key]
+	if !ok {
+		if command.Operation == domain.CoinAdminOperationReduce {
+			return domain.CoinAdminResult{}, ports.ErrCoinNegativeBalance
+		}
+		balance = domain.CoinBalance{GuildID: command.GuildID, UserID: command.UserID, Coins: command.Amount, Today: 1}
+		r.Balances[key] = balance
+		r.balanceOrder = append(r.balanceOrder, key)
+		return domain.CoinAdminResult{Balance: balance, Delta: delta, Created: true}, nil
+	}
+	next := balance.Coins + delta
+	if next < 0 {
+		return domain.CoinAdminResult{}, ports.ErrCoinNegativeBalance
+	}
+	if next > 999999999 {
+		return domain.CoinAdminResult{}, ports.ErrCoinLimitExceeded
+	}
+	balance.Coins = next
+	r.Balances[key] = balance
+	return domain.CoinAdminResult{Balance: balance, Delta: delta}, nil
+}
+
 func (r *EconomyRepository) SignIn(ctx context.Context, command domain.SignInCommand) (domain.SignInResult, error) {
 	if err := r.ready(ctx); err != nil {
 		return domain.SignInResult{}, err
@@ -167,6 +204,7 @@ func economyBalanceKey(guildID string, userID string) string {
 var _ ports.EconomyRepository = (*EconomyRepository)(nil)
 var _ ports.EconomySignInRepository = (*EconomyRepository)(nil)
 var _ ports.EconomySettingsRepository = (*EconomyRepository)(nil)
+var _ ports.EconomyCoinAdminRepository = (*EconomyRepository)(nil)
 
 func cloneSignCalendar(calendar domain.SignCalendar) domain.SignCalendar {
 	cloned := domain.SignCalendar{

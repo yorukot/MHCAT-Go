@@ -15,6 +15,7 @@ type Module struct {
 	signIn       coreeconomy.SignInService
 	signInList   coreeconomy.SignInListService
 	settings     coreeconomy.SettingsService
+	coinAdmin    coreeconomy.CoinAdminService
 	discord      ports.DiscordInfoProvider
 	usage        ports.UsageTracker
 	clock        ports.Clock
@@ -77,6 +78,17 @@ func NewSettingsModule(repo ports.EconomySettingsRepository, discordInfo ports.D
 	}
 }
 
+func NewCoinAdminModule(repo ports.EconomyCoinAdminRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
+	return Module{
+		coinAdmin: coreeconomy.CoinAdminService{Repository: repo},
+		discord:   discordInfo,
+		usage:     usage,
+		color:     legacyRandomColor,
+		defs:      CoinAdminDefinitions(),
+		feature:   "economy-coin-admin",
+	}
+}
+
 func (m Module) Name() string {
 	return m.feature
 }
@@ -109,6 +121,11 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 	}
 	if m.settings.Repository != nil {
 		if err := router.RegisterSlash(EconomySettingsCommandName, m.SettingsHandler()); err != nil {
+			return err
+		}
+	}
+	if m.coinAdmin.Repository != nil {
+		if err := router.RegisterSlash(CoinAdminCommandName, m.CoinAdminHandler()); err != nil {
 			return err
 		}
 	}

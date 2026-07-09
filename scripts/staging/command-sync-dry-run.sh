@@ -29,6 +29,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS:-false}" = "true" ] && [ "${
   echo "refusing command sync: economy settings command dry-run requires MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: economy coin-admin command dry-run requires MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WORK:-false}" = "true" ] && [ "${MHCAT_FEATURE_WORK_ENABLED:-false}" != "true" ]; then
   echo "refusing command sync: work command dry-run requires MHCAT_FEATURE_WORK_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -178,6 +182,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS:-false}" = "true" ]; then
   echo "staging command sync dry-run: including economy settings command for review" >&2
 else
   echo "staging command sync dry-run: economy settings command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including economy coin-admin command for review" >&2
+else
+  echo "staging command sync dry-run: economy coin-admin command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WORK:-false}" = "true" ]; then
   echo "staging command sync dry-run: including work command for review" >&2

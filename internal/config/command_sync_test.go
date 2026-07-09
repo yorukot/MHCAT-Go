@@ -64,6 +64,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeEconomySettings {
 		t.Fatal("include economy settings must default false")
 	}
+	if cfg.IncludeEconomyCoinAdmin {
+		t.Fatal("include economy coin-admin must default false")
+	}
 	if cfg.IncludeWork {
 		t.Fatal("include work must default false")
 	}
@@ -1203,6 +1206,48 @@ func TestCommandSyncIncludeDeleteDataStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeDeleteData {
 		t.Fatal("expected include delete data to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeEconomyCoinAdminRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                           "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                  "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                   "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include economy coin-admin without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeEconomyCoinAdminRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                           "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                  "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                      "global",
+		"MHCAT_STAGING_MODE":                            "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include economy coin-admin with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeEconomyCoinAdminStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                           "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                  "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                   "guild",
+		"MHCAT_STAGING_MODE":                            "true",
+		"MHCAT_STAGING_GUILD_ID":                        "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeEconomyCoinAdmin {
+		t.Fatal("expected include economy coin-admin to be enabled explicitly")
 	}
 }
 

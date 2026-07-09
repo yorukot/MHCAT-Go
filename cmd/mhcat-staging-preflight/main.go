@@ -93,6 +93,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		economySignInRuntimePairing(lookup),
 		economySettingsCommandSync(lookup),
 		economySettingsRuntimePairing(lookup),
+		economyCoinAdminCommandSync(lookup),
+		economyCoinAdminRuntimePairing(lookup),
 		workCommandSync(lookup),
 		workRuntimePairing(lookup),
 		warningsCommandSync(lookup),
@@ -377,6 +379,38 @@ func economySettingsRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "economy-settings-runtime-pairing", Status: statusWarn, Message: "economy settings runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "economy-settings-runtime-pairing", Status: statusSkipped, Message: "economy settings runtime and command sync include are disabled"}
+}
+
+func economyCoinAdminCommandSync(lookup lookupFunc) checkResult {
+	includeCoinAdmin, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN")
+	if err != nil {
+		return checkResult{Name: "economy-coin-admin-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeCoinAdmin {
+		return checkResult{Name: "economy-coin-admin-command-sync", Status: statusPass, Message: "economy coin-admin command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "economy-coin-admin-command-sync", Status: statusSkipped, Message: "economy coin-admin command sync include is disabled"}
+}
+
+func economyCoinAdminRuntimePairing(lookup lookupFunc) checkResult {
+	includeCoinAdmin, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN")
+	if err != nil {
+		return checkResult{Name: "economy-coin-admin-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	coinAdminEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED")
+	if err != nil {
+		return checkResult{Name: "economy-coin-admin-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeCoinAdmin && !coinAdminEnabled {
+		return checkResult{Name: "economy-coin-admin-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true requires MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true in the staging runtime"}
+	}
+	if includeCoinAdmin && coinAdminEnabled {
+		return checkResult{Name: "economy-coin-admin-runtime-pairing", Status: statusPass, Message: "economy coin-admin command sync and runtime feature flag are paired"}
+	}
+	if coinAdminEnabled {
+		return checkResult{Name: "economy-coin-admin-runtime-pairing", Status: statusWarn, Message: "economy coin-admin runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "economy-coin-admin-runtime-pairing", Status: statusSkipped, Message: "economy coin-admin runtime and command sync include are disabled"}
 }
 
 func workCommandSync(lookup lookupFunc) checkResult {

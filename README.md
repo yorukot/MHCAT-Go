@@ -42,7 +42,7 @@ This module currently provides:
 - Platform Wave B collection-name contract tests for legacy Mongoose compatibility.
 - ticket config BSON compatibility and repository contract foundation.
 - poll BSON compatibility, repository contract foundation, and gated create/vote/owner-menu/result/chart/export handlers.
-- economy `coins`/`gift_changes` BSON compatibility, read-only query repository, gated `/代幣查詢` handler, gated `/簽到` sign-in write slice, and gated `coin-related-settings` config write slice.
+- economy `coins`/`gift_changes` BSON compatibility, read-only query repository, gated `/代幣查詢` handler, gated `/簽到` sign-in write slice, gated `coin-related-settings` config write slice, and gated `/代幣增加` admin coin write slice.
 - gated `打工系統` command schema, legacy dashboard-redirect UI for `新增打工事項`, legacy-style `打工介面` list/detail/start UI, and admin setup/delete/energy flows with explicit work repository writes.
 - gated read-only `/警告紀錄` warning-history lookup with legacy embed text and safer permission/member-cache handling.
 - gated `/警告設定` warning escalation config command with rollback-compatible `errors_sets` writes.
@@ -77,7 +77,7 @@ Not implemented yet:
 - default Mongo index creation;
 - production feature writes.
 - ticket and poll runtime commands/components unless their explicit feature flags are enabled.
-- economy query/sign-in/settings runtime and command sync unless their explicit feature flags are enabled.
+- economy query/sign-in/settings/coin-admin runtime and command sync unless their explicit feature flags are enabled.
 - recurring scheduler loops for daily reset, work payout, and automatic notifications; the lease primitive exists but is not wired into bot startup.
 - reaction-role moderation commands.
 - message/channel/voice logging event emitters.
@@ -94,6 +94,7 @@ Implemented utility commands:
 - `/代幣查詢` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_QUERY_ENABLED=true`
 - `/簽到` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`
 - `/coin-related-settings` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`
+- `/代幣增加` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`
 - `/打工系統 新增打工事項` dashboard redirect, `/打工系統 打工介面` list/detail/start flow, and work admin setup/delete/energy flows when explicitly enabled with `MHCAT_FEATURE_WORK_ENABLED=true`
 - `/警告紀錄` when explicitly enabled with `MHCAT_FEATURE_WARNINGS_ENABLED=true`
 - `/警告設定` when explicitly enabled with `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true`
@@ -138,9 +139,11 @@ Implemented event features:
 
 Not implemented yet:
 
-- role button, most economy writes, text/voice XP accrual, rank cards, gacha draw/add/edit/delete/shop, gift, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats channel creation/deletion/rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
+- role button, remaining economy game/profile/shop/rank/reset writes, text/voice XP accrual, rank cards, gacha draw/add/edit/delete/shop, gift, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats channel creation/deletion/rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete, and the daily reset is either run by the explicit one-shot tool under an operator process or owned by a future lease-backed scheduler.
+
+`/代幣增加` is a disabled-by-default staging admin write slice. It requires Manage Messages, writes legacy-compatible `coins` rows, rejects negative balances and balances above `999999999`, and must be paired with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
 
 `/自動通知列表` and `/自動通知刪除` are config-maintenance commands only. They read/delete legacy `cron_sets` rows behind `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`; they do not implement `automatic-notification`, cron setup modals/selects, scheduler ownership, or notification sends.
 
@@ -176,6 +179,7 @@ Safe defaults:
 - `MHCAT_FEATURE_ECONOMY_QUERY_ENABLED=false`
 - `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=false`
 - `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=false`
+- `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=false`
 - `MHCAT_FEATURE_WORK_ENABLED=false`
 - `MHCAT_FEATURE_WARNINGS_ENABLED=false`
 - `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=false`
@@ -249,6 +253,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_QUERY=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_WORK=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=false`

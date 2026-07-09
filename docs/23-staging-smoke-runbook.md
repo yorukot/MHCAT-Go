@@ -54,6 +54,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true
 
 Set both together only in an isolated staging database when testing `/coin-related-settings`. This path writes `gift_changes`, which is shared by gacha, sign-in, daily reset, and XP reward behavior.
 
+Optional economy coin-admin smoke flags:
+
+```bash
+export MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true
+```
+
+Set both together only in an isolated staging database when testing `/代幣增加`. This path writes `coins`, requires Manage Messages, and should use disposable balance rows only.
+
 Optional work command smoke flags:
 
 ```bash
@@ -337,6 +346,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_QUERY=true`, confirm `MHCAT_FEATURE_ECONOMY_QUERY_ENABLED=true`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true`, confirm `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`, confirm `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true` and the database is isolated staging data.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`, the database is isolated staging data, and all target `coins` rows are disposable.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`, confirm `MHCAT_FEATURE_WORK_ENABLED=true` and that the test accepts the partial work command surface.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=true`, confirm `MHCAT_FEATURE_WARNINGS_ENABLED=true` and the staging guild has safe warning-history fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=true`, confirm `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true` and the staging database is isolated because `/警告設定` writes `errors_sets`.
@@ -420,6 +430,13 @@ For economy settings staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`;
 - `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`;
 - plan includes managed `coin-related-settings`;
+- plan still performs no create/update/delete during dry-run.
+
+For economy coin-admin staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true`;
+- `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`;
+- plan includes managed `代幣增加`;
 - plan still performs no create/update/delete during dry-run.
 
 For work command staging smoke, expected additionally:
@@ -623,6 +640,13 @@ If economy sign-in inclusion is enabled, expected:
 - no bulk overwrite;
 - no global command mutation.
 
+If economy coin-admin inclusion is enabled, expected:
+
+- create/update managed `代幣增加` only in addition to the utility commands;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
 If work command inclusion is enabled, expected:
 
 - create/update managed `打工系統` only in addition to the utility commands;
@@ -774,6 +798,17 @@ If economy query flags were enabled and command sync apply was reviewed:
 - `/代幣查詢 使用者:<staging member>`
 - verify no-balance users receive the legacy red embed;
 - verify users with `coins` data receive the legacy balance embed.
+
+If economy coin-admin flags were enabled and command sync apply was reviewed:
+
+- seed or choose only disposable staging `coins` rows for the target member;
+- run `/代幣增加 使用者:<staging member> 增加或減少:增加 數量:1` with a Manage Messages test account;
+- verify the legacy success embed title shows the target username, operation, and amount;
+- verify a missing target row is created only for add operations, with `coin` incremented and `today` stored compatibly;
+- run `/代幣增加 使用者:<staging member> 增加或減少:減少 數量:1` and verify the balance decreases without going negative;
+- run a reduce larger than the disposable balance and verify the legacy red `不可減到負數!` embed appears with no balance mutation;
+- seed a disposable balance near `999999999`, add past the max, and verify the legacy red max-balance embed appears with no balance mutation;
+- verify command access is denied without Manage Messages.
 
 If redeem flags were enabled and command sync apply was reviewed:
 
@@ -938,6 +973,7 @@ Verify:
 - no command deletion happened;
 - no Mongo feature write happened.
   - Exception: ticket smoke writes the legacy-compatible `tickets` config only after successful modal submit.
+  - Exception: economy coin-admin smoke writes disposable staging `coins` rows only.
   - Exception: logging-config smoke writes the legacy-compatible `loggings` config only after the setup select is submitted.
   - Exception: delete-data smoke deletes selected disposable staging config rows only.
   - Exception: auto-notification config smoke deletes selected `cron_sets` rows and abandoned pending drafts only.

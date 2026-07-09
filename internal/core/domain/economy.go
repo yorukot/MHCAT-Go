@@ -2,12 +2,21 @@ package domain
 
 import (
 	"errors"
+	"strings"
 	"time"
 )
 
 var ErrInvalidEconomyQuery = errors.New("invalid economy query")
 var ErrInvalidSignIn = errors.New("invalid sign in")
 var ErrInvalidEconomySettings = errors.New("invalid economy settings")
+var ErrInvalidCoinAdminCommand = errors.New("invalid coin admin command")
+
+type CoinAdminOperation string
+
+const (
+	CoinAdminOperationAdd    CoinAdminOperation = "add"
+	CoinAdminOperationReduce CoinAdminOperation = "reduce"
+)
 
 type CoinBalance struct {
 	GuildID string
@@ -93,4 +102,50 @@ type EconomySettingsCommand struct {
 	SignCoins         int64
 	NotificationID    string
 	XPMultiple        float64
+}
+
+type CoinAdminCommand struct {
+	GuildID   string
+	UserID    string
+	Operation CoinAdminOperation
+	Amount    int64
+}
+
+type CoinAdminResult struct {
+	Balance CoinBalance
+	Delta   int64
+	Created bool
+}
+
+func (c CoinAdminCommand) Normalize() CoinAdminCommand {
+	return CoinAdminCommand{
+		GuildID:   strings.TrimSpace(c.GuildID),
+		UserID:    strings.TrimSpace(c.UserID),
+		Operation: CoinAdminOperation(strings.TrimSpace(string(c.Operation))),
+		Amount:    c.Amount,
+	}
+}
+
+func (c CoinAdminCommand) Validate() error {
+	c = c.Normalize()
+	if c.GuildID == "" || c.UserID == "" || c.Amount <= 0 {
+		return ErrInvalidCoinAdminCommand
+	}
+	switch c.Operation {
+	case CoinAdminOperationAdd, CoinAdminOperationReduce:
+		return nil
+	default:
+		return ErrInvalidCoinAdminCommand
+	}
+}
+
+func (c CoinAdminCommand) SignedDelta() (int64, error) {
+	c = c.Normalize()
+	if err := c.Validate(); err != nil {
+		return 0, err
+	}
+	if c.Operation == CoinAdminOperationReduce {
+		return -c.Amount, nil
+	}
+	return c.Amount, nil
 }
