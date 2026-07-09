@@ -8,12 +8,12 @@ import (
 var ErrInvalidBirthdayConfig = errors.New("invalid birthday config")
 
 type BirthdayConfig struct {
-	GuildID                       string
-	Message                       string
-	UTCOffset                     string
-	ChannelID                     string
-	EveryoneCanSetBirthdayDate    bool
-	RoleID                        string
+	GuildID                    string
+	Message                    string
+	UTCOffset                  string
+	ChannelID                  string
+	EveryoneCanSetBirthdayDate bool
+	RoleID                     string
 }
 
 func (c BirthdayConfig) Validate() error {

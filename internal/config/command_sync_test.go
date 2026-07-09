@@ -380,9 +380,9 @@ func TestCommandSyncIncludeAnnouncementConfigRequiresStagingMode(t *testing.T) {
 
 func TestCommandSyncIncludeBirthdayConfigRequiresStagingMode(t *testing.T) {
 	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
-		"MHCAT_DISCORD_TOKEN":                         "token",
-		"MHCAT_DISCORD_APPLICATION_ID":                "app",
-		"MHCAT_COMMAND_SYNC_GUILD_ID":                 "guild",
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                "guild",
 		"MHCAT_COMMAND_SYNC_INCLUDE_BIRTHDAY_CONFIG": "true",
 	}))
 	if err == nil {
@@ -392,10 +392,10 @@ func TestCommandSyncIncludeBirthdayConfigRequiresStagingMode(t *testing.T) {
 
 func TestCommandSyncIncludeBirthdayConfigRequiresGuildScope(t *testing.T) {
 	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
-		"MHCAT_DISCORD_TOKEN":                         "token",
-		"MHCAT_DISCORD_APPLICATION_ID":                "app",
-		"MHCAT_COMMAND_SYNC_SCOPE":                    "global",
-		"MHCAT_STAGING_MODE":                          "true",
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                   "global",
+		"MHCAT_STAGING_MODE":                         "true",
 		"MHCAT_COMMAND_SYNC_INCLUDE_BIRTHDAY_CONFIG": "true",
 	}))
 	if err == nil {
@@ -405,11 +405,11 @@ func TestCommandSyncIncludeBirthdayConfigRequiresGuildScope(t *testing.T) {
 
 func TestCommandSyncIncludeBirthdayConfigStagingGuildParses(t *testing.T) {
 	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
-		"MHCAT_DISCORD_TOKEN":                         "token",
-		"MHCAT_DISCORD_APPLICATION_ID":                "app",
-		"MHCAT_COMMAND_SYNC_GUILD_ID":                 "guild",
-		"MHCAT_STAGING_MODE":                          "true",
-		"MHCAT_STAGING_GUILD_ID":                      "guild",
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                "guild",
+		"MHCAT_STAGING_MODE":                         "true",
+		"MHCAT_STAGING_GUILD_ID":                     "guild",
 		"MHCAT_COMMAND_SYNC_INCLUDE_BIRTHDAY_CONFIG": "true",
 	}))
 	if err != nil {

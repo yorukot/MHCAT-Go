@@ -3,12 +3,12 @@ package documents
 import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 
 type BirthdayConfigDocument struct {
-	Guild                        string  `bson:"guild" json:"guild"`
-	Message                      string  `bson:"msg" json:"msg"`
-	UTCOffset                    string  `bson:"utc" json:"utc"`
-	Channel                      string  `bson:"channel" json:"channel"`
-	EveryoneCanSetBirthdayDate   bool    `bson:"everyone_can_set_birthday_date" json:"everyone_can_set_birthday_date"`
-	Role                         *string `bson:"role" json:"role"`
+	Guild                      string  `bson:"guild" json:"guild"`
+	Message                    string  `bson:"msg" json:"msg"`
+	UTCOffset                  string  `bson:"utc" json:"utc"`
+	Channel                    string  `bson:"channel" json:"channel"`
+	EveryoneCanSetBirthdayDate bool    `bson:"everyone_can_set_birthday_date" json:"everyone_can_set_birthday_date"`
+	Role                       *string `bson:"role" json:"role"`
 }
 
 func BirthdayConfigDocumentFromDomain(config domain.BirthdayConfig) BirthdayConfigDocument {

@@ -30,7 +30,7 @@ func TestDefinitionMatchesLegacyCommandShape(t *testing.T) {
 	if config.Options[2].Name != optionEveryoneCanSet || config.Options[2].Type != commands.OptionTypeBoolean || !config.Options[2].Required {
 		t.Fatalf("can-set option = %#v", config.Options[2])
 	}
-	if config.Options[3].Name != optionUTC || len(config.Options[3].Choices) != 24 || config.Options[3].Choices[8].Value != "+08:00" || config.Options[3].Choices[23].Name != "UTC+23" {
+	if config.Options[3].Name != optionUTC || len(config.Options[3].Choices) != 24 || config.Options[3].Choices[0].Name != "UTC+0" || config.Options[3].Choices[8].Value != "+08:00" || config.Options[3].Choices[23].Name != "UTC+23" {
 		t.Fatalf("utc option = %#v", config.Options[3])
 	}
 	if config.Options[4].Name != optionRole || config.Options[4].Type != commands.OptionTypeRole || config.Options[4].Required {

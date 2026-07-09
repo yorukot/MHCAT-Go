@@ -73,6 +73,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY:-false}" = "true" ] && [ "${MHCAT
   echo "refusing apply: stats query command apply requires MHCAT_FEATURE_STATS_QUERY_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_BIRTHDAY_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_BIRTHDAY_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: birthday config command apply requires MHCAT_FEATURE_BIRTHDAY_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED:-false}" != "true" ]; then
   echo "refusing apply: announcement config command apply requires MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -170,6 +174,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY:-false}" = "true" ]; then
   echo "staging command sync apply: including stats query command" >&2
 else
   echo "staging command sync apply: stats query command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_BIRTHDAY_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync apply: including birthday config command" >&2
+else
+  echo "staging command sync apply: birthday config command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG:-false}" = "true" ]; then
   echo "staging command sync apply: including announcement config command" >&2

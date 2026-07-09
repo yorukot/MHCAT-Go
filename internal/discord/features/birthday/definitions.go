@@ -1,6 +1,10 @@
 package birthday
 
-import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
+import (
+	"fmt"
+
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
+)
 
 const (
 	BirthdayCommandName = "生日系統"
@@ -11,16 +15,16 @@ const (
 	subcommandAllowAdmin = "是否允許管理員設定"
 	subcommandList       = "生日列表"
 
-	optionMessage          = "祝福語"
-	optionChannel          = "頻道"
-	optionEveryoneCanSet   = "是否可以自行設定生日"
-	optionUTC              = "時區"
-	optionRole             = "給予身分組"
-	optionBirthdayMonth    = "生日月份"
-	optionBirthdayDay      = "生日日期"
-	optionUser             = "使用者"
-	optionBirthdayYear     = "生日年份"
-	optionAllowAdmin       = "是否"
+	optionMessage        = "祝福語"
+	optionChannel        = "頻道"
+	optionEveryoneCanSet = "是否可以自行設定生日"
+	optionUTC            = "時區"
+	optionRole           = "給予身分組"
+	optionBirthdayMonth  = "生日月份"
+	optionBirthdayDay    = "生日日期"
+	optionUser           = "使用者"
+	optionBirthdayYear   = "生日年份"
+	optionAllowAdmin     = "是否"
 )
 
 func Definitions() []commands.Definition {
@@ -116,15 +120,10 @@ func Definition() commands.Definition {
 func legacyUTCChoices() []commands.Choice {
 	choices := make([]commands.Choice, 0, 24)
 	for hour := 0; hour < 24; hour++ {
-		value := "+" + twoDigit(hour) + ":00"
-		choices = append(choices, commands.Choice{Name: "UTC" + value[:3], Value: value})
+		choices = append(choices, commands.Choice{
+			Name:  fmt.Sprintf("UTC+%d", hour),
+			Value: fmt.Sprintf("+%02d:00", hour),
+		})
 	}
 	return choices
-}
-
-func twoDigit(value int) string {
-	if value < 10 {
-		return "0" + string(rune('0'+value))
-	}
-	return string(rune('0'+value/10)) + string(rune('0'+value%10))
 }

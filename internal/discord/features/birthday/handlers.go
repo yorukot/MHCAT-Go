@@ -63,7 +63,7 @@ func configSuccessMessage(config domain.BirthdayConfig) responses.Message {
 				"<:confetti:1065654294071738399> **祝福語為:**\n" + config.Message +
 				"\n<:utc:1065654078417412168> **時區為:** `UTC" + config.UTCOffset + "`" +
 				"\n**<:decisionmaking:1065935264352063559> 使用者是否可以自行設定生日日期:** `" + strconv.FormatBool(config.EveryoneCanSetBirthdayDate) + "`" +
-				"\n <:channel:985948805457276978> **通知頻道: <#" + config.ChannelID + ">**" +
+				"\n <:Channel:994524759289233438> **通知頻道: <#" + config.ChannelID + ">**" +
 				"\n <:roleplaying:985945121264635964> 身分組: " + role,
 			Color: birthdaySuccessColor,
 		}},

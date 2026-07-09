@@ -614,10 +614,10 @@ func TestBuildRuntimeRoutesBirthdayConfigOnlyWithRepository(t *testing.T) {
 		t.Fatalf("build runtime: %v", err)
 	}
 	interaction := fakediscord.SlashInteractionWithOptions("生日系統", "祝福語設定", map[string]string{
-		"祝福語":          "{user} 生日快樂",
-		"頻道":           "channel-1",
+		"祝福語":        "{user} 生日快樂",
+		"頻道":         "channel-1",
 		"是否可以自行設定生日": "true",
-		"時區":           "+08:00",
+		"時區":         "+08:00",
 	})
 	interaction.Actor.PermissionBits = 8192
 	responder := fakediscord.NewResponder()
