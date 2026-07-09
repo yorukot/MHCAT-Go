@@ -51,6 +51,26 @@ func TestParseCommandOptionsDiscordIDsAndNumber(t *testing.T) {
 	}
 }
 
+func TestParseCommandOptionsChannelMetadata(t *testing.T) {
+	parsed, err := interactions.ParseCommandOptions([]interactions.CommandOption{
+		{
+			Name:            "channel",
+			Type:            interactions.CommandOptionChannel,
+			Value:           "channel-1",
+			ChannelName:     "Lobby",
+			ChannelType:     2,
+			ChannelParentID: "category-1",
+		},
+	})
+	if err != nil {
+		t.Fatalf("parse options: %v", err)
+	}
+	value := parsed.Values["channel"]
+	if value.String != "channel-1" || value.ChannelName != "Lobby" || value.ChannelType != 2 || value.ChannelParentID != "category-1" {
+		t.Fatalf("channel metadata = %#v", value)
+	}
+}
+
 func TestParseCommandOptionsSubcommand(t *testing.T) {
 	parsed, err := interactions.ParseCommandOptions([]interactions.CommandOption{
 		{

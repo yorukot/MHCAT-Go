@@ -63,6 +63,37 @@ func TestRuntimeInteractionUserOption(t *testing.T) {
 	}
 }
 
+func TestRuntimeInteractionChannelOptionMetadata(t *testing.T) {
+	session := testSession()
+	event := slashEvent("語音包廂設置", []*dgo.ApplicationCommandInteractionDataOption{
+		{Name: "語音頻道", Type: dgo.ApplicationCommandOptionChannel, Value: "voice-1"},
+	})
+	event.Data = dgo.ApplicationCommandInteractionData{
+		Name: event.ApplicationCommandData().Name,
+		Options: []*dgo.ApplicationCommandInteractionDataOption{
+			{Name: "語音頻道", Type: dgo.ApplicationCommandOptionChannel, Value: "voice-1"},
+		},
+		Resolved: &dgo.ApplicationCommandInteractionDataResolved{
+			Channels: map[string]*dgo.Channel{
+				"voice-1": {
+					ID:       "voice-1",
+					Name:     "Create room",
+					Type:     dgo.ChannelTypeGuildVoice,
+					ParentID: "category-1",
+				},
+			},
+		},
+	}
+	interaction, _, err := session.RuntimeInteraction(&dgo.InteractionCreate{Interaction: event})
+	if err != nil {
+		t.Fatalf("runtime interaction: %v", err)
+	}
+	value := interaction.CommandOptions["語音頻道"]
+	if value.String != "voice-1" || value.ChannelName != "Create room" || value.ChannelType != int(dgo.ChannelTypeGuildVoice) || value.ChannelParentID != "category-1" {
+		t.Fatalf("channel option = %#v", value)
+	}
+}
+
 func TestRuntimeInteractionComponent(t *testing.T) {
 	session := testSession()
 	event := &dgo.Interaction{

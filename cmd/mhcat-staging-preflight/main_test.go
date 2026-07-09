@@ -950,6 +950,43 @@ func TestPreflightWarnsWhenXPProfileDisabledRuntimeEnabledWithoutCommandSync(t *
 	}
 }
 
+func TestPreflightRejectsVoiceRoomConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "voice-room-config-runtime-pairing status=fail") {
+		t.Fatalf("expected voice-room config pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsVoiceRoomConfigCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG"] = "true"
+	env["MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "voice-room-config-command-sync status=pass") || !strings.Contains(stdout, "voice-room-config-runtime-pairing status=pass") {
+		t.Fatalf("expected voice-room config pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenVoiceRoomConfigRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "voice-room-config-runtime-pairing status=warn") {
+		t.Fatalf("expected voice-room config runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsJoinRoleConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG"] = "true"

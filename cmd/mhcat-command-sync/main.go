@@ -26,6 +26,7 @@ import (
 	featuresafety "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/safety"
 	featurestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/stats"
 	featureticket "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/ticket"
+	featurevoice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/voice"
 	featurework "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/work"
 	featurexp "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/xp"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/observability"
@@ -245,6 +246,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeXPProfileDisabled {
 		definitions = append(definitions, featurexp.DisabledProfileDefinitions()...)
 	}
+	if cfg.IncludeVoiceRoomConfig {
+		definitions = append(definitions, featurevoice.Definitions()...)
+	}
 	if cfg.IncludeJoinRoleConfig {
 		definitions = append(definitions, featureonboarding.JoinRoleDefinitions()...)
 	}
@@ -333,6 +337,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeXPProfileDisabled {
 		expected = append(expected, featurexp.TextXPProfileCommandName, featurexp.VoiceXPProfileCommandName)
+	}
+	if cfg.IncludeVoiceRoomConfig {
+		expected = append(expected, featurevoice.VoiceRoomSetCommandName, featurevoice.VoiceRoomDeleteCommandName)
 	}
 	if cfg.IncludeJoinRoleConfig {
 		expected = append(expected, featureonboarding.JoinRoleSetCommandName, featureonboarding.JoinRoleDeleteCommandName)

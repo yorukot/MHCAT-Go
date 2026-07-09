@@ -445,6 +445,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 	if cfg.FeatureXPProfileDisabledEnabled {
 		opts.XPProfileDisabledEnabled = true
 	}
+	if cfg.FeatureVoiceRoomConfigEnabled {
+		voiceRoomRepo, err := voiceRoomConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.VoiceRoomConfigRepository = voiceRoomRepo
+	}
 	if cfg.FeatureJoinRoleConfigEnabled {
 		joinRoleRepo, err := joinRoleConfigRepositoryFromMongo(mongoClient)
 		if err != nil {
@@ -753,6 +760,22 @@ func voiceXPConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositori
 	repo, err := mongorepositories.NewVoiceXPConfigRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("voice XP config feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func voiceRoomConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.VoiceRoomConfigRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("voice-room config feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("voice-room config feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewVoiceRoomConfigRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("voice-room config feature repository: %w", err)
 	}
 	return repo, nil
 }

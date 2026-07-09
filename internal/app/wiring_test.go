@@ -1207,6 +1207,44 @@ func TestBuildRuntimeRoutesVerificationFlowOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesVoiceRoomConfigOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("語音包廂設置", "", map[string]string{
+		"語音頻道":     "voice-1",
+		"設定頻道名稱":   "{name} 的包廂",
+		"是否予許房主上鎖": "true",
+		"設定人數上限":   "4",
+	})
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("voice-room config route should not be available without repository")
+	}
+
+	repo := fakemongo.NewVoiceRoomConfigRepository()
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                    validTestConfig(),
+		VoiceRoomConfigRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with voice-room config repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch voice-room config: %v", err)
+	}
+	saved, ok := repo.Last()
+	if !ok || saved.TriggerChannelID != "voice-1" || saved.Name != "{name} 的包廂" || saved.Limit != 4 || !saved.Lock {
+		t.Fatalf("saved voice-room config = %#v ok=%v", saved, ok)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "語音包廂") {
+		t.Fatalf("voice-room response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesTranslateOnlyWithProvider(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), TranslateFeatureEnabled: true})
 	if err != nil {

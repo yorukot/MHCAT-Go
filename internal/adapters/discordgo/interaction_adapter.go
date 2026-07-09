@@ -15,7 +15,7 @@ func InteractionFromDiscord(event *dgo.InteractionCreate) (interactions.Interact
 	switch event.Type {
 	case dgo.InteractionApplicationCommand:
 		data := event.ApplicationCommandData()
-		subcommandGroup, subcommand, options, values, err := commandOptions(data.Options)
+		subcommandGroup, subcommand, options, values, err := commandOptions(data.Options, resolvedChannels(data.Resolved))
 		if err != nil {
 			return interactions.Interaction{}, err
 		}
@@ -81,13 +81,20 @@ func InteractionFromDiscord(event *dgo.InteractionCreate) (interactions.Interact
 	}
 }
 
-func commandOptions(options []*dgo.ApplicationCommandInteractionDataOption) (string, string, map[string]string, map[string]interactions.CommandOptionValue, error) {
+func resolvedChannels(resolved *dgo.ApplicationCommandInteractionDataResolved) map[string]*dgo.Channel {
+	if resolved == nil {
+		return nil
+	}
+	return resolved.Channels
+}
+
+func commandOptions(options []*dgo.ApplicationCommandInteractionDataOption, channels map[string]*dgo.Channel) (string, string, map[string]string, map[string]interactions.CommandOptionValue, error) {
 	internalOptions := make([]interactions.CommandOption, 0, len(options))
 	for _, option := range options {
 		if option == nil {
 			continue
 		}
-		internalOptions = append(internalOptions, fromDiscordOption(option))
+		internalOptions = append(internalOptions, fromDiscordOption(option, channels))
 	}
 	parsed, err := interactions.ParseCommandOptions(internalOptions)
 	if err != nil {
@@ -96,15 +103,23 @@ func commandOptions(options []*dgo.ApplicationCommandInteractionDataOption) (str
 	return parsed.SubcommandGroup, parsed.Subcommand, parsed.Options, parsed.Values, nil
 }
 
-func fromDiscordOption(option *dgo.ApplicationCommandInteractionDataOption) interactions.CommandOption {
+func fromDiscordOption(option *dgo.ApplicationCommandInteractionDataOption, channels map[string]*dgo.Channel) interactions.CommandOption {
 	converted := interactions.CommandOption{
 		Name:  option.Name,
 		Type:  fromDiscordOptionType(option.Type),
 		Value: option.Value,
 	}
+	if converted.Type == interactions.CommandOptionChannel {
+		channelID := fmt.Sprint(option.Value)
+		if channel := channels[channelID]; channel != nil {
+			converted.ChannelName = channel.Name
+			converted.ChannelType = int(channel.Type)
+			converted.ChannelParentID = channel.ParentID
+		}
+	}
 	for _, child := range option.Options {
 		if child != nil {
-			converted.Options = append(converted.Options, fromDiscordOption(child))
+			converted.Options = append(converted.Options, fromDiscordOption(child, channels))
 		}
 	}
 	return converted

@@ -26,6 +26,7 @@ import (
 	featurestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/stats"
 	featureticket "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/ticket"
 	featureutility "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/utility"
+	featurevoice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/voice"
 	featurework "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/work"
 	featurexp "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/xp"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
@@ -74,6 +75,7 @@ type RuntimeOptions struct {
 	VoiceXPConfigRepository       ports.VoiceXPConfigRepository
 	VoiceXPMessagePort            ports.DiscordMessagePort
 	XPProfileDisabledEnabled      bool
+	VoiceRoomConfigRepository     ports.VoiceRoomConfigRepository
 	JoinRoleConfigRepository      ports.JoinRoleConfigRepository
 	JoinRoleInspector             ports.DiscordRoleInspector
 	LeaveMessageConfigRepository  ports.LeaveMessageConfigRepository
@@ -165,6 +167,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.XPProfileDisabledEnabled {
 		definitions = append(definitions, featurexp.DisabledProfileDefinitions()...)
+	}
+	if opts.VoiceRoomConfigRepository != nil {
+		definitions = append(definitions, featurevoice.Definitions()...)
 	}
 	if opts.JoinRoleConfigRepository != nil {
 		definitions = append(definitions, featureonboarding.JoinRoleDefinitions()...)
@@ -344,6 +349,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.XPProfileDisabledEnabled {
 		xpProfileModule := featurexp.NewDisabledProfileModule(opts.UsageTracker)
 		if err := xpProfileModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.VoiceRoomConfigRepository != nil {
+		voiceModule := featurevoice.NewModule(opts.VoiceRoomConfigRepository, opts.UsageTracker)
+		if err := voiceModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

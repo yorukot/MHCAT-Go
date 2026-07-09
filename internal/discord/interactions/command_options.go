@@ -25,18 +25,24 @@ const (
 )
 
 type CommandOption struct {
-	Name    string
-	Type    CommandOptionType
-	Value   any
-	Options []CommandOption
+	Name            string
+	Type            CommandOptionType
+	Value           any
+	Options         []CommandOption
+	ChannelName     string
+	ChannelType     int
+	ChannelParentID string
 }
 
 type CommandOptionValue struct {
-	Type   CommandOptionType
-	String string
-	Int    int64
-	Float  float64
-	Bool   bool
+	Type            CommandOptionType
+	String          string
+	Int             int64
+	Float           float64
+	Bool            bool
+	ChannelName     string
+	ChannelType     int
+	ChannelParentID string
 }
 
 type ParsedCommandOptions struct {
@@ -139,6 +145,11 @@ func parseLeafOption(option CommandOption, parsed ParsedCommandOptions) error {
 		value.String = fmt.Sprint(option.Value)
 		if value.String == "" {
 			return fmt.Errorf("%w: %s", ErrInvalidCommandOption, option.Name)
+		}
+		if option.Type == CommandOptionChannel {
+			value.ChannelName = option.ChannelName
+			value.ChannelType = option.ChannelType
+			value.ChannelParentID = option.ChannelParentID
 		}
 		parsed.Options[option.Name] = value.String
 	default:

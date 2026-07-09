@@ -105,6 +105,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS:-false}" = "true
   echo "refusing command sync: XP profile disabled commands dry-run requires MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: voice-room config commands dry-run requires MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED:-false}" != "true" ]; then
   echo "refusing command sync: join-role config command dry-run requires MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -240,6 +244,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS:-false}" = "true
   echo "staging command sync dry-run: including XP profile disabled commands for review" >&2
 else
   echo "staging command sync dry-run: XP profile disabled commands are excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including voice-room config commands for review" >&2
+else
+  echo "staging command sync dry-run: voice-room config commands are excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG:-false}" = "true" ]; then
   echo "staging command sync dry-run: including join-role config commands for review" >&2

@@ -494,6 +494,39 @@ func TestCommandSyncIncludeXPProfileDisabledStagingDryRunIncludesDefinitions(t *
 	}
 }
 
+func TestCommandSyncIncludeVoiceRoomConfigRequiresStagingMode(t *testing.T) {
+	env := baseCommandSyncEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG"] = "true"
+	exitCode, _, stderr, fake := runWithFakeClient(t, nil, env, &fakediscord.CommandSyncClient{}, defaultCommandRegistry)
+	if exitCode == 0 {
+		t.Fatal("expected include voice-room config without staging mode to fail")
+	}
+	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
+		t.Fatalf("unsafe include voice-room config performed writes: %#v", fake)
+	}
+	if !strings.Contains(stderr, "MHCAT_STAGING_MODE") {
+		t.Fatalf("expected staging mode error, stderr=%q", stderr)
+	}
+}
+
+func TestCommandSyncIncludeVoiceRoomConfigStagingDryRunIncludesDefinitions(t *testing.T) {
+	env := stagingCommandSyncEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG"] = "true"
+	fake := &fakediscord.CommandSyncClient{}
+	exitCode, stdout, stderr, _ := runWithFakeClient(t, nil, env, fake, defaultCommandRegistry)
+	if exitCode != 0 {
+		t.Fatalf("expected voice-room config dry-run to pass, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
+		t.Fatalf("dry-run performed writes: %#v", fake)
+	}
+	for _, name := range []string{"語音包廂設置", "語音包廂刪除"} {
+		if !strings.Contains(stdout, name) {
+			t.Fatalf("voice-room config command %q missing from dry-run output: %q", name, stdout)
+		}
+	}
+}
+
 func TestCommandSyncIncludeJoinRoleConfigRequiresStagingMode(t *testing.T) {
 	env := baseCommandSyncEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG"] = "true"

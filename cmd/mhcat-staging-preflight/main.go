@@ -130,6 +130,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		voiceXPConfigRuntimePairing(lookup),
 		xpProfileDisabledCommandSync(lookup),
 		xpProfileDisabledRuntimePairing(lookup),
+		voiceRoomConfigCommandSync(lookup),
+		voiceRoomConfigRuntimePairing(lookup),
 		joinRoleConfigCommandSync(lookup),
 		joinRoleConfigRuntimePairing(lookup),
 		joinRoleAssignmentRuntimeReadiness(lookup),
@@ -981,6 +983,38 @@ func xpProfileDisabledRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "xp-profile-disabled-runtime-pairing", Status: statusWarn, Message: "XP profile disabled runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "xp-profile-disabled-runtime-pairing", Status: statusSkipped, Message: "XP profile disabled runtime and command sync include are disabled"}
+}
+
+func voiceRoomConfigCommandSync(lookup lookupFunc) checkResult {
+	includeVoiceRoom, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG")
+	if err != nil {
+		return checkResult{Name: "voice-room-config-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeVoiceRoom {
+		return checkResult{Name: "voice-room-config-command-sync", Status: statusPass, Message: "voice-room config command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "voice-room-config-command-sync", Status: statusSkipped, Message: "voice-room config command sync include is disabled"}
+}
+
+func voiceRoomConfigRuntimePairing(lookup lookupFunc) checkResult {
+	includeVoiceRoom, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG")
+	if err != nil {
+		return checkResult{Name: "voice-room-config-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	voiceRoomEnabled, err := boolValue(lookup, "MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED")
+	if err != nil {
+		return checkResult{Name: "voice-room-config-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeVoiceRoom && !voiceRoomEnabled {
+		return checkResult{Name: "voice-room-config-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true requires MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true in the staging runtime"}
+	}
+	if includeVoiceRoom && voiceRoomEnabled {
+		return checkResult{Name: "voice-room-config-runtime-pairing", Status: statusPass, Message: "voice-room config command sync and runtime feature flag are paired"}
+	}
+	if voiceRoomEnabled {
+		return checkResult{Name: "voice-room-config-runtime-pairing", Status: statusWarn, Message: "voice-room config runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "voice-room-config-runtime-pairing", Status: statusSkipped, Message: "voice-room config runtime and command sync include are disabled"}
 }
 
 func joinRoleConfigCommandSync(lookup lookupFunc) checkResult {

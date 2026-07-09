@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 40
-- Matching command definitions: 40
+- Current Go command definitions: 42
+- Matching command definitions: 42
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 34
+- Legacy commands without Go definitions: 32
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -51,6 +51,8 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `自動通知列表` | `slashCommands/自動通知/cron_list.js` | matching-definition | none |
 | `自動通知刪除` | `slashCommands/自動通知/cron_delete.js` | matching-definition | none |
 | `詐騙網址回報` | `slashCommands/群組防護/report_web.js` | matching-definition | none |
+| `語音包廂刪除` | `slashCommands/語音包廂/voice_channel_delete.js` | matching-definition | none |
+| `語音包廂設置` | `slashCommands/語音包廂/voice_channel.js` | matching-definition | none |
 | `語音經驗` | `slashCommands/經驗系統/voice_xp.js` | matching-definition | none |
 | `語音經驗刪除` | `slashCommands/經驗系統/voice_set_delete.js` | matching-definition | none |
 | `語音經驗設定` | `slashCommands/經驗系統/voice_set.js` | matching-definition | none |
@@ -91,8 +93,6 @@ None.
 | `經驗值重製` | 經驗系統 | `slashCommands/經驗系統/reset_xp.js` | 重製整個伺服器的經驗 |
 | `聊天排行榜` | 經驗系統 | `slashCommands/經驗系統/text_rank.js` | 查詢聊天經驗的排行榜 |
 | `聊天經驗身分組設定` | 經驗系統 | `slashCommands/經驗系統/text_leave_role.js` | 設定聊天經驗通知要在哪發送 |
-| `語音包廂刪除` | 語音包廂 | `slashCommands/語音包廂/voice_channel_delete.js` | 刪除語音包廂設置 |
-| `語音包廂設置` | 語音包廂 | `slashCommands/語音包廂/voice_channel.js` | 設定語音包廂 |
 | `語音排行榜` | 經驗系統 | `slashCommands/經驗系統/voice_rank.js` | 查詢語音經驗的排行榜 |
 | `語音經驗身分組設定` | 經驗系統 | `slashCommands/經驗系統/voice_leavel_role.js` | 設定語音經驗通知要在哪發送(兼增加、刪除、設定查詢) |
 | `警告` | 警告系統 | `slashCommands/警告系統/warn.js` | 警告一個使用者 |

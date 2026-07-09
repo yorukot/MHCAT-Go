@@ -28,6 +28,7 @@ import (
 	featuresafety "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/safety"
 	featurestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/stats"
 	featureticket "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/ticket"
+	featurevoice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/voice"
 	featurework "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/work"
 	featurexp "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/xp"
 )
@@ -114,6 +115,7 @@ func CurrentGoDefinitions() []commands.Definition {
 	definitions = append(definitions, featurexp.TextDefinitions()...)
 	definitions = append(definitions, featurexp.VoiceDefinitions()...)
 	definitions = append(definitions, featurexp.DisabledProfileDefinitions()...)
+	definitions = append(definitions, featurevoice.Definitions()...)
 	definitions = append(definitions, featureonboarding.JoinRoleDefinitions()...)
 	definitions = append(definitions, featureonboarding.MessageDefinitions()...)
 	definitions = append(definitions, featureonboarding.VerificationDefinitions()...)

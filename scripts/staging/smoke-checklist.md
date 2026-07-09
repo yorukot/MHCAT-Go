@@ -7,6 +7,7 @@
 - For text-XP config smoke, use an isolated staging database and pair `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true` with `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`.
 - For voice-XP config smoke, use an isolated staging database and pair `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true` with `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`.
 - For disabled XP profile smoke, pair `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true` with `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true`; these commands only return the legacy replacement message and must not write Mongo data.
+- For voice-room config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true` with `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true`; this only writes `voice_channels` config rows and does not create dynamic voice rooms yet.
 - For join-role config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=true` with `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true`.
 - For welcome-message config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_WELCOME_MESSAGE_CONFIG=true` with `MHCAT_FEATURE_WELCOME_MESSAGE_CONFIG_ENABLED=true`.
 - For welcome-message delivery smoke, first create/confirm a safe staging `join_messages` row, then enable `MHCAT_FEATURE_WELCOME_MESSAGE_DELIVERY_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`; this event-only path has no command-sync include flag and writes no Mongo data.
@@ -30,6 +31,7 @@
 - If text-XP config smoke is enabled, run `/聊天經驗設定` with a staging channel and then `/聊天經驗刪除`.
 - If voice-XP config smoke is enabled, run `/語音經驗設定` with a staging channel and then `/語音經驗刪除`.
 - If disabled XP profile smoke is enabled, run `/聊天經驗` and `/語音經驗` and verify the red replacement embed points users to `/我的檔案`.
+- If voice-room config smoke is enabled, run `/語音包廂設置` with a staging voice/stage channel, `{name}` room template, lock choice, and optional limit; verify the `voice_channels` row, then run `/語音包廂刪除` for the trigger channel or parent category.
 - If join-role config smoke is enabled, run `/加入身份組設置` with a staging role below the bot's highest role and then `/加入身份組刪除`.
 - If welcome-message config smoke is enabled, run `/加入訊息設置` and verify the dashboard redirect, then run `/退出訊息設置` with a staging channel and submit the legacy modal.
 - If welcome-message delivery smoke is enabled, join with a disposable staging member and verify one legacy-style welcome embed in the configured `join_messages.channel`, placeholder replacement, joining-user-only mention behavior, and no command registration or Mongo write.
