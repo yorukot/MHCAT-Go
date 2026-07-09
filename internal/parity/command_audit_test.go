@@ -150,6 +150,7 @@ func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
 	var foundDeleteData bool
 	var foundCoinAdmin bool
 	var foundCoinRank bool
+	var foundRPS bool
 	var foundGachaPrizeCreate bool
 	var foundGachaPrizeEdit bool
 	var foundGachaPrizeDelete bool
@@ -175,6 +176,9 @@ func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
 		}
 		if definition.Name == "代幣排行榜" {
 			foundCoinRank = true
+		}
+		if definition.Name == "剪刀石頭布" {
+			foundRPS = true
 		}
 		if definition.Name == "扭蛋獎池增加" {
 			foundGachaPrizeCreate = true
@@ -206,6 +210,9 @@ func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
 	}
 	if !foundCoinRank {
 		t.Fatal("current Go definitions should include coin rank")
+	}
+	if !foundRPS {
+		t.Fatal("current Go definitions should include rock paper scissors")
 	}
 	if !foundGachaPrizeCreate {
 		t.Fatal("current Go definitions should include gacha prize create")

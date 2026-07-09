@@ -22,6 +22,7 @@
 - For anti-scam report smoke, use a safe staging webhook endpoint and pair `MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT=true` with `MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED=true` plus `MHCAT_REPORT_WEBHOOK_URL` or `REPORT_WEBHOOK`.
 - For economy sign-in smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true` with `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`.
 - For economy coin-rank smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true` with `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`.
+- For economy RPS smoke, use only disposable staging `coins` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true` with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`.
 - For economy profile smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE=true` with `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true`.
 - For economy coin-admin smoke, use only disposable staging `coins` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true` with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`.
 - For balance query smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true` with `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true`.

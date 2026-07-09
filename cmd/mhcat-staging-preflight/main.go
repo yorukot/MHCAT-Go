@@ -97,6 +97,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		economyCoinAdminRuntimePairing(lookup),
 		economyCoinRankCommandSync(lookup),
 		economyCoinRankRuntimePairing(lookup),
+		economyRPSCommandSync(lookup),
+		economyRPSRuntimePairing(lookup),
 		economyProfileCommandSync(lookup),
 		economyProfileRuntimePairing(lookup),
 		workCommandSync(lookup),
@@ -464,6 +466,38 @@ func economyCoinRankRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "economy-coin-rank-runtime-pairing", Status: statusWarn, Message: "economy coin-rank runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "economy-coin-rank-runtime-pairing", Status: statusSkipped, Message: "economy coin-rank runtime and command sync include are disabled"}
+}
+
+func economyRPSCommandSync(lookup lookupFunc) checkResult {
+	includeRPS, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS")
+	if err != nil {
+		return checkResult{Name: "economy-rps-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeRPS {
+		return checkResult{Name: "economy-rps-command-sync", Status: statusPass, Message: "economy RPS command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "economy-rps-command-sync", Status: statusSkipped, Message: "economy RPS command sync include is disabled"}
+}
+
+func economyRPSRuntimePairing(lookup lookupFunc) checkResult {
+	includeRPS, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS")
+	if err != nil {
+		return checkResult{Name: "economy-rps-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	rpsEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ECONOMY_RPS_ENABLED")
+	if err != nil {
+		return checkResult{Name: "economy-rps-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeRPS && !rpsEnabled {
+		return checkResult{Name: "economy-rps-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true requires MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true in the staging runtime"}
+	}
+	if includeRPS && rpsEnabled {
+		return checkResult{Name: "economy-rps-runtime-pairing", Status: statusPass, Message: "economy RPS command sync and runtime feature flag are paired"}
+	}
+	if rpsEnabled {
+		return checkResult{Name: "economy-rps-runtime-pairing", Status: statusWarn, Message: "economy RPS runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "economy-rps-runtime-pairing", Status: statusSkipped, Message: "economy RPS runtime and command sync include are disabled"}
 }
 
 func economyProfileCommandSync(lookup lookupFunc) checkResult {

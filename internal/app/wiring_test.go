@@ -380,6 +380,35 @@ func TestBuildRuntimeRoutesEconomyCoinRankWithoutPublishingOtherEconomyCommands(
 	}
 }
 
+func TestBuildRuntimeRoutesEconomyRPSWithoutPublishingOtherEconomyCommands(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 42})
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:               validTestConfig(),
+		EconomyRPSRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with economy RPS repo: %v", err)
+	}
+	for _, commandName := range []string{"代幣查詢", "簽到", "coin-related-settings", "代幣增加", "代幣排行榜"} {
+		responder := fakediscord.NewResponder()
+		if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction(commandName), responder); err == nil {
+			t.Fatalf("%s route should not be available with RPS repository alone", commandName)
+		}
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("剪刀石頭布", "", map[string]string{
+		"使用多少代幣來進行": "5",
+		"剪刀石頭或布":    "剪刀",
+	})
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch economy RPS: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
+		t.Fatalf("RPS response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesEconomyProfileWithoutPublishingOtherEconomyCommands(t *testing.T) {
 	repo := fakemongo.NewEconomyProfileRepository()
 	userID := "123456789012345678"

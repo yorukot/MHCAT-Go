@@ -12,12 +12,23 @@ var ErrInvalidEconomySettings = errors.New("invalid economy settings")
 var ErrInvalidCoinAdminCommand = errors.New("invalid coin admin command")
 var ErrInvalidCoinRankQuery = errors.New("invalid coin rank query")
 var ErrInvalidEconomyProfileQuery = errors.New("invalid economy profile query")
+var ErrInvalidRockPaperScissorsCommand = errors.New("invalid rock paper scissors command")
 
 type CoinAdminOperation string
+type RockPaperScissorsChoice string
+type RockPaperScissorsOutcome string
 
 const (
 	CoinAdminOperationAdd    CoinAdminOperation = "add"
 	CoinAdminOperationReduce CoinAdminOperation = "reduce"
+
+	RockPaperScissorsChoiceScissors RockPaperScissorsChoice = "剪刀"
+	RockPaperScissorsChoiceRock     RockPaperScissorsChoice = "石頭"
+	RockPaperScissorsChoicePaper    RockPaperScissorsChoice = "布"
+
+	RockPaperScissorsOutcomeWin  RockPaperScissorsOutcome = "win"
+	RockPaperScissorsOutcomeLoss RockPaperScissorsOutcome = "loss"
+	RockPaperScissorsOutcomeTie  RockPaperScissorsOutcome = "tie"
 )
 
 type CoinBalance struct {
@@ -119,6 +130,23 @@ type CoinAdminResult struct {
 	Created bool
 }
 
+type RockPaperScissorsCommand struct {
+	GuildID        string
+	UserID         string
+	Wager          int64
+	PlayerChoice   RockPaperScissorsChoice
+	ComputerChoice RockPaperScissorsChoice
+}
+
+type RockPaperScissorsResult struct {
+	Balance         CoinBalance
+	PreviousBalance int64
+	Delta           int64
+	Outcome         RockPaperScissorsOutcome
+	PlayerChoice    RockPaperScissorsChoice
+	ComputerChoice  RockPaperScissorsChoice
+}
+
 func (c CoinAdminCommand) Normalize() CoinAdminCommand {
 	return CoinAdminCommand{
 		GuildID:   strings.TrimSpace(c.GuildID),
@@ -150,4 +178,55 @@ func (c CoinAdminCommand) SignedDelta() (int64, error) {
 		return -c.Amount, nil
 	}
 	return c.Amount, nil
+}
+
+func (c RockPaperScissorsChoice) Normalize() RockPaperScissorsChoice {
+	return RockPaperScissorsChoice(strings.TrimSpace(string(c)))
+}
+
+func (c RockPaperScissorsChoice) Valid() bool {
+	switch c.Normalize() {
+	case RockPaperScissorsChoiceScissors, RockPaperScissorsChoiceRock, RockPaperScissorsChoicePaper:
+		return true
+	default:
+		return false
+	}
+}
+
+func (c RockPaperScissorsCommand) Normalize() RockPaperScissorsCommand {
+	return RockPaperScissorsCommand{
+		GuildID:        strings.TrimSpace(c.GuildID),
+		UserID:         strings.TrimSpace(c.UserID),
+		Wager:          c.Wager,
+		PlayerChoice:   c.PlayerChoice.Normalize(),
+		ComputerChoice: c.ComputerChoice.Normalize(),
+	}
+}
+
+func (c RockPaperScissorsCommand) Validate() error {
+	c = c.Normalize()
+	if c.GuildID == "" || c.UserID == "" || c.Wager <= 0 || !c.PlayerChoice.Valid() || !c.ComputerChoice.Valid() {
+		return ErrInvalidRockPaperScissorsCommand
+	}
+	return nil
+}
+
+func ResolveRockPaperScissors(command RockPaperScissorsCommand) (RockPaperScissorsOutcome, int64, error) {
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return "", 0, err
+	}
+	if command.PlayerChoice == command.ComputerChoice {
+		return RockPaperScissorsOutcomeTie, -(command.Wager / 2), nil
+	}
+	if rockPaperScissorsPlayerWins(command.PlayerChoice, command.ComputerChoice) {
+		return RockPaperScissorsOutcomeWin, command.Wager, nil
+	}
+	return RockPaperScissorsOutcomeLoss, -command.Wager, nil
+}
+
+func rockPaperScissorsPlayerWins(player RockPaperScissorsChoice, computer RockPaperScissorsChoice) bool {
+	return (player == RockPaperScissorsChoiceScissors && computer == RockPaperScissorsChoicePaper) ||
+		(player == RockPaperScissorsChoiceRock && computer == RockPaperScissorsChoiceScissors) ||
+		(player == RockPaperScissorsChoicePaper && computer == RockPaperScissorsChoiceRock)
 }

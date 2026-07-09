@@ -23,6 +23,7 @@ const (
 	DefaultFeatureEconomySettingsEnabled        = false
 	DefaultFeatureEconomyCoinAdminEnabled       = false
 	DefaultFeatureEconomyCoinRankEnabled        = false
+	DefaultFeatureEconomyRPSEnabled             = false
 	DefaultFeatureEconomyProfileEnabled         = false
 	DefaultFeatureWorkEnabled                   = false
 	DefaultFeatureWarningsEnabled               = false
@@ -95,6 +96,7 @@ type Config struct {
 	FeatureEconomySettingsEnabled        bool
 	FeatureEconomyCoinAdminEnabled       bool
 	FeatureEconomyCoinRankEnabled        bool
+	FeatureEconomyRPSEnabled             bool
 	FeatureEconomyProfileEnabled         bool
 	FeatureWorkEnabled                   bool
 	FeatureWarningsEnabled               bool

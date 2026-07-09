@@ -6,16 +6,17 @@ import (
 )
 
 const (
-	CoinQueryCommandName       = "代幣查詢"
-	CoinAdminCommandName       = "代幣增加"
-	CoinRankCommandName        = "代幣排行榜"
-	ProfileCommandName         = "my-profile"
-	SignInCommandName          = "簽到"
-	SignInListCommandName      = "簽到列表"
-	EconomySettingsCommandName = "coin-related-settings"
-	manageMessagesPermission   = "8192"
-	textChannelType            = 0
-	announcementChannelType    = 5
+	CoinQueryCommandName         = "代幣查詢"
+	CoinAdminCommandName         = "代幣增加"
+	CoinRankCommandName          = "代幣排行榜"
+	ProfileCommandName           = "my-profile"
+	RockPaperScissorsCommandName = "剪刀石頭布"
+	SignInCommandName            = "簽到"
+	SignInListCommandName        = "簽到列表"
+	EconomySettingsCommandName   = "coin-related-settings"
+	manageMessagesPermission     = "8192"
+	textChannelType              = 0
+	announcementChannelType      = 5
 )
 
 func Definitions() []commands.Definition {
@@ -36,6 +37,10 @@ func CoinAdminDefinitions() []commands.Definition {
 
 func CoinRankDefinitions() []commands.Definition {
 	return []commands.Definition{CoinRankDefinition()}
+}
+
+func RockPaperScissorsDefinitions() []commands.Definition {
+	return []commands.Definition{RockPaperScissorsDefinition()}
 }
 
 func ProfileDefinitions() []commands.Definition {
@@ -66,6 +71,35 @@ func CoinRankDefinition() commands.Definition {
 		Name:        CoinRankCommandName,
 		Description: "查詢代幣的排行榜",
 		Ownership:   commands.ManagedOwnership("economy-coin-rank", commands.ScopeGuild),
+	}
+}
+
+func RockPaperScissorsDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        RockPaperScissorsCommandName,
+		Description: "跟電腦剪刀時候布來獲得代幣(有賺有賠)",
+		DocsURL:     "https://docsmhcat.yorukot.me/docs/required_coins",
+		Ownership:   commands.ManagedOwnership("economy-rps", commands.ScopeGuild),
+		Options: []commands.Option{
+			{
+				Type:        commands.OptionTypeInteger,
+				Name:        "使用多少代幣來進行",
+				Description: "要用多少代幣進行賭注(贏的話會多這些，輸的話這些代幣會全被拿走，平手會被扣這些的一半)",
+				Required:    true,
+			},
+			{
+				Type:        commands.OptionTypeString,
+				Name:        "剪刀石頭或布",
+				Description: "選擇要剪刀石頭還是布",
+				Required:    true,
+				Choices: []commands.Choice{
+					{Name: string(domain.RockPaperScissorsChoiceScissors), Value: string(domain.RockPaperScissorsChoiceScissors)},
+					{Name: string(domain.RockPaperScissorsChoiceRock), Value: string(domain.RockPaperScissorsChoiceRock)},
+					{Name: string(domain.RockPaperScissorsChoicePaper), Value: string(domain.RockPaperScissorsChoicePaper)},
+				},
+			},
+		},
 	}
 }
 

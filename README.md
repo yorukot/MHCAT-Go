@@ -102,6 +102,7 @@ Implemented utility commands:
 - `/coin-related-settings` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`
 - `/代幣增加` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`
 - `/代幣排行榜` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`
+- `/剪刀石頭布` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`
 - `/my-profile` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true`
 - `/打工系統 新增打工事項` dashboard redirect, `/打工系統 打工介面` list/detail/start flow, and work admin setup/delete/energy flows when explicitly enabled with `MHCAT_FEATURE_WORK_ENABLED=true`
 - `/警告紀錄` when explicitly enabled with `MHCAT_FEATURE_WARNINGS_ENABLED=true`
@@ -160,6 +161,8 @@ Not implemented yet:
 
 `/代幣增加` is a disabled-by-default staging admin write slice. It requires Manage Messages, writes legacy-compatible `coins` rows, rejects negative balances and balances above `999999999`, and must be paired with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
 
+`/剪刀石頭布` is a disabled-by-default staging game write slice. It writes existing `coins` rows only, rejects missing or insufficient balances, preserves legacy tie/win/loss wager behavior, and must be paired with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
+
 `/自動通知列表` and `/自動通知刪除` are config-maintenance commands only. They read/delete legacy `cron_sets` rows behind `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`; they do not implement `automatic-notification`, cron setup modals/selects, scheduler ownership, or notification sends.
 
 `/兌換` is disabled by default and is available only when paired with `MHCAT_FEATURE_REDEEM_ENABLED=true` and `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true` in staging command sync. It consumes legacy `codes` rows, credits `chatgpt_gets.price`, enforces the legacy 7-day expiry check, and does not enable ChatGPT/autochat message runtime.
@@ -196,6 +199,7 @@ Safe defaults:
 - `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=false`
 - `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=false`
 - `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=false`
+- `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=false`
 - `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=false`
 - `MHCAT_FEATURE_WORK_ENABLED=false`
 - `MHCAT_FEATURE_WARNINGS_ENABLED=false`
@@ -279,6 +283,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_WORK=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=false`
@@ -525,6 +530,8 @@ The read-only `/代幣查詢` command is available only when `MHCAT_FEATURE_ECON
 The `/簽到` command is available only when `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes `coins` and `sign_lists`, so use only isolated staging data until the production duplicate/index/reset blockers in `docs/40-economy-signin.md` are closed.
 
 The `/coin-related-settings` command is available only when `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes `gift_changes` using legacy field names and an atomic patch/update path instead of the legacy delete-then-insert flow. It requires Manage Messages at the command definition and runtime levels.
+
+The `/剪刀石頭布` command is available only when `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes existing `coins` rows only, rejects missing or insufficient balances, and preserves the legacy game behavior where winning can move a balance above `999999999`; use only disposable staging balances until economy ownership and duplicate audits are reviewed.
 
 The `打工系統` command is available only when `MHCAT_FEATURE_WORK_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`; staging preflight rejects unpaired sync/runtime flags. The current work slices preserve the legacy dashboard redirect for `新增打工事項`, implement legacy-style `打工介面` list/captcha/detail/start UI, and implement `打工系統設定`, `打工事項刪除`, `增加個人精力`, and `增加全體精力` behind explicit admin repository wiring and Manage Messages checks. The start and energy paths can create/update `work_users` through atomic repository methods and do not write coins or payout state. Recurring scheduler ownership and payout idempotency remain pending.
 

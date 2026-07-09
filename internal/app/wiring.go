@@ -50,6 +50,7 @@ type RuntimeOptions struct {
 	EconomySettingsRepository     ports.EconomySettingsRepository
 	EconomyCoinAdminRepository    ports.EconomyCoinAdminRepository
 	EconomyCoinRankRepository     ports.EconomyCoinRankRepository
+	EconomyRPSRepository          ports.EconomyRockPaperScissorsRepository
 	EconomyProfileRepository      ports.EconomyProfileRepository
 	WorkInterfaceRepository       ports.WorkInterfaceRepository
 	WorkStartRepository           ports.WorkStartRepository
@@ -152,6 +153,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.EconomyCoinRankRepository != nil {
 		definitions = append(definitions, featureeconomy.CoinRankDefinitions()...)
+	}
+	if opts.EconomyRPSRepository != nil {
+		definitions = append(definitions, featureeconomy.RockPaperScissorsDefinitions()...)
 	}
 	if opts.EconomyProfileRepository != nil {
 		definitions = append(definitions, featureeconomy.ProfileDefinitions()...)
@@ -335,6 +339,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.EconomyCoinRankRepository != nil {
 		coinRankModule := featureeconomy.NewCoinRankModule(opts.EconomyCoinRankRepository, concreteDiscord, opts.UsageTracker)
 		if err := coinRankModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.EconomyRPSRepository != nil {
+		rpsModule := featureeconomy.NewRockPaperScissorsModule(opts.EconomyRPSRepository, concreteDiscord, opts.UsageTracker)
+		if err := rpsModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

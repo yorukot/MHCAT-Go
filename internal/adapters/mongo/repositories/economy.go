@@ -196,6 +196,52 @@ func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domai
 	return domain.CoinAdminResult{Balance: current, Delta: delta}, ctx.Err()
 }
 
+func (r *EconomyRepository) ApplyRockPaperScissors(ctx context.Context, command domain.RockPaperScissorsCommand) (domain.RockPaperScissorsResult, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.RockPaperScissorsResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.RockPaperScissorsResult{}, err
+	}
+	outcome, delta, err := domain.ResolveRockPaperScissors(command)
+	if err != nil {
+		return domain.RockPaperScissorsResult{}, err
+	}
+	current, err := r.GetCoinBalance(ctx, command.GuildID, command.UserID)
+	if err != nil {
+		return domain.RockPaperScissorsResult{}, err
+	}
+	if current.Coins < command.Wager {
+		return domain.RockPaperScissorsResult{}, ports.ErrCoinNegativeBalance
+	}
+	next := current.Coins + delta
+	if next < 0 {
+		return domain.RockPaperScissorsResult{}, ports.ErrCoinNegativeBalance
+	}
+	result, err := r.coins.UpdateMany(
+		ctx,
+		bson.D{{Key: "guild", Value: command.GuildID}, {Key: "member", Value: command.UserID}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: next}}}},
+	)
+	if err != nil {
+		return domain.RockPaperScissorsResult{}, mhcatmongo.MapError(fmt.Errorf("apply rock paper scissors balance: %w", err))
+	}
+	if result.MatchedCount == 0 {
+		return domain.RockPaperScissorsResult{}, ports.ErrCoinBalanceNotFound
+	}
+	previous := current.Coins
+	current.Coins = next
+	return domain.RockPaperScissorsResult{
+		Balance:         current,
+		PreviousBalance: previous,
+		Delta:           delta,
+		Outcome:         outcome,
+		PlayerChoice:    command.PlayerChoice,
+		ComputerChoice:  command.ComputerChoice,
+	}, ctx.Err()
+}
+
 func (r *EconomyRepository) SignIn(ctx context.Context, command domain.SignInCommand) (domain.SignInResult, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.SignInResult{}, err

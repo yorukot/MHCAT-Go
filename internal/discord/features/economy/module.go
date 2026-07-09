@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"math/big"
 
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreeconomy "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/economy"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
@@ -17,11 +18,13 @@ type Module struct {
 	settings     coreeconomy.SettingsService
 	coinAdmin    coreeconomy.CoinAdminService
 	coinRank     coreeconomy.CoinRankService
+	rps          coreeconomy.RockPaperScissorsService
 	profile      coreeconomy.ProfileService
 	discord      ports.DiscordInfoProvider
 	usage        ports.UsageTracker
 	clock        ports.Clock
 	color        func() int
+	rpsChoice    func() domain.RockPaperScissorsChoice
 	defs         []commands.Definition
 	feature      string
 	queryEnabled bool
@@ -33,6 +36,7 @@ func NewModule(repo ports.EconomyQueryRepository, discordInfo ports.DiscordInfoP
 		discord:      discordInfo,
 		usage:        usage,
 		color:        legacyRandomColor,
+		rpsChoice:    legacyRandomRockPaperScissorsChoice,
 		defs:         Definitions(),
 		feature:      "economy-query",
 		queryEnabled: true,
@@ -56,12 +60,13 @@ func NewSignInOnlyModule(repo ports.EconomySignInRepository, discordInfo ports.D
 		signInList: coreeconomy.SignInListService{
 			Repository: repo,
 		},
-		discord: discordInfo,
-		usage:   usage,
-		clock:   clock,
-		color:   legacyRandomColor,
-		defs:    SignInDefinitions(),
-		feature: "economy-signin",
+		discord:   discordInfo,
+		usage:     usage,
+		clock:     clock,
+		color:     legacyRandomColor,
+		rpsChoice: legacyRandomRockPaperScissorsChoice,
+		defs:      SignInDefinitions(),
+		feature:   "economy-signin",
 	}
 }
 
@@ -71,12 +76,13 @@ func NewSignInModule(repo ports.EconomySignInRepository, discordInfo ports.Disco
 
 func NewSettingsModule(repo ports.EconomySettingsRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
 	return Module{
-		settings: coreeconomy.SettingsService{Repository: repo},
-		discord:  discordInfo,
-		usage:    usage,
-		color:    legacyRandomColor,
-		defs:     SettingsDefinitions(),
-		feature:  "economy-settings",
+		settings:  coreeconomy.SettingsService{Repository: repo},
+		discord:   discordInfo,
+		usage:     usage,
+		color:     legacyRandomColor,
+		rpsChoice: legacyRandomRockPaperScissorsChoice,
+		defs:      SettingsDefinitions(),
+		feature:   "economy-settings",
 	}
 }
 
@@ -86,6 +92,7 @@ func NewCoinAdminModule(repo ports.EconomyCoinAdminRepository, discordInfo ports
 		discord:   discordInfo,
 		usage:     usage,
 		color:     legacyRandomColor,
+		rpsChoice: legacyRandomRockPaperScissorsChoice,
 		defs:      CoinAdminDefinitions(),
 		feature:   "economy-coin-admin",
 	}
@@ -93,24 +100,38 @@ func NewCoinAdminModule(repo ports.EconomyCoinAdminRepository, discordInfo ports
 
 func NewCoinRankModule(repo ports.EconomyCoinRankRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
 	return Module{
-		coinRank: coreeconomy.CoinRankService{Repository: repo},
-		discord:  discordInfo,
-		usage:    usage,
-		color:    legacyRandomColor,
-		defs:     CoinRankDefinitions(),
-		feature:  "economy-coin-rank",
+		coinRank:  coreeconomy.CoinRankService{Repository: repo},
+		discord:   discordInfo,
+		usage:     usage,
+		color:     legacyRandomColor,
+		rpsChoice: legacyRandomRockPaperScissorsChoice,
+		defs:      CoinRankDefinitions(),
+		feature:   "economy-coin-rank",
+	}
+}
+
+func NewRockPaperScissorsModule(repo ports.EconomyRockPaperScissorsRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
+	return Module{
+		rps:       coreeconomy.RockPaperScissorsService{Repository: repo},
+		discord:   discordInfo,
+		usage:     usage,
+		color:     legacyRandomColor,
+		rpsChoice: legacyRandomRockPaperScissorsChoice,
+		defs:      RockPaperScissorsDefinitions(),
+		feature:   "economy-rps",
 	}
 }
 
 func NewProfileModule(repo ports.EconomyProfileRepository, discordInfo ports.DiscordInfoProvider, clock ports.Clock, usage ports.UsageTracker) Module {
 	return Module{
-		profile: coreeconomy.ProfileService{Repository: repo},
-		discord: discordInfo,
-		usage:   usage,
-		clock:   clock,
-		color:   legacyRandomColor,
-		defs:    ProfileDefinitions(),
-		feature: "economy-profile",
+		profile:   coreeconomy.ProfileService{Repository: repo},
+		discord:   discordInfo,
+		usage:     usage,
+		clock:     clock,
+		color:     legacyRandomColor,
+		rpsChoice: legacyRandomRockPaperScissorsChoice,
+		defs:      ProfileDefinitions(),
+		feature:   "economy-profile",
 	}
 }
 
@@ -162,6 +183,11 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 			return err
 		}
 	}
+	if m.rps.Repository != nil {
+		if err := router.RegisterSlash(RockPaperScissorsCommandName, m.RockPaperScissorsHandler()); err != nil {
+			return err
+		}
+	}
 	if m.profile.Repository != nil {
 		if err := router.RegisterSlash(ProfileCommandName, m.ProfileHandler()); err != nil {
 			return err
@@ -180,4 +206,18 @@ func legacyRandomColor() int {
 		return coinQuerySuccessColor
 	}
 	return int(value.Int64())
+}
+
+func legacyRandomRockPaperScissorsChoice() domain.RockPaperScissorsChoice {
+	choices := []domain.RockPaperScissorsChoice{
+		domain.RockPaperScissorsChoiceScissors,
+		domain.RockPaperScissorsChoiceRock,
+		domain.RockPaperScissorsChoicePaper,
+	}
+	max := big.NewInt(int64(len(choices)))
+	value, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		return domain.RockPaperScissorsChoiceScissors
+	}
+	return choices[value.Int64()]
 }

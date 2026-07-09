@@ -53,6 +53,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK:-false}" = "true" ] && [ "$
   echo "refusing apply: economy coin-rank command apply requires MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_RPS_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: economy RPS command apply requires MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED:-false}" != "true" ]; then
   echo "refusing apply: economy profile command apply requires MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -249,6 +253,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK:-false}" = "true" ]; then
   echo "staging command sync apply: including economy coin-rank command" >&2
 else
   echo "staging command sync apply: economy coin-rank command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS:-false}" = "true" ]; then
+  echo "staging command sync apply: including economy RPS command" >&2
+else
+  echo "staging command sync apply: economy RPS command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE:-false}" = "true" ]; then
   echo "staging command sync apply: including economy profile command" >&2

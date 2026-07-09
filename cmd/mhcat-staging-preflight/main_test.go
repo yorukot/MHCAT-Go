@@ -368,6 +368,43 @@ func TestPreflightWarnsWhenEconomyCoinRankRuntimeEnabledWithoutCommandSync(t *te
 	}
 }
 
+func TestPreflightRejectsEconomyRPSCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "economy-rps-runtime-pairing status=fail") {
+		t.Fatalf("expected economy RPS pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsEconomyRPSCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS"] = "true"
+	env["MHCAT_FEATURE_ECONOMY_RPS_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "economy-rps-command-sync status=pass") || !strings.Contains(stdout, "economy-rps-runtime-pairing status=pass") {
+		t.Fatalf("expected economy RPS pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenEconomyRPSRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_ECONOMY_RPS_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "economy-rps-runtime-pairing status=warn") {
+		t.Fatalf("expected economy RPS runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsEconomyProfileCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE"] = "true"

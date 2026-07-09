@@ -72,6 +72,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true
 
 Set both together only in an isolated staging database when testing `/代幣排行榜`. This path reads `coins` and renders a PNG leaderboard without writing economy data.
 
+Optional economy RPS smoke flags:
+
+```bash
+export MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true
+```
+
+Set both together only in an isolated staging database when testing `/剪刀石頭布`. This path writes existing `coins` rows, so use disposable balances only.
+
 Optional economy profile smoke flags:
 
 ```bash
@@ -440,6 +449,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`, confirm `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`, the database is isolated staging data, and all target `coins` rows are disposable.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true` and the database is isolated staging data.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`, confirm `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`, the database is isolated staging data, and all target `coins` rows are disposable.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE=true`, confirm `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`, confirm `MHCAT_FEATURE_WORK_ENABLED=true` and that the test accepts the partial work command surface.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=true`, confirm `MHCAT_FEATURE_WARNINGS_ENABLED=true` and the staging guild has safe warning-history fixtures.
@@ -546,6 +556,13 @@ For economy coin-rank staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true`;
 - `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`;
 - plan includes managed `代幣排行榜`;
+- plan still performs no create/update/delete during dry-run.
+
+For economy RPS staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`;
+- `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`;
+- plan includes managed `剪刀石頭布`;
 - plan still performs no create/update/delete during dry-run.
 
 For economy profile staging smoke, expected additionally:
