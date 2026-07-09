@@ -160,6 +160,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		xpRoleConfigRuntimePairing(lookup),
 		xpProfileDisabledCommandSync(lookup),
 		xpProfileDisabledRuntimePairing(lookup),
+		xpAdminCommandSync(lookup),
+		xpAdminRuntimePairing(lookup),
 		voiceRoomConfigCommandSync(lookup),
 		voiceRoomConfigRuntimePairing(lookup),
 		voiceRoomLockCommandSync(lookup),
@@ -1496,6 +1498,38 @@ func xpProfileDisabledRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "xp-profile-disabled-runtime-pairing", Status: statusWarn, Message: "XP profile disabled runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "xp-profile-disabled-runtime-pairing", Status: statusSkipped, Message: "XP profile disabled runtime and command sync include are disabled"}
+}
+
+func xpAdminCommandSync(lookup lookupFunc) checkResult {
+	includeXPAdmin, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN")
+	if err != nil {
+		return checkResult{Name: "xp-admin-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeXPAdmin {
+		return checkResult{Name: "xp-admin-command-sync", Status: statusPass, Message: "XP admin command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "xp-admin-command-sync", Status: statusSkipped, Message: "XP admin command sync include is disabled"}
+}
+
+func xpAdminRuntimePairing(lookup lookupFunc) checkResult {
+	includeXPAdmin, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN")
+	if err != nil {
+		return checkResult{Name: "xp-admin-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	xpAdminEnabled, err := boolValue(lookup, "MHCAT_FEATURE_XP_ADMIN_ENABLED")
+	if err != nil {
+		return checkResult{Name: "xp-admin-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeXPAdmin && !xpAdminEnabled {
+		return checkResult{Name: "xp-admin-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN=true requires MHCAT_FEATURE_XP_ADMIN_ENABLED=true in the staging runtime"}
+	}
+	if includeXPAdmin && xpAdminEnabled {
+		return checkResult{Name: "xp-admin-runtime-pairing", Status: statusPass, Message: "XP admin command sync and runtime feature flag are paired"}
+	}
+	if xpAdminEnabled {
+		return checkResult{Name: "xp-admin-runtime-pairing", Status: statusWarn, Message: "XP admin runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "xp-admin-runtime-pairing", Status: statusSkipped, Message: "XP admin runtime and command sync include are disabled"}
 }
 
 func voiceRoomConfigCommandSync(lookup lookupFunc) checkResult {

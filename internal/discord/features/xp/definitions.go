@@ -11,7 +11,9 @@ const (
 	VoiceXPDeleteCommandName     = "語音經驗刪除"
 	TextXPRewardRoleCommandName  = "聊天經驗身分組設定"
 	VoiceXPRewardRoleCommandName = "語音經驗身分組設定"
+	XPAdminCommandName           = "經驗值改變"
 	manageMessagesPermission     = "8192"
+	kickMembersPermission        = "2"
 )
 
 func Definitions() []commands.Definition {
@@ -32,6 +34,10 @@ func DisabledProfileDefinitions() []commands.Definition {
 
 func RewardRoleDefinitions() []commands.Definition {
 	return []commands.Definition{TextXPRewardRoleDefinition(), VoiceXPRewardRoleDefinition()}
+}
+
+func AdminDefinitions() []commands.Definition {
+	return []commands.Definition{XPAdminDefinition()}
 }
 
 func TextXPProfileDefinition() commands.Definition {
@@ -135,6 +141,36 @@ func TextXPRewardRoleDefinition() commands.Definition {
 
 func VoiceXPRewardRoleDefinition() commands.Definition {
 	return xpRewardRoleDefinition(VoiceXPRewardRoleCommandName, "設定語音經驗通知要在哪發送(兼增加、刪除、設定查詢)", "voice-xp-role-config", "https://docsmhcat.yorukot.me/docs/chat_xp_set", "當到達設定的等級時時，要給甚麼身份組")
+}
+
+func XPAdminDefinition() commands.Definition {
+	return commands.Definition{
+		Type:                     commands.CommandTypeChatInput,
+		Name:                     XPAdminCommandName,
+		Description:              "增加某人的經驗值",
+		DefaultMemberPermissions: stringPtr(kickMembersPermission),
+		Ownership:                commands.ManagedOwnership("xp-admin", commands.ScopeGuild),
+		Options: []commands.Option{
+			{
+				Type:        commands.OptionTypeSubCommand,
+				Name:        "聊天經驗改變",
+				Description: "增加聊天經驗",
+				Options: []commands.Option{
+					{Type: commands.OptionTypeUser, Name: "使用者", Description: "要增加的對象!", Required: true},
+					{Type: commands.OptionTypeInteger, Name: "經驗值", Description: "要增加多少經驗值!", Required: true},
+				},
+			},
+			{
+				Type:        commands.OptionTypeSubCommand,
+				Name:        "語音經驗改變",
+				Description: "增加語音經驗",
+				Options: []commands.Option{
+					{Type: commands.OptionTypeUser, Name: "使用者", Description: "要增加的對象!", Required: true},
+					{Type: commands.OptionTypeInteger, Name: "經驗值", Description: "要增加多少經驗值!", Required: true},
+				},
+			},
+		},
+	}
 }
 
 func xpProfileDefinition(name string, description string) commands.Definition {

@@ -28,6 +28,12 @@ type VoiceXPRewardRoleRepository struct {
 	Err     error
 }
 
+type XPAdminRepository struct {
+	TextProfiles  map[string]domain.XPProfile
+	VoiceProfiles map[string]domain.XPProfile
+	Err           error
+}
+
 func NewTextXPConfigRepository() *TextXPConfigRepository {
 	return &TextXPConfigRepository{Configs: map[string]domain.TextXPConfig{}}
 }
@@ -42,6 +48,13 @@ func NewTextXPRewardRoleRepository() *TextXPRewardRoleRepository {
 
 func NewVoiceXPRewardRoleRepository() *VoiceXPRewardRoleRepository {
 	return &VoiceXPRewardRoleRepository{}
+}
+
+func NewXPAdminRepository() *XPAdminRepository {
+	return &XPAdminRepository{
+		TextProfiles:  map[string]domain.XPProfile{},
+		VoiceProfiles: map[string]domain.XPProfile{},
+	}
 }
 
 func (r *TextXPConfigRepository) SaveTextXPConfig(ctx context.Context, config domain.TextXPConfig) error {
@@ -142,6 +155,46 @@ func (r *VoiceXPRewardRoleRepository) DeleteVoiceXPRewardRole(ctx context.Contex
 	return nil
 }
 
+func (r *XPAdminRepository) GetTextXPProfile(ctx context.Context, guildID string, userID string) (domain.XPProfile, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.XPProfile{}, err
+	}
+	profile, ok := r.TextProfiles[xpProfileKey(guildID, userID)]
+	if !ok {
+		return domain.XPProfile{}, ports.ErrTextXPProfileMissing
+	}
+	return profile, nil
+}
+
+func (r *XPAdminRepository) SaveTextXPProfile(ctx context.Context, profile domain.XPProfile) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	profile = profile.Normalize()
+	r.TextProfiles[xpProfileKey(profile.GuildID, profile.UserID)] = profile
+	return nil
+}
+
+func (r *XPAdminRepository) GetVoiceXPProfile(ctx context.Context, guildID string, userID string) (domain.XPProfile, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.XPProfile{}, err
+	}
+	profile, ok := r.VoiceProfiles[xpProfileKey(guildID, userID)]
+	if !ok {
+		return domain.XPProfile{}, ports.ErrVoiceXPProfileMissing
+	}
+	return profile, nil
+}
+
+func (r *XPAdminRepository) SaveVoiceXPProfile(ctx context.Context, profile domain.XPProfile) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	profile = profile.Normalize()
+	r.VoiceProfiles[xpProfileKey(profile.GuildID, profile.UserID)] = profile
+	return nil
+}
+
 func (r *TextXPConfigRepository) ready(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -164,6 +217,13 @@ func (r *TextXPRewardRoleRepository) ready(ctx context.Context) error {
 }
 
 func (r *VoiceXPRewardRoleRepository) ready(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return r.Err
+}
+
+func (r *XPAdminRepository) ready(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -196,7 +256,12 @@ func deleteRewardRole(configs []domain.XPRewardRoleConfig, guildID string, level
 	return out
 }
 
+func xpProfileKey(guildID string, userID string) string {
+	return strings.TrimSpace(guildID) + "/" + strings.TrimSpace(userID)
+}
+
 var _ ports.TextXPConfigRepository = (*TextXPConfigRepository)(nil)
 var _ ports.VoiceXPConfigRepository = (*VoiceXPConfigRepository)(nil)
 var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
 var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)
+var _ ports.XPAdminRepository = (*XPAdminRepository)(nil)

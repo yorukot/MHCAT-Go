@@ -36,3 +36,10 @@ type VoiceXPRewardRoleRepository interface {
 	SaveVoiceXPRewardRole(ctx context.Context, config domain.XPRewardRoleConfig) error
 	DeleteVoiceXPRewardRole(ctx context.Context, guildID string, level int64, roleID string) error
 }
+
+type XPAdminRepository interface {
+	GetTextXPProfile(ctx context.Context, guildID string, userID string) (domain.XPProfile, error)
+	SaveTextXPProfile(ctx context.Context, profile domain.XPProfile) error
+	GetVoiceXPProfile(ctx context.Context, guildID string, userID string) (domain.XPProfile, error)
+	SaveVoiceXPProfile(ctx context.Context, profile domain.XPProfile) error
+}

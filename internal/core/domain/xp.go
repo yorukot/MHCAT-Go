@@ -10,6 +10,7 @@ import (
 var ErrInvalidTextXPConfig = errors.New("invalid text xp config")
 var ErrInvalidVoiceXPConfig = errors.New("invalid voice xp config")
 var ErrInvalidXPRewardRoleConfig = errors.New("invalid xp reward role config")
+var ErrInvalidXPAdjustment = errors.New("invalid xp adjustment")
 
 type TextXPConfig struct {
 	GuildID   string
@@ -30,6 +31,12 @@ type XPProfile struct {
 	UserID  string
 	XP      int64
 	Level   int64
+}
+
+type XPAdjustment struct {
+	GuildID string
+	UserID  string
+	Delta   int64
 }
 
 type XPRewardRoleConfig struct {
@@ -57,6 +64,90 @@ func (c VoiceXPConfig) Validate() error {
 		return ErrInvalidVoiceXPConfig
 	}
 	return nil
+}
+
+func (p XPProfile) Normalize() XPProfile {
+	p.GuildID = strings.TrimSpace(p.GuildID)
+	p.UserID = strings.TrimSpace(p.UserID)
+	return p
+}
+
+func (p XPProfile) Validate() error {
+	p = p.Normalize()
+	if p.GuildID == "" || p.UserID == "" {
+		return ErrInvalidXPAdjustment
+	}
+	return nil
+}
+
+func (a XPAdjustment) Normalize() XPAdjustment {
+	a.GuildID = strings.TrimSpace(a.GuildID)
+	a.UserID = strings.TrimSpace(a.UserID)
+	return a
+}
+
+func (a XPAdjustment) Validate() error {
+	a = a.Normalize()
+	if a.GuildID == "" || a.UserID == "" {
+		return ErrInvalidXPAdjustment
+	}
+	return nil
+}
+
+func ApplyTextXPAdjustment(profile XPProfile, delta int64) XPProfile {
+	return applyXPAdjustment(profile.Normalize(), delta, textXPRequiredForLevel)
+}
+
+func ApplyVoiceXPAdjustment(profile XPProfile, delta int64) XPProfile {
+	return applyXPAdjustment(profile.Normalize(), delta, voiceXPRequiredForLevel)
+}
+
+func applyXPAdjustment(profile XPProfile, delta int64, required func(int64) int64) XPProfile {
+	lessXP := delta
+	allXP := int64(0)
+	level := profile.Level
+	if delta > 0 {
+		for lessXP > 0 {
+			needed := required(level)
+			if level == profile.Level {
+				needed -= profile.XP
+			}
+			lessXP -= needed
+			if lessXP <= 0 {
+				allXP = lessXP + needed
+			}
+			level++
+		}
+		level--
+	} else {
+		for lessXP < 0 {
+			needed := required(level)
+			if level == profile.Level {
+				needed = profile.XP
+			}
+			lessXP += needed
+			if lessXP >= 0 {
+				allXP = lessXP
+			}
+			level--
+		}
+		level++
+	}
+	profile.Level = level
+	if allXP == profile.XP {
+		profile.XP += delta
+	} else {
+		profile.XP = allXP
+	}
+	return profile
+}
+
+func textXPRequiredForLevel(level int64) int64 {
+	return int64(float64(level)*float64(level)/3*100 + 100)
+}
+
+func voiceXPRequiredForLevel(level int64) int64 {
+	return int64(float64(level)*float64(level)/2*100 + 100)
 }
 
 func (c XPRewardRoleConfig) Normalize() XPRewardRoleConfig {

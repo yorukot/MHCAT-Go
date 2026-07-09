@@ -106,6 +106,7 @@ type RuntimeOptions struct {
 	VoiceXPRewardRoleRepository   ports.VoiceXPRewardRoleRepository
 	XPRewardRoleInspector         ports.DiscordRoleInspector
 	XPProfileDisabledEnabled      bool
+	XPAdminRepository             ports.XPAdminRepository
 	VoiceRoomConfigRepository     ports.VoiceRoomConfigRepository
 	VoiceRoomLockRepository       ports.VoiceRoomLockRepository
 	JoinRoleConfigRepository      ports.JoinRoleConfigRepository
@@ -244,6 +245,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.XPProfileDisabledEnabled {
 		definitions = append(definitions, featurexp.DisabledProfileDefinitions()...)
+	}
+	if opts.XPAdminRepository != nil {
+		definitions = append(definitions, featurexp.AdminDefinitions()...)
 	}
 	if opts.VoiceRoomConfigRepository != nil {
 		definitions = append(definitions, featurevoice.Definitions()...)
@@ -505,6 +509,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.XPProfileDisabledEnabled {
 		xpProfileModule := featurexp.NewDisabledProfileModule(opts.UsageTracker)
 		if err := xpProfileModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.XPAdminRepository != nil {
+		xpAdminModule := featurexp.NewAdminModule(opts.XPAdminRepository, opts.UsageTracker)
+		if err := xpAdminModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

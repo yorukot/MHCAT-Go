@@ -292,6 +292,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeXPProfileDisabled {
 		definitions = append(definitions, featurexp.DisabledProfileDefinitions()...)
 	}
+	if cfg.IncludeXPAdmin {
+		definitions = append(definitions, featurexp.AdminDefinitions()...)
+	}
 	if cfg.IncludeVoiceRoomConfig {
 		definitions = append(definitions, featurevoice.Definitions()...)
 	}
@@ -431,6 +434,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeXPProfileDisabled {
 		expected = append(expected, featurexp.TextXPProfileCommandName, featurexp.VoiceXPProfileCommandName)
+	}
+	if cfg.IncludeXPAdmin {
+		expected = append(expected, featurexp.XPAdminCommandName)
 	}
 	if cfg.IncludeVoiceRoomConfig {
 		expected = append(expected, featurevoice.VoiceRoomSetCommandName, featurevoice.VoiceRoomDeleteCommandName)

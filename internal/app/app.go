@@ -574,6 +574,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 	if cfg.FeatureXPProfileDisabledEnabled {
 		opts.XPProfileDisabledEnabled = true
 	}
+	if cfg.FeatureXPAdminEnabled {
+		xpAdminRepo, err := xpAdminRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.XPAdminRepository = xpAdminRepo
+	}
 	if cfg.FeatureVoiceRoomConfigEnabled {
 		voiceRoomRepo, err := voiceRoomConfigRepositoryFromMongo(mongoClient)
 		if err != nil {
@@ -1008,6 +1015,22 @@ func voiceXPRewardRoleRepositoryFromMongo(mongoClient MongoClient) (*mongoreposi
 	repo, err := mongorepositories.NewVoiceXPRewardRoleRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("voice XP reward role feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func xpAdminRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.XPAdminRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("XP admin feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("XP admin feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewXPAdminRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("XP admin feature repository: %w", err)
 	}
 	return repo, nil
 }

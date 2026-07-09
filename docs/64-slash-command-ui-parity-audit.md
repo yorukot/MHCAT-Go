@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 61
-- Matching command definitions: 61
+- Current Go command definitions: 62
+- Matching command definitions: 62
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 13
+- Legacy commands without Go definitions: 12
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -55,6 +55,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `簽到列表` | `slashCommands/代幣系統/sing_list.js` | matching-definition | none |
 | `統計系統刪除` | `slashCommands/統計系統/number_delete.js` | matching-definition | none |
 | `統計系統查詢` | `slashCommands/統計系統/number.js` | matching-definition | none |
+| `經驗值改變` | `slashCommands/經驗系統/xp_add.js` | matching-definition | none |
 | `翻譯` | `slashCommands/實用工具/translate.js` | matching-definition | none |
 | `聊天經驗` | `slashCommands/經驗系統/text_xp.js` | matching-definition | none |
 | `聊天經驗刪除` | `slashCommands/經驗系統/text_set_delete.js` | matching-definition | none |
@@ -95,7 +96,6 @@ None.
 | `剪刀石頭布` | 代幣系統 | `slashCommands/代幣系統/rock_paper_scissors.js` | 跟電腦剪刀時候布來獲得代幣(有賺有賠) |
 | `統計系統創建` | 統計系統 | `slashCommands/統計系統/number_create.js` | 創建統計消息 |
 | `統計身分組人數` | 統計系統 | `slashCommands/統計系統/role_create.js` | 統計某個特定的身分組的人數 |
-| `經驗值改變` | 經驗系統 | `slashCommands/經驗系統/xp_add.js` | 增加某人的經驗值 |
 | `經驗值重製` | 經驗系統 | `slashCommands/經驗系統/reset_xp.js` | 重製整個伺服器的經驗 |
 | `聊天排行榜` | 經驗系統 | `slashCommands/經驗系統/text_rank.js` | 查詢聊天經驗的排行榜 |
 | `語音排行榜` | 經驗系統 | `slashCommands/經驗系統/voice_rank.js` | 查詢語音經驗的排行榜 |

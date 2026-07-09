@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -14,6 +15,7 @@ import (
 
 const (
 	permissionManageMessages = int64(8192)
+	permissionKickMembers    = int64(2)
 	textXPErrorColor         = 0xED4245
 	textXPSuccessColor       = 0x57F287
 	legacyLineEmoji          = "<:line:992363971803881493>"
@@ -154,6 +156,42 @@ func (m DisabledProfileModule) disabledProfileHandler(commandName string) intera
 	}
 }
 
+func (m AdminModule) AdminHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		if !interaction.Actor.HasPermission(permissionKickMembers) {
+			return responder.EditOriginal(ctx, textXPErrorMessage("你需要有`踢出用戶`才能使用此指令"))
+		}
+		amount, ok := xpIntegerOption(interaction, "經驗值")
+		if !ok {
+			return responder.EditOriginal(ctx, textXPErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+		}
+		adjustment := domain.XPAdjustment{
+			GuildID: interaction.Actor.GuildID,
+			UserID:  firstOption(interaction, "使用者"),
+			Delta:   amount,
+		}
+		var err error
+		switch interaction.Subcommand {
+		case "聊天經驗改變":
+			_, err = m.service.AddTextXP(ctx, adjustment)
+		case "語音經驗改變":
+			_, err = m.service.AddVoiceXP(ctx, adjustment)
+		default:
+			return responder.EditOriginal(ctx, textXPErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+		}
+		if err != nil {
+			return responder.EditOriginal(ctx, textXPUnknownError(err))
+		}
+		if err := responder.EditOriginal(ctx, xpAdminSuccessMessage(adjustment.UserID, amount)); err != nil {
+			return err
+		}
+		return m.track(ctx, interaction)
+	}
+}
+
 func textXPSuccessMessage(channelID string) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
@@ -203,6 +241,17 @@ func textXPPreviewContent(message string) string {
 	return "以下為你的訊息預覽:\n" + line + "\n\n" + message
 }
 
+func xpAdminSuccessMessage(userID string, amount int64) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       "<:xp:990254386792005663> 經驗系統",
+			Description: fmt.Sprintf("%s成功為:<@%s>\n增加:`%d`", doneEmoji, strings.TrimSpace(userID), amount),
+			Color:       textXPSuccessColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
 func textXPUnknownError(err error) responses.Message {
 	_ = err
 	return textXPErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
@@ -244,6 +293,20 @@ func firstRawOption(interaction interactions.Interaction, names ...string) strin
 	return ""
 }
 
+func xpIntegerOption(interaction interactions.Interaction, name string) (int64, bool) {
+	if option, ok := interaction.CommandOptions[name]; ok {
+		if option.Type == interactions.CommandOptionInteger {
+			return option.Int, true
+		}
+		if value := strings.TrimSpace(option.String); value != "" {
+			parsed, err := strconv.ParseInt(value, 10, 64)
+			return parsed, err == nil
+		}
+	}
+	parsed, err := strconv.ParseInt(strings.TrimSpace(interaction.Options[name]), 10, 64)
+	return parsed, err == nil
+}
+
 func (m Module) track(ctx context.Context, interaction interactions.Interaction, commandName string) error {
 	if m.usage == nil {
 		return nil
@@ -277,5 +340,17 @@ func (m DisabledProfileModule) track(ctx context.Context, interaction interactio
 		UserID:      interaction.Actor.UserID,
 		GuildID:     interaction.Actor.GuildID,
 		Feature:     "xp-profile-disabled",
+	})
+}
+
+func (m AdminModule) track(ctx context.Context, interaction interactions.Interaction) error {
+	if m.usage == nil {
+		return nil
+	}
+	return m.usage.TrackCommand(ctx, ports.UsageEvent{
+		CommandName: XPAdminCommandName,
+		UserID:      interaction.Actor.UserID,
+		GuildID:     interaction.Actor.GuildID,
+		Feature:     "xp-admin",
 	})
 }

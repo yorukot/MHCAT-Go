@@ -153,6 +153,7 @@ func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
 	var foundGachaPrizeCreate bool
 	var foundGachaPrizeEdit bool
 	var foundGachaPrizeDelete bool
+	var foundXPAdmin bool
 	for _, definition := range CurrentGoDefinitions() {
 		if definition.Name == "警告設定" {
 			foundWarningSettings = true
@@ -184,6 +185,9 @@ func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
 		if definition.Name == "扭蛋獎池刪除" {
 			foundGachaPrizeDelete = true
 		}
+		if definition.Name == "經驗值改變" {
+			foundXPAdmin = true
+		}
 	}
 	if !foundWarningSettings {
 		t.Fatal("current Go definitions should include warning settings")
@@ -211,6 +215,9 @@ func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
 	}
 	if !foundGachaPrizeDelete {
 		t.Fatal("current Go definitions should include gacha prize delete")
+	}
+	if !foundXPAdmin {
+		t.Fatal("current Go definitions should include XP admin")
 	}
 }
 

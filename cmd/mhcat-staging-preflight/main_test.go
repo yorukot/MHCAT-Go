@@ -1505,6 +1505,43 @@ func TestPreflightWarnsWhenXPProfileDisabledRuntimeEnabledWithoutCommandSync(t *
 	}
 }
 
+func TestPreflightRejectsXPAdminCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "xp-admin-runtime-pairing status=fail") {
+		t.Fatalf("expected XP admin pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsXPAdminCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN"] = "true"
+	env["MHCAT_FEATURE_XP_ADMIN_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "xp-admin-command-sync status=pass") || !strings.Contains(stdout, "xp-admin-runtime-pairing status=pass") {
+		t.Fatalf("expected XP admin pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenXPAdminRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_XP_ADMIN_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "xp-admin-runtime-pairing status=warn") {
+		t.Fatalf("expected XP admin runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsVoiceRoomConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG"] = "true"

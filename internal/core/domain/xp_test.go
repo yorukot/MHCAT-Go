@@ -63,3 +63,33 @@ func TestParseLegacyColorValue(t *testing.T) {
 		t.Fatal("unexpected valid color")
 	}
 }
+
+func TestApplyTextXPAdjustmentMatchesLegacyLevelMath(t *testing.T) {
+	profile := XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 20, Level: 1}
+
+	got := ApplyTextXPAdjustment(profile, 200)
+	if got.Level != 2 || got.XP != 87 {
+		t.Fatalf("positive text XP adjustment = %#v", got)
+	}
+
+	got = ApplyTextXPAdjustment(XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 20, Level: 1}, -30)
+	if got.Level != 0 || got.XP != 90 {
+		t.Fatalf("negative text XP adjustment = %#v", got)
+	}
+}
+
+func TestApplyVoiceXPAdjustmentMatchesLegacyLevelMath(t *testing.T) {
+	profile := XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 50, Level: 2}
+
+	got := ApplyVoiceXPAdjustment(profile, 500)
+	if got.Level != 3 || got.XP != 250 {
+		t.Fatalf("positive voice XP adjustment = %#v", got)
+	}
+}
+
+func TestApplyXPAdjustmentPreservesLegacyZeroDeltaQuirk(t *testing.T) {
+	got := ApplyTextXPAdjustment(XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 70, Level: 4}, 0)
+	if got.Level != 5 || got.XP != 0 {
+		t.Fatalf("zero delta adjustment = %#v", got)
+	}
+}

@@ -3,6 +3,7 @@ package repositories
 import (
 	"testing"
 
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -58,6 +59,35 @@ func TestXPRewardRoleFilterUsesLegacyMisspelledLevelField(t *testing.T) {
 	}
 	if value := documentValue(t, filter, "role"); value != "role-1" {
 		t.Fatalf("role = %#v", value)
+	}
+}
+
+func TestXPProfileUpdateStoresLegacyStringFields(t *testing.T) {
+	update := xpProfileUpdate(domain.XPProfile{GuildID: " guild-1 ", UserID: " user-1 ", XP: 87, Level: 2}, false)
+	set := documentValue(t, update, "$set")
+	if value := documentValue(t, set, "xp"); value != "87" {
+		t.Fatalf("xp = %#v", value)
+	}
+	if value := documentValue(t, set, "leavel"); value != "2" {
+		t.Fatalf("leavel = %#v", value)
+	}
+	setOnInsert := documentValue(t, update, "$setOnInsert")
+	if value := documentValue(t, setOnInsert, "guild"); value != "guild-1" {
+		t.Fatalf("guild = %#v", value)
+	}
+	if value := documentValue(t, setOnInsert, "member"); value != "user-1" {
+		t.Fatalf("member = %#v", value)
+	}
+	if hasKey(setOnInsert.(bson.D), "leavejoin") {
+		t.Fatalf("text profile insert should not include leavejoin: %#v", setOnInsert)
+	}
+}
+
+func TestVoiceXPProfileUpdateSetsLegacyLeaveJoinOnInsert(t *testing.T) {
+	update := xpProfileUpdate(domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 12, Level: 1}, true)
+	setOnInsert := documentValue(t, update, "$setOnInsert")
+	if value := documentValue(t, setOnInsert, "leavejoin"); value != "leave" {
+		t.Fatalf("leavejoin = %#v", value)
 	}
 }
 

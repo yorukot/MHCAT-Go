@@ -248,6 +248,73 @@ func TestDisabledProfileHandlersReturnLegacyRemovalMessage(t *testing.T) {
 	}
 }
 
+func TestAdminHandlerAddsTextXPAndRendersLegacySuccess(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	usage := &fakeusage.Tracker{}
+	module := NewAdminModule(repo, usage)
+	interaction := fakediscord.SlashInteractionWithOptions(XPAdminCommandName, "聊天經驗改變", map[string]string{
+		"使用者": "user-2",
+		"經驗值": "150",
+	})
+	interaction.Actor.PermissionBits = permissionKickMembers
+	responder := fakediscord.NewResponder()
+
+	if err := module.AdminHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	profile := repo.TextProfiles["guild-1/user-2"]
+	if profile.Level != 1 || profile.XP != 50 {
+		t.Fatalf("profile = %#v", profile)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	embed := responder.Edits[0].Embeds[0]
+	if embed.Title != "<:xp:990254386792005663> 經驗系統" || embed.Description != doneEmoji+"成功為:<@user-2>\n增加:`150`" {
+		t.Fatalf("embed = %#v", embed)
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != XPAdminCommandName || usage.Events[0].Feature != "xp-admin" {
+		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
+func TestAdminHandlerAddsVoiceXPWithTypedOptions(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.VoiceProfiles["guild-1/user-2"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-2", Level: 2, XP: 50}
+	module := NewAdminModule(repo, nil)
+	interaction := fakediscord.SlashInteractionWithOptions(XPAdminCommandName, "語音經驗改變", map[string]string{})
+	interaction.Actor.PermissionBits = permissionKickMembers
+	interaction.CommandOptions = map[string]interactions.CommandOptionValue{
+		"使用者": {Type: interactions.CommandOptionUser, String: "user-2"},
+		"經驗值": {Type: interactions.CommandOptionInteger, Int: 500, String: "500"},
+	}
+	responder := fakediscord.NewResponder()
+
+	if err := module.AdminHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	profile := repo.VoiceProfiles["guild-1/user-2"]
+	if profile.Level != 3 || profile.XP != 250 {
+		t.Fatalf("profile = %#v", profile)
+	}
+}
+
+func TestAdminHandlerRequiresKickMembers(t *testing.T) {
+	module := NewAdminModule(fakemongo.NewXPAdminRepository(), nil)
+	interaction := fakediscord.SlashInteractionWithOptions(XPAdminCommandName, "聊天經驗改變", map[string]string{
+		"使用者": "user-2",
+		"經驗值": "1",
+	})
+	responder := fakediscord.NewResponder()
+
+	if err := module.AdminHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "踢出用戶") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func TestRewardRoleAddDeleteAndQueryHandlers(t *testing.T) {
 	textRepo := fakemongo.NewTextXPRewardRoleRepository()
 	voiceRepo := fakemongo.NewVoiceXPRewardRoleRepository()

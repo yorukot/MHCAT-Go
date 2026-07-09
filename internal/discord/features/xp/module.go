@@ -30,6 +30,11 @@ type RewardRoleModule struct {
 	color        func() int
 }
 
+type AdminModule struct {
+	service coreservice.AdminService
+	usage   ports.UsageTracker
+}
+
 func NewModule(repo ports.TextXPConfigRepository, messages ports.DiscordMessagePort, usage ports.UsageTracker) Module {
 	return Module{
 		service:  coreservice.TextConfigService{Repository: repo},
@@ -59,6 +64,13 @@ func NewRewardRoleModule(textRepo ports.TextXPRewardRoleRepository, voiceRepo po
 	}
 }
 
+func NewAdminModule(repo ports.XPAdminRepository, usage ports.UsageTracker) AdminModule {
+	return AdminModule{
+		service: coreservice.AdminService{Repository: repo},
+		usage:   usage,
+	}
+}
+
 func (m Module) Name() string {
 	return "text-xp-config"
 }
@@ -75,6 +87,10 @@ func (m RewardRoleModule) Name() string {
 	return "xp-role-config"
 }
 
+func (m AdminModule) Name() string {
+	return "xp-admin"
+}
+
 func (m Module) Commands() []commands.Definition {
 	return TextDefinitions()
 }
@@ -89,6 +105,10 @@ func (m DisabledProfileModule) Commands() []commands.Definition {
 
 func (m RewardRoleModule) Commands() []commands.Definition {
 	return RewardRoleDefinitions()
+}
+
+func (m AdminModule) Commands() []commands.Definition {
+	return AdminDefinitions()
 }
 
 func (m Module) RegisterRoutes(router *interactions.Router) error {
@@ -123,4 +143,8 @@ func (m RewardRoleModule) RegisterRoutes(router *interactions.Router) error {
 		return err
 	}
 	return router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: "legacy", Feature: "xp", Action: "voice_reward_page", Legacy: true}, m.VoicePageHandler())
+}
+
+func (m AdminModule) RegisterRoutes(router *interactions.Router) error {
+	return router.RegisterSlash(XPAdminCommandName, m.AdminHandler())
 }

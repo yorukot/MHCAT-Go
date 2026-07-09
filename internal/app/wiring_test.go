@@ -1608,6 +1608,42 @@ func TestBuildRuntimeRoutesDisabledXPProfilesOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesXPAdminOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("經驗值改變", "聊天經驗改變", map[string]string{
+		"使用者": "user-2",
+		"經驗值": "150",
+	})
+	interaction.Actor.PermissionBits = 2
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("XP admin route should not be available without repository")
+	}
+
+	repo := fakemongo.NewXPAdminRepository()
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:            validTestConfig(),
+		XPAdminRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with XP admin: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch XP admin: %v", err)
+	}
+	profile := repo.TextProfiles["guild-1/user-2"]
+	if profile.Level != 1 || profile.XP != 50 {
+		t.Fatalf("profile = %#v", profile)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "經驗系統") {
+		t.Fatalf("XP admin response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesJoinRoleConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

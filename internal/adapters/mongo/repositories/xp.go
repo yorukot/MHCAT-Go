@@ -38,6 +38,11 @@ type VoiceXPRewardRoleRepository struct {
 	collection *drivermongo.Collection
 }
 
+type XPAdminRepository struct {
+	textProfiles  *drivermongo.Collection
+	voiceProfiles *drivermongo.Collection
+}
+
 func NewTextXPConfigRepository(collection *drivermongo.Collection) (*TextXPConfigRepository, error) {
 	if collection == nil {
 		return nil, errors.New("mongo text xp channel collection is required")
@@ -92,6 +97,23 @@ func NewVoiceXPRewardRoleRepositoryFromDatabase(database *drivermongo.Database) 
 		return nil, errors.New("mongo database is required")
 	}
 	return NewVoiceXPRewardRoleRepository(database.Collection(VoiceXPRewardRoleCollectionName))
+}
+
+func NewXPAdminRepository(textProfiles *drivermongo.Collection, voiceProfiles *drivermongo.Collection) (*XPAdminRepository, error) {
+	if textProfiles == nil {
+		return nil, errors.New("mongo text xp profile collection is required")
+	}
+	if voiceProfiles == nil {
+		return nil, errors.New("mongo voice xp profile collection is required")
+	}
+	return &XPAdminRepository{textProfiles: textProfiles, voiceProfiles: voiceProfiles}, nil
+}
+
+func NewXPAdminRepositoryFromDatabase(database *drivermongo.Database) (*XPAdminRepository, error) {
+	if database == nil {
+		return nil, errors.New("mongo database is required")
+	}
+	return NewXPAdminRepository(database.Collection(TextXPCollectionName), database.Collection(VoiceXPCollectionName))
 }
 
 func (r *TextXPConfigRepository) SaveTextXPConfig(ctx context.Context, config domain.TextXPConfig) error {
@@ -188,6 +210,22 @@ func (r *VoiceXPConfigRepository) DeleteVoiceXPConfig(ctx context.Context, guild
 		return ports.ErrVoiceXPConfigMissing
 	}
 	return ctx.Err()
+}
+
+func (r *XPAdminRepository) GetTextXPProfile(ctx context.Context, guildID string, userID string) (domain.XPProfile, error) {
+	return getAdminXPProfile(ctx, r.textProfiles, guildID, userID, ports.ErrTextXPProfileMissing, "text")
+}
+
+func (r *XPAdminRepository) SaveTextXPProfile(ctx context.Context, profile domain.XPProfile) error {
+	return saveAdminXPProfile(ctx, r.textProfiles, profile, "text", false)
+}
+
+func (r *XPAdminRepository) GetVoiceXPProfile(ctx context.Context, guildID string, userID string) (domain.XPProfile, error) {
+	return getAdminXPProfile(ctx, r.voiceProfiles, guildID, userID, ports.ErrVoiceXPProfileMissing, "voice")
+}
+
+func (r *XPAdminRepository) SaveVoiceXPProfile(ctx context.Context, profile domain.XPProfile) error {
+	return saveAdminXPProfile(ctx, r.voiceProfiles, profile, "voice", true)
 }
 
 func nullableTrimmedString(value string) any {
@@ -314,7 +352,65 @@ func xpRewardRoleFilter(guildID string, level string, roleID string) bson.D {
 	}
 }
 
+func getAdminXPProfile(ctx context.Context, collection *drivermongo.Collection, guildID string, userID string, missing error, label string) (domain.XPProfile, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.XPProfile{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	userID = strings.TrimSpace(userID)
+	if guildID == "" || userID == "" {
+		return domain.XPProfile{}, domain.ErrInvalidXPAdjustment
+	}
+	var document documents.XPProfileDocument
+	err := collection.FindOne(ctx, xpProfileFilter(guildID, userID)).Decode(&document)
+	if err != nil {
+		if errors.Is(err, drivermongo.ErrNoDocuments) {
+			return domain.XPProfile{}, missing
+		}
+		return domain.XPProfile{}, mhcatmongo.MapError(fmt.Errorf("get admin %s xp profile: %w", label, err))
+	}
+	return document.ToDomain().Normalize(), ctx.Err()
+}
+
+func saveAdminXPProfile(ctx context.Context, collection *drivermongo.Collection, profile domain.XPProfile, label string, voice bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	profile = profile.Normalize()
+	if err := profile.Validate(); err != nil {
+		return err
+	}
+	_, err := collection.UpdateOne(ctx, xpProfileFilter(profile.GuildID, profile.UserID), xpProfileUpdate(profile, voice), options.UpdateOne().SetUpsert(true))
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("save admin %s xp profile: %w", label, err))
+	}
+	return ctx.Err()
+}
+
+func xpProfileFilter(guildID string, userID string) bson.D {
+	return bson.D{{Key: "guild", Value: strings.TrimSpace(guildID)}, {Key: "member", Value: strings.TrimSpace(userID)}}
+}
+
+func xpProfileUpdate(profile domain.XPProfile, voice bool) bson.D {
+	profile = profile.Normalize()
+	setOnInsert := bson.D{
+		{Key: "guild", Value: profile.GuildID},
+		{Key: "member", Value: profile.UserID},
+	}
+	if voice {
+		setOnInsert = append(setOnInsert, bson.E{Key: "leavejoin", Value: "leave"})
+	}
+	return bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "xp", Value: fmt.Sprintf("%d", profile.XP)},
+			{Key: "leavel", Value: fmt.Sprintf("%d", profile.Level)},
+		}},
+		{Key: "$setOnInsert", Value: setOnInsert},
+	}
+}
+
 var _ ports.TextXPConfigRepository = (*TextXPConfigRepository)(nil)
 var _ ports.VoiceXPConfigRepository = (*VoiceXPConfigRepository)(nil)
 var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
 var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)
+var _ ports.XPAdminRepository = (*XPAdminRepository)(nil)

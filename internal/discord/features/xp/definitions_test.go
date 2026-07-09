@@ -117,6 +117,36 @@ func TestRewardRoleDefinitionsMatchLegacy(t *testing.T) {
 	}
 }
 
+func TestAdminDefinitionMatchesLegacy(t *testing.T) {
+	definition := XPAdminDefinition()
+	if definition.Name != XPAdminCommandName || definition.Description != "增加某人的經驗值" {
+		t.Fatalf("admin definition = %#v", definition)
+	}
+	if definition.DefaultMemberPermissions == nil || *definition.DefaultMemberPermissions != kickMembersPermission {
+		t.Fatalf("admin permissions = %#v", definition.DefaultMemberPermissions)
+	}
+	if definition.Ownership == nil || definition.Ownership.Owner != commands.OwnerMHCATRefactor || definition.Ownership.SinceWave != "xp-admin" {
+		t.Fatalf("admin ownership = %#v", definition.Ownership)
+	}
+	if len(definition.Options) != 2 {
+		t.Fatalf("admin options = %#v", definition.Options)
+	}
+	for _, option := range definition.Options {
+		if option.Type != commands.OptionTypeSubCommand || len(option.Options) != 2 {
+			t.Fatalf("admin subcommand = %#v", option)
+		}
+		if option.Options[0].Type != commands.OptionTypeUser || option.Options[0].Name != "使用者" || !option.Options[0].Required {
+			t.Fatalf("admin user option = %#v", option.Options[0])
+		}
+		if option.Options[1].Type != commands.OptionTypeInteger || option.Options[1].Name != "經驗值" || !option.Options[1].Required {
+			t.Fatalf("admin xp option = %#v", option.Options[1])
+		}
+	}
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, AdminDefinitions())); err != nil {
+		t.Fatalf("validate admin: %v", err)
+	}
+}
+
 func TestTextAndVoiceDefinitionsAreSeparateGates(t *testing.T) {
 	for _, definition := range TextDefinitions() {
 		if definition.Name == VoiceXPSetCommandName || definition.Name == VoiceXPDeleteCommandName {
@@ -138,6 +168,12 @@ func TestTextAndVoiceDefinitionsAreSeparateGates(t *testing.T) {
 		switch definition.Name {
 		case TextXPSetCommandName, TextXPDeleteCommandName, VoiceXPSetCommandName, VoiceXPDeleteCommandName, TextXPProfileCommandName, VoiceXPProfileCommandName:
 			t.Fatalf("reward role definitions leaked another XP command: %#v", definition)
+		}
+	}
+	for _, definition := range AdminDefinitions() {
+		switch definition.Name {
+		case TextXPSetCommandName, TextXPDeleteCommandName, VoiceXPSetCommandName, VoiceXPDeleteCommandName, TextXPProfileCommandName, VoiceXPProfileCommandName, TextXPRewardRoleCommandName, VoiceXPRewardRoleCommandName:
+			t.Fatalf("admin definitions leaked another XP command: %#v", definition)
 		}
 	}
 }
