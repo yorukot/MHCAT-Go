@@ -36,9 +36,11 @@ The repository is read-only. It performs no warning writes, no warning deletes, 
 
 `/警告設定` is implemented separately behind `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=false` and `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=false` by default. It writes only legacy `errors_sets` threshold/action config.
 
+`/警告清除` and `/警告全部清除` are implemented separately behind `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=false` and `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=false` by default. They mutate only legacy `warndbs` rows and send best-effort legacy-style DMs.
+
 ## Not Implemented
 
-- Warning creation/removal/escalation.
+- Warning creation/escalation.
 - Bulk message clear/delete.
 - Kick/ban moderation actions.
 - Usage count writes.

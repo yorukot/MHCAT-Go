@@ -405,6 +405,43 @@ func TestPreflightWarnsWhenWarningSettingsRuntimeEnabledWithoutCommandSync(t *te
 	}
 }
 
+func TestPreflightRejectsWarningRemovalCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "warning-removal-runtime-pairing status=fail") {
+		t.Fatalf("expected warning removal pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsWarningRemovalCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL"] = "true"
+	env["MHCAT_FEATURE_WARNING_REMOVAL_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "warning-removal-command-sync status=pass") || !strings.Contains(stdout, "warning-removal-runtime-pairing status=pass") {
+		t.Fatalf("expected warning removal pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenWarningRemovalRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_WARNING_REMOVAL_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "warning-removal-runtime-pairing status=warn") {
+		t.Fatalf("expected warning removal runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsTranslateCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE"] = "true"

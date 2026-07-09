@@ -81,6 +81,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=true
 
 Set both together only when testing the config-only `/警告設定` path against isolated staging data. This path writes `errors_sets` only and does not create warnings, delete messages, kick, ban, or run escalation.
 
+Optional warning-removal smoke flags:
+
+```bash
+export MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=true
+```
+
+Set both together only when testing `/警告清除` and `/警告全部清除` against isolated staging warning fixtures. This path mutates `warndbs` and sends best-effort DMs, but does not create warnings, delete messages, kick, ban, or run escalation.
+
 Optional translate smoke flags:
 
 ```bash
@@ -304,6 +313,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`, confirm `MHCAT_FEATURE_WORK_ENABLED=true` and that the test accepts the partial work command surface.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=true`, confirm `MHCAT_FEATURE_WARNINGS_ENABLED=true` and the staging guild has safe warning-history fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=true`, confirm `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true` and the staging database is isolated because `/警告設定` writes `errors_sets`.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=true`, confirm `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=true` and the staging database has disposable `warndbs` fixtures for warning-removal commands.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`, confirm `MHCAT_FEATURE_TRANSLATE_ENABLED=true` and external translate calls are allowed for the staging bot.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true` and the staging database has only disposable `codes` fixtures for `/兌換`.
@@ -401,6 +411,13 @@ For warning-settings staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=true`;
 - `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true`;
 - plan includes managed `警告設定`;
+- plan still performs no create/update/delete during dry-run.
+
+For warning-removal staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=true`;
+- `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=true`;
+- plan includes managed `警告清除` and `警告全部清除`;
 - plan still performs no create/update/delete during dry-run.
 
 For translate staging smoke, expected additionally:
@@ -572,6 +589,13 @@ If warning-history inclusion is enabled, expected:
 If warning-settings inclusion is enabled, expected:
 
 - create/update managed `警告設定` only in addition to the utility commands;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
+If warning-removal inclusion is enabled, expected:
+
+- create/update managed `警告清除` and `警告全部清除` only in addition to the utility commands;
 - no command deletion;
 - no bulk overwrite;
 - no global command mutation.

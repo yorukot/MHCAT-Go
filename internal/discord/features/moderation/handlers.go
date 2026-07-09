@@ -18,6 +18,8 @@ const (
 	warningErrorColor               = 0xEA0000
 	warningHistoryColor             = 0x5865F2
 	warningSettingsSuccessColor     = 0x57F287
+	warningRemovalSuccessColor      = 0x57F287
+	warningRemovalDMColor           = 0x00DB00
 )
 
 func (m Module) WarningHistoryHandler() interactions.Handler {
@@ -70,6 +72,52 @@ func (m Module) WarningSettingsHandler() interactions.Handler {
 			return err
 		}
 		return m.track(ctx, interaction, WarningSettingsCommandName, "warning-settings")
+	}
+}
+
+func (m Module) WarningRemoveHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		if !interaction.Actor.HasPermission(warningManageMessagesPermission) {
+			return responder.EditOriginal(ctx, warningErrorMessage("你需要有`訊息管理`才能使用此指令"))
+		}
+		userID := warningStringOption(interaction, warningOptionUser)
+		index, ok := warningIntegerOption(interaction, warningRemoveOptionIndex)
+		if !ok {
+			return responder.EditOriginal(ctx, warningErrorMessage("這位使用者沒有任何警告!"))
+		}
+		removal := domain.WarningRemoval{GuildID: interaction.Actor.GuildID, UserID: userID, Index: index}
+		if err := m.removal.RemoveOne(ctx, removal); err != nil {
+			return responder.EditOriginal(ctx, warningRemoveOneErrorMessage(err))
+		}
+		if err := responder.EditOriginal(ctx, warningRemovalSuccessMessage()); err != nil {
+			return err
+		}
+		m.sendWarningRemovalDM(ctx, interaction, userID, false)
+		return m.track(ctx, interaction, WarningRemoveCommandName, "warning-removal")
+	}
+}
+
+func (m Module) WarningRemoveAllHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		if !interaction.Actor.HasPermission(warningManageMessagesPermission) {
+			return responder.EditOriginal(ctx, warningErrorMessage("你需要有`訊息管理`才能使用此指令"))
+		}
+		userID := warningStringOption(interaction, warningOptionUser)
+		removal := domain.WarningRemoval{GuildID: interaction.Actor.GuildID, UserID: userID}
+		if err := m.removal.RemoveAll(ctx, removal); err != nil {
+			return responder.EditOriginal(ctx, warningRemoveAllErrorMessage(err))
+		}
+		if err := responder.EditOriginal(ctx, warningRemovalSuccessMessage()); err != nil {
+			return err
+		}
+		m.sendWarningRemovalDM(ctx, interaction, userID, true)
+		return m.track(ctx, interaction, WarningRemoveAllCommandName, "warning-removal")
 	}
 }
 
@@ -160,6 +208,32 @@ func warningSettingsErrorMessage(err error) responses.Message {
 	}
 }
 
+func warningRemoveOneErrorMessage(err error) responses.Message {
+	switch {
+	case errors.Is(err, ports.ErrWarningsNotFound):
+		return warningErrorMessage("這位使用者沒有任何警告!")
+	case errors.Is(err, domain.ErrInvalidWarningRemoval):
+		return warningErrorMessage("這位使用者沒有任何警告!")
+	case errors.Is(err, ports.ErrWarningRemovalUnavailable):
+		return warningErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+	default:
+		return warningErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+	}
+}
+
+func warningRemoveAllErrorMessage(err error) responses.Message {
+	switch {
+	case errors.Is(err, ports.ErrWarningsNotFound):
+		return warningErrorMessage("這位使用者沒有任何警告")
+	case errors.Is(err, domain.ErrInvalidWarningRemoval):
+		return warningErrorMessage("這位使用者沒有任何警告")
+	case errors.Is(err, ports.ErrWarningRemovalUnavailable):
+		return warningErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+	default:
+		return warningErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+	}
+}
+
 func warningSettingsMessage(settings domain.WarningSettings) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
@@ -169,6 +243,46 @@ func warningSettingsMessage(settings domain.WarningSettings) responses.Message {
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
+}
+
+func warningRemovalSuccessMessage() responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<a:greentick:980496858445135893> | 這位使用者的警告成功移除!",
+			Color: warningRemovalSuccessColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func (m Module) sendWarningRemovalDM(ctx context.Context, interaction interactions.Interaction, userID string, all bool) {
+	if m.direct == nil || strings.TrimSpace(userID) == "" {
+		return
+	}
+	guildName := m.guildName(ctx, interaction.Actor.GuildID)
+	scope := "一個__警告__"
+	if all {
+		scope = "所有__警告__"
+	}
+	_, _ = m.direct.SendDirectMessage(ctx, userID, ports.OutboundMessage{
+		Embeds: []ports.OutboundEmbed{{
+			Title:       "<:warning:985590881698590730> | 警告系統",
+			Description: fmt.Sprintf("<:KannaSip:997764767433379850> **你在%s的%s被刪除了!**\n<:implementation:1002170846292488232> **執行者:**%s(id:%s)", guildName, scope, interaction.Actor.Username, interaction.Actor.UserID),
+			Color:       warningRemovalDMColor,
+		}},
+		AllowedMentions: ports.AllowedMentions{},
+	})
+}
+
+func (m Module) guildName(ctx context.Context, guildID string) string {
+	if m.discord == nil {
+		return guildID
+	}
+	info, err := m.discord.GuildInfo(ctx, guildID)
+	if err != nil || strings.TrimSpace(info.Name) == "" {
+		return guildID
+	}
+	return info.Name
 }
 
 func warningErrorMessage(content string) responses.Message {

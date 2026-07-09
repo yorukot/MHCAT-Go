@@ -4,10 +4,14 @@ import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 
 const WarningHistoryCommandName = "警告紀錄"
 const WarningSettingsCommandName = "警告設定"
+const WarningRemoveCommandName = "警告清除"
+const WarningRemoveAllCommandName = "警告全部清除"
 
 const (
 	warningSettingsOptionAction    = "執行的動作"
 	warningSettingsOptionThreshold = "幾次警告後執行動作"
+	warningOptionUser              = "使用者"
+	warningRemoveOptionIndex       = "第幾項"
 )
 
 func Definitions() []commands.Definition {
@@ -18,6 +22,10 @@ func SettingsDefinitions() []commands.Definition {
 	return []commands.Definition{WarningSettingsDefinition()}
 }
 
+func RemovalDefinitions() []commands.Definition {
+	return []commands.Definition{WarningRemoveDefinition(), WarningRemoveAllDefinition()}
+}
+
 func WarningHistoryDefinition() commands.Definition {
 	return commands.Definition{
 		Type:        commands.CommandTypeChatInput,
@@ -26,7 +34,7 @@ func WarningHistoryDefinition() commands.Definition {
 		Ownership:   commands.ManagedOwnership("warnings", commands.ScopeGuild),
 		Options: []commands.Option{{
 			Type:        commands.OptionTypeUser,
-			Name:        "使用者",
+			Name:        warningOptionUser,
 			Description: "要收尋的使用者!",
 			Required:    true,
 		}},
@@ -57,5 +65,43 @@ func WarningSettingsDefinition() commands.Definition {
 				Required:    true,
 			},
 		},
+	}
+}
+
+func WarningRemoveDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        WarningRemoveCommandName,
+		Description: "清除一個使用者的某個警告",
+		Ownership:   commands.ManagedOwnership("warning-removal", commands.ScopeGuild),
+		Options: []commands.Option{
+			{
+				Type:        commands.OptionTypeUser,
+				Name:        warningOptionUser,
+				Description: "要清除資料的使用者!",
+				Required:    true,
+			},
+			{
+				Type:        commands.OptionTypeInteger,
+				Name:        warningRemoveOptionIndex,
+				Description: "要清除第幾個警告!",
+				Required:    true,
+			},
+		},
+	}
+}
+
+func WarningRemoveAllDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        WarningRemoveAllCommandName,
+		Description: "清除一個使用者的全部警告",
+		Ownership:   commands.ManagedOwnership("warning-removal", commands.ScopeGuild),
+		Options: []commands.Option{{
+			Type:        commands.OptionTypeUser,
+			Name:        warningOptionUser,
+			Description: "要清除資料的使用者!",
+			Required:    true,
+		}},
 	}
 }

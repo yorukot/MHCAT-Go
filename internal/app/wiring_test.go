@@ -525,6 +525,45 @@ func TestBuildRuntimeRoutesWarningSettingsOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesWarningRemovalOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), WarningRemovalFeatureEnabled: true})
+	if err != nil {
+		t.Fatalf("build runtime with warning removal feature: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("警告清除", "", map[string]string{
+		"使用者": "user-2",
+		"第幾項": "1",
+	})
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("warning removal route should not be available without repository")
+	}
+
+	repo := fakemongo.NewWarningRemovalRepository()
+	repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}}})
+	sideEffects := fakediscord.NewSideEffects()
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                       validTestConfig(),
+		WarningRemovalFeatureEnabled: true,
+		WarningRemovalRepository:     repo,
+		WarningRemovalDirectMessage:  sideEffects,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with warning removal repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch warning removal: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:greentick:980496858445135893> | 這位使用者的警告成功移除!" {
+		t.Fatalf("warning removal response = %#v", responder.Edits)
+	}
+	if len(repo.Histories["guild-1\x00user-2"].Entries) != 0 {
+		t.Fatalf("saved warning history = %#v", repo.Histories)
+	}
+}
+
 func TestBuildRuntimeRoutesLoggingConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

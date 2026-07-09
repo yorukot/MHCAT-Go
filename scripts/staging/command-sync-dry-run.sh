@@ -41,6 +41,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS:-false}" = "true" ] && [ "${
   echo "refusing command sync: warning-settings command dry-run requires MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL:-false}" = "true" ] && [ "${MHCAT_FEATURE_WARNING_REMOVAL_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: warning-removal commands dry-run requires MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ] && [ "${MHCAT_FEATURE_TRANSLATE_ENABLED:-false}" != "true" ]; then
   echo "refusing command sync: translate command dry-run requires MHCAT_FEATURE_TRANSLATE_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -177,6 +181,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS:-false}" = "true" ]; then
   echo "staging command sync dry-run: including warning-settings command for review" >&2
 else
   echo "staging command sync dry-run: warning-settings command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including warning-removal commands for review" >&2
+else
+  echo "staging command sync dry-run: warning-removal commands are excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ]; then
   echo "staging command sync dry-run: including translate command for review" >&2

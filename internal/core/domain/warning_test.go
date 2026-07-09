@@ -22,3 +22,25 @@ func TestWarningSettingsValidate(t *testing.T) {
 		}
 	}
 }
+
+func TestWarningRemovalValidate(t *testing.T) {
+	valid := domain.WarningRemoval{GuildID: "guild-1", UserID: "user-1", Index: 1}
+	if err := valid.ValidateSingle(); err != nil {
+		t.Fatalf("valid single removal: %v", err)
+	}
+	if err := (domain.WarningRemoval{GuildID: "guild-1", UserID: "user-1"}).ValidateAll(); err != nil {
+		t.Fatalf("valid all removal: %v", err)
+	}
+	for _, removal := range []domain.WarningRemoval{
+		{GuildID: "", UserID: "user-1", Index: 1},
+		{GuildID: "guild-1", UserID: "", Index: 1},
+		{GuildID: "guild-1", UserID: "user-1", Index: 0},
+	} {
+		if err := removal.ValidateSingle(); !errors.Is(err, domain.ErrInvalidWarningRemoval) {
+			t.Fatalf("single removal %#v err = %v", removal, err)
+		}
+	}
+	if err := (domain.WarningRemoval{GuildID: "guild-1"}).ValidateAll(); !errors.Is(err, domain.ErrInvalidWarningRemoval) {
+		t.Fatalf("all removal err = %v", err)
+	}
+}

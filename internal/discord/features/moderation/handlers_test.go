@@ -171,6 +171,140 @@ func TestWarningSettingsInvalidInputUsesGenericError(t *testing.T) {
 	}
 }
 
+func TestWarningRemoveRequiresManageMessages(t *testing.T) {
+	module := NewRemovalModule(fakemongo.NewWarningRemovalRepository(), nil, nil, nil)
+	responder := fakediscord.NewResponder()
+	interaction := warningRemoveInteraction("user-2", "1")
+	interaction.Actor.PermissionBits = 0
+
+	if err := module.WarningRemoveHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestWarningRemoveSavesRendersLegacyEmbedAndDMs(t *testing.T) {
+	repo := fakemongo.NewWarningRemovalRepository()
+	repo.Put(domain.WarningHistory{
+		GuildID: "guild-1",
+		UserID:  "user-2",
+		Entries: []domain.WarningEntry{
+			{ModeratorID: "mod-1", Reason: "first"},
+			{ModeratorID: "mod-2", Reason: "second"},
+		},
+	})
+	sideEffects := fakediscord.NewSideEffects()
+	discordInfo := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{Name: "測試伺服器"}}
+	usage := &fakeusage.Tracker{}
+	module := NewRemovalModule(repo, sideEffects, discordInfo, usage)
+	responder := fakediscord.NewResponder()
+	interaction := warningRemoveInteraction("user-2", "1")
+
+	if err := module.WarningRemoveHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:greentick:980496858445135893> | 這位使用者的警告成功移除!" || responder.Edits[0].Embeds[0].Color != warningRemovalSuccessColor {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	remaining := repo.Histories["guild-1\x00user-2"].Entries
+	if len(remaining) != 1 || remaining[0].Reason != "second" {
+		t.Fatalf("remaining = %#v", remaining)
+	}
+	if len(sideEffects.DirectMessages) != 1 || sideEffects.DirectMessages[0].UserID != "user-2" {
+		t.Fatalf("direct messages = %#v", sideEffects.DirectMessages)
+	}
+	if description := sideEffects.DirectMessages[0].Message.Embeds[0].Description; !strings.Contains(description, "你在測試伺服器的一個__警告__被刪除了") || !strings.Contains(description, "User(id:user-1)") {
+		t.Fatalf("dm description = %q", description)
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != WarningRemoveCommandName || usage.Events[0].Feature != "warning-removal" {
+		t.Fatalf("usage events = %#v", usage.Events)
+	}
+}
+
+func TestWarningRemoveTypedIntegerOption(t *testing.T) {
+	repo := fakemongo.NewWarningRemovalRepository()
+	repo.Put(domain.WarningHistory{
+		GuildID: "guild-1",
+		UserID:  "user-2",
+		Entries: []domain.WarningEntry{
+			{Reason: "first"},
+			{Reason: "second"},
+		},
+	})
+	module := NewRemovalModule(repo, nil, nil, nil)
+	responder := fakediscord.NewResponder()
+	interaction := warningRemoveInteraction("user-2", "")
+	interaction.CommandOptions = map[string]interactions.CommandOptionValue{
+		warningOptionUser: {
+			Type:   interactions.CommandOptionUser,
+			String: "user-2",
+		},
+		warningRemoveOptionIndex: {
+			Type: interactions.CommandOptionInteger,
+			Int:  2,
+		},
+	}
+
+	if err := module.WarningRemoveHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if remaining := repo.Histories["guild-1\x00user-2"].Entries; len(remaining) != 1 || remaining[0].Reason != "first" {
+		t.Fatalf("remaining = %#v", remaining)
+	}
+}
+
+func TestWarningRemoveMissingUsesLegacyError(t *testing.T) {
+	module := NewRemovalModule(fakemongo.NewWarningRemovalRepository(), nil, nil, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.WarningRemoveHandler()(context.Background(), warningRemoveInteraction("user-2", "1"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "這位使用者沒有任何警告!") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestWarningRemoveAllDeletesRendersLegacyEmbedAndDMs(t *testing.T) {
+	repo := fakemongo.NewWarningRemovalRepository()
+	repo.Put(domain.WarningHistory{
+		GuildID: "guild-1",
+		UserID:  "user-2",
+		Entries: []domain.WarningEntry{{Reason: "first"}},
+	})
+	sideEffects := fakediscord.NewSideEffects()
+	discordInfo := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{Name: "測試伺服器"}}
+	module := NewRemovalModule(repo, sideEffects, discordInfo, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.WarningRemoveAllHandler()(context.Background(), warningRemoveAllInteraction("user-2"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:greentick:980496858445135893> | 這位使用者的警告成功移除!" {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if _, ok := repo.Histories["guild-1\x00user-2"]; ok {
+		t.Fatalf("history should be deleted: %#v", repo.Histories)
+	}
+	if len(sideEffects.DirectMessages) != 1 || !strings.Contains(sideEffects.DirectMessages[0].Message.Embeds[0].Description, "所有__警告__被刪除了") {
+		t.Fatalf("direct messages = %#v", sideEffects.DirectMessages)
+	}
+}
+
+func TestWarningRemoveAllMissingUsesLegacyErrorWithoutExclamation(t *testing.T) {
+	module := NewRemovalModule(fakemongo.NewWarningRemovalRepository(), nil, nil, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.WarningRemoveAllHandler()(context.Background(), warningRemoveAllInteraction("user-2"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 這位使用者沒有任何警告" {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func warningHistoryInteraction(userID string) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(WarningHistoryCommandName, "", map[string]string{"使用者": userID})
 	interaction.Actor.PermissionBits = warningManageMessagesPermission
@@ -182,6 +316,21 @@ func warningSettingsInteraction(action string, threshold string) interactions.In
 		warningSettingsOptionAction:    action,
 		warningSettingsOptionThreshold: threshold,
 	})
+	interaction.Actor.PermissionBits = warningManageMessagesPermission
+	return interaction
+}
+
+func warningRemoveInteraction(userID string, index string) interactions.Interaction {
+	interaction := fakediscord.SlashInteractionWithOptions(WarningRemoveCommandName, "", map[string]string{
+		warningOptionUser:        userID,
+		warningRemoveOptionIndex: index,
+	})
+	interaction.Actor.PermissionBits = warningManageMessagesPermission
+	return interaction
+}
+
+func warningRemoveAllInteraction(userID string) interactions.Interaction {
+	interaction := fakediscord.SlashInteractionWithOptions(WarningRemoveAllCommandName, "", map[string]string{warningOptionUser: userID})
 	interaction.Actor.PermissionBits = warningManageMessagesPermission
 	return interaction
 }

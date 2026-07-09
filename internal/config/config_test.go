@@ -132,6 +132,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureWarningSettingsEnabled {
 		t.Fatal("warning settings feature must be disabled by default")
 	}
+	if cfg.FeatureWarningRemovalEnabled {
+		t.Fatal("warning removal feature must be disabled by default")
+	}
 	if cfg.FeatureTranslateEnabled {
 		t.Fatal("translate feature must be disabled by default")
 	}
@@ -767,6 +770,21 @@ func TestFeatureWarningSettingsConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureWarningSettingsEnabled {
 		t.Fatal("expected warning settings feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureWarningRemovalConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                   "token",
+		"MHCAT_MONGODB_URI":                     "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                "mhcat",
+		"MHCAT_FEATURE_WARNING_REMOVAL_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureWarningRemovalEnabled {
+		t.Fatal("expected warning removal feature to be enabled explicitly")
 	}
 }
 

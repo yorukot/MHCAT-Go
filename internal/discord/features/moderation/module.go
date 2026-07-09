@@ -10,8 +10,10 @@ import (
 type Module struct {
 	warnings coremoderation.WarningHistoryService
 	settings coremoderation.WarningSettingsService
+	removal  coremoderation.WarningRemovalService
 	members  ports.DiscordGuildMemberReader
 	discord  ports.DiscordInfoProvider
+	direct   ports.DiscordDirectMessagePort
 	usage    ports.UsageTracker
 }
 
@@ -21,6 +23,15 @@ func NewModule(repo ports.WarningHistoryRepository, members ports.DiscordGuildMe
 		members:  members,
 		discord:  discord,
 		usage:    usage,
+	}
+}
+
+func NewRemovalModule(repo ports.WarningRemovalRepository, direct ports.DiscordDirectMessagePort, discord ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
+	return Module{
+		removal: coremoderation.WarningRemovalService{Repository: repo},
+		direct:  direct,
+		discord: discord,
+		usage:   usage,
 	}
 }
 
@@ -43,10 +54,16 @@ func (m Module) Commands() []commands.Definition {
 	if m.settings.Repository != nil {
 		definitions = append(definitions, WarningSettingsDefinition())
 	}
+	if m.removal.Repository != nil {
+		definitions = append(definitions, RemovalDefinitions()...)
+	}
 	if len(definitions) > 0 {
 		return definitions
 	}
-	return append(Definitions(), SettingsDefinitions()...)
+	definitions = append(definitions, Definitions()...)
+	definitions = append(definitions, SettingsDefinitions()...)
+	definitions = append(definitions, RemovalDefinitions()...)
+	return definitions
 }
 
 func (m Module) RegisterRoutes(router *interactions.Router) error {
@@ -57,6 +74,14 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 	}
 	if m.settings.Repository != nil {
 		if err := router.RegisterSlash(WarningSettingsCommandName, m.WarningSettingsHandler()); err != nil {
+			return err
+		}
+	}
+	if m.removal.Repository != nil {
+		if err := router.RegisterSlash(WarningRemoveCommandName, m.WarningRemoveHandler()); err != nil {
+			return err
+		}
+		if err := router.RegisterSlash(WarningRemoveAllCommandName, m.WarningRemoveAllHandler()); err != nil {
 			return err
 		}
 	}

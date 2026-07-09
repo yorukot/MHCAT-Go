@@ -52,3 +52,32 @@ func TestWarningSettingsDefinitionMatchesLegacyShape(t *testing.T) {
 		t.Fatalf("validate registry: %v", err)
 	}
 }
+
+func TestWarningRemovalDefinitionsMatchLegacyShape(t *testing.T) {
+	remove := WarningRemoveDefinition()
+	if remove.Name != "警告清除" || remove.Description != "清除一個使用者的某個警告" {
+		t.Fatalf("remove definition = %#v", remove)
+	}
+	if len(remove.Options) != 2 {
+		t.Fatalf("remove options = %#v", remove.Options)
+	}
+	if remove.Options[0].Type != commands.OptionTypeUser || remove.Options[0].Name != warningOptionUser || remove.Options[0].Description != "要清除資料的使用者!" || !remove.Options[0].Required {
+		t.Fatalf("remove user option = %#v", remove.Options[0])
+	}
+	if remove.Options[1].Type != commands.OptionTypeInteger || remove.Options[1].Name != warningRemoveOptionIndex || remove.Options[1].Description != "要清除第幾個警告!" || !remove.Options[1].Required {
+		t.Fatalf("remove index option = %#v", remove.Options[1])
+	}
+	removeAll := WarningRemoveAllDefinition()
+	if removeAll.Name != "警告全部清除" || removeAll.Description != "清除一個使用者的全部警告" {
+		t.Fatalf("remove all definition = %#v", removeAll)
+	}
+	if len(removeAll.Options) != 1 || removeAll.Options[0].Type != commands.OptionTypeUser || removeAll.Options[0].Name != warningOptionUser || removeAll.Options[0].Description != "要清除資料的使用者!" || !removeAll.Options[0].Required {
+		t.Fatalf("remove all options = %#v", removeAll.Options)
+	}
+	if !commands.IsManagedForScope(remove, commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}) || !commands.IsManagedForScope(removeAll, commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}) {
+		t.Fatal("warning removal commands should be managed for guild staging")
+	}
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, RemovalDefinitions())); err != nil {
+		t.Fatalf("validate registry: %v", err)
+	}
+}

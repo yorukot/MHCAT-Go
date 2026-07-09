@@ -54,9 +54,12 @@ type RuntimeOptions struct {
 	WorkFeatureEnabled            bool
 	WarningHistoryRepository      ports.WarningHistoryRepository
 	WarningSettingsRepository     ports.WarningSettingsRepository
+	WarningRemovalRepository      ports.WarningRemovalRepository
 	WarningMemberReader           ports.DiscordGuildMemberReader
+	WarningRemovalDirectMessage   ports.DiscordDirectMessagePort
 	WarningsFeatureEnabled        bool
 	WarningSettingsFeatureEnabled bool
+	WarningRemovalFeatureEnabled  bool
 	TranslateProvider             ports.Translator
 	TranslateFeatureEnabled       bool
 	BalanceRepository             ports.BalanceRepository
@@ -126,6 +129,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.WarningSettingsFeatureEnabled {
 		definitions = append(definitions, featuremoderation.SettingsDefinitions()...)
+	}
+	if opts.WarningRemovalFeatureEnabled {
+		definitions = append(definitions, featuremoderation.RemovalDefinitions()...)
 	}
 	if opts.TranslateFeatureEnabled && opts.TranslateProvider != nil {
 		definitions = append(definitions, commands.TranslateDefinition())
@@ -274,6 +280,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.WarningSettingsFeatureEnabled && opts.WarningSettingsRepository != nil {
 		warningSettingsModule := featuremoderation.NewSettingsModule(opts.WarningSettingsRepository, opts.UsageTracker)
 		if err := warningSettingsModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.WarningRemovalFeatureEnabled && opts.WarningRemovalRepository != nil {
+		warningRemovalModule := featuremoderation.NewRemovalModule(opts.WarningRemovalRepository, opts.WarningRemovalDirectMessage, concreteDiscord, opts.UsageTracker)
+		if err := warningRemovalModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

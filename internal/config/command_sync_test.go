@@ -1020,6 +1020,48 @@ func TestCommandSyncIncludeWarningSettingsStagingGuildParses(t *testing.T) {
 	}
 }
 
+func TestCommandSyncIncludeWarningRemovalRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include warning removal without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeWarningRemovalRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                   "global",
+		"MHCAT_STAGING_MODE":                         "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include warning removal with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeWarningRemovalStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                "guild",
+		"MHCAT_STAGING_MODE":                         "true",
+		"MHCAT_STAGING_GUILD_ID":                     "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeWarningRemoval {
+		t.Fatal("expected include warning removal to be enabled explicitly")
+	}
+}
+
 func TestCommandSyncIncludeTranslateRequiresStagingMode(t *testing.T) {
 	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
 		"MHCAT_DISCORD_TOKEN":                  "token",

@@ -271,6 +271,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		WorkFeatureEnabled:            cfg.FeatureWorkEnabled,
 		WarningsFeatureEnabled:        cfg.FeatureWarningsEnabled,
 		WarningSettingsFeatureEnabled: cfg.FeatureWarningSettingsEnabled,
+		WarningRemovalFeatureEnabled:  cfg.FeatureWarningRemovalEnabled,
 		TranslateFeatureEnabled:       cfg.FeatureTranslateEnabled,
 		LotteryDisabledCommandEnabled: cfg.FeatureLotteryDisabledCommandEnabled,
 		StatsQueryEnabled:             cfg.FeatureStatsQueryEnabled,
@@ -347,6 +348,18 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 			return nil, err
 		}
 		opts.WarningSettingsRepository = warningSettingsRepo
+	}
+	if cfg.FeatureWarningRemovalEnabled {
+		warningRepo, err := warningHistoryRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := ticketSideEffectsFromSession(session)
+		if err != nil {
+			return nil, err
+		}
+		opts.WarningRemovalRepository = warningRepo
+		opts.WarningRemovalDirectMessage = sideEffects
 	}
 	if cfg.FeatureTranslateEnabled {
 		translator := externaladapter.NewGoogleTranslateClient()

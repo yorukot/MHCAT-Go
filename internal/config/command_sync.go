@@ -25,6 +25,7 @@ const (
 	DefaultCommandSyncIncludeWork                   = false
 	DefaultCommandSyncIncludeWarnings               = false
 	DefaultCommandSyncIncludeWarningSettings        = false
+	DefaultCommandSyncIncludeWarningRemoval         = false
 	DefaultCommandSyncIncludeTranslate              = false
 	DefaultCommandSyncIncludeBalanceQuery           = false
 	DefaultCommandSyncIncludeRedeem                 = false
@@ -73,6 +74,7 @@ type CommandSyncConfig struct {
 	IncludeWork                   bool
 	IncludeWarnings               bool
 	IncludeWarningSettings        bool
+	IncludeWarningRemoval         bool
 	IncludeTranslate              bool
 	IncludeBalanceQuery           bool
 	IncludeRedeem                 bool
@@ -136,6 +138,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeWork:                   DefaultCommandSyncIncludeWork,
 		IncludeWarnings:               DefaultCommandSyncIncludeWarnings,
 		IncludeWarningSettings:        DefaultCommandSyncIncludeWarningSettings,
+		IncludeWarningRemoval:         DefaultCommandSyncIncludeWarningRemoval,
 		IncludeTranslate:              DefaultCommandSyncIncludeTranslate,
 		IncludeBalanceQuery:           DefaultCommandSyncIncludeBalanceQuery,
 		IncludeRedeem:                 DefaultCommandSyncIncludeRedeem,
@@ -197,6 +200,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeWarningSettings, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS", DefaultCommandSyncIncludeWarningSettings); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeWarningRemoval, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL", DefaultCommandSyncIncludeWarningRemoval); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeTranslate, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE", DefaultCommandSyncIncludeTranslate); err != nil {
@@ -377,6 +383,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeWarningRemoval {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeTranslate {

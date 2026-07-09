@@ -7,6 +7,7 @@ import (
 
 var ErrInvalidWarningQuery = errors.New("invalid warning query")
 var ErrInvalidWarningSettings = errors.New("invalid warning settings")
+var ErrInvalidWarningRemoval = errors.New("invalid warning removal")
 
 const (
 	WarningSettingsActionBan  = "停權"
@@ -31,6 +32,12 @@ type WarningSettings struct {
 	Action    string
 }
 
+type WarningRemoval struct {
+	GuildID string
+	UserID  string
+	Index   int64
+}
+
 func (h WarningHistory) ValidateQuery() error {
 	if strings.TrimSpace(h.GuildID) == "" || strings.TrimSpace(h.UserID) == "" {
 		return ErrInvalidWarningQuery
@@ -48,4 +55,18 @@ func (s WarningSettings) Validate() error {
 	default:
 		return ErrInvalidWarningSettings
 	}
+}
+
+func (r WarningRemoval) ValidateSingle() error {
+	if strings.TrimSpace(r.GuildID) == "" || strings.TrimSpace(r.UserID) == "" || r.Index <= 0 {
+		return ErrInvalidWarningRemoval
+	}
+	return nil
+}
+
+func (r WarningRemoval) ValidateAll() error {
+	if strings.TrimSpace(r.GuildID) == "" || strings.TrimSpace(r.UserID) == "" {
+		return ErrInvalidWarningRemoval
+	}
+	return nil
 }

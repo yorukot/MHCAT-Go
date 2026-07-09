@@ -24,6 +24,7 @@ const (
 	DefaultFeatureWorkEnabled                   = false
 	DefaultFeatureWarningsEnabled               = false
 	DefaultFeatureWarningSettingsEnabled        = false
+	DefaultFeatureWarningRemovalEnabled         = false
 	DefaultFeatureTranslateEnabled              = false
 	DefaultFeatureBalanceQueryEnabled           = false
 	DefaultFeatureRedeemEnabled                 = false
@@ -81,6 +82,7 @@ type Config struct {
 	FeatureWorkEnabled                   bool
 	FeatureWarningsEnabled               bool
 	FeatureWarningSettingsEnabled        bool
+	FeatureWarningRemovalEnabled         bool
 	FeatureTranslateEnabled              bool
 	FeatureBalanceQueryEnabled           bool
 	FeatureRedeemEnabled                 bool

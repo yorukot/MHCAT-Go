@@ -71,3 +71,43 @@ func TestWarningSettingsServiceRejectsInvalidAndMissingRepository(t *testing.T) 
 		t.Fatalf("invalid err = %v", err)
 	}
 }
+
+func TestWarningRemovalServiceRemovesOneAndAll(t *testing.T) {
+	repo := fakemongo.NewWarningRemovalRepository()
+	repo.Put(domain.WarningHistory{
+		GuildID: "guild-1",
+		UserID:  "user-1",
+		Entries: []domain.WarningEntry{
+			{ModeratorID: "mod-1", Reason: "one"},
+			{ModeratorID: "mod-2", Reason: "two"},
+		},
+	})
+	service := moderation.WarningRemovalService{Repository: repo}
+	err := service.RemoveOne(context.Background(), domain.WarningRemoval{GuildID: " guild-1 ", UserID: " user-1 ", Index: 1})
+	if err != nil {
+		t.Fatalf("remove one: %v", err)
+	}
+	if got := repo.Histories["guild-1\x00user-1"].Entries; len(got) != 1 || got[0].Reason != "two" {
+		t.Fatalf("remaining entries = %#v", got)
+	}
+	err = service.RemoveAll(context.Background(), domain.WarningRemoval{GuildID: "guild-1", UserID: "user-1"})
+	if err != nil {
+		t.Fatalf("remove all: %v", err)
+	}
+	if _, ok := repo.Histories["guild-1\x00user-1"]; ok {
+		t.Fatalf("expected all warnings removed, histories = %#v", repo.Histories)
+	}
+}
+
+func TestWarningRemovalServiceRejectsInvalidAndMissingRepository(t *testing.T) {
+	service := moderation.WarningRemovalService{}
+	err := service.RemoveAll(context.Background(), domain.WarningRemoval{GuildID: "guild-1", UserID: "user-1"})
+	if !errors.Is(err, ports.ErrWarningRemovalUnavailable) {
+		t.Fatalf("missing repository err = %v", err)
+	}
+	service.Repository = fakemongo.NewWarningRemovalRepository()
+	err = service.RemoveOne(context.Background(), domain.WarningRemoval{GuildID: "guild-1", UserID: "user-1", Index: 0})
+	if !errors.Is(err, domain.ErrInvalidWarningRemoval) {
+		t.Fatalf("invalid err = %v", err)
+	}
+}

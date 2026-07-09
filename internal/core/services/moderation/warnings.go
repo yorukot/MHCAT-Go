@@ -16,6 +16,10 @@ type WarningSettingsService struct {
 	Repository ports.WarningSettingsRepository
 }
 
+type WarningRemovalService struct {
+	Repository ports.WarningRemovalRepository
+}
+
 func (s WarningHistoryService) History(ctx context.Context, guildID string, userID string) (domain.WarningHistory, error) {
 	guildID = strings.TrimSpace(guildID)
 	userID = strings.TrimSpace(userID)
@@ -45,4 +49,28 @@ func (s WarningSettingsService) Configure(ctx context.Context, settings domain.W
 		return ports.ErrWarningSettingsUnavailable
 	}
 	return s.Repository.SaveWarningSettings(ctx, settings)
+}
+
+func (s WarningRemovalService) RemoveOne(ctx context.Context, removal domain.WarningRemoval) error {
+	removal.GuildID = strings.TrimSpace(removal.GuildID)
+	removal.UserID = strings.TrimSpace(removal.UserID)
+	if err := removal.ValidateSingle(); err != nil {
+		return err
+	}
+	if s.Repository == nil {
+		return ports.ErrWarningRemovalUnavailable
+	}
+	return s.Repository.RemoveWarning(ctx, removal)
+}
+
+func (s WarningRemovalService) RemoveAll(ctx context.Context, removal domain.WarningRemoval) error {
+	removal.GuildID = strings.TrimSpace(removal.GuildID)
+	removal.UserID = strings.TrimSpace(removal.UserID)
+	if err := removal.ValidateAll(); err != nil {
+		return err
+	}
+	if s.Repository == nil {
+		return ports.ErrWarningRemovalUnavailable
+	}
+	return s.Repository.RemoveAllWarnings(ctx, removal)
 }

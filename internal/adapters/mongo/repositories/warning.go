@@ -78,6 +78,59 @@ func (r *WarningHistoryRepository) GetWarningHistory(ctx context.Context, guildI
 	return history, ctx.Err()
 }
 
+func (r *WarningHistoryRepository) RemoveWarning(ctx context.Context, removal domain.WarningRemoval) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	removal.GuildID = strings.TrimSpace(removal.GuildID)
+	removal.UserID = strings.TrimSpace(removal.UserID)
+	if err := removal.ValidateSingle(); err != nil {
+		return err
+	}
+	filter := bson.D{{Key: "guild", Value: removal.GuildID}, {Key: "user", Value: removal.UserID}}
+	var document documents.WarningDocument
+	err := r.collection.FindOne(ctx, filter).Decode(&document)
+	if err != nil {
+		if err == drivermongo.ErrNoDocuments {
+			return ports.ErrWarningsNotFound
+		}
+		return mhcatmongo.MapError(fmt.Errorf("find warning for removal: %w", err))
+	}
+	index := int(removal.Index - 1)
+	if index < 0 || index >= len(document.Content) {
+		return ports.ErrWarningsNotFound
+	}
+	next := append([]documents.WarningEntryDocument(nil), document.Content[:index]...)
+	next = append(next, document.Content[index+1:]...)
+	result, err := r.collection.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: bson.D{{Key: "content", Value: next}}}})
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("remove warning: %w", err))
+	}
+	if result.MatchedCount == 0 {
+		return ports.ErrWarningsNotFound
+	}
+	return ctx.Err()
+}
+
+func (r *WarningHistoryRepository) RemoveAllWarnings(ctx context.Context, removal domain.WarningRemoval) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	removal.GuildID = strings.TrimSpace(removal.GuildID)
+	removal.UserID = strings.TrimSpace(removal.UserID)
+	if err := removal.ValidateAll(); err != nil {
+		return err
+	}
+	result, err := r.collection.DeleteMany(ctx, bson.D{{Key: "guild", Value: removal.GuildID}, {Key: "user", Value: removal.UserID}})
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("remove all warnings: %w", err))
+	}
+	if result.DeletedCount == 0 {
+		return ports.ErrWarningsNotFound
+	}
+	return ctx.Err()
+}
+
 func (r *WarningSettingsRepository) SaveWarningSettings(ctx context.Context, settings domain.WarningSettings) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -119,4 +172,5 @@ func warningSettingsUpdate(document documents.WarningSettingsDocument, upsert bo
 }
 
 var _ ports.WarningHistoryRepository = (*WarningHistoryRepository)(nil)
+var _ ports.WarningRemovalRepository = (*WarningHistoryRepository)(nil)
 var _ ports.WarningSettingsRepository = (*WarningSettingsRepository)(nil)

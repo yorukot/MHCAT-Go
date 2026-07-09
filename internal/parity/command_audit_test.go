@@ -144,14 +144,24 @@ func TestAuditSlashCommandParityClassifiesMissingMatchingAndDrift(t *testing.T) 
 
 func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
 	var foundWarningSettings bool
+	var foundWarningRemove bool
+	var foundWarningRemoveAll bool
 	for _, definition := range CurrentGoDefinitions() {
 		if definition.Name == "警告設定" {
 			foundWarningSettings = true
-			break
+		}
+		if definition.Name == "警告清除" {
+			foundWarningRemove = true
+		}
+		if definition.Name == "警告全部清除" {
+			foundWarningRemoveAll = true
 		}
 	}
 	if !foundWarningSettings {
 		t.Fatal("current Go definitions should include warning settings")
+	}
+	if !foundWarningRemove || !foundWarningRemoveAll {
+		t.Fatal("current Go definitions should include warning removal commands")
 	}
 }
 
