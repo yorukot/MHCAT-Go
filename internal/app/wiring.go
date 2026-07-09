@@ -55,6 +55,8 @@ type RuntimeOptions struct {
 	TranslateFeatureEnabled       bool
 	AutoChatConfigRepository      ports.AutoChatConfigRepository
 	AntiScamConfigRepository      ports.AntiScamConfigRepository
+	ScamURLCatalogRepository      ports.ScamURLCatalog
+	ScamReportSender              ports.ScamReportSender
 	LoggingConfigRepository       ports.LoggingConfigRepository
 	GachaPrizePoolRepository      ports.GachaPrizePoolRepository
 	LotteryDisabledCommandEnabled bool
@@ -118,7 +120,10 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		definitions = append(definitions, featureautochat.Definitions()...)
 	}
 	if opts.AntiScamConfigRepository != nil {
-		definitions = append(definitions, featuresafety.Definitions()...)
+		definitions = append(definitions, featuresafety.ConfigDefinitions()...)
+	}
+	if opts.ScamURLCatalogRepository != nil && opts.ScamReportSender != nil {
+		definitions = append(definitions, featuresafety.ReportDefinitions()...)
 	}
 	if opts.LoggingConfigRepository != nil {
 		definitions = append(definitions, featurelogging.Definitions()...)
@@ -252,6 +257,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.AntiScamConfigRepository != nil {
 		antiScamModule := featuresafety.NewModule(opts.AntiScamConfigRepository, opts.UsageTracker)
 		if err := antiScamModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.ScamURLCatalogRepository != nil && opts.ScamReportSender != nil {
+		reportModule := featuresafety.NewReportModule(opts.ScamURLCatalogRepository, opts.ScamReportSender, opts.UsageTracker)
+		if err := reportModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

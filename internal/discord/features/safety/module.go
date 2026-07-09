@@ -8,14 +8,36 @@ import (
 )
 
 type Module struct {
-	service coreservice.ConfigService
-	usage   ports.UsageTracker
+	configService coreservice.ConfigService
+	reportService coreservice.ReportService
+	usage         ports.UsageTracker
+	configEnabled bool
+	reportEnabled bool
 }
 
 func NewModule(repo ports.AntiScamConfigRepository, usage ports.UsageTracker) Module {
 	return Module{
-		service: coreservice.NewConfigService(repo),
-		usage:   usage,
+		configService: coreservice.NewConfigService(repo),
+		usage:         usage,
+		configEnabled: true,
+	}
+}
+
+func NewReportModule(catalog ports.ScamURLCatalog, sender ports.ScamReportSender, usage ports.UsageTracker) Module {
+	return Module{
+		reportService: coreservice.NewReportService(catalog, sender),
+		usage:         usage,
+		reportEnabled: true,
+	}
+}
+
+func NewModuleWithReport(repo ports.AntiScamConfigRepository, catalog ports.ScamURLCatalog, sender ports.ScamReportSender, usage ports.UsageTracker) Module {
+	return Module{
+		configService: coreservice.NewConfigService(repo),
+		reportService: coreservice.NewReportService(catalog, sender),
+		usage:         usage,
+		configEnabled: repo != nil,
+		reportEnabled: catalog != nil && sender != nil,
 	}
 }
 
@@ -24,9 +46,26 @@ func (m Module) Name() string {
 }
 
 func (m Module) Commands() []commands.Definition {
-	return Definitions()
+	definitions := []commands.Definition{}
+	if m.configEnabled {
+		definitions = append(definitions, ConfigDefinitions()...)
+	}
+	if m.reportEnabled {
+		definitions = append(definitions, ReportDefinitions()...)
+	}
+	return definitions
 }
 
 func (m Module) RegisterRoutes(router *interactions.Router) error {
-	return router.RegisterSlash(AntiScamCommandName, m.ToggleHandler())
+	if m.configEnabled {
+		if err := router.RegisterSlash(AntiScamCommandName, m.ToggleHandler()); err != nil {
+			return err
+		}
+	}
+	if m.reportEnabled {
+		if err := router.RegisterSlash(ScamReportCommandName, m.ReportHandler()); err != nil {
+			return err
+		}
+	}
+	return nil
 }

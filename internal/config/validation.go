@@ -96,6 +96,9 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED requires MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureAntiScamReportEnabled && strings.TrimSpace(cfg.ReportWebhookURL) == "" {
+		return fmt.Errorf("%w: MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED requires MHCAT_REPORT_WEBHOOK_URL or REPORT_WEBHOOK", ErrInvalidConfig)
+	}
 	if err := ValidateStagingGatewaySmoke(cfg.Staging, cfg.DiscordGatewaySmokeTest); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
 	}

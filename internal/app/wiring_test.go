@@ -676,6 +676,39 @@ func TestBuildRuntimeRoutesAntiScamConfigOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesAntiScamReportOnlyWithCatalogAndSender(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("詐騙網址回報", "", map[string]string{"網址": "https://bad.example"})
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("anti-scam report route should not be available without catalog and sender")
+	}
+
+	catalog := fakemongo.NewScamURLCatalogRepository()
+	sender := &fakeScamReportSender{}
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		ScamURLCatalogRepository: catalog,
+		ScamReportSender:         sender,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with anti-scam report ports: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch anti-scam report: %v", err)
+	}
+	if len(sender.Sent) != 1 || sender.Sent[0].URL != "https://bad.example" {
+		t.Fatalf("sent = %#v", sender.Sent)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "成功回報https://bad.example") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesBirthdayConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
@@ -1113,4 +1146,16 @@ type appFixedClock struct {
 
 func (c appFixedClock) Now() time.Time {
 	return c.now
+}
+
+type fakeScamReportSender struct {
+	Sent []domain.ScamURLReport
+}
+
+func (s *fakeScamReportSender) SendScamURLReport(ctx context.Context, report domain.ScamURLReport) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.Sent = append(s.Sent, report)
+	return nil
 }

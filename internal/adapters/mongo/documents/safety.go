@@ -7,6 +7,10 @@ type GoodWebConfigDocument struct {
 	Open  bool   `bson:"open" json:"open"`
 }
 
+type ScamURLDocument struct {
+	Web string `bson:"web" json:"web"`
+}
+
 func GoodWebConfigDocumentFromDomain(config domain.AntiScamConfig) GoodWebConfigDocument {
 	return GoodWebConfigDocument{
 		Guild: config.GuildID,

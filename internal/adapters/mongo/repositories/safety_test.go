@@ -5,11 +5,15 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo/documents"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func TestGoodWebConfigCollectionName(t *testing.T) {
 	if GoodWebConfigCollectionName != "good_webs" {
 		t.Fatalf("anti-scam config collection = %s, want good_webs", GoodWebConfigCollectionName)
+	}
+	if NotAGoodWebCollectionName != "not_a_good_webs" {
+		t.Fatalf("scam URL catalog collection = %s, want not_a_good_webs", NotAGoodWebCollectionName)
 	}
 }
 
@@ -21,6 +25,18 @@ func TestNewAntiScamConfigRepositoryRequiresCollection(t *testing.T) {
 
 func TestNewAntiScamConfigRepositoryFromDatabaseRequiresDatabase(t *testing.T) {
 	if _, err := NewAntiScamConfigRepositoryFromDatabase(nil); err == nil {
+		t.Fatal("expected nil database error")
+	}
+}
+
+func TestNewScamURLCatalogRepositoryRequiresCollection(t *testing.T) {
+	if _, err := NewScamURLCatalogRepository(nil); err == nil {
+		t.Fatal("expected nil collection error")
+	}
+}
+
+func TestNewScamURLCatalogRepositoryFromDatabaseRequiresDatabase(t *testing.T) {
+	if _, err := NewScamURLCatalogRepositoryFromDatabase(nil); err == nil {
 		t.Fatal("expected nil database error")
 	}
 }
@@ -57,5 +73,14 @@ func TestAntiScamConfigUpdateOmitsSetOnInsertWhenNotUpserting(t *testing.T) {
 	set := documentValue(t, update, "$set")
 	if value := documentValue(t, set, "open"); value != false {
 		t.Fatalf("open = %#v", value)
+	}
+}
+
+func TestScamURLContainsFilterEscapesUserInput(t *testing.T) {
+	filter := scamURLContainsFilter("https://bad.example/a?x=(.*)")
+	web := documentValue(t, filter, "web")
+	regexDoc := web.(bson.D)
+	if value := documentValue(t, regexDoc, "$regex"); value != `https://bad\.example/a\?x=\(\.\*\)` {
+		t.Fatalf("regex = %#v", value)
 	}
 }

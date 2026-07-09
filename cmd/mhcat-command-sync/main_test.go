@@ -224,6 +224,22 @@ func TestCommandSyncIncludeLoggingConfigStagingDryRunIncludesDefinition(t *testi
 	}
 }
 
+func TestCommandSyncIncludeAntiScamReportStagingDryRunIncludesDefinition(t *testing.T) {
+	env := stagingCommandSyncEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT"] = "true"
+	fake := &fakediscord.CommandSyncClient{}
+	exitCode, stdout, stderr, _ := runWithFakeClient(t, nil, env, fake, defaultCommandRegistry)
+	if exitCode != 0 {
+		t.Fatalf("expected anti-scam report dry-run to pass, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
+		t.Fatalf("dry-run performed writes: %#v", fake)
+	}
+	if !strings.Contains(stdout, "詐騙網址回報") {
+		t.Fatalf("anti-scam report command missing from dry-run output: %q", stdout)
+	}
+}
+
 func TestCommandSyncIncludeGachaPrizeListRequiresStagingMode(t *testing.T) {
 	env := baseCommandSyncEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST"] = "true"

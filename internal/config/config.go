@@ -26,6 +26,7 @@ const (
 	DefaultFeatureTranslateEnabled              = false
 	DefaultFeatureAutoChatConfigEnabled         = false
 	DefaultFeatureAntiScamConfigEnabled         = false
+	DefaultFeatureAntiScamReportEnabled         = false
 	DefaultFeatureLoggingConfigEnabled          = false
 	DefaultFeatureGachaPrizeListEnabled         = false
 	DefaultFeatureLotteryDisabledCommandEnabled = false
@@ -76,6 +77,7 @@ type Config struct {
 	FeatureTranslateEnabled              bool
 	FeatureAutoChatConfigEnabled         bool
 	FeatureAntiScamConfigEnabled         bool
+	FeatureAntiScamReportEnabled         bool
 	FeatureLoggingConfigEnabled          bool
 	FeatureGachaPrizeListEnabled         bool
 	FeatureLotteryDisabledCommandEnabled bool
@@ -99,6 +101,7 @@ type Config struct {
 	Staging                              StagingConfig
 	MongoDBURI                           string
 	MongoDBDatabase                      string
+	ReportWebhookURL                     string
 	MongoConnectTimeout                  time.Duration
 	MongoPingTimeout                     time.Duration
 	ShutdownTimeout                      time.Duration

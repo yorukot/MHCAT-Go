@@ -13,3 +13,11 @@ type AntiScamConfigRepository interface {
 	FindAntiScamConfig(ctx context.Context, guildID string) (domain.AntiScamConfig, error)
 	SaveAntiScamConfig(ctx context.Context, config domain.AntiScamConfig) error
 }
+
+type ScamURLCatalog interface {
+	ContainsScamURL(ctx context.Context, rawURL string) (bool, error)
+}
+
+type ScamReportSender interface {
+	SendScamURLReport(ctx context.Context, report domain.ScamURLReport) error
+}

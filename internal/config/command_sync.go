@@ -27,6 +27,7 @@ const (
 	DefaultCommandSyncIncludeTranslate              = false
 	DefaultCommandSyncIncludeAutoChatConfig         = false
 	DefaultCommandSyncIncludeAntiScamConfig         = false
+	DefaultCommandSyncIncludeAntiScamReport         = false
 	DefaultCommandSyncIncludeLoggingConfig          = false
 	DefaultCommandSyncIncludeGachaPrizeList         = false
 	DefaultCommandSyncIncludeLotteryDisabledCommand = false
@@ -68,6 +69,7 @@ type CommandSyncConfig struct {
 	IncludeTranslate              bool
 	IncludeAutoChatConfig         bool
 	IncludeAntiScamConfig         bool
+	IncludeAntiScamReport         bool
 	IncludeLoggingConfig          bool
 	IncludeGachaPrizeList         bool
 	IncludeLotteryDisabledCommand bool
@@ -124,6 +126,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeTranslate:              DefaultCommandSyncIncludeTranslate,
 		IncludeAutoChatConfig:         DefaultCommandSyncIncludeAutoChatConfig,
 		IncludeAntiScamConfig:         DefaultCommandSyncIncludeAntiScamConfig,
+		IncludeAntiScamReport:         DefaultCommandSyncIncludeAntiScamReport,
 		IncludeLoggingConfig:          DefaultCommandSyncIncludeLoggingConfig,
 		IncludeGachaPrizeList:         DefaultCommandSyncIncludeGachaPrizeList,
 		IncludeLotteryDisabledCommand: DefaultCommandSyncIncludeLotteryDisabledCommand,
@@ -182,6 +185,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeAntiScamConfig, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG", DefaultCommandSyncIncludeAntiScamConfig); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeAntiScamReport, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT", DefaultCommandSyncIncludeAntiScamReport); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeLoggingConfig, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG", DefaultCommandSyncIncludeLoggingConfig); err != nil {
@@ -351,6 +357,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeAntiScamReport {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeLoggingConfig {

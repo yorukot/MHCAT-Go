@@ -96,6 +96,32 @@ func TestAntiScamConfigFeatureRequiresDefaultRuntimeAdapters(t *testing.T) {
 	}
 }
 
+func TestAntiScamReportFeatureRequiresDefaultRuntimeAdapters(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.FeatureAntiScamReportEnabled = true
+	cfg.ReportWebhookURL = "https://example.test/webhook"
+	mongo := &fakeMongo{}
+	discord := &fakeDiscord{}
+	application, err := New(
+		cfg,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		WithMongoFactory(func(config.Config) (MongoClient, error) { return mongo, nil }),
+		WithDiscordFactory(func(config.Config) (DiscordSession, error) { return discord, nil }),
+	)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	if err := application.Start(context.Background()); err == nil {
+		t.Fatal("expected anti-scam report feature to reject fake runtime adapters")
+	}
+	if mongo.connects != 1 || mongo.disconnects != 1 {
+		t.Fatalf("mongo should be cleaned up after runtime wiring failure: connects=%d disconnects=%d", mongo.connects, mongo.disconnects)
+	}
+	if discord.closes != 1 {
+		t.Fatalf("discord session should be closed after runtime wiring failure, got %d", discord.closes)
+	}
+}
+
 func TestWelcomeMessageDeliveryRequiresDefaultRuntimeAdapters(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.DiscordEnableGateway = true

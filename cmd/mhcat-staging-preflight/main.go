@@ -103,6 +103,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		autoChatConfigRuntimePairing(lookup),
 		antiScamConfigCommandSync(lookup),
 		antiScamConfigRuntimePairing(lookup),
+		antiScamReportCommandSync(lookup),
+		antiScamReportRuntimePairing(lookup),
 		loggingConfigCommandSync(lookup),
 		loggingConfigRuntimePairing(lookup),
 		gachaPrizeListCommandSync(lookup),
@@ -515,6 +517,44 @@ func antiScamConfigRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "anti-scam-config-runtime-pairing", Status: statusWarn, Message: "anti-scam config runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "anti-scam-config-runtime-pairing", Status: statusSkipped, Message: "anti-scam config runtime and command sync include are disabled"}
+}
+
+func antiScamReportCommandSync(lookup lookupFunc) checkResult {
+	includeAntiScamReport, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT")
+	if err != nil {
+		return checkResult{Name: "anti-scam-report-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeAntiScamReport {
+		return checkResult{Name: "anti-scam-report-command-sync", Status: statusPass, Message: "anti-scam report command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "anti-scam-report-command-sync", Status: statusSkipped, Message: "anti-scam report command sync include is disabled"}
+}
+
+func antiScamReportRuntimePairing(lookup lookupFunc) checkResult {
+	includeAntiScamReport, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT")
+	if err != nil {
+		return checkResult{Name: "anti-scam-report-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	antiScamReportEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED")
+	if err != nil {
+		return checkResult{Name: "anti-scam-report-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	webhookURL, _ := lookup("MHCAT_REPORT_WEBHOOK_URL")
+	legacyWebhookURL, _ := lookup("REPORT_WEBHOOK")
+	hasWebhook := strings.TrimSpace(webhookURL) != "" || strings.TrimSpace(legacyWebhookURL) != ""
+	if includeAntiScamReport && !antiScamReportEnabled {
+		return checkResult{Name: "anti-scam-report-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT=true requires MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED=true in the staging runtime"}
+	}
+	if antiScamReportEnabled && !hasWebhook {
+		return checkResult{Name: "anti-scam-report-runtime-pairing", Status: statusFail, Message: "MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED=true requires MHCAT_REPORT_WEBHOOK_URL or REPORT_WEBHOOK"}
+	}
+	if includeAntiScamReport && antiScamReportEnabled {
+		return checkResult{Name: "anti-scam-report-runtime-pairing", Status: statusPass, Message: "anti-scam report command sync, runtime feature flag, and webhook URL are paired"}
+	}
+	if antiScamReportEnabled {
+		return checkResult{Name: "anti-scam-report-runtime-pairing", Status: statusWarn, Message: "anti-scam report runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "anti-scam-report-runtime-pairing", Status: statusSkipped, Message: "anti-scam report runtime and command sync include are disabled"}
 }
 
 func loggingConfigCommandSync(lookup lookupFunc) checkResult {

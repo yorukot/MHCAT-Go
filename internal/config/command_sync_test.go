@@ -73,6 +73,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeAntiScamConfig {
 		t.Fatal("include anti-scam config must default false")
 	}
+	if cfg.IncludeAntiScamReport {
+		t.Fatal("include anti-scam report must default false")
+	}
 	if cfg.IncludeLoggingConfig {
 		t.Fatal("include logging config must default false")
 	}
@@ -957,6 +960,48 @@ func TestCommandSyncIncludeAntiScamConfigStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeAntiScamConfig {
 		t.Fatal("expected include anti-scam config to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeAntiScamReportRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                 "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include anti-scam report without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeAntiScamReportRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                    "global",
+		"MHCAT_STAGING_MODE":                          "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include anti-scam report with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeAntiScamReportStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                 "guild",
+		"MHCAT_STAGING_MODE":                          "true",
+		"MHCAT_STAGING_GUILD_ID":                      "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeAntiScamReport {
+		t.Fatal("expected include anti-scam report to be enabled explicitly")
 	}
 }
 

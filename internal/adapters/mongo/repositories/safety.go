@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	mhcatmongo "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo"
@@ -16,6 +17,7 @@ import (
 )
 
 const GoodWebConfigCollectionName = "good_webs"
+const NotAGoodWebCollectionName = "not_a_good_webs"
 
 type AntiScamConfigRepository struct {
 	collection *drivermongo.Collection
@@ -92,3 +94,46 @@ func antiScamConfigUpdate(document documents.GoodWebConfigDocument, upsert bool)
 }
 
 var _ ports.AntiScamConfigRepository = (*AntiScamConfigRepository)(nil)
+
+type ScamURLCatalogRepository struct {
+	collection *drivermongo.Collection
+}
+
+func NewScamURLCatalogRepository(collection *drivermongo.Collection) (*ScamURLCatalogRepository, error) {
+	if collection == nil {
+		return nil, errors.New("mongo scam URL catalog collection is required")
+	}
+	return &ScamURLCatalogRepository{collection: collection}, nil
+}
+
+func NewScamURLCatalogRepositoryFromDatabase(database *drivermongo.Database) (*ScamURLCatalogRepository, error) {
+	if database == nil {
+		return nil, errors.New("mongo database is required")
+	}
+	return NewScamURLCatalogRepository(database.Collection(NotAGoodWebCollectionName))
+}
+
+func (r *ScamURLCatalogRepository) ContainsScamURL(ctx context.Context, rawURL string) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return false, nil
+	}
+	filter := scamURLContainsFilter(rawURL)
+	var document documents.ScamURLDocument
+	if err := r.collection.FindOne(ctx, filter).Decode(&document); err != nil {
+		if mhcatmongo.ErrorIs(mhcatmongo.MapError(err), mhcatmongo.ErrorKindNotFound) {
+			return false, ctx.Err()
+		}
+		return false, mhcatmongo.MapError(fmt.Errorf("find scam URL report: %w", err))
+	}
+	return strings.Contains(document.Web, rawURL), ctx.Err()
+}
+
+func scamURLContainsFilter(rawURL string) bson.D {
+	return bson.D{{Key: "web", Value: bson.D{{Key: "$regex", Value: regexp.QuoteMeta(strings.TrimSpace(rawURL))}}}}
+}
+
+var _ ports.ScamURLCatalog = (*ScamURLCatalogRepository)(nil)

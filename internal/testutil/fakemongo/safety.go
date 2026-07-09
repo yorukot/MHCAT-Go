@@ -68,3 +68,35 @@ func (r *AntiScamConfigRepository) ready(ctx context.Context) error {
 }
 
 var _ ports.AntiScamConfigRepository = (*AntiScamConfigRepository)(nil)
+
+type ScamURLCatalogRepository struct {
+	mu      sync.Mutex
+	Known   []string
+	Checked []string
+	Err     error
+}
+
+func NewScamURLCatalogRepository() *ScamURLCatalogRepository {
+	return &ScamURLCatalogRepository{}
+}
+
+func (r *ScamURLCatalogRepository) ContainsScamURL(ctx context.Context, rawURL string) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if r.Err != nil {
+		return false, r.Err
+	}
+	rawURL = strings.TrimSpace(rawURL)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.Checked = append(r.Checked, rawURL)
+	for _, known := range r.Known {
+		if strings.Contains(known, rawURL) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+var _ ports.ScamURLCatalog = (*ScamURLCatalogRepository)(nil)

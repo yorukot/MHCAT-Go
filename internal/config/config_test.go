@@ -138,6 +138,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureAntiScamConfigEnabled {
 		t.Fatal("anti-scam config feature must be disabled by default")
 	}
+	if cfg.FeatureAntiScamReportEnabled {
+		t.Fatal("anti-scam report feature must be disabled by default")
+	}
 	if cfg.FeatureLoggingConfigEnabled {
 		t.Fatal("logging config feature must be disabled by default")
 	}
@@ -254,6 +257,40 @@ func TestFeatureAntiScamConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureAntiScamConfigEnabled {
 		t.Fatal("expected anti-scam config feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureAntiScamReportRequiresWebhook(t *testing.T) {
+	_, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                    "token",
+		"MHCAT_MONGODB_URI":                      "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                 "mhcat",
+		"MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected anti-scam report without webhook to fail")
+	}
+	if !errors.Is(err, ErrInvalidConfig) || !strings.Contains(err.Error(), "MHCAT_REPORT_WEBHOOK_URL") {
+		t.Fatalf("expected webhook validation error, got %v", err)
+	}
+}
+
+func TestFeatureAntiScamReportParsesWithLegacyWebhookAlias(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                    "token",
+		"MHCAT_MONGODB_URI":                      "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                 "mhcat",
+		"MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED": "true",
+		"REPORT_WEBHOOK":                         "https://example.test/webhook",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureAntiScamReportEnabled {
+		t.Fatal("expected anti-scam report feature to be enabled explicitly")
+	}
+	if cfg.ReportWebhookURL != "https://example.test/webhook" {
+		t.Fatalf("report webhook = %q", cfg.ReportWebhookURL)
 	}
 }
 

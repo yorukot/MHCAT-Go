@@ -61,6 +61,18 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG:-false}" = "true" ] && [ "${M
   echo "refusing apply: autochat config command apply requires MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: anti-scam config command apply requires MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT:-false}" = "true" ] && [ "${MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: anti-scam report command apply requires MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT:-false}" = "true" ] && [ -z "${MHCAT_REPORT_WEBHOOK_URL:-}" ] && [ -z "${REPORT_WEBHOOK:-}" ]; then
+  echo "refusing apply: anti-scam report command apply requires MHCAT_REPORT_WEBHOOK_URL or REPORT_WEBHOOK for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_LOGGING_CONFIG_ENABLED:-false}" != "true" ]; then
   echo "refusing apply: logging config command apply requires MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -163,6 +175,16 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG:-false}" = "true" ]; then
   echo "staging command sync apply: including autochat config commands" >&2
 else
   echo "staging command sync apply: autochat config commands are excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync apply: including anti-scam config command" >&2
+else
+  echo "staging command sync apply: anti-scam config command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT:-false}" = "true" ]; then
+  echo "staging command sync apply: including anti-scam report command" >&2
+else
+  echo "staging command sync apply: anti-scam report command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG:-false}" = "true" ]; then
   echo "staging command sync apply: including logging config command" >&2

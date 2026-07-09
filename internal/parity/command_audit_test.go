@@ -78,6 +78,43 @@ func TestParseLegacySlashCommandFallsBackToMetadataBeforeRun(t *testing.T) {
 	}
 }
 
+func TestParseLegacySlashCommandExtractsReportWebOptions(t *testing.T) {
+	payload := []byte("module.exports = {\n" +
+		"  name: '詐騙網址回報',\n" +
+		"  cooldown: 10,\n" +
+		"  description: '回報詐騙網站',\n" +
+		"  //video: 'https://docsmhcat.yorukot.me/commands/statistics.html',\n" +
+		"  emoji: '<:fraudalert:1000408260777611355>',\n" +
+		"  options: [{\n" +
+		"    name: '網址',\n" +
+		"    type: ApplicationCommandOptionType.String,\n" +
+		"    description: '回報網址',\n" +
+		"    required: true,\n" +
+		"  }],\n" +
+		"  run: async (client, interaction, options, perms) => {\n" +
+		"    try {\n" +
+		"      await interaction.deferReply();\n" +
+		"      const web = interaction.options.getString(\"網址\")\n" +
+		"      const dsadsa = new WebhookClient({url:`${process.env.REPORT_WEBHOOK}`})\n" +
+		"      dsadsa.send(`\\`\\`\\`${web}\\`\\`\\`\\nby:<@${interaction.user.id}>`)\n" +
+		"    } catch (error) {\n" +
+		"      error_send(error, interaction)\n" +
+		"    }\n" +
+		"  }\n" +
+		"}")
+	command := ParseLegacySlashCommand("slashCommands/群組防護/report_web.js", payload)
+	if command.Name != "詐騙網址回報" || command.Description != "回報詐騙網站" {
+		t.Fatalf("command = %#v", command)
+	}
+	if len(command.Options) != 1 {
+		t.Fatalf("options = %#v warnings=%#v", command.Options, command.Warnings)
+	}
+	option := command.Options[0]
+	if option.Name != "網址" || option.Type != "string" || option.Description != "回報網址" || option.Required == nil || !*option.Required {
+		t.Fatalf("option = %#v", option)
+	}
+}
+
 func TestAuditSlashCommandParityClassifiesMissingMatchingAndDrift(t *testing.T) {
 	required := true
 	legacy := []LegacyCommand{

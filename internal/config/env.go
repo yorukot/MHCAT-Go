@@ -39,6 +39,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureTranslateEnabled:              DefaultFeatureTranslateEnabled,
 		FeatureAutoChatConfigEnabled:         DefaultFeatureAutoChatConfigEnabled,
 		FeatureAntiScamConfigEnabled:         DefaultFeatureAntiScamConfigEnabled,
+		FeatureAntiScamReportEnabled:         DefaultFeatureAntiScamReportEnabled,
 		FeatureLoggingConfigEnabled:          DefaultFeatureLoggingConfigEnabled,
 		FeatureGachaPrizeListEnabled:         DefaultFeatureGachaPrizeListEnabled,
 		FeatureLotteryDisabledCommandEnabled: DefaultFeatureLotteryDisabledCommandEnabled,
@@ -67,6 +68,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 	cfg.DiscordToken = getAliasedString(lookup, "MHCAT_DISCORD_TOKEN", "TOKEN", &cfg)
 	cfg.MongoDBURI = getAliasedString(lookup, "MHCAT_MONGODB_URI", "MONGOOSE_CONNECTION_STRING", &cfg)
 	cfg.MongoDBDatabase = getString(lookup, "MHCAT_MONGODB_DATABASE", "")
+	cfg.ReportWebhookURL = getAliasedString(lookup, "MHCAT_REPORT_WEBHOOK_URL", "REPORT_WEBHOOK", &cfg)
 
 	var err error
 	if cfg.DiscordEnableGateway, err = getBool(lookup, "MHCAT_DISCORD_ENABLE_GATEWAY", DefaultDiscordEnableGateway); err != nil {
@@ -127,6 +129,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureAntiScamConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED", DefaultFeatureAntiScamConfigEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureAntiScamReportEnabled, err = getBool(lookup, "MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED", DefaultFeatureAntiScamReportEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureLoggingConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_LOGGING_CONFIG_ENABLED", DefaultFeatureLoggingConfigEnabled); err != nil {

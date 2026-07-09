@@ -467,6 +467,57 @@ func TestPreflightWarnsWhenAntiScamConfigRuntimeEnabledWithoutCommandSync(t *tes
 	}
 }
 
+func TestPreflightRejectsAntiScamReportCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "anti-scam-report-runtime-pairing status=fail") {
+		t.Fatalf("expected anti-scam report pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsAntiScamReportCommandSyncWithRuntimeFlagAndWebhook(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT"] = "true"
+	env["MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED"] = "true"
+	env["MHCAT_REPORT_WEBHOOK_URL"] = "https://example.test/webhook"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "anti-scam-report-command-sync status=pass") || !strings.Contains(stdout, "anti-scam-report-runtime-pairing status=pass") {
+		t.Fatalf("expected anti-scam report pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightRejectsAntiScamReportRuntimeWithoutWebhook(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "anti-scam-report-runtime-pairing status=fail") || !strings.Contains(stdout, "MHCAT_REPORT_WEBHOOK_URL or REPORT_WEBHOOK") {
+		t.Fatalf("expected anti-scam report webhook failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenAntiScamReportRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED"] = "true"
+	env["REPORT_WEBHOOK"] = "https://example.test/webhook"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "anti-scam-report-runtime-pairing status=warn") {
+		t.Fatalf("expected anti-scam report runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsLoggingConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG"] = "true"

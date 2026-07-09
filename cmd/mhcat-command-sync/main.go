@@ -202,7 +202,10 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 		definitions = append(definitions, featureautochat.Definitions()...)
 	}
 	if cfg.IncludeAntiScamConfig {
-		definitions = append(definitions, featuresafety.Definitions()...)
+		definitions = append(definitions, featuresafety.ConfigDefinitions()...)
+	}
+	if cfg.IncludeAntiScamReport {
+		definitions = append(definitions, featuresafety.ReportDefinitions()...)
 	}
 	if cfg.IncludeLoggingConfig {
 		definitions = append(definitions, featurelogging.Definitions()...)
@@ -280,6 +283,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeAntiScamConfig {
 		expected = append(expected, featuresafety.AntiScamCommandName)
+	}
+	if cfg.IncludeAntiScamReport {
+		expected = append(expected, featuresafety.ScamReportCommandName)
 	}
 	if cfg.IncludeLoggingConfig {
 		expected = append(expected, featurelogging.LoggingConfigCommandName)

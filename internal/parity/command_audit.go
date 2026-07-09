@@ -751,10 +751,26 @@ func legacyCategory(relativeFile string) string {
 func skipSpaceAndCommas(input string, position int) int {
 	for position < len(input) {
 		ch := input[position]
-		if ch != ',' && ch != ' ' && ch != '\n' && ch != '\r' && ch != '\t' {
-			break
+		if ch == ',' || ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t' {
+			position++
+			continue
 		}
-		position++
+		if strings.HasPrefix(input[position:], "//") {
+			position += len("//")
+			for position < len(input) && input[position] != '\n' {
+				position++
+			}
+			continue
+		}
+		if strings.HasPrefix(input[position:], "/*") {
+			end := strings.Index(input[position+len("/*"):], "*/")
+			if end < 0 {
+				return len(input)
+			}
+			position += len("/*") + end + len("*/")
+			continue
+		}
+		break
 	}
 	return position
 }

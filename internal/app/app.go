@@ -358,6 +358,14 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.AntiScamConfigRepository = antiScamRepo
 	}
+	if cfg.FeatureAntiScamReportEnabled {
+		scamURLRepo, err := scamURLCatalogRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.ScamURLCatalogRepository = scamURLRepo
+		opts.ScamReportSender = externaladapter.NewDiscordWebhookReporter(cfg.ReportWebhookURL)
+	}
 	if cfg.FeatureLoggingConfigEnabled {
 		loggingRepo, err := loggingConfigRepositoryFromMongo(mongoClient)
 		if err != nil {
@@ -600,6 +608,22 @@ func antiScamConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositor
 	repo, err := mongorepositories.NewAntiScamConfigRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("anti-scam config feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func scamURLCatalogRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.ScamURLCatalogRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("anti-scam report feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("anti-scam report feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewScamURLCatalogRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("anti-scam report feature repository: %w", err)
 	}
 	return repo, nil
 }
