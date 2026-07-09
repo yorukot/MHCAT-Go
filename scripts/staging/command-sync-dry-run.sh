@@ -37,6 +37,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK:-false}" = "true" ] && [ "$
   echo "refusing command sync: economy coin-rank command dry-run requires MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: economy coin-reset command dry-run requires MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_RPS_ENABLED:-false}" != "true" ]; then
   echo "refusing command sync: economy RPS command dry-run requires MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -201,6 +205,18 @@ if [ "${MHCAT_FEATURE_XP_RESET_ENABLED:-false}" = "true" ] && [ "${MHCAT_DISCORD
   echo "refusing command sync: XP reset runtime requires MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true for staging confirmation parity" >&2
   exit 1
 fi
+if [ "${MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED:-false}" = "true" ] && [ "${MHCAT_DISCORD_ENABLE_GATEWAY:-false}" != "true" ]; then
+  echo "refusing command sync: economy coin-reset runtime requires MHCAT_DISCORD_ENABLE_GATEWAY=true for staging confirmation parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED:-false}" = "true" ] && [ "${MHCAT_DISCORD_GUILD_MESSAGES_INTENT:-false}" != "true" ]; then
+  echo "refusing command sync: economy coin-reset runtime requires MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true for staging confirmation parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED:-false}" = "true" ] && [ "${MHCAT_DISCORD_MESSAGE_CONTENT_INTENT:-false}" != "true" ]; then
+  echo "refusing command sync: economy coin-reset runtime requires MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true for staging confirmation parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED:-false}" != "true" ]; then
   echo "refusing command sync: voice-room config commands dry-run requires MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -264,6 +280,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK:-false}" = "true" ]; then
   echo "staging command sync dry-run: including economy coin-rank command for review" >&2
 else
   echo "staging command sync dry-run: economy coin-rank command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including economy coin-reset command 代幣重製 for review" >&2
+else
+  echo "staging command sync dry-run: economy coin-reset command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS:-false}" = "true" ]; then
   echo "staging command sync dry-run: including economy RPS command for review" >&2

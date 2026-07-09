@@ -305,7 +305,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		opts.PollMessagePort = sideEffects
 		opts.PollMemberCounter = sideEffects
 	}
-	if cfg.FeatureEconomyQueryEnabled || cfg.FeatureEconomySignInEnabled || cfg.FeatureEconomyCoinAdminEnabled || cfg.FeatureEconomyCoinRankEnabled || cfg.FeatureEconomyRPSEnabled {
+	if cfg.FeatureEconomyQueryEnabled || cfg.FeatureEconomySignInEnabled || cfg.FeatureEconomyCoinAdminEnabled || cfg.FeatureEconomyCoinRankEnabled || cfg.FeatureEconomyCoinResetEnabled || cfg.FeatureEconomyRPSEnabled {
 		economyRepo, err := economyRepositoryFromMongo(mongoClient)
 		if err != nil {
 			return nil, err
@@ -321,6 +321,15 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		if cfg.FeatureEconomyCoinRankEnabled {
 			opts.EconomyCoinRankRepository = economyRepo
+		}
+		if cfg.FeatureEconomyCoinResetEnabled {
+			sideEffects, err := messageSideEffectsFromSession(session, "economy coin-reset feature")
+			if err != nil {
+				return nil, err
+			}
+			opts.EconomyCoinResetRepository = economyRepo
+			opts.EconomyCoinResetMessagePort = sideEffects
+			opts.EconomyCoinResetGuildInfo = discordInfoProvider(session)
 		}
 		if cfg.FeatureEconomyRPSEnabled {
 			opts.EconomyRPSRepository = economyRepo

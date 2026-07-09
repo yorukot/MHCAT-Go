@@ -8,6 +8,7 @@ import (
 const (
 	CoinQueryCommandName         = "代幣查詢"
 	CoinAdminCommandName         = "代幣增加"
+	CoinResetCommandName         = "代幣重製"
 	CoinRankCommandName          = "代幣排行榜"
 	ProfileCommandName           = "my-profile"
 	RockPaperScissorsCommandName = "剪刀石頭布"
@@ -33,6 +34,10 @@ func SettingsDefinitions() []commands.Definition {
 
 func CoinAdminDefinitions() []commands.Definition {
 	return []commands.Definition{CoinAdminDefinition()}
+}
+
+func CoinResetDefinitions() []commands.Definition {
+	return []commands.Definition{CoinResetDefinition()}
 }
 
 func CoinRankDefinitions() []commands.Definition {
@@ -195,6 +200,23 @@ func CoinAdminDefinition() commands.Definition {
 				Name:        "數量",
 				Description: "增加或減少的數量",
 				Required:    true,
+			},
+		},
+	}
+}
+
+func CoinResetDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        CoinResetCommandName,
+		Description: "重製所有人的代幣，或者是進行代幣改變幣值",
+		Ownership:   commands.ManagedOwnership("economy-coin-reset", commands.ScopeGuild),
+		Options: []commands.Option{
+			{
+				Type:        commands.OptionTypeInteger,
+				Name:        "除以多少",
+				Description: "要對所有人的代幣除以多少(這個可以用來解決貨幣通彭)，不選的話就是全部清除!",
+				Required:    false,
 			},
 		},
 	}

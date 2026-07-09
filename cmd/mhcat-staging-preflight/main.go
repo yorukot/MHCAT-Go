@@ -97,6 +97,9 @@ func buildReport(lookup lookupFunc) []checkResult {
 		economyCoinAdminRuntimePairing(lookup),
 		economyCoinRankCommandSync(lookup),
 		economyCoinRankRuntimePairing(lookup),
+		economyCoinResetCommandSync(lookup),
+		economyCoinResetRuntimePairing(lookup),
+		economyCoinResetRuntimeReadiness(lookup),
 		economyRPSCommandSync(lookup),
 		economyRPSRuntimePairing(lookup),
 		economyProfileCommandSync(lookup),
@@ -248,6 +251,10 @@ func messageContentIntent(lookup lookupFunc) checkResult {
 	if err != nil {
 		return checkResult{Name: "message-content-intent", Status: statusFail, Message: err.Error()}
 	}
+	coinResetEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED")
+	if err != nil {
+		return checkResult{Name: "message-content-intent", Status: statusFail, Message: err.Error()}
+	}
 	if !messageContent {
 		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is disabled"}
 	}
@@ -257,7 +264,10 @@ func messageContentIntent(lookup lookupFunc) checkResult {
 	if xpResetEnabled {
 		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for XP reset confirmation only"}
 	}
-	return checkResult{Name: "message-content-intent", Status: statusFail, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT must be false unless MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true or MHCAT_FEATURE_XP_RESET_ENABLED=true"}
+	if coinResetEnabled {
+		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for economy coin reset confirmation only"}
+	}
+	return checkResult{Name: "message-content-intent", Status: statusFail, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT must be false unless MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true, MHCAT_FEATURE_XP_RESET_ENABLED=true, or MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true"}
 }
 
 func ticketCommandSync(lookup lookupFunc) checkResult {
@@ -482,6 +492,74 @@ func economyCoinRankRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "economy-coin-rank-runtime-pairing", Status: statusWarn, Message: "economy coin-rank runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "economy-coin-rank-runtime-pairing", Status: statusSkipped, Message: "economy coin-rank runtime and command sync include are disabled"}
+}
+
+func economyCoinResetCommandSync(lookup lookupFunc) checkResult {
+	includeCoinReset, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET")
+	if err != nil {
+		return checkResult{Name: "economy-coin-reset-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeCoinReset {
+		return checkResult{Name: "economy-coin-reset-command-sync", Status: statusPass, Message: "economy coin-reset command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "economy-coin-reset-command-sync", Status: statusSkipped, Message: "economy coin-reset command sync include is disabled"}
+}
+
+func economyCoinResetRuntimePairing(lookup lookupFunc) checkResult {
+	includeCoinReset, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET")
+	if err != nil {
+		return checkResult{Name: "economy-coin-reset-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	coinResetEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED")
+	if err != nil {
+		return checkResult{Name: "economy-coin-reset-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeCoinReset && !coinResetEnabled {
+		return checkResult{Name: "economy-coin-reset-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true requires MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true in the staging runtime"}
+	}
+	if includeCoinReset && coinResetEnabled {
+		return checkResult{Name: "economy-coin-reset-runtime-pairing", Status: statusPass, Message: "economy coin-reset command sync and runtime feature flag are paired"}
+	}
+	if coinResetEnabled {
+		return checkResult{Name: "economy-coin-reset-runtime-pairing", Status: statusWarn, Message: "economy coin-reset runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "economy-coin-reset-runtime-pairing", Status: statusSkipped, Message: "economy coin-reset runtime and command sync include are disabled"}
+}
+
+func economyCoinResetRuntimeReadiness(lookup lookupFunc) checkResult {
+	coinResetEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED")
+	if err != nil {
+		return checkResult{Name: "economy-coin-reset-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !coinResetEnabled {
+		return checkResult{Name: "economy-coin-reset-runtime-readiness", Status: statusSkipped, Message: "economy coin-reset runtime is disabled"}
+	}
+	gatewayEnabled, err := boolValue(lookup, "MHCAT_DISCORD_ENABLE_GATEWAY")
+	if err != nil {
+		return checkResult{Name: "economy-coin-reset-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	guildMessages, err := boolValue(lookup, "MHCAT_DISCORD_GUILD_MESSAGES_INTENT")
+	if err != nil {
+		return checkResult{Name: "economy-coin-reset-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	messageContent, err := boolValue(lookup, "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT")
+	if err != nil {
+		return checkResult{Name: "economy-coin-reset-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	var missing []string
+	if !gatewayEnabled {
+		missing = append(missing, "MHCAT_DISCORD_ENABLE_GATEWAY=true")
+	}
+	if !guildMessages {
+		missing = append(missing, "MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true")
+	}
+	if !messageContent {
+		missing = append(missing, "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true")
+	}
+	if len(missing) > 0 {
+		return checkResult{Name: "economy-coin-reset-runtime-readiness", Status: statusFail, Message: "economy coin-reset requires " + strings.Join(missing, ", ")}
+	}
+	return checkResult{Name: "economy-coin-reset-runtime-readiness", Status: statusPass, Message: "economy coin-reset gateway and message content gates are explicit"}
 }
 
 func economyRPSCommandSync(lookup lookupFunc) checkResult {

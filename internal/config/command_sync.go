@@ -24,6 +24,7 @@ const (
 	DefaultCommandSyncIncludeEconomySettings        = false
 	DefaultCommandSyncIncludeEconomyCoinAdmin       = false
 	DefaultCommandSyncIncludeEconomyCoinRank        = false
+	DefaultCommandSyncIncludeEconomyCoinReset       = false
 	DefaultCommandSyncIncludeEconomyRPS             = false
 	DefaultCommandSyncIncludeEconomyProfile         = false
 	DefaultCommandSyncIncludeWork                   = false
@@ -92,6 +93,7 @@ type CommandSyncConfig struct {
 	IncludeEconomySettings        bool
 	IncludeEconomyCoinAdmin       bool
 	IncludeEconomyCoinRank        bool
+	IncludeEconomyCoinReset       bool
 	IncludeEconomyRPS             bool
 	IncludeEconomyProfile         bool
 	IncludeWork                   bool
@@ -175,6 +177,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeEconomySettings:        DefaultCommandSyncIncludeEconomySettings,
 		IncludeEconomyCoinAdmin:       DefaultCommandSyncIncludeEconomyCoinAdmin,
 		IncludeEconomyCoinRank:        DefaultCommandSyncIncludeEconomyCoinRank,
+		IncludeEconomyCoinReset:       DefaultCommandSyncIncludeEconomyCoinReset,
 		IncludeEconomyRPS:             DefaultCommandSyncIncludeEconomyRPS,
 		IncludeEconomyProfile:         DefaultCommandSyncIncludeEconomyProfile,
 		IncludeWork:                   DefaultCommandSyncIncludeWork,
@@ -254,6 +257,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeEconomyCoinRank, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK", DefaultCommandSyncIncludeEconomyCoinRank); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeEconomyCoinReset, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET", DefaultCommandSyncIncludeEconomyCoinReset); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeEconomyRPS, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS", DefaultCommandSyncIncludeEconomyRPS); err != nil {
@@ -489,6 +495,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeEconomyCoinReset {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeEconomyRPS {

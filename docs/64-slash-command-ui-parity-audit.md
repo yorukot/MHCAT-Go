@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 68
-- Matching command definitions: 68
+- Current Go command definitions: 69
+- Matching command definitions: 69
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 6
+- Legacy commands without Go definitions: 5
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -30,6 +30,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `代幣增加` | `slashCommands/代幣系統/addcoin.js` | matching-definition | none |
 | `代幣排行榜` | `slashCommands/代幣系統/coin_rank.js` | matching-definition | none |
 | `代幣查詢` | `slashCommands/代幣系統/coin.js` | matching-definition | none |
+| `代幣重製` | `slashCommands/代幣系統/coin_rest.js` | matching-definition | none |
 | `兌換` | `slashCommands/管理系統/get_something.js` | matching-definition | none |
 | `公告發送` | `slashCommands/公告系統/announcement.js` | matching-definition | none |
 | `公告頻道設置` | `slashCommands/公告系統/announcement_set_channel.js` | matching-definition | none |
@@ -98,7 +99,6 @@ None.
 | --- | --- | --- | --- |
 | `代幣商店` | 代幣系統 | `slashCommands/代幣系統/ghp_shop.js` | 使用你所賺到的代幣買一些特別的東西吧! |
 | `代幣遊戲` | 代幣系統 | `slashCommands/代幣系統/game.js` | 遊玩有關代幣的小遊戲 |
-| `代幣重製` | 代幣系統 | `slashCommands/代幣系統/coin_rest.js` | 重製所有人的代幣，或者是進行代幣改變幣值 |
 | `選取身分組-按鈕` | 管理系統 | `slashCommands/管理系統/releadd.js` | 設定領取身分組的消息(點按鈕自動增加身分組) |
 | `選取身分組-表情符號` | 管理系統 | `slashCommands/管理系統/role.js` | 設定領取身分組的消息-點按鈕自動增加身分組(如要更改某個表情符號所給予的身分組，請一樣打這個指令) |
 | `選取身分組刪除-表情符號` | 管理系統 | `slashCommands/管理系統/role_delete.js` | 選取身分組刪除-表情符號版(進行刪除) |

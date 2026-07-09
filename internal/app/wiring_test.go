@@ -1786,6 +1786,39 @@ func TestBuildRuntimeRoutesXPResetOnlyWithDependencies(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesEconomyCoinResetOnlyWithDependencies(t *testing.T) {
+	interaction := fakediscord.SlashInteraction("代幣重製")
+	interaction.ChannelID = "channel-1"
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                     validTestConfig(),
+		EconomyCoinResetRepository: fakemongo.NewEconomyRepository(),
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("economy coin-reset route should not be available without message and guild-info dependencies")
+	}
+
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                      validTestConfig(),
+		EconomyCoinResetRepository:  fakemongo.NewEconomyRepository(),
+		EconomyCoinResetMessagePort: fakediscord.NewSideEffects(),
+		EconomyCoinResetGuildInfo:   &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "user-1"}},
+	})
+	if err != nil {
+		t.Fatalf("build runtime with economy coin reset: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch economy coin reset: %v", err)
+	}
+	if len(responder.Replies) != 1 || responder.Replies[0].Content != ":warning: | 一但重製，___**將無法復原**___，如確定要還原請於60秒內輸入`^確認^`(只有一次機會)!!!" {
+		t.Fatalf("economy coin-reset response = %#v", responder.Replies)
+	}
+}
+
 func TestBuildRuntimeRoutesXPRankOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

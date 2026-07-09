@@ -27,6 +27,7 @@
 - For economy RPS smoke, use only disposable staging `coins` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true` with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`.
 - For economy profile smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE=true` with `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true`.
 - For economy coin-admin smoke, use only disposable staging `coins` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true` with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`.
+- For economy coin-reset smoke, use only disposable staging `coins` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true` with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`; test with the staging guild owner.
 - For balance query smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true` with `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true`.
 - For redeem smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true` with `MHCAT_FEATURE_REDEEM_ENABLED=true`; seed only disposable `codes` rows.
 - For lottery disabled-command smoke, pair `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true` with `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`; it should only return the legacy unavailable embed and must not create a lottery.
@@ -64,6 +65,7 @@
 - If economy coin-rank smoke is enabled, run `/代幣排行榜`, verify the public PNG attachment and pagination buttons, and verify Mongo `coins` rows are not mutated.
 - If economy profile smoke is enabled, run `/my-profile`, verify the public `user-info.png` attachment and `更新` refresh button, and verify Mongo economy/XP/work rows are not mutated.
 - If economy coin-admin smoke is enabled, run `/代幣增加` with add and reduce against a disposable staging member, verify the `coins` balance changes, and verify negative-balance and over-`999999999` attempts return legacy red embeds without mutation.
+- If economy coin-reset smoke is enabled, seed disposable staging `coins` rows, run `/代幣重製` as a non-owner and verify denial, run as owner with a wrong `^確認^` response and verify no mutation, run as owner without `除以多少` plus `^確認^` and verify guild rows are deleted, then reseed and run as owner with `除以多少` plus `^確認^` and verify rounded division.
 - If balance query smoke is enabled, run `/查看餘額` and verify the ephemeral green author embed reads `伺服器目前剩於餘額: <price>` or `0` when `chatgpt_gets` has no guild row.
 - If redeem smoke is enabled, seed a fresh staging `codes` row, run `/兌換`, verify the ephemeral success embed, verify the code was deleted and `chatgpt_gets.price` was credited, then verify missing and expired codes return the legacy red embeds.
 - If lottery disabled-command smoke is enabled, run `/抽獎設置` with placeholder options and verify the ephemeral unavailable embed.
@@ -74,5 +76,5 @@
 - If delete-data smoke is enabled, run `/刪除資料`, verify the legacy destructive select UI, select only a disposable seeded config target, and confirm the legacy success/missing responses plus guild-scoped row deletion.
 - Verify no duplicate initial response and no raw internal error.
 - Verify no command deletion or bulk overwrite happened.
-- Verify no Mongo feature write happened except explicitly tested staging config writes, and verify no index creation happened.
+- Verify no Mongo feature write happened except explicitly tested staging config writes, economy coin-admin disposable `coins` writes, economy coin-reset disposable `coins` deletes/divisions after owner confirmation, and verify no index creation happened.
 - Shut the bot down cleanly.

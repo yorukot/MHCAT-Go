@@ -3,31 +3,36 @@ package economy
 import (
 	"crypto/rand"
 	"math/big"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreeconomy "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/economy"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 )
 
 type Module struct {
-	query        coreeconomy.CoinQueryService
-	signIn       coreeconomy.SignInService
-	signInList   coreeconomy.SignInListService
-	settings     coreeconomy.SettingsService
-	coinAdmin    coreeconomy.CoinAdminService
-	coinRank     coreeconomy.CoinRankService
-	rps          coreeconomy.RockPaperScissorsService
-	profile      coreeconomy.ProfileService
-	discord      ports.DiscordInfoProvider
-	usage        ports.UsageTracker
-	clock        ports.Clock
-	color        func() int
-	rpsChoice    func() domain.RockPaperScissorsChoice
-	defs         []commands.Definition
-	feature      string
-	queryEnabled bool
+	query         coreeconomy.CoinQueryService
+	signIn        coreeconomy.SignInService
+	signInList    coreeconomy.SignInListService
+	settings      coreeconomy.SettingsService
+	coinAdmin     coreeconomy.CoinAdminService
+	coinReset     coreeconomy.CoinResetService
+	coinRank      coreeconomy.CoinRankService
+	rps           coreeconomy.RockPaperScissorsService
+	profile       coreeconomy.ProfileService
+	discord       ports.DiscordInfoProvider
+	messages      ports.DiscordMessagePort
+	usage         ports.UsageTracker
+	clock         ports.Clock
+	confirmations *coinResetConfirmationStore
+	color         func() int
+	rpsChoice     func() domain.RockPaperScissorsChoice
+	defs          []commands.Definition
+	feature       string
+	queryEnabled  bool
 }
 
 func NewModule(repo ports.EconomyQueryRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
@@ -95,6 +100,27 @@ func NewCoinAdminModule(repo ports.EconomyCoinAdminRepository, discordInfo ports
 		rpsChoice: legacyRandomRockPaperScissorsChoice,
 		defs:      CoinAdminDefinitions(),
 		feature:   "economy-coin-admin",
+	}
+}
+
+func NewCoinResetModule(repo ports.EconomyCoinResetRepository, discordInfo ports.DiscordInfoProvider, messages ports.DiscordMessagePort, usage ports.UsageTracker, clock ports.Clock) Module {
+	confirmations := defaultCoinResetConfirmationStore
+	if clock == nil {
+		clock = ports.SystemClock{}
+	} else {
+		confirmations = newCoinResetConfirmationStore(clock, time.Minute)
+	}
+	return Module{
+		coinReset:     coreeconomy.CoinResetService{Repository: repo},
+		discord:       discordInfo,
+		messages:      messages,
+		usage:         usage,
+		clock:         clock,
+		confirmations: confirmations,
+		color:         legacyRandomColor,
+		rpsChoice:     legacyRandomRockPaperScissorsChoice,
+		defs:          CoinResetDefinitions(),
+		feature:       "economy-coin-reset",
 	}
 }
 
@@ -175,6 +201,11 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 			return err
 		}
 	}
+	if m.coinReset.Repository != nil {
+		if err := router.RegisterSlash(CoinResetCommandName, m.CoinResetHandler()); err != nil {
+			return err
+		}
+	}
 	if m.coinRank.Repository != nil {
 		if err := router.RegisterSlash(CoinRankCommandName, m.CoinRankHandler()); err != nil {
 			return err
@@ -197,6 +228,12 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 		}
 	}
 	return nil
+}
+
+func (m Module) RegisterEventRoutes(dispatcher *events.Dispatcher) {
+	if dispatcher != nil && m.coinReset.Repository != nil {
+		dispatcher.Register(events.TypeMessageCreate, m.CoinResetConfirmationHandler())
+	}
 }
 
 func legacyRandomColor() int {

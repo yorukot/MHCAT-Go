@@ -199,6 +199,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeEconomyCoinRank {
 		definitions = append(definitions, featureeconomy.CoinRankDefinitions()...)
 	}
+	if cfg.IncludeEconomyCoinReset {
+		definitions = append(definitions, featureeconomy.CoinResetDefinitions()...)
+	}
 	if cfg.IncludeEconomyRPS {
 		definitions = append(definitions, featureeconomy.RockPaperScissorsDefinitions()...)
 	}
@@ -356,6 +359,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeEconomyCoinRank {
 		expected = append(expected, featureeconomy.CoinRankCommandName)
+	}
+	if cfg.IncludeEconomyCoinReset {
+		expected = append(expected, featureeconomy.CoinResetCommandName)
 	}
 	if cfg.IncludeEconomyRPS {
 		expected = append(expected, featureeconomy.RockPaperScissorsCommandName)

@@ -129,6 +129,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureEconomyCoinRankEnabled {
 		t.Fatal("economy coin-rank feature must be disabled by default")
 	}
+	if cfg.FeatureEconomyCoinResetEnabled {
+		t.Fatal("economy coin-reset feature must be disabled by default")
+	}
 	if cfg.FeatureEconomyRPSEnabled {
 		t.Fatal("economy RPS feature must be disabled by default")
 	}
@@ -1147,6 +1150,50 @@ func TestFeatureEconomyCoinRankConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureEconomyCoinRankEnabled {
 		t.Fatal("expected economy coin-rank feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureEconomyCoinResetParsesWithRequiredGatewayIntents(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                      "token",
+		"MHCAT_MONGODB_URI":                        "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                   "mhcat",
+		"MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED": "true",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":             "true",
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":      "true",
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT":     "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureEconomyCoinResetEnabled {
+		t.Fatal("expected economy coin-reset feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureEconomyCoinResetRequiresGatewayMessagesAndMessageContent(t *testing.T) {
+	base := map[string]string{
+		"MHCAT_DISCORD_TOKEN":                      "token",
+		"MHCAT_MONGODB_URI":                        "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                   "mhcat",
+		"MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED": "true",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":             "true",
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":      "true",
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT":     "true",
+	}
+	for key := range map[string]struct{}{
+		"MHCAT_DISCORD_ENABLE_GATEWAY":         {},
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":  {},
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT": {},
+	} {
+		env := map[string]string{}
+		for k, v := range base {
+			env[k] = v
+		}
+		env[key] = "false"
+		if _, err := LoadWithLookup(mapLookup(env)); err == nil {
+			t.Fatalf("expected economy coin-reset config without %s to fail", key)
+		}
 	}
 }
 

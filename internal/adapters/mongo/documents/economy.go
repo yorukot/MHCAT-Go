@@ -9,6 +9,7 @@ import (
 )
 
 type CoinDocument struct {
+	ID     bson.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	Guild  string        `bson:"guild" json:"guild"`
 	Member string        `bson:"member" json:"member"`
 	Coin   bson.RawValue `bson:"coin" json:"coin"`

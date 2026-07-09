@@ -53,6 +53,10 @@ type EconomyCoinAdminRepository interface {
 	AdjustCoinBalance(ctx context.Context, command domain.CoinAdminCommand) (domain.CoinAdminResult, error)
 }
 
+type EconomyCoinResetRepository interface {
+	ResetCoinBalances(ctx context.Context, command domain.CoinResetCommand) (domain.CoinResetResult, error)
+}
+
 type EconomyRockPaperScissorsRepository interface {
 	ApplyRockPaperScissors(ctx context.Context, command domain.RockPaperScissorsCommand) (domain.RockPaperScissorsResult, error)
 }

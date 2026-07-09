@@ -119,6 +119,45 @@ func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domai
 	return domain.CoinAdminResult{Balance: balance, Delta: delta}, nil
 }
 
+func (r *EconomyRepository) ResetCoinBalances(ctx context.Context, command domain.CoinResetCommand) (domain.CoinResetResult, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.CoinResetResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.CoinResetResult{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	affected := int64(0)
+	nextOrder := r.balanceOrder[:0]
+	for _, key := range r.balanceOrder {
+		balance := r.Balances[key]
+		if balance.GuildID != command.GuildID {
+			nextOrder = append(nextOrder, key)
+			continue
+		}
+		affected++
+		if command.Divisor == 0 {
+			delete(r.Balances, key)
+			continue
+		}
+		balance.Coins = domain.LegacyJavaScriptRound(float64(balance.Coins) / float64(command.Divisor))
+		r.Balances[key] = balance
+		nextOrder = append(nextOrder, key)
+	}
+	r.balanceOrder = nextOrder
+	if affected == 0 {
+		return domain.CoinResetResult{}, ports.ErrCoinBalanceNotFound
+	}
+	return domain.CoinResetResult{
+		GuildID:       command.GuildID,
+		Divisor:       command.Divisor,
+		AffectedCount: affected,
+		Deleted:       command.Divisor == 0,
+	}, nil
+}
+
 func (r *EconomyRepository) ApplyRockPaperScissors(ctx context.Context, command domain.RockPaperScissorsCommand) (domain.RockPaperScissorsResult, error) {
 	if err := r.ready(ctx); err != nil {
 		return domain.RockPaperScissorsResult{}, err
@@ -245,6 +284,7 @@ var _ ports.EconomySignInRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyCoinRankRepository = (*EconomyRepository)(nil)
 var _ ports.EconomySettingsRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyCoinAdminRepository = (*EconomyRepository)(nil)
+var _ ports.EconomyCoinResetRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyRockPaperScissorsRepository = (*EconomyRepository)(nil)
 
 func cloneSignCalendar(calendar domain.SignCalendar) domain.SignCalendar {

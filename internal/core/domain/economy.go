@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"math"
 	"strings"
 	"time"
 )
@@ -11,6 +12,7 @@ var ErrInvalidSignIn = errors.New("invalid sign in")
 var ErrInvalidEconomySettings = errors.New("invalid economy settings")
 var ErrInvalidCoinAdminCommand = errors.New("invalid coin admin command")
 var ErrInvalidCoinRankQuery = errors.New("invalid coin rank query")
+var ErrInvalidCoinResetCommand = errors.New("invalid coin reset command")
 var ErrInvalidEconomyProfileQuery = errors.New("invalid economy profile query")
 var ErrInvalidRockPaperScissorsCommand = errors.New("invalid rock paper scissors command")
 
@@ -130,6 +132,18 @@ type CoinAdminResult struct {
 	Created bool
 }
 
+type CoinResetCommand struct {
+	GuildID string
+	Divisor int64
+}
+
+type CoinResetResult struct {
+	GuildID       string
+	Divisor       int64
+	AffectedCount int64
+	Deleted       bool
+}
+
 type RockPaperScissorsCommand struct {
 	GuildID        string
 	UserID         string
@@ -178,6 +192,26 @@ func (c CoinAdminCommand) SignedDelta() (int64, error) {
 		return -c.Amount, nil
 	}
 	return c.Amount, nil
+}
+
+func (c CoinResetCommand) Normalize() CoinResetCommand {
+	return CoinResetCommand{
+		GuildID: strings.TrimSpace(c.GuildID),
+		Divisor: c.Divisor,
+	}
+}
+
+func (c CoinResetCommand) Validate() error {
+	c = c.Normalize()
+	if c.GuildID == "" {
+		return ErrInvalidCoinResetCommand
+	}
+	return nil
+}
+
+// LegacyJavaScriptRound preserves JavaScript Math.round semantics, including negative half values.
+func LegacyJavaScriptRound(value float64) int64 {
+	return int64(math.Floor(value + 0.5))
 }
 
 func (c RockPaperScissorsChoice) Normalize() RockPaperScissorsChoice {

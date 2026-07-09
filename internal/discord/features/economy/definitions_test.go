@@ -47,6 +47,33 @@ func TestCoinRankDefinitionMatchesLegacyCommand(t *testing.T) {
 	}
 }
 
+func TestCoinResetDefinitionMatchesLegacyCommand(t *testing.T) {
+	definition := CoinResetDefinition()
+	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}, []commands.Definition{definition})
+	if err := commands.ValidateRegistry(registry); err != nil {
+		t.Fatalf("validate registry: %v", err)
+	}
+	if definition.Name != CoinResetCommandName || definition.Description != "重製所有人的代幣，或者是進行代幣改變幣值" {
+		t.Fatalf("reset definition = %#v", definition)
+	}
+	if definition.DefaultMemberPermissions != nil {
+		t.Fatalf("reset command should not set Discord-side permissions: %#v", definition.DefaultMemberPermissions)
+	}
+	if definition.Ownership == nil || definition.Ownership.SinceWave != "economy-coin-reset" {
+		t.Fatalf("reset ownership = %#v", definition.Ownership)
+	}
+	if len(definition.Options) != 1 {
+		t.Fatalf("reset options = %#v", definition.Options)
+	}
+	option := definition.Options[0]
+	if option.Type != commands.OptionTypeInteger || option.Name != "除以多少" || option.Description != "要對所有人的代幣除以多少(這個可以用來解決貨幣通彭)，不選的話就是全部清除!" || option.Required {
+		t.Fatalf("reset divisor option = %#v", option)
+	}
+	if !commands.IsManagedForScope(definition, commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}) {
+		t.Fatal("coin reset command should be marked managed for guild-scoped staging sync")
+	}
+}
+
 func TestProfileDefinitionMatchesLegacyCommand(t *testing.T) {
 	definition := ProfileDefinition()
 	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}, []commands.Definition{definition})

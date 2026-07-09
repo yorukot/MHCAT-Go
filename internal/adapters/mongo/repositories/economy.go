@@ -196,6 +196,63 @@ func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domai
 	return domain.CoinAdminResult{Balance: current, Delta: delta}, ctx.Err()
 }
 
+func (r *EconomyRepository) ResetCoinBalances(ctx context.Context, command domain.CoinResetCommand) (domain.CoinResetResult, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.CoinResetResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.CoinResetResult{}, err
+	}
+	filter := bson.D{{Key: "guild", Value: command.GuildID}}
+	if command.Divisor == 0 {
+		result, err := r.coins.DeleteMany(ctx, filter)
+		if err != nil {
+			return domain.CoinResetResult{}, mhcatmongo.MapError(fmt.Errorf("reset coin balances: %w", err))
+		}
+		if result.DeletedCount == 0 {
+			return domain.CoinResetResult{}, ports.ErrCoinBalanceNotFound
+		}
+		return domain.CoinResetResult{GuildID: command.GuildID, AffectedCount: result.DeletedCount, Deleted: true}, ctx.Err()
+	}
+	cursor, err := r.coins.Find(ctx, filter)
+	if err != nil {
+		return domain.CoinResetResult{}, mhcatmongo.MapError(fmt.Errorf("list coin balances for reset: %w", err))
+	}
+	defer cursor.Close(ctx)
+	affected := int64(0)
+	for cursor.Next(ctx) {
+		var document documents.CoinDocument
+		if err := cursor.Decode(&document); err != nil {
+			return domain.CoinResetResult{}, mhcatmongo.MapError(fmt.Errorf("decode coin balance for reset: %w", err))
+		}
+		next := domain.LegacyJavaScriptRound(float64(document.ToDomain().Coins) / float64(command.Divisor))
+		updateFilter := bson.D{{Key: "_id", Value: document.ID}}
+		if document.ID.IsZero() {
+			updateFilter = bson.D{{Key: "guild", Value: document.Guild}, {Key: "member", Value: document.Member}}
+		}
+		result, err := r.coins.UpdateOne(ctx, updateFilter, bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: next}}}})
+		if err != nil {
+			return domain.CoinResetResult{}, mhcatmongo.MapError(fmt.Errorf("divide coin balance: %w", err))
+		}
+		if result.MatchedCount > 0 {
+			affected++
+		}
+	}
+	if err := cursor.Err(); err != nil {
+		return domain.CoinResetResult{}, mhcatmongo.MapError(fmt.Errorf("iterate coin balances for reset: %w", err))
+	}
+	if affected == 0 {
+		return domain.CoinResetResult{}, ports.ErrCoinBalanceNotFound
+	}
+	return domain.CoinResetResult{
+		GuildID:       command.GuildID,
+		Divisor:       command.Divisor,
+		AffectedCount: affected,
+		Deleted:       false,
+	}, ctx.Err()
+}
+
 func (r *EconomyRepository) ApplyRockPaperScissors(ctx context.Context, command domain.RockPaperScissorsCommand) (domain.RockPaperScissorsResult, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.RockPaperScissorsResult{}, err

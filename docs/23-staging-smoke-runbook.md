@@ -72,6 +72,18 @@ export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true
 
 Set both together only in an isolated staging database when testing `/代幣排行榜`. This path reads `coins` and renders a PNG leaderboard without writing economy data.
 
+Optional economy coin-reset smoke flags:
+
+```bash
+export MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
+export MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
+```
+
+Set all five together only in an isolated staging guild/database when testing `/代幣重製`. This owner-only destructive path deletes or divides all guild `coins` rows only after the same-channel `^確認^` message, so use disposable balances only.
+
 Optional economy RPS smoke flags:
 
 ```bash
@@ -479,7 +491,7 @@ Do not paste real values into committed docs.
 - Confirm token belongs to a staging Discord application.
 - Confirm staging guild is not production.
 - Confirm `MHCAT_COMMAND_SYNC_SCOPE` is unset or set to `guild`.
-- Confirm `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT` is unset or `false`, unless testing bound announcement relay with `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true` or XP reset confirmation with `MHCAT_FEATURE_XP_RESET_ENABLED=true`.
+- Confirm `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT` is unset or `false`, unless testing bound announcement relay with `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, economy coin reset confirmation with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, or XP reset confirmation with `MHCAT_FEATURE_XP_RESET_ENABLED=true`.
 - Confirm `MHCAT_COMMAND_SYNC_ALLOW_DELETE=false`.
 - Confirm `MHCAT_COMMAND_SYNC_ALLOW_BULK_OVERWRITE=false`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TICKETS=true`, confirm `MHCAT_FEATURE_TICKETS_ENABLED=true`.
@@ -488,6 +500,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`, confirm `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`, the database is isolated staging data, and all target `coins` rows are disposable.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true` and the database is isolated staging data.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, the tester is the staging guild owner, and the staging database has only disposable `coins` rows for the reset target.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`, confirm `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`, the database is isolated staging data, and all target `coins` rows are disposable.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE=true`, confirm `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`, confirm `MHCAT_FEATURE_WORK_ENABLED=true` and that the test accepts the partial work command surface.
@@ -599,6 +612,16 @@ For economy coin-rank staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true`;
 - `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`;
 - plan includes managed `代幣排行榜`;
+- plan still performs no create/update/delete during dry-run.
+
+For economy coin-reset staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true`;
+- `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`;
+- `MHCAT_DISCORD_ENABLE_GATEWAY=true`;
+- `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`;
+- `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`;
+- plan includes managed `代幣重製`;
 - plan still performs no create/update/delete during dry-run.
 
 For economy RPS staging smoke, expected additionally:
@@ -919,6 +942,13 @@ If economy coin-rank inclusion is enabled, expected:
 - no bulk overwrite;
 - no global command mutation.
 
+If economy coin-reset inclusion is enabled, expected:
+
+- create/update managed `代幣重製` only in addition to the utility commands;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
 If economy profile inclusion is enabled, expected:
 
 - create/update managed `my-profile` only in addition to the utility commands;
@@ -1120,6 +1150,15 @@ If economy coin-admin flags were enabled and command sync apply was reviewed:
 - run a reduce larger than the disposable balance and verify the legacy red `不可減到負數!` embed appears with no balance mutation;
 - seed a disposable balance near `999999999`, add past the max, and verify the legacy red max-balance embed appears with no balance mutation;
 - verify command access is denied without Manage Messages.
+
+If economy coin-reset flags were enabled and command sync apply was reviewed:
+
+- seed disposable staging `coins` rows for the guild, including at least one row for division and at least one row for deletion;
+- run `/代幣重製` as a non-owner and verify the legacy red permission embed appears with no balance mutation;
+- run `/代幣重製` as the staging guild owner, type a wrong confirmation once in the same channel, and verify the reset is cancelled without mutating `coins`;
+- rerun `/代幣重製` without `除以多少`, type `^確認^` in the same channel as the same owner within 60 seconds, and verify all disposable guild `coins` rows are deleted;
+- reseed disposable `coins` rows, run `/代幣重製 除以多少:<divisor>` as the staging guild owner, type `^確認^`, and verify every guild balance is updated with legacy rounded division;
+- verify no economy sign-in, gacha, work payout, XP reward, index, or usage-counter side effect happened.
 
 If redeem flags were enabled and command sync apply was reviewed:
 
@@ -1335,6 +1374,7 @@ Verify:
 - no Mongo feature write happened.
   - Exception: ticket smoke writes the legacy-compatible `tickets` config only after successful modal submit.
   - Exception: economy coin-admin smoke writes disposable staging `coins` rows only.
+  - Exception: economy coin-reset smoke deletes or divides disposable staging `coins` rows only after the owner `^確認^` confirmation.
   - Exception: logging-config smoke writes the legacy-compatible `loggings` config only after the setup select is submitted.
   - Exception: delete-data smoke deletes selected disposable staging config rows only.
   - Exception: auto-notification config smoke writes/completes disposable setup `cron_sets` rows, sends a setup preview, and deletes selected rows and abandoned pending drafts only.

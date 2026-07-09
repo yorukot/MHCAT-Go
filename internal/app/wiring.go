@@ -50,6 +50,9 @@ type RuntimeOptions struct {
 	EconomySettingsRepository     ports.EconomySettingsRepository
 	EconomyCoinAdminRepository    ports.EconomyCoinAdminRepository
 	EconomyCoinRankRepository     ports.EconomyCoinRankRepository
+	EconomyCoinResetRepository    ports.EconomyCoinResetRepository
+	EconomyCoinResetMessagePort   ports.DiscordMessagePort
+	EconomyCoinResetGuildInfo     ports.DiscordInfoProvider
 	EconomyRPSRepository          ports.EconomyRockPaperScissorsRepository
 	EconomyProfileRepository      ports.EconomyProfileRepository
 	WorkInterfaceRepository       ports.WorkInterfaceRepository
@@ -148,6 +151,10 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if xpResetGuilds == nil {
 		xpResetGuilds = concreteDiscord
 	}
+	coinResetGuilds := opts.EconomyCoinResetGuildInfo
+	if coinResetGuilds == nil {
+		coinResetGuilds = concreteDiscord
+	}
 	definitions := commands.BuiltinDefinitions()
 	if opts.TicketConfigRepository != nil {
 		definitions = append(definitions, featureticket.Definitions()...)
@@ -169,6 +176,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.EconomyCoinRankRepository != nil {
 		definitions = append(definitions, featureeconomy.CoinRankDefinitions()...)
+	}
+	if coinResetRuntimeEnabled(opts, coinResetGuilds) {
+		definitions = append(definitions, featureeconomy.CoinResetDefinitions()...)
 	}
 	if opts.EconomyRPSRepository != nil {
 		definitions = append(definitions, featureeconomy.RockPaperScissorsDefinitions()...)
@@ -366,6 +376,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.EconomyCoinRankRepository != nil {
 		coinRankModule := featureeconomy.NewCoinRankModule(opts.EconomyCoinRankRepository, concreteDiscord, opts.UsageTracker)
 		if err := coinRankModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if coinResetRuntimeEnabled(opts, coinResetGuilds) {
+		coinResetModule := featureeconomy.NewCoinResetModule(opts.EconomyCoinResetRepository, coinResetGuilds, opts.EconomyCoinResetMessagePort, opts.UsageTracker, nil)
+		if err := coinResetModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}
@@ -639,6 +655,10 @@ func xpResetRuntimeEnabled(opts RuntimeOptions, guilds ports.DiscordInfoProvider
 	return opts.XPResetRepository != nil && opts.XPResetMessagePort != nil && guilds != nil
 }
 
+func coinResetRuntimeEnabled(opts RuntimeOptions, guilds ports.DiscordInfoProvider) bool {
+	return opts.EconomyCoinResetRepository != nil && opts.EconomyCoinResetMessagePort != nil && guilds != nil
+}
+
 func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session DiscordSession, mongoClient MongoClient) (*discordevents.Dispatcher, error) {
 	dispatcher := discordevents.NewDispatcher(logger)
 	if cfg.FeatureAnnouncementRelayEnabled {
@@ -725,6 +745,17 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 			return nil, err
 		}
 		featurexp.NewResetModule(repo, discordInfoProvider(session), sideEffects, nil, nil).RegisterEventRoutes(dispatcher)
+	}
+	if cfg.FeatureEconomyCoinResetEnabled {
+		repo, err := economyRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "economy coin-reset feature")
+		if err != nil {
+			return nil, err
+		}
+		featureeconomy.NewCoinResetModule(repo, discordInfoProvider(session), sideEffects, nil, nil).RegisterEventRoutes(dispatcher)
 	}
 	return dispatcher, nil
 }

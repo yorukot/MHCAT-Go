@@ -42,7 +42,7 @@ This module currently provides:
 - Platform Wave B collection-name contract tests for legacy Mongoose compatibility.
 - ticket config BSON compatibility and repository contract foundation.
 - poll BSON compatibility, repository contract foundation, and gated create/vote/owner-menu/result/chart/export handlers.
-- economy `coins`/`gift_changes`/XP/work BSON compatibility, read-only query repository, gated `/代幣查詢` handler, gated `/代幣排行榜` PNG leaderboard, gated `my-profile` profile PNG, gated `/簽到` sign-in write slice, gated `coin-related-settings` config write slice, and gated `/代幣增加` admin coin write slice.
+- economy `coins`/`gift_changes`/XP/work BSON compatibility, read-only query repository, gated `/代幣查詢` handler, gated `/代幣排行榜` PNG leaderboard, gated `my-profile` profile PNG, gated `/簽到` sign-in write slice, gated `coin-related-settings` config write slice, gated `/代幣增加` admin coin write slice, gated `/剪刀石頭布` game write slice, and gated `/代幣重製` owner-only reset slice.
 - gated `打工系統` command schema, legacy dashboard-redirect UI for `新增打工事項`, legacy-style `打工介面` list/detail/start UI, and admin setup/delete/energy flows with explicit work repository writes.
 - gated read-only `/警告紀錄` warning-history lookup with legacy embed text and safer permission/member-cache handling.
 - gated `/警告設定` warning escalation config command with rollback-compatible `errors_sets` writes.
@@ -102,6 +102,7 @@ Implemented utility commands:
 - `/coin-related-settings` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`
 - `/代幣增加` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`
 - `/代幣排行榜` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`
+- `/代幣重製` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, gateway enabled, Guild Messages intent enabled, and Message Content intent enabled
 - `/剪刀石頭布` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`
 - `/my-profile` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true`
 - `/打工系統 新增打工事項` dashboard redirect, `/打工系統 打工介面` list/detail/start flow, and work admin setup/delete/energy flows when explicitly enabled with `MHCAT_FEATURE_WORK_ENABLED=true`
@@ -159,13 +160,15 @@ Implemented event features:
 
 Not implemented yet:
 
-- role button, remaining economy game/shop/reset writes, text/voice XP accrual, rank cards, gacha draw/shop, gift delivery, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
+- role button, remaining economy game/shop writes, text/voice XP accrual, rank cards, gacha draw/shop, gift delivery, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete, and the daily reset is either run by the explicit one-shot tool under an operator process or owned by a future lease-backed scheduler.
 
 `/代幣增加` is a disabled-by-default staging admin write slice. It requires Manage Messages, writes legacy-compatible `coins` rows, rejects negative balances and balances above `999999999`, and must be paired with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
 
 `/剪刀石頭布` is a disabled-by-default staging game write slice. It writes existing `coins` rows only, rejects missing or insufficient balances, preserves legacy tie/win/loss wager behavior, and must be paired with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
+
+`/代幣重製` is a disabled-by-default staging owner-only destructive write slice. It writes all `coins` rows for a guild by either deleting them when `除以多少` is omitted or `0`, or dividing balances with legacy rounding when a divisor is provided. It must be paired with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true`, gateway, Guild Messages, and Message Content flags, and tested only against disposable staging balances.
 
 `/自動通知列表` and `/自動通知刪除` are config-maintenance commands only. They read/delete legacy `cron_sets` rows behind `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`; they do not implement `automatic-notification`, cron setup modals/selects, scheduler ownership, or notification sends.
 
@@ -203,6 +206,7 @@ Safe defaults:
 - `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=false`
 - `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=false`
 - `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=false`
+- `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=false`
 - `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=false`
 - `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=false`
 - `MHCAT_FEATURE_WORK_ENABLED=false`
@@ -291,6 +295,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_WORK=false`
@@ -544,6 +549,8 @@ The `/簽到` command is available only when `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABL
 The `/coin-related-settings` command is available only when `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes `gift_changes` using legacy field names and an atomic patch/update path instead of the legacy delete-then-insert flow. It requires Manage Messages at the command definition and runtime levels.
 
 The `/剪刀石頭布` command is available only when `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes existing `coins` rows only, rejects missing or insufficient balances, and preserves the legacy game behavior where winning can move a balance above `999999999`; use only disposable staging balances until economy ownership and duplicate audits are reviewed.
+
+The `/代幣重製` command is available only when `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires the Discord guild owner and a same-channel `^確認^` message within 60 seconds before deleting or dividing all guild `coins` balances. Test only against disposable staging rows.
 
 The `打工系統` command is available only when `MHCAT_FEATURE_WORK_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`; staging preflight rejects unpaired sync/runtime flags. The current work slices preserve the legacy dashboard redirect for `新增打工事項`, implement legacy-style `打工介面` list/captcha/detail/start UI, and implement `打工系統設定`, `打工事項刪除`, `增加個人精力`, and `增加全體精力` behind explicit admin repository wiring and Manage Messages checks. The start and energy paths can create/update `work_users` through atomic repository methods and do not write coins or payout state. Recurring scheduler ownership and payout idempotency remain pending.
 

@@ -91,6 +91,22 @@ func TestPreflightAcceptsMessageContentForXPReset(t *testing.T) {
 	}
 }
 
+func TestPreflightAcceptsMessageContentForEconomyCoinReset(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED"] = "true"
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_DISCORD_GUILD_MESSAGES_INTENT"] = "true"
+	env["MHCAT_DISCORD_MESSAGE_CONTENT_INTENT"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "message-content-intent status=pass") || !strings.Contains(stdout, "economy-coin-reset-runtime-readiness status=pass") {
+		t.Fatalf("expected economy coin-reset message content pass checks, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsAnnouncementRelayWithoutRequiredGatewayFlags(t *testing.T) {
 	for key, want := range map[string]string{
 		"MHCAT_DISCORD_ENABLE_GATEWAY":         "MHCAT_DISCORD_ENABLE_GATEWAY=true",
@@ -381,6 +397,71 @@ func TestPreflightWarnsWhenEconomyCoinRankRuntimeEnabledWithoutCommandSync(t *te
 	}
 	if !strings.Contains(stdout, "economy-coin-rank-runtime-pairing status=warn") {
 		t.Fatalf("expected economy coin-rank runtime warning, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightRejectsEconomyCoinResetCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "economy-coin-reset-runtime-pairing status=fail") {
+		t.Fatalf("expected economy coin-reset pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsEconomyCoinResetCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET"] = "true"
+	env["MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_DISCORD_GUILD_MESSAGES_INTENT"] = "true"
+	env["MHCAT_DISCORD_MESSAGE_CONTENT_INTENT"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "economy-coin-reset-command-sync status=pass") || !strings.Contains(stdout, "economy-coin-reset-runtime-pairing status=pass") || !strings.Contains(stdout, "economy-coin-reset-runtime-readiness status=pass") {
+		t.Fatalf("expected economy coin-reset pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenEconomyCoinResetRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_DISCORD_GUILD_MESSAGES_INTENT"] = "true"
+	env["MHCAT_DISCORD_MESSAGE_CONTENT_INTENT"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "economy-coin-reset-runtime-pairing status=warn") {
+		t.Fatalf("expected economy coin-reset runtime warning, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightRejectsEconomyCoinResetRuntimeWithoutGatewayMessagesOrContent(t *testing.T) {
+	for key, want := range map[string]string{
+		"MHCAT_DISCORD_ENABLE_GATEWAY":         "MHCAT_DISCORD_ENABLE_GATEWAY=true",
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":  "MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true",
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT": "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true",
+	} {
+		env := validEnv()
+		env["MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED"] = "true"
+		env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+		env["MHCAT_DISCORD_GUILD_MESSAGES_INTENT"] = "true"
+		env["MHCAT_DISCORD_MESSAGE_CONTENT_INTENT"] = "true"
+		env[key] = "false"
+		code, stdout, _ := runPreflight(t, nil, env)
+		if code == 0 {
+			t.Fatalf("expected economy coin-reset without %s to fail", key)
+		}
+		if !strings.Contains(stdout, "economy-coin-reset-runtime-readiness status=fail") || !strings.Contains(stdout, want) {
+			t.Fatalf("expected economy coin-reset readiness failure %q, stdout=%q", want, stdout)
+		}
 	}
 }
 
