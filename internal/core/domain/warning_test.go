@@ -23,6 +23,24 @@ func TestWarningSettingsValidate(t *testing.T) {
 	}
 }
 
+func TestWarningIssueValidate(t *testing.T) {
+	valid := domain.WarningIssue{GuildID: "guild-1", UserID: "user-1", ModeratorID: "mod-1", Reason: "spam", Time: "2026年07月04日 18點30分"}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("valid issue: %v", err)
+	}
+	for _, issue := range []domain.WarningIssue{
+		{GuildID: "", UserID: "user-1", ModeratorID: "mod-1", Reason: "spam", Time: "time"},
+		{GuildID: "guild-1", UserID: "", ModeratorID: "mod-1", Reason: "spam", Time: "time"},
+		{GuildID: "guild-1", UserID: "user-1", ModeratorID: "", Reason: "spam", Time: "time"},
+		{GuildID: "guild-1", UserID: "user-1", ModeratorID: "mod-1", Reason: "", Time: "time"},
+		{GuildID: "guild-1", UserID: "user-1", ModeratorID: "mod-1", Reason: "spam", Time: ""},
+	} {
+		if err := issue.Validate(); !errors.Is(err, domain.ErrInvalidWarningIssue) {
+			t.Fatalf("issue %#v err = %v", issue, err)
+		}
+	}
+}
+
 func TestWarningRemovalValidate(t *testing.T) {
 	valid := domain.WarningRemoval{GuildID: "guild-1", UserID: "user-1", Index: 1}
 	if err := valid.ValidateSingle(); err != nil {

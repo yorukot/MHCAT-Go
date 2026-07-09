@@ -38,6 +38,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureWarningsEnabled:               DefaultFeatureWarningsEnabled,
 		FeatureWarningSettingsEnabled:        DefaultFeatureWarningSettingsEnabled,
 		FeatureWarningRemovalEnabled:         DefaultFeatureWarningRemovalEnabled,
+		FeatureWarningIssueEnabled:           DefaultFeatureWarningIssueEnabled,
 		FeatureTranslateEnabled:              DefaultFeatureTranslateEnabled,
 		FeatureBalanceQueryEnabled:           DefaultFeatureBalanceQueryEnabled,
 		FeatureRedeemEnabled:                 DefaultFeatureRedeemEnabled,
@@ -133,6 +134,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureWarningRemovalEnabled, err = getBool(lookup, "MHCAT_FEATURE_WARNING_REMOVAL_ENABLED", DefaultFeatureWarningRemovalEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureWarningIssueEnabled, err = getBool(lookup, "MHCAT_FEATURE_WARNING_ISSUE_ENABLED", DefaultFeatureWarningIssueEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureTranslateEnabled, err = getBool(lookup, "MHCAT_FEATURE_TRANSLATE_ENABLED", DefaultFeatureTranslateEnabled); err != nil {

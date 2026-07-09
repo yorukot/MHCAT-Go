@@ -78,6 +78,47 @@ func (r *WarningHistoryRepository) GetWarningHistory(ctx context.Context, guildI
 	return history, ctx.Err()
 }
 
+func (r *WarningHistoryRepository) AddWarning(ctx context.Context, issue domain.WarningIssue) (domain.WarningIssueResult, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.WarningIssueResult{}, err
+	}
+	issue.GuildID = strings.TrimSpace(issue.GuildID)
+	issue.UserID = strings.TrimSpace(issue.UserID)
+	issue.ModeratorID = strings.TrimSpace(issue.ModeratorID)
+	issue.Reason = strings.TrimSpace(issue.Reason)
+	issue.Time = strings.TrimSpace(issue.Time)
+	if err := issue.Validate(); err != nil {
+		return domain.WarningIssueResult{}, err
+	}
+	filter := bson.D{{Key: "guild", Value: issue.GuildID}, {Key: "user", Value: issue.UserID}}
+	entry := documents.WarningEntryDocumentFromIssue(issue)
+	var document documents.WarningDocument
+	err := r.collection.FindOne(ctx, filter).Decode(&document)
+	if err != nil {
+		if err != drivermongo.ErrNoDocuments {
+			return domain.WarningIssueResult{}, mhcatmongo.MapError(fmt.Errorf("find warning for append: %w", err))
+		}
+		document = documents.WarningDocument{
+			Guild:   issue.GuildID,
+			User:    issue.UserID,
+			Content: []documents.WarningEntryDocument{entry},
+		}
+		if _, err := r.collection.InsertOne(ctx, document); err != nil {
+			return domain.WarningIssueResult{}, mhcatmongo.MapError(fmt.Errorf("insert warning: %w", err))
+		}
+		return domain.WarningIssueResult{History: document.ToDomain(), Created: true}, ctx.Err()
+	}
+	document.Content = append(document.Content, entry)
+	result, err := r.collection.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: bson.D{{Key: "content", Value: document.Content}}}})
+	if err != nil {
+		return domain.WarningIssueResult{}, mhcatmongo.MapError(fmt.Errorf("append warning: %w", err))
+	}
+	if result.MatchedCount == 0 {
+		return domain.WarningIssueResult{}, ports.ErrWarningsNotFound
+	}
+	return domain.WarningIssueResult{History: document.ToDomain()}, ctx.Err()
+}
+
 func (r *WarningHistoryRepository) RemoveWarning(ctx context.Context, removal domain.WarningRemoval) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -131,6 +172,29 @@ func (r *WarningHistoryRepository) RemoveAllWarnings(ctx context.Context, remova
 	return ctx.Err()
 }
 
+func (r *WarningSettingsRepository) GetWarningSettings(ctx context.Context, guildID string) (domain.WarningSettings, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.WarningSettings{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return domain.WarningSettings{}, domain.ErrInvalidWarningSettings
+	}
+	var document documents.WarningSettingsDocument
+	err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document)
+	if err != nil {
+		if err == drivermongo.ErrNoDocuments {
+			return domain.WarningSettings{}, ports.ErrWarningSettingsNotFound
+		}
+		return domain.WarningSettings{}, mhcatmongo.MapError(fmt.Errorf("get warning settings: %w", err))
+	}
+	settings, err := document.ToDomain()
+	if err != nil {
+		return domain.WarningSettings{}, err
+	}
+	return settings, ctx.Err()
+}
+
 func (r *WarningSettingsRepository) SaveWarningSettings(ctx context.Context, settings domain.WarningSettings) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -172,5 +236,6 @@ func warningSettingsUpdate(document documents.WarningSettingsDocument, upsert bo
 }
 
 var _ ports.WarningHistoryRepository = (*WarningHistoryRepository)(nil)
+var _ ports.WarningIssueRepository = (*WarningHistoryRepository)(nil)
 var _ ports.WarningRemovalRepository = (*WarningHistoryRepository)(nil)
 var _ ports.WarningSettingsRepository = (*WarningSettingsRepository)(nil)

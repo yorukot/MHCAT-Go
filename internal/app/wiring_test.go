@@ -564,6 +564,51 @@ func TestBuildRuntimeRoutesWarningRemovalOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesWarningIssueOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), WarningIssueFeatureEnabled: true})
+	if err != nil {
+		t.Fatalf("build runtime with warning issue feature: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("警告", "", map[string]string{
+		"使用者": "user-2",
+		"原因":  "洗版",
+	})
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("warning issue route should not be available without repository")
+	}
+
+	repo := fakemongo.NewWarningHistoryRepository()
+	settings := fakemongo.NewWarningSettingsRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                     validTestConfig(),
+		WarningIssueFeatureEnabled: true,
+		WarningIssueRepository:     repo,
+		WarningSettingsRepository:  settings,
+		WarningIssueDirectMessage:  sideEffects,
+		WarningIssueHierarchy:      sideEffects,
+		WarningIssueMemberPort:     sideEffects,
+		WarningIssueMessagePort:    sideEffects,
+		Clock:                      appFixedClock{now: time.Date(2026, 7, 4, 10, 30, 0, 0, time.UTC)},
+	})
+	if err != nil {
+		t.Fatalf("build runtime with warning issue repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch warning issue: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:greentick:980496858445135893> | 成功警告這位使用者!" {
+		t.Fatalf("warning issue response = %#v", responder.Edits)
+	}
+	history := repo.Histories["guild-1\x00user-2"]
+	if len(history.Entries) != 1 || history.Entries[0].Reason != "洗版" || history.Entries[0].Time != "2026年07月04日 18點30分" {
+		t.Fatalf("saved warning history = %#v", history)
+	}
+}
+
 func TestBuildRuntimeRoutesLoggingConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

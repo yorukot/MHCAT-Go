@@ -101,6 +101,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		warningSettingsRuntimePairing(lookup),
 		warningRemovalCommandSync(lookup),
 		warningRemovalRuntimePairing(lookup),
+		warningIssueCommandSync(lookup),
+		warningIssueRuntimePairing(lookup),
 		translateCommandSync(lookup),
 		translateRuntimePairing(lookup),
 		balanceQueryCommandSync(lookup),
@@ -499,6 +501,38 @@ func warningRemovalRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "warning-removal-runtime-pairing", Status: statusWarn, Message: "warning removal runtime is enabled but warning removal command sync include is disabled"}
 	}
 	return checkResult{Name: "warning-removal-runtime-pairing", Status: statusSkipped, Message: "warning removal runtime and command sync include are disabled"}
+}
+
+func warningIssueCommandSync(lookup lookupFunc) checkResult {
+	includeWarningIssue, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE")
+	if err != nil {
+		return checkResult{Name: "warning-issue-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeWarningIssue {
+		return checkResult{Name: "warning-issue-command-sync", Status: statusPass, Message: "warning issue command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "warning-issue-command-sync", Status: statusSkipped, Message: "warning issue command sync include is disabled"}
+}
+
+func warningIssueRuntimePairing(lookup lookupFunc) checkResult {
+	includeWarningIssue, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE")
+	if err != nil {
+		return checkResult{Name: "warning-issue-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	warningIssueEnabled, err := boolValue(lookup, "MHCAT_FEATURE_WARNING_ISSUE_ENABLED")
+	if err != nil {
+		return checkResult{Name: "warning-issue-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeWarningIssue && !warningIssueEnabled {
+		return checkResult{Name: "warning-issue-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=true requires MHCAT_FEATURE_WARNING_ISSUE_ENABLED=true in the staging runtime"}
+	}
+	if includeWarningIssue && warningIssueEnabled {
+		return checkResult{Name: "warning-issue-runtime-pairing", Status: statusPass, Message: "warning issue command sync and runtime feature flag are paired"}
+	}
+	if warningIssueEnabled {
+		return checkResult{Name: "warning-issue-runtime-pairing", Status: statusWarn, Message: "warning issue runtime is enabled but warning issue command sync include is disabled"}
+	}
+	return checkResult{Name: "warning-issue-runtime-pairing", Status: statusSkipped, Message: "warning issue runtime and command sync include are disabled"}
 }
 
 func translateCommandSync(lookup lookupFunc) checkResult {

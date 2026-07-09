@@ -8,13 +8,18 @@ import (
 )
 
 type Module struct {
-	warnings coremoderation.WarningHistoryService
-	settings coremoderation.WarningSettingsService
-	removal  coremoderation.WarningRemovalService
-	members  ports.DiscordGuildMemberReader
-	discord  ports.DiscordInfoProvider
-	direct   ports.DiscordDirectMessagePort
-	usage    ports.UsageTracker
+	warnings      coremoderation.WarningHistoryService
+	settings      coremoderation.WarningSettingsService
+	issue         coremoderation.WarningIssueService
+	removal       coremoderation.WarningRemovalService
+	members       ports.DiscordGuildMemberReader
+	discord       ports.DiscordInfoProvider
+	direct        ports.DiscordDirectMessagePort
+	memberActions ports.DiscordMemberPort
+	hierarchy     ports.DiscordMemberHierarchyInspector
+	messages      ports.DiscordMessagePort
+	clock         ports.Clock
+	usage         ports.UsageTracker
 }
 
 func NewModule(repo ports.WarningHistoryRepository, members ports.DiscordGuildMemberReader, discord ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
@@ -32,6 +37,20 @@ func NewRemovalModule(repo ports.WarningRemovalRepository, direct ports.DiscordD
 		direct:  direct,
 		discord: discord,
 		usage:   usage,
+	}
+}
+
+func NewIssueModule(repo ports.WarningIssueRepository, settings ports.WarningSettingsRepository, direct ports.DiscordDirectMessagePort, discord ports.DiscordInfoProvider, hierarchy ports.DiscordMemberHierarchyInspector, memberActions ports.DiscordMemberPort, messages ports.DiscordMessagePort, clock ports.Clock, usage ports.UsageTracker) Module {
+	return Module{
+		issue:         coremoderation.WarningIssueService{Repository: repo},
+		settings:      coremoderation.WarningSettingsService{Repository: settings},
+		direct:        direct,
+		discord:       discord,
+		hierarchy:     hierarchy,
+		memberActions: memberActions,
+		messages:      messages,
+		clock:         clock,
+		usage:         usage,
 	}
 }
 
@@ -57,12 +76,16 @@ func (m Module) Commands() []commands.Definition {
 	if m.removal.Repository != nil {
 		definitions = append(definitions, RemovalDefinitions()...)
 	}
+	if m.issue.Repository != nil {
+		definitions = append(definitions, IssueDefinitions()...)
+	}
 	if len(definitions) > 0 {
 		return definitions
 	}
 	definitions = append(definitions, Definitions()...)
 	definitions = append(definitions, SettingsDefinitions()...)
 	definitions = append(definitions, RemovalDefinitions()...)
+	definitions = append(definitions, IssueDefinitions()...)
 	return definitions
 }
 
@@ -82,6 +105,11 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 			return err
 		}
 		if err := router.RegisterSlash(WarningRemoveAllCommandName, m.WarningRemoveAllHandler()); err != nil {
+			return err
+		}
+	}
+	if m.issue.Repository != nil {
+		if err := router.RegisterSlash(WarningIssueCommandName, m.WarningIssueHandler()); err != nil {
 			return err
 		}
 	}

@@ -272,6 +272,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		WarningsFeatureEnabled:        cfg.FeatureWarningsEnabled,
 		WarningSettingsFeatureEnabled: cfg.FeatureWarningSettingsEnabled,
 		WarningRemovalFeatureEnabled:  cfg.FeatureWarningRemovalEnabled,
+		WarningIssueFeatureEnabled:    cfg.FeatureWarningIssueEnabled,
 		TranslateFeatureEnabled:       cfg.FeatureTranslateEnabled,
 		LotteryDisabledCommandEnabled: cfg.FeatureLotteryDisabledCommandEnabled,
 		StatsQueryEnabled:             cfg.FeatureStatsQueryEnabled,
@@ -360,6 +361,28 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.WarningRemovalRepository = warningRepo
 		opts.WarningRemovalDirectMessage = sideEffects
+	}
+	if cfg.FeatureWarningIssueEnabled {
+		warningRepo, err := warningHistoryRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		if opts.WarningSettingsRepository == nil {
+			warningSettingsRepo, err := warningSettingsRepositoryFromMongo(mongoClient)
+			if err != nil {
+				return nil, err
+			}
+			opts.WarningSettingsRepository = warningSettingsRepo
+		}
+		sideEffects, err := ticketSideEffectsFromSession(session)
+		if err != nil {
+			return nil, err
+		}
+		opts.WarningIssueRepository = warningRepo
+		opts.WarningIssueDirectMessage = sideEffects
+		opts.WarningIssueMemberPort = sideEffects
+		opts.WarningIssueHierarchy = sideEffects
+		opts.WarningIssueMessagePort = sideEffects
 	}
 	if cfg.FeatureTranslateEnabled {
 		translator := externaladapter.NewGoogleTranslateClient()

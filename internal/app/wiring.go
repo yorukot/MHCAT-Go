@@ -55,11 +55,17 @@ type RuntimeOptions struct {
 	WarningHistoryRepository      ports.WarningHistoryRepository
 	WarningSettingsRepository     ports.WarningSettingsRepository
 	WarningRemovalRepository      ports.WarningRemovalRepository
+	WarningIssueRepository        ports.WarningIssueRepository
 	WarningMemberReader           ports.DiscordGuildMemberReader
 	WarningRemovalDirectMessage   ports.DiscordDirectMessagePort
+	WarningIssueDirectMessage     ports.DiscordDirectMessagePort
+	WarningIssueMemberPort        ports.DiscordMemberPort
+	WarningIssueHierarchy         ports.DiscordMemberHierarchyInspector
+	WarningIssueMessagePort       ports.DiscordMessagePort
 	WarningsFeatureEnabled        bool
 	WarningSettingsFeatureEnabled bool
 	WarningRemovalFeatureEnabled  bool
+	WarningIssueFeatureEnabled    bool
 	TranslateProvider             ports.Translator
 	TranslateFeatureEnabled       bool
 	BalanceRepository             ports.BalanceRepository
@@ -132,6 +138,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.WarningRemovalFeatureEnabled {
 		definitions = append(definitions, featuremoderation.RemovalDefinitions()...)
+	}
+	if opts.WarningIssueFeatureEnabled {
+		definitions = append(definitions, featuremoderation.IssueDefinitions()...)
 	}
 	if opts.TranslateFeatureEnabled && opts.TranslateProvider != nil {
 		definitions = append(definitions, commands.TranslateDefinition())
@@ -286,6 +295,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.WarningRemovalFeatureEnabled && opts.WarningRemovalRepository != nil {
 		warningRemovalModule := featuremoderation.NewRemovalModule(opts.WarningRemovalRepository, opts.WarningRemovalDirectMessage, concreteDiscord, opts.UsageTracker)
 		if err := warningRemovalModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.WarningIssueFeatureEnabled && opts.WarningIssueRepository != nil {
+		warningIssueModule := featuremoderation.NewIssueModule(opts.WarningIssueRepository, opts.WarningSettingsRepository, opts.WarningIssueDirectMessage, concreteDiscord, opts.WarningIssueHierarchy, opts.WarningIssueMemberPort, opts.WarningIssueMessagePort, clockOrSystem(opts.Clock), opts.UsageTracker)
+		if err := warningIssueModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

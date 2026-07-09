@@ -10,26 +10,30 @@ import (
 )
 
 type SideEffects struct {
-	mu              sync.Mutex
-	Channels        []ports.ChannelRef
-	Created         []ports.ChannelCreateRequest
-	Deleted         []string
-	Sent            []SentMessage
-	DirectMessages  []DirectMessage
-	Edited          []EditedMessage
-	DeletedMessage  []ports.MessageRef
-	AddedRoles      []RoleChange
-	RemovedRoles    []RoleChange
-	Nicknames       []NicknameChange
-	Kicked          []KickAction
-	NonBotMembers   int
-	MemberTagValues map[string]string
-	AssignableRoles map[string]bool
-	MissingRoles    map[string]bool
-	Err             error
-	KickErr         error
-	nextChannel     int
-	nextMessage     int
+	mu                sync.Mutex
+	Channels          []ports.ChannelRef
+	Created           []ports.ChannelCreateRequest
+	Deleted           []string
+	Sent              []SentMessage
+	DirectMessages    []DirectMessage
+	Edited            []EditedMessage
+	DeletedMessage    []ports.MessageRef
+	AddedRoles        []RoleChange
+	RemovedRoles      []RoleChange
+	Nicknames         []NicknameChange
+	Kicked            []KickAction
+	Banned            []BanAction
+	NonBotMembers     int
+	MemberTagValues   map[string]string
+	AssignableRoles   map[string]bool
+	MissingRoles      map[string]bool
+	ModerationAllowed map[string]bool
+	Err               error
+	KickErr           error
+	BanErr            error
+	ModerationErr     error
+	nextChannel       int
+	nextMessage       int
 }
 
 type SentMessage struct {
@@ -67,8 +71,15 @@ type KickAction struct {
 	Reason  string
 }
 
+type BanAction struct {
+	GuildID           string
+	UserID            string
+	Reason            string
+	DeleteMessageDays int
+}
+
 func NewSideEffects() *SideEffects {
-	return &SideEffects{MemberTagValues: map[string]string{}, AssignableRoles: map[string]bool{}, MissingRoles: map[string]bool{}, nextChannel: 1, nextMessage: 1}
+	return &SideEffects{MemberTagValues: map[string]string{}, AssignableRoles: map[string]bool{}, MissingRoles: map[string]bool{}, ModerationAllowed: map[string]bool{}, nextChannel: 1, nextMessage: 1}
 }
 
 func (s *SideEffects) FindChannelByName(ctx context.Context, guildID string, name string, channelType int) (ports.ChannelRef, error) {
@@ -138,6 +149,23 @@ func (s *SideEffects) CanAssignRole(ctx context.Context, guildID string, roleID 
 		return false, nil
 	}
 	return s.AssignableRoles[guildID+"/"+roleID], nil
+}
+
+func (s *SideEffects) ActorCanModerate(ctx context.Context, guildID string, actorRoleIDs []string, targetUserID string) (bool, error) {
+	if err := s.ready(ctx); err != nil {
+		return false, err
+	}
+	if s.ModerationErr != nil {
+		return false, s.ModerationErr
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key := guildID + "/" + targetUserID
+	allowed, ok := s.ModerationAllowed[key]
+	if !ok {
+		return true, nil
+	}
+	return allowed, nil
 }
 
 func (s *SideEffects) CreateChannel(ctx context.Context, req ports.ChannelCreateRequest) (ports.ChannelRef, error) {
@@ -225,7 +253,16 @@ func (s *SideEffects) KickMember(ctx context.Context, guildID string, userID str
 }
 
 func (s *SideEffects) BanMember(ctx context.Context, guildID string, userID string, reason string, deleteMessageDays int) error {
-	return s.ready(ctx)
+	if err := s.ready(ctx); err != nil {
+		return err
+	}
+	if s.BanErr != nil {
+		return s.BanErr
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Banned = append(s.Banned, BanAction{GuildID: guildID, UserID: userID, Reason: reason, DeleteMessageDays: deleteMessageDays})
+	return nil
 }
 
 func (s *SideEffects) SendMessage(ctx context.Context, channelID string, msg ports.OutboundMessage) (ports.MessageRef, error) {
@@ -287,5 +324,6 @@ var _ ports.DiscordMessagePort = (*SideEffects)(nil)
 var _ ports.DiscordDirectMessagePort = (*SideEffects)(nil)
 var _ ports.DiscordRolePort = (*SideEffects)(nil)
 var _ ports.DiscordMemberPort = (*SideEffects)(nil)
+var _ ports.DiscordMemberHierarchyInspector = (*SideEffects)(nil)
 var _ ports.DiscordGuildMemberReader = (*SideEffects)(nil)
 var _ ports.DiscordRoleInspector = (*SideEffects)(nil)

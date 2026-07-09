@@ -8,6 +8,7 @@ import (
 var ErrInvalidWarningQuery = errors.New("invalid warning query")
 var ErrInvalidWarningSettings = errors.New("invalid warning settings")
 var ErrInvalidWarningRemoval = errors.New("invalid warning removal")
+var ErrInvalidWarningIssue = errors.New("invalid warning issue")
 
 const (
 	WarningSettingsActionBan  = "停權"
@@ -30,6 +31,19 @@ type WarningSettings struct {
 	GuildID   string
 	Threshold int64
 	Action    string
+}
+
+type WarningIssue struct {
+	GuildID     string
+	UserID      string
+	ModeratorID string
+	Reason      string
+	Time        string
+}
+
+type WarningIssueResult struct {
+	History WarningHistory
+	Created bool
 }
 
 type WarningRemoval struct {
@@ -55,6 +69,17 @@ func (s WarningSettings) Validate() error {
 	default:
 		return ErrInvalidWarningSettings
 	}
+}
+
+func (i WarningIssue) Validate() error {
+	if strings.TrimSpace(i.GuildID) == "" ||
+		strings.TrimSpace(i.UserID) == "" ||
+		strings.TrimSpace(i.ModeratorID) == "" ||
+		strings.TrimSpace(i.Reason) == "" ||
+		strings.TrimSpace(i.Time) == "" {
+		return ErrInvalidWarningIssue
+	}
+	return nil
 }
 
 func (r WarningRemoval) ValidateSingle() error {

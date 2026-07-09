@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -20,6 +21,8 @@ const (
 	warningSettingsSuccessColor     = 0x57F287
 	warningRemovalSuccessColor      = 0x57F287
 	warningRemovalDMColor           = 0x00DB00
+	warningIssueSuccessColor        = 0x57F287
+	warningIssueDMColor             = 0xEA0000
 )
 
 func (m Module) WarningHistoryHandler() interactions.Handler {
@@ -118,6 +121,48 @@ func (m Module) WarningRemoveAllHandler() interactions.Handler {
 		}
 		m.sendWarningRemovalDM(ctx, interaction, userID, true)
 		return m.track(ctx, interaction, WarningRemoveAllCommandName, "warning-removal")
+	}
+}
+
+func (m Module) WarningIssueHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		if !interaction.Actor.HasPermission(warningManageMessagesPermission) {
+			return responder.EditOriginal(ctx, warningErrorMessage("你需要有`訊息管理`才能使用此指令"))
+		}
+		userID := warningStringOption(interaction, warningOptionUser)
+		reason := warningStringOption(interaction, warningIssueOptionReason)
+		if m.hierarchy != nil {
+			allowed, err := m.hierarchy.ActorCanModerate(ctx, interaction.Actor.GuildID, interaction.Actor.RoleIDs, userID)
+			if err != nil {
+				return responder.EditOriginal(ctx, warningErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+			}
+			if !allowed {
+				return responder.EditOriginal(ctx, warningErrorMessage("你沒有權限警告這位使用者(身分組位階比他低)!"))
+			}
+		}
+		result, err := m.issue.Issue(ctx, domain.WarningIssue{
+			GuildID:     interaction.Actor.GuildID,
+			UserID:      userID,
+			ModeratorID: interaction.Actor.UserID,
+			Reason:      reason,
+			Time:        warningIssueTimestamp(m.clock),
+		})
+		if err != nil {
+			return responder.EditOriginal(ctx, warningIssueErrorMessage(err))
+		}
+		if !result.Created {
+			if message, failed := m.applyWarningThreshold(ctx, interaction, userID, reason, len(result.History.Entries)); failed {
+				return responder.EditOriginal(ctx, message)
+			}
+		}
+		if err := responder.EditOriginal(ctx, warningIssueSuccessMessage()); err != nil {
+			return err
+		}
+		m.sendWarningIssueDM(ctx, interaction, userID, reason)
+		return m.track(ctx, interaction, WarningIssueCommandName, "warning-issue")
 	}
 }
 
@@ -234,6 +279,17 @@ func warningRemoveAllErrorMessage(err error) responses.Message {
 	}
 }
 
+func warningIssueErrorMessage(err error) responses.Message {
+	switch {
+	case errors.Is(err, domain.ErrInvalidWarningIssue):
+		return warningErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+	case errors.Is(err, ports.ErrWarningIssueUnavailable):
+		return warningErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+	default:
+		return warningErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+	}
+}
+
 func warningSettingsMessage(settings domain.WarningSettings) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
@@ -243,6 +299,61 @@ func warningSettingsMessage(settings domain.WarningSettings) responses.Message {
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
+}
+
+func warningIssueSuccessMessage() responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<a:greentick:980496858445135893> | 成功警告這位使用者!",
+			Color: warningIssueSuccessColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func (m Module) applyWarningThreshold(ctx context.Context, interaction interactions.Interaction, userID string, reason string, warningCount int) (responses.Message, bool) {
+	if m.settings.Repository == nil {
+		return responses.Message{}, false
+	}
+	settings, err := m.settings.Settings(ctx, interaction.Actor.GuildID)
+	if err != nil {
+		return responses.Message{}, false
+	}
+	if int64(warningCount) < settings.Threshold {
+		return responses.Message{}, false
+	}
+	switch strings.TrimSpace(settings.Action) {
+	case domain.WarningSettingsActionBan:
+		if m.memberActions == nil {
+			return warningErrorMessage("我沒有權限ban掉他"), true
+		}
+		if err := m.memberActions.BanMember(ctx, interaction.Actor.GuildID, userID, reason, 0); err != nil {
+			return warningErrorMessage("我沒有權限ban掉他"), true
+		}
+		m.sendWarningActionMessage(ctx, interaction.ChannelID, settings.Action)
+	case domain.WarningSettingsActionKick:
+		if m.memberActions == nil {
+			return warningErrorMessage("我沒有權限踢出他"), true
+		}
+		if err := m.memberActions.KickMember(ctx, interaction.Actor.GuildID, userID, reason); err != nil {
+			return warningErrorMessage("我沒有權限踢出他"), true
+		}
+		m.sendWarningActionMessage(ctx, interaction.ChannelID, settings.Action)
+	}
+	return responses.Message{}, false
+}
+
+func (m Module) sendWarningActionMessage(ctx context.Context, channelID string, action string) {
+	if m.messages == nil || strings.TrimSpace(channelID) == "" {
+		return
+	}
+	_, _ = m.messages.SendMessage(ctx, channelID, ports.OutboundMessage{
+		Embeds: []ports.OutboundEmbed{{
+			Title: fmt.Sprintf("<a:greentick:980496858445135893> | 這位使用者已到達警告須執行條件，成功對他執行`%s`!", strings.TrimSpace(action)),
+			Color: warningIssueSuccessColor,
+		}},
+		AllowedMentions: ports.AllowedMentions{},
+	})
 }
 
 func warningRemovalSuccessMessage() responses.Message {
@@ -269,6 +380,21 @@ func (m Module) sendWarningRemovalDM(ctx context.Context, interaction interactio
 			Title:       "<:warning:985590881698590730> | 警告系統",
 			Description: fmt.Sprintf("<:KannaSip:997764767433379850> **你在%s的%s被刪除了!**\n<:implementation:1002170846292488232> **執行者:**%s(id:%s)", guildName, scope, interaction.Actor.Username, interaction.Actor.UserID),
 			Color:       warningRemovalDMColor,
+		}},
+		AllowedMentions: ports.AllowedMentions{},
+	})
+}
+
+func (m Module) sendWarningIssueDM(ctx context.Context, interaction interactions.Interaction, userID string, reason string) {
+	if m.direct == nil || strings.TrimSpace(userID) == "" {
+		return
+	}
+	guildName := m.guildName(ctx, interaction.Actor.GuildID)
+	_, _ = m.direct.SendDirectMessage(ctx, userID, ports.OutboundMessage{
+		Embeds: []ports.OutboundEmbed{{
+			Title:       "<:warning:985590881698590730> | 警告系統",
+			Description: fmt.Sprintf("<:KannaSip:997764767433379850> **你在%s被__警告__了!**\n<:lightbulb:1002169670574546964> **原因:**%s\n<:implementation:1002170846292488232> **執行者:**%s(id:%s)", guildName, strings.TrimSpace(reason), interaction.Actor.Username, interaction.Actor.UserID),
+			Color:       warningIssueDMColor,
 		}},
 		AllowedMentions: ports.AllowedMentions{},
 	})
@@ -314,6 +440,18 @@ func warningIntegerOption(interaction interactions.Interaction, name string) (in
 	}
 	parsed, err := strconv.ParseInt(strings.TrimSpace(interaction.Options[name]), 10, 64)
 	return parsed, err == nil
+}
+
+func warningIssueTimestamp(clock ports.Clock) string {
+	now := time.Now()
+	if clock != nil {
+		now = clock.Now()
+	}
+	location, err := time.LoadLocation("Asia/Taipei")
+	if err != nil {
+		location = time.FixedZone("Asia/Taipei", 8*60*60)
+	}
+	return now.In(location).Format("2006年01月02日 15點04分")
 }
 
 func (m Module) track(ctx context.Context, interaction interactions.Interaction, commandName string, feature string) error {

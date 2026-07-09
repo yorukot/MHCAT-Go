@@ -53,6 +53,28 @@ func TestWarningSettingsDefinitionMatchesLegacyShape(t *testing.T) {
 	}
 }
 
+func TestWarningIssueDefinitionMatchesLegacyShape(t *testing.T) {
+	definition := WarningIssueDefinition()
+	if definition.Name != "警告" || definition.Description != "警告一個使用者" {
+		t.Fatalf("definition = %#v", definition)
+	}
+	if len(definition.Options) != 2 {
+		t.Fatalf("options = %#v", definition.Options)
+	}
+	if definition.Options[0].Type != commands.OptionTypeUser || definition.Options[0].Name != warningOptionUser || definition.Options[0].Description != "要警告的使用者!" || !definition.Options[0].Required {
+		t.Fatalf("user option = %#v", definition.Options[0])
+	}
+	if definition.Options[1].Type != commands.OptionTypeString || definition.Options[1].Name != warningIssueOptionReason || definition.Options[1].Description != "警告他的原因" || !definition.Options[1].Required {
+		t.Fatalf("reason option = %#v", definition.Options[1])
+	}
+	if !commands.IsManagedForScope(definition, commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}) {
+		t.Fatal("warning issue command should be managed for guild staging")
+	}
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, IssueDefinitions())); err != nil {
+		t.Fatalf("validate registry: %v", err)
+	}
+}
+
 func TestWarningRemovalDefinitionsMatchLegacyShape(t *testing.T) {
 	remove := WarningRemoveDefinition()
 	if remove.Name != "警告清除" || remove.Description != "清除一個使用者的某個警告" {

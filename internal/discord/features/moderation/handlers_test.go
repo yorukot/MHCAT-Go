@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -171,6 +172,131 @@ func TestWarningSettingsInvalidInputUsesGenericError(t *testing.T) {
 	}
 }
 
+func TestWarningIssueRequiresManageMessages(t *testing.T) {
+	module := NewIssueModule(fakemongo.NewWarningHistoryRepository(), nil, nil, nil, nil, nil, nil, moderationFixedClock{}, nil)
+	responder := fakediscord.NewResponder()
+	interaction := warningIssueInteraction("user-2", "洗版")
+	interaction.Actor.PermissionBits = 0
+
+	if err := module.WarningIssueHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestWarningIssueRejectsTargetWithHigherRole(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	settings := fakemongo.NewWarningSettingsRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.ModerationAllowed["guild-1/user-2"] = false
+	module := NewIssueModule(repo, settings, nil, nil, sideEffects, nil, nil, moderationFixedClock{}, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.WarningIssueHandler()(context.Background(), warningIssueInteraction("user-2", "洗版"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "身分組位階比他低") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(repo.Histories) != 0 {
+		t.Fatalf("warning should not be saved: %#v", repo.Histories)
+	}
+}
+
+func TestWarningIssueSavesRendersLegacyEmbedAndDMs(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	settings := fakemongo.NewWarningSettingsRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	discordInfo := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{Name: "測試伺服器"}}
+	usage := &fakeusage.Tracker{}
+	module := NewIssueModule(repo, settings, sideEffects, discordInfo, sideEffects, sideEffects, sideEffects, moderationFixedClock{now: time.Date(2026, 7, 4, 10, 30, 0, 0, time.UTC)}, usage)
+	responder := fakediscord.NewResponder()
+
+	if err := module.WarningIssueHandler()(context.Background(), warningIssueInteraction("user-2", "洗版"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:greentick:980496858445135893> | 成功警告這位使用者!" || responder.Edits[0].Embeds[0].Color != warningIssueSuccessColor {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	history := repo.Histories["guild-1\x00user-2"]
+	if len(history.Entries) != 1 || history.Entries[0].ModeratorID != "user-1" || history.Entries[0].Reason != "洗版" || history.Entries[0].Time != "2026年07月04日 18點30分" {
+		t.Fatalf("history = %#v", history)
+	}
+	if len(sideEffects.DirectMessages) != 1 || sideEffects.DirectMessages[0].UserID != "user-2" {
+		t.Fatalf("direct messages = %#v", sideEffects.DirectMessages)
+	}
+	if description := sideEffects.DirectMessages[0].Message.Embeds[0].Description; !strings.Contains(description, "你在測試伺服器被__警告__了") || !strings.Contains(description, "**原因:**洗版") || !strings.Contains(description, "User(id:user-1)") {
+		t.Fatalf("dm description = %q", description)
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != WarningIssueCommandName || usage.Events[0].Feature != "warning-issue" {
+		t.Fatalf("usage events = %#v", usage.Events)
+	}
+}
+
+func TestWarningIssueThresholdSkipsNewLegacyRecord(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	settings := fakemongo.NewWarningSettingsRepository()
+	settings.Settings["guild-1"] = domain.WarningSettings{GuildID: "guild-1", Threshold: 1, Action: domain.WarningSettingsActionKick}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewIssueModule(repo, settings, sideEffects, nil, sideEffects, sideEffects, sideEffects, moderationFixedClock{now: time.Date(2026, 7, 4, 10, 30, 0, 0, time.UTC)}, nil)
+	responder := fakediscord.NewResponder()
+	interaction := warningIssueInteraction("user-2", "洗版")
+	interaction.ChannelID = "channel-1"
+
+	if err := module.WarningIssueHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(sideEffects.Kicked) != 0 || len(sideEffects.Sent) != 0 {
+		t.Fatalf("new legacy record should not trigger action: kicked=%#v sent=%#v", sideEffects.Kicked, sideEffects.Sent)
+	}
+}
+
+func TestWarningIssueThresholdKicksExistingWarning(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}}})
+	settings := fakemongo.NewWarningSettingsRepository()
+	settings.Settings["guild-1"] = domain.WarningSettings{GuildID: "guild-1", Threshold: 2, Action: domain.WarningSettingsActionKick}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewIssueModule(repo, settings, sideEffects, nil, sideEffects, sideEffects, sideEffects, moderationFixedClock{now: time.Date(2026, 7, 4, 10, 30, 0, 0, time.UTC)}, nil)
+	responder := fakediscord.NewResponder()
+	interaction := warningIssueInteraction("user-2", "second")
+	interaction.ChannelID = "channel-1"
+
+	if err := module.WarningIssueHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(sideEffects.Kicked) != 1 || sideEffects.Kicked[0].UserID != "user-2" || sideEffects.Kicked[0].Reason != "second" {
+		t.Fatalf("kicked = %#v", sideEffects.Kicked)
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != "<a:greentick:980496858445135893> | 這位使用者已到達警告須執行條件，成功對他執行`踢出`!" {
+		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+}
+
+func TestWarningIssueThresholdBansExistingWarning(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}}})
+	settings := fakemongo.NewWarningSettingsRepository()
+	settings.Settings["guild-1"] = domain.WarningSettings{GuildID: "guild-1", Threshold: 2, Action: domain.WarningSettingsActionBan}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewIssueModule(repo, settings, sideEffects, nil, sideEffects, sideEffects, sideEffects, moderationFixedClock{now: time.Date(2026, 7, 4, 10, 30, 0, 0, time.UTC)}, nil)
+	responder := fakediscord.NewResponder()
+	interaction := warningIssueInteraction("user-2", "second")
+	interaction.ChannelID = "channel-1"
+
+	if err := module.WarningIssueHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(sideEffects.Banned) != 1 || sideEffects.Banned[0].UserID != "user-2" || sideEffects.Banned[0].Reason != "second" {
+		t.Fatalf("banned = %#v", sideEffects.Banned)
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != "<a:greentick:980496858445135893> | 這位使用者已到達警告須執行條件，成功對他執行`停權`!" {
+		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+}
+
 func TestWarningRemoveRequiresManageMessages(t *testing.T) {
 	module := NewRemovalModule(fakemongo.NewWarningRemovalRepository(), nil, nil, nil)
 	responder := fakediscord.NewResponder()
@@ -320,6 +446,15 @@ func warningSettingsInteraction(action string, threshold string) interactions.In
 	return interaction
 }
 
+func warningIssueInteraction(userID string, reason string) interactions.Interaction {
+	interaction := fakediscord.SlashInteractionWithOptions(WarningIssueCommandName, "", map[string]string{
+		warningOptionUser:        userID,
+		warningIssueOptionReason: reason,
+	})
+	interaction.Actor.PermissionBits = warningManageMessagesPermission
+	return interaction
+}
+
 func warningRemoveInteraction(userID string, index string) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(WarningRemoveCommandName, "", map[string]string{
 		warningOptionUser:        userID,
@@ -327,6 +462,17 @@ func warningRemoveInteraction(userID string, index string) interactions.Interact
 	})
 	interaction.Actor.PermissionBits = warningManageMessagesPermission
 	return interaction
+}
+
+type moderationFixedClock struct {
+	now time.Time
+}
+
+func (c moderationFixedClock) Now() time.Time {
+	if c.now.IsZero() {
+		return time.Date(2026, 7, 4, 10, 30, 0, 0, time.UTC)
+	}
+	return c.now
 }
 
 func warningRemoveAllInteraction(userID string) interactions.Interaction {

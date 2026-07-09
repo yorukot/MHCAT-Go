@@ -67,6 +67,18 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeWork {
 		t.Fatal("include work must default false")
 	}
+	if cfg.IncludeWarnings {
+		t.Fatal("include warnings must default false")
+	}
+	if cfg.IncludeWarningSettings {
+		t.Fatal("include warning settings must default false")
+	}
+	if cfg.IncludeWarningRemoval {
+		t.Fatal("include warning removal must default false")
+	}
+	if cfg.IncludeWarningIssue {
+		t.Fatal("include warning issue must default false")
+	}
 	if cfg.IncludeBalanceQuery {
 		t.Fatal("include balance query must default false")
 	}
@@ -1059,6 +1071,48 @@ func TestCommandSyncIncludeWarningRemovalStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeWarningRemoval {
 		t.Fatal("expected include warning removal to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeWarningIssueRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                      "token",
+		"MHCAT_DISCORD_APPLICATION_ID":             "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":              "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include warning issue without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeWarningIssueRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                      "token",
+		"MHCAT_DISCORD_APPLICATION_ID":             "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                 "global",
+		"MHCAT_STAGING_MODE":                       "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include warning issue with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeWarningIssueStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                      "token",
+		"MHCAT_DISCORD_APPLICATION_ID":             "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":              "guild",
+		"MHCAT_STAGING_MODE":                       "true",
+		"MHCAT_STAGING_GUILD_ID":                   "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeWarningIssue {
+		t.Fatal("expected include warning issue to be enabled explicitly")
 	}
 }
 

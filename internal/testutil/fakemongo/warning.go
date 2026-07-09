@@ -55,6 +55,33 @@ func (r *WarningHistoryRepository) GetWarningHistory(_ context.Context, guildID 
 	return history, nil
 }
 
+func (r *WarningHistoryRepository) AddWarning(_ context.Context, issue domain.WarningIssue) (domain.WarningIssueResult, error) {
+	issue.GuildID = strings.TrimSpace(issue.GuildID)
+	issue.UserID = strings.TrimSpace(issue.UserID)
+	issue.ModeratorID = strings.TrimSpace(issue.ModeratorID)
+	issue.Reason = strings.TrimSpace(issue.Reason)
+	issue.Time = strings.TrimSpace(issue.Time)
+	if err := issue.Validate(); err != nil {
+		return domain.WarningIssueResult{}, err
+	}
+	if r.Histories == nil {
+		r.Histories = map[string]domain.WarningHistory{}
+	}
+	key := warningHistoryKey(issue.GuildID, issue.UserID)
+	history, ok := r.Histories[key]
+	created := !ok
+	if created {
+		history = domain.WarningHistory{GuildID: issue.GuildID, UserID: issue.UserID}
+	}
+	history.Entries = append(history.Entries, domain.WarningEntry{
+		ModeratorID: issue.ModeratorID,
+		Reason:      issue.Reason,
+		Time:        issue.Time,
+	})
+	r.Histories[key] = history
+	return domain.WarningIssueResult{History: history, Created: created}, nil
+}
+
 func (r *WarningRemovalRepository) Put(history domain.WarningHistory) {
 	if r.Histories == nil {
 		r.Histories = map[string]domain.WarningHistory{}
@@ -101,6 +128,18 @@ func (r *WarningRemovalRepository) RemoveAllWarnings(_ context.Context, removal 
 	return nil
 }
 
+func (r *WarningSettingsRepository) GetWarningSettings(_ context.Context, guildID string) (domain.WarningSettings, error) {
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return domain.WarningSettings{}, domain.ErrInvalidWarningSettings
+	}
+	settings, ok := r.Settings[guildID]
+	if !ok {
+		return domain.WarningSettings{}, ports.ErrWarningSettingsNotFound
+	}
+	return settings, nil
+}
+
 func (r *WarningSettingsRepository) SaveWarningSettings(_ context.Context, settings domain.WarningSettings) error {
 	settings.GuildID = strings.TrimSpace(settings.GuildID)
 	settings.Action = strings.TrimSpace(settings.Action)
@@ -120,5 +159,6 @@ func warningHistoryKey(guildID string, userID string) string {
 }
 
 var _ ports.WarningHistoryRepository = (*WarningHistoryRepository)(nil)
+var _ ports.WarningIssueRepository = (*WarningHistoryRepository)(nil)
 var _ ports.WarningSettingsRepository = (*WarningSettingsRepository)(nil)
 var _ ports.WarningRemovalRepository = (*WarningRemovalRepository)(nil)

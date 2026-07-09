@@ -141,6 +141,10 @@ type DiscordMemberPort interface {
 	BanMember(ctx context.Context, guildID string, userID string, reason string, deleteMessageDays int) error
 }
 
+type DiscordMemberHierarchyInspector interface {
+	ActorCanModerate(ctx context.Context, guildID string, actorRoleIDs []string, targetUserID string) (bool, error)
+}
+
 type DiscordAuditLogPort interface {
 	AuditLog(ctx context.Context, query AuditLogQuery) ([]AuditLogEntry, error)
 }

@@ -45,8 +45,9 @@ This module currently provides:
 - economy `coins`/`gift_changes` BSON compatibility, read-only query repository, gated `/代幣查詢` handler, gated `/簽到` sign-in write slice, and gated `coin-related-settings` config write slice.
 - gated `打工系統` command schema, legacy dashboard-redirect UI for `新增打工事項`, legacy-style `打工介面` list/detail/start UI, and admin setup/delete/energy flows with explicit work repository writes.
 - gated read-only `/警告紀錄` warning-history lookup with legacy embed text and safer permission/member-cache handling.
-- gated `/警告設定` warning escalation config command with rollback-compatible `errors_sets` writes; warning creation/escalation runtime remains disabled.
-- gated `/警告清除` and `/警告全部清除` warning-removal commands with legacy embeds, best-effort DMs, and `warndbs` mutations; warning creation/escalation runtime remains disabled.
+- gated `/警告設定` warning escalation config command with rollback-compatible `errors_sets` writes.
+- gated `/警告清除` and `/警告全部清除` warning-removal commands with legacy embeds, best-effort DMs, and `warndbs` mutations.
+- gated `/警告` warning-issue command with legacy embeds/DMs, `warndbs` appends, role hierarchy checks, and configured kick/ban threshold actions.
 - gated `/翻譯` utility command with legacy loading/final embed shape and safe external-provider error handling.
 - gated `/兌換` redeem-code command with legacy ephemeral success/error embeds and rollback-compatible `codes`/`chatgpt_gets` writes.
 - gated `/自動通知列表` and `/自動通知刪除` config-maintenance commands with rollback-compatible `cron_sets` reads/deletes.
@@ -76,7 +77,7 @@ Not implemented yet:
 - ticket and poll runtime commands/components unless their explicit feature flags are enabled.
 - economy query/sign-in/settings runtime and command sync unless their explicit feature flags are enabled.
 - recurring scheduler loops for daily reset, work payout, and automatic notifications; the lease primitive exists but is not wired into bot startup.
-- destructive moderation commands such as clear/delete data, warning creation/escalation, kick, and ban.
+- destructive moderation commands such as clear/delete data.
 - message/channel/voice logging event emitters.
 - announcement relay tag pings; relay messages suppress mentions by default.
 
@@ -95,6 +96,7 @@ Implemented utility commands:
 - `/警告紀錄` when explicitly enabled with `MHCAT_FEATURE_WARNINGS_ENABLED=true`
 - `/警告設定` when explicitly enabled with `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true`
 - `/警告清除` and `/警告全部清除` when explicitly enabled with `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=true`
+- `/警告` when explicitly enabled with `MHCAT_FEATURE_WARNING_ISSUE_ENABLED=true`
 - `/翻譯` when explicitly enabled with `MHCAT_FEATURE_TRANSLATE_ENABLED=true`
 - `/兌換` when explicitly enabled with `MHCAT_FEATURE_REDEEM_ENABLED=true`
 - `/自動通知列表` and `/自動通知刪除` when explicitly enabled with `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true`
@@ -174,6 +176,7 @@ Safe defaults:
 - `MHCAT_FEATURE_WARNINGS_ENABLED=false`
 - `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=false`
 - `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=false`
+- `MHCAT_FEATURE_WARNING_ISSUE_ENABLED=false`
 - `MHCAT_FEATURE_TRANSLATE_ENABLED=false`
 - `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=false`
 - `MHCAT_FEATURE_REDEEM_ENABLED=false`
@@ -244,6 +247,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=false`
@@ -483,6 +487,8 @@ The `/警告紀錄` command is available only when `MHCAT_FEATURE_WARNINGS_ENABL
 The `/警告設定` command is available only when `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes only `errors_sets.guild`, `ban_count`, and `move` using duplicate-friendly update/upsert behavior. It does not create warnings, delete messages, kick, ban, or run escalation.
 
 The `/警告清除` and `/警告全部清除` commands are available only when `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=true`; staging preflight and scripts reject unpaired sync/runtime flags. These commands mutate only `warndbs`, preserve the legacy public success/error embeds, and send legacy-style best-effort DMs. They do not create warnings, delete messages, kick, ban, or run escalation.
+
+The `/警告` command is available only when `MHCAT_FEATURE_WARNING_ISSUE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command appends legacy `warndbs.content` entries with Asia/Taipei timestamps, preserves the legacy public success/error embeds and target DM, enforces Manage Messages and moderator-vs-target role hierarchy, and reads `errors_sets` to run configured `停權`/`踢出` threshold actions for existing warning records. Test only against disposable staging warning data because it can kick or ban members when thresholds are met.
 
 The `/翻譯` command is available only when `MHCAT_FEATURE_TRANSLATE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`; staging preflight rejects unpaired sync/runtime flags. This command calls an external Google Translate-compatible endpoint through a provider port, does not require Message Content intent, and does not touch Mongo feature data.
 

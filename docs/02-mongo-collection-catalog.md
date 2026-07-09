@@ -227,13 +227,14 @@ These collections are Go operational infrastructure, not legacy Mongoose model c
 
 ## Warning History Repository Status
 
-The warning-history slice adds a read-only repository for the legacy `warndbs` collection. The warning-settings slice adds a config-only writer for legacy `errors_sets`. The warning-removal slice updates/deletes legacy `warndbs` rows for a single user.
+The warning-history slice adds a read-only repository for the legacy `warndbs` collection. The warning-settings slice adds a config-only writer/reader for legacy `errors_sets`. The warning-removal slice updates/deletes legacy `warndbs` rows for a single user. The warning-issue slice appends legacy warning entries to `warndbs.content` and reads `errors_sets` for optional threshold actions.
 
 - `internal/adapters/mongo/repositories.WarningHistoryRepository` reads by `{guild,user}` only.
 - It returns `ErrWarningsNotFound` for missing documents and empty `content` arrays to preserve the legacy user-facing "no warnings" branch.
 - `/警告清除` updates one matching warning document's `content` array after removing the requested warning index.
 - `/警告全部清除` deletes matching `warndbs` rows for the guild/user.
 - `/警告設定` writes only `errors_sets.guild`, `ban_count`, and `move`, storing `ban_count` as a string for schema compatibility and updating duplicate guild rows before upserting a missing row.
+- `/警告` inserts a missing `warndbs` row or appends one `content` element containing `moderator`, `reason`, and Asia/Taipei formatted `time` (`YYYY年MM月DD日 HH點mm分`), then reads `errors_sets` to decide whether to run the configured threshold action for existing warning records.
 - The implemented warning slices do not create warning entries, run escalation, bulk delete messages, kick, ban, or run moderation cleanup paths.
 - Moderator lookup failures are handled in the Discord feature layer by falling back to the stored moderator ID, intentionally avoiding the legacy cached-member nil crash.
 - Before enabling broader moderation writes, audit `warndbs` for duplicate `{guild,user}` rows, mixed `content` element shapes, missing `moderator`/`reason`/`time` fields, and dashboard backup compatibility.

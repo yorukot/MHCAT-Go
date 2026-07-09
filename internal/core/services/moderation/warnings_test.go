@@ -59,6 +59,19 @@ func TestWarningSettingsServiceConfiguresSettings(t *testing.T) {
 	}
 }
 
+func TestWarningSettingsServiceReadsSettings(t *testing.T) {
+	repo := fakemongo.NewWarningSettingsRepository()
+	repo.Settings["guild-1"] = domain.WarningSettings{GuildID: "guild-1", Threshold: 2, Action: domain.WarningSettingsActionBan}
+	service := moderation.WarningSettingsService{Repository: repo}
+	got, err := service.Settings(context.Background(), " guild-1 ")
+	if err != nil {
+		t.Fatalf("settings: %v", err)
+	}
+	if got.Threshold != 2 || got.Action != domain.WarningSettingsActionBan {
+		t.Fatalf("settings = %#v", got)
+	}
+}
+
 func TestWarningSettingsServiceRejectsInvalidAndMissingRepository(t *testing.T) {
 	service := moderation.WarningSettingsService{}
 	err := service.Configure(context.Background(), domain.WarningSettings{GuildID: "guild-1", Threshold: 1, Action: domain.WarningSettingsActionBan})
@@ -68,6 +81,50 @@ func TestWarningSettingsServiceRejectsInvalidAndMissingRepository(t *testing.T) 
 	service.Repository = fakemongo.NewWarningSettingsRepository()
 	err = service.Configure(context.Background(), domain.WarningSettings{GuildID: "guild-1", Threshold: 0, Action: domain.WarningSettingsActionBan})
 	if !errors.Is(err, domain.ErrInvalidWarningSettings) {
+		t.Fatalf("invalid err = %v", err)
+	}
+}
+
+func TestWarningIssueServiceAppendsWarnings(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	service := moderation.WarningIssueService{Repository: repo}
+	first, err := service.Issue(context.Background(), domain.WarningIssue{
+		GuildID:     " guild-1 ",
+		UserID:      " user-1 ",
+		ModeratorID: " mod-1 ",
+		Reason:      " spam ",
+		Time:        " 2026年07月04日 18點30分 ",
+	})
+	if err != nil {
+		t.Fatalf("first issue: %v", err)
+	}
+	if !first.Created || len(first.History.Entries) != 1 {
+		t.Fatalf("first issue result = %#v", first)
+	}
+	second, err := service.Issue(context.Background(), domain.WarningIssue{
+		GuildID:     "guild-1",
+		UserID:      "user-1",
+		ModeratorID: "mod-2",
+		Reason:      "again",
+		Time:        "2026年07月04日 18點31分",
+	})
+	if err != nil {
+		t.Fatalf("second issue: %v", err)
+	}
+	if second.Created || len(second.History.Entries) != 2 || second.History.Entries[1].ModeratorID != "mod-2" {
+		t.Fatalf("second issue result = %#v", second)
+	}
+}
+
+func TestWarningIssueServiceRejectsInvalidAndMissingRepository(t *testing.T) {
+	service := moderation.WarningIssueService{}
+	issue := domain.WarningIssue{GuildID: "guild-1", UserID: "user-1", ModeratorID: "mod-1", Reason: "spam", Time: "time"}
+	if _, err := service.Issue(context.Background(), issue); !errors.Is(err, ports.ErrWarningIssueUnavailable) {
+		t.Fatalf("missing repository err = %v", err)
+	}
+	service.Repository = fakemongo.NewWarningHistoryRepository()
+	issue.Reason = ""
+	if _, err := service.Issue(context.Background(), issue); !errors.Is(err, domain.ErrInvalidWarningIssue) {
 		t.Fatalf("invalid err = %v", err)
 	}
 }

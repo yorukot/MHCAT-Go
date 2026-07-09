@@ -8,14 +8,25 @@ import (
 )
 
 var ErrWarningsNotFound = errors.New("warnings not found")
+var ErrWarningSettingsNotFound = errors.New("warning settings not found")
 var ErrWarningSettingsUnavailable = errors.New("warning settings repository unavailable")
 var ErrWarningRemovalUnavailable = errors.New("warning removal repository unavailable")
+var ErrWarningIssueUnavailable = errors.New("warning issue repository unavailable")
 
 type WarningHistoryRepository interface {
 	GetWarningHistory(ctx context.Context, guildID string, userID string) (domain.WarningHistory, error)
 }
 
+type WarningIssueRepository interface {
+	AddWarning(ctx context.Context, issue domain.WarningIssue) (domain.WarningIssueResult, error)
+}
+
+type WarningSettingsReader interface {
+	GetWarningSettings(ctx context.Context, guildID string) (domain.WarningSettings, error)
+}
+
 type WarningSettingsRepository interface {
+	WarningSettingsReader
 	SaveWarningSettings(ctx context.Context, settings domain.WarningSettings) error
 }
 

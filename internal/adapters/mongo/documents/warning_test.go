@@ -1,6 +1,7 @@
 package documents_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo/documents"
@@ -34,5 +35,33 @@ func TestWarningSettingsDocumentFromDomainStoresLegacyShape(t *testing.T) {
 	})
 	if doc.Guild != "guild-1" || doc.BanCount != "3" || doc.Move != domain.WarningSettingsActionKick {
 		t.Fatalf("document = %#v", doc)
+	}
+}
+
+func TestWarningEntryDocumentFromIssueStoresLegacyShape(t *testing.T) {
+	doc := documents.WarningEntryDocumentFromIssue(domain.WarningIssue{
+		ModeratorID: "mod-1",
+		Reason:      "spam",
+		Time:        "2026年07月04日 18點30分",
+	})
+	if doc.Moderator != "mod-1" || doc.Reason != "spam" || doc.Time != "2026年07月04日 18點30分" {
+		t.Fatalf("document = %#v", doc)
+	}
+}
+
+func TestWarningSettingsDocumentToDomain(t *testing.T) {
+	got, err := (documents.WarningSettingsDocument{
+		Guild:    "guild-1",
+		BanCount: "2",
+		Move:     domain.WarningSettingsActionBan,
+	}).ToDomain()
+	if err != nil {
+		t.Fatalf("to domain: %v", err)
+	}
+	if got.GuildID != "guild-1" || got.Threshold != 2 || got.Action != domain.WarningSettingsActionBan {
+		t.Fatalf("settings = %#v", got)
+	}
+	if _, err := (documents.WarningSettingsDocument{Guild: "guild-1", BanCount: "bad", Move: domain.WarningSettingsActionBan}).ToDomain(); !errors.Is(err, domain.ErrInvalidWarningSettings) {
+		t.Fatalf("invalid threshold err = %v", err)
 	}
 }

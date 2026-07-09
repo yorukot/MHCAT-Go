@@ -320,6 +320,30 @@ func (c SideEffectClient) CanAssignRole(ctx context.Context, guildID string, rol
 	return targetPosition < botHighest, ctx.Err()
 }
 
+func (c SideEffectClient) ActorCanModerate(ctx context.Context, guildID string, actorRoleIDs []string, targetUserID string) (bool, error) {
+	session, err := c.session()
+	if err != nil {
+		return false, err
+	}
+	roles, err := session.GuildRoles(guildID, dgo.WithContext(ctx))
+	if err != nil {
+		return false, fmt.Errorf("list discord guild roles: %w", err)
+	}
+	targetMember, err := stateMember(session, guildID, targetUserID)
+	if err != nil {
+		targetMember, err = session.GuildMember(guildID, targetUserID, dgo.WithContext(ctx))
+	}
+	if err != nil {
+		return false, fmt.Errorf("fetch discord target member: %w", err)
+	}
+	actorHighest := highestRolePosition(roles, actorRoleIDs)
+	targetHighest := -1
+	if targetMember != nil {
+		targetHighest = highestRolePosition(roles, targetMember.Roles)
+	}
+	return actorHighest > targetHighest, ctx.Err()
+}
+
 func (c SideEffectClient) MoveMember(ctx context.Context, guildID string, userID string, channelID *string) error {
 	session, err := c.session()
 	if err != nil {
@@ -423,6 +447,16 @@ func rolePosition(roles []*dgo.Role, roleID string) (int, bool) {
 		}
 	}
 	return 0, false
+}
+
+func highestRolePosition(roles []*dgo.Role, roleIDs []string) int {
+	highest := -1
+	for _, roleID := range roleIDs {
+		if position, ok := rolePosition(roles, roleID); ok && position > highest {
+			highest = position
+		}
+	}
+	return highest
 }
 
 func outboundEmbeds(embeds []ports.OutboundEmbed) []*dgo.MessageEmbed {
@@ -553,3 +587,5 @@ var _ ports.DiscordMessagePort = SideEffectClient{}
 var _ ports.DiscordDirectMessagePort = SideEffectClient{}
 var _ ports.DiscordGuildMemberReader = SideEffectClient{}
 var _ ports.DiscordRoleInspector = SideEffectClient{}
+var _ ports.DiscordMemberPort = SideEffectClient{}
+var _ ports.DiscordMemberHierarchyInspector = SideEffectClient{}

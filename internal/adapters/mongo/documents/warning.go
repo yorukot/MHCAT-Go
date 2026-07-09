@@ -1,6 +1,7 @@
 package documents
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -46,4 +47,28 @@ func WarningSettingsDocumentFromDomain(settings domain.WarningSettings) WarningS
 		BanCount: strconv.FormatInt(settings.Threshold, 10),
 		Move:     settings.Action,
 	}
+}
+
+func WarningEntryDocumentFromIssue(issue domain.WarningIssue) WarningEntryDocument {
+	return WarningEntryDocument{
+		Moderator: issue.ModeratorID,
+		Reason:    issue.Reason,
+		Time:      issue.Time,
+	}
+}
+
+func (d WarningSettingsDocument) ToDomain() (domain.WarningSettings, error) {
+	threshold, err := strconv.ParseInt(d.BanCount, 10, 64)
+	if err != nil {
+		return domain.WarningSettings{}, fmt.Errorf("%w: ban_count", domain.ErrInvalidWarningSettings)
+	}
+	settings := domain.WarningSettings{
+		GuildID:   d.Guild,
+		Threshold: threshold,
+		Action:    d.Move,
+	}
+	if err := settings.Validate(); err != nil {
+		return domain.WarningSettings{}, err
+	}
+	return settings, nil
 }

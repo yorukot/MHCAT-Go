@@ -6,11 +6,13 @@ const WarningHistoryCommandName = "警告紀錄"
 const WarningSettingsCommandName = "警告設定"
 const WarningRemoveCommandName = "警告清除"
 const WarningRemoveAllCommandName = "警告全部清除"
+const WarningIssueCommandName = "警告"
 
 const (
 	warningSettingsOptionAction    = "執行的動作"
 	warningSettingsOptionThreshold = "幾次警告後執行動作"
 	warningOptionUser              = "使用者"
+	warningIssueOptionReason       = "原因"
 	warningRemoveOptionIndex       = "第幾項"
 )
 
@@ -24,6 +26,10 @@ func SettingsDefinitions() []commands.Definition {
 
 func RemovalDefinitions() []commands.Definition {
 	return []commands.Definition{WarningRemoveDefinition(), WarningRemoveAllDefinition()}
+}
+
+func IssueDefinitions() []commands.Definition {
+	return []commands.Definition{WarningIssueDefinition()}
 }
 
 func WarningHistoryDefinition() commands.Definition {
@@ -62,6 +68,29 @@ func WarningSettingsDefinition() commands.Definition {
 				Type:        commands.OptionTypeInteger,
 				Name:        warningSettingsOptionThreshold,
 				Description: "被警告幾次後要執行這個動作!",
+				Required:    true,
+			},
+		},
+	}
+}
+
+func WarningIssueDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        WarningIssueCommandName,
+		Description: "警告一個使用者",
+		Ownership:   commands.ManagedOwnership("warning-issue", commands.ScopeGuild),
+		Options: []commands.Option{
+			{
+				Type:        commands.OptionTypeUser,
+				Name:        warningOptionUser,
+				Description: "要警告的使用者!",
+				Required:    true,
+			},
+			{
+				Type:        commands.OptionTypeString,
+				Name:        warningIssueOptionReason,
+				Description: "警告他的原因",
 				Required:    true,
 			},
 		},

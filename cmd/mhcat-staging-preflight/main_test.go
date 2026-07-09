@@ -442,6 +442,43 @@ func TestPreflightWarnsWhenWarningRemovalRuntimeEnabledWithoutCommandSync(t *tes
 	}
 }
 
+func TestPreflightRejectsWarningIssueCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "warning-issue-runtime-pairing status=fail") {
+		t.Fatalf("expected warning issue pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsWarningIssueCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE"] = "true"
+	env["MHCAT_FEATURE_WARNING_ISSUE_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "warning-issue-command-sync status=pass") || !strings.Contains(stdout, "warning-issue-runtime-pairing status=pass") {
+		t.Fatalf("expected warning issue pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenWarningIssueRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_WARNING_ISSUE_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "warning-issue-runtime-pairing status=warn") {
+		t.Fatalf("expected warning issue runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsTranslateCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE"] = "true"
