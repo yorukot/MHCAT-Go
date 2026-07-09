@@ -25,6 +25,7 @@ const (
 	DefaultFeatureWarningsEnabled               = false
 	DefaultFeatureTranslateEnabled              = false
 	DefaultFeatureBalanceQueryEnabled           = false
+	DefaultFeatureRedeemEnabled                 = false
 	DefaultFeatureAutoChatConfigEnabled         = false
 	DefaultFeatureAutoNotificationConfigEnabled = false
 	DefaultFeatureAntiScamConfigEnabled         = false
@@ -80,6 +81,7 @@ type Config struct {
 	FeatureWarningsEnabled               bool
 	FeatureTranslateEnabled              bool
 	FeatureBalanceQueryEnabled           bool
+	FeatureRedeemEnabled                 bool
 	FeatureAutoChatConfigEnabled         bool
 	FeatureAutoNotificationConfigEnabled bool
 	FeatureAntiScamConfigEnabled         bool

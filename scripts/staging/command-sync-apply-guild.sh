@@ -61,6 +61,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY:-false}" = "true" ] && [ "${MHC
   echo "refusing apply: balance query command apply requires MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_REDEEM:-false}" = "true" ] && [ "${MHCAT_FEATURE_REDEEM_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: redeem command apply requires MHCAT_FEATURE_REDEEM_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED:-false}" != "true" ]; then
   echo "refusing apply: autochat config command apply requires MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -191,6 +195,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY:-false}" = "true" ]; then
   echo "staging command sync apply: including balance query command" >&2
 else
   echo "staging command sync apply: balance query command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_REDEEM:-false}" = "true" ]; then
+  echo "staging command sync apply: including redeem command" >&2
+else
+  echo "staging command sync apply: redeem command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG:-false}" = "true" ]; then
   echo "staging command sync apply: including autochat config commands" >&2

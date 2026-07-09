@@ -135,6 +135,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureBalanceQueryEnabled {
 		t.Fatal("balance query feature must be disabled by default")
 	}
+	if cfg.FeatureRedeemEnabled {
+		t.Fatal("redeem feature must be disabled by default")
+	}
 	if cfg.FeatureAutoChatConfigEnabled {
 		t.Fatal("autochat config feature must be disabled by default")
 	}
@@ -284,6 +287,21 @@ func TestFeatureVoiceRoomConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureVoiceRoomConfigEnabled {
 		t.Fatal("expected voice-room config feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureRedeemParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":          "token",
+		"MHCAT_MONGODB_URI":            "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":       "mhcat",
+		"MHCAT_FEATURE_REDEEM_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureRedeemEnabled {
+		t.Fatal("expected redeem feature to be enabled explicitly")
 	}
 }
 

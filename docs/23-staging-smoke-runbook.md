@@ -90,6 +90,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true
 
 Set both together only when testing `/查看餘額`. This path reads `chatgpt_gets.price`, does not require Message Content intent, and does not write Mongo feature data.
 
+Optional redeem smoke flags:
+
+```bash
+export MHCAT_FEATURE_REDEEM_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true
+```
+
+Set both together only in an isolated staging database when testing `/兌換`. Seed a safe staging `codes` row with `code`, numeric `price`, and numeric millisecond `time`; the command deletes that row and credits `chatgpt_gets.price`. It does not enable ChatGPT/autochat message runtime or require Message Content intent.
+
 Optional auto-notification config smoke flags:
 
 ```bash
@@ -287,6 +296,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=true`, confirm `MHCAT_FEATURE_WARNINGS_ENABLED=true` and the staging guild has safe warning-history fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`, confirm `MHCAT_FEATURE_TRANSLATE_ENABLED=true` and external translate calls are allowed for the staging bot.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true` and the staging database has only disposable `codes` fixtures for `/兌換`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database has safe `cron_sets` fixtures for list/delete.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`, confirm `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true` and the selected log channel is staging-only.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true` and the staging database has safe gacha fixtures.
@@ -388,6 +398,13 @@ For balance-query staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`;
 - `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true`;
 - plan includes managed `查看餘額`;
+- plan still performs no create/update/delete during dry-run.
+
+For redeem staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`;
+- `MHCAT_FEATURE_REDEEM_ENABLED=true`;
+- plan includes managed `兌換`;
 - plan still performs no create/update/delete during dry-run.
 
 For auto-notification config staging smoke, expected additionally:
@@ -542,6 +559,20 @@ If translate inclusion is enabled, expected:
 - no bulk overwrite;
 - no global command mutation.
 
+If balance-query inclusion is enabled, expected:
+
+- create/update managed `查看餘額` only in addition to the utility commands;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
+If redeem inclusion is enabled, expected:
+
+- create/update managed `兌換` only in addition to the utility commands;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
 If logging-config inclusion is enabled, expected:
 
 - create/update managed `set-log-channel` only in addition to the utility commands;
@@ -623,6 +654,15 @@ If economy query flags were enabled and command sync apply was reviewed:
 - `/代幣查詢 使用者:<staging member>`
 - verify no-balance users receive the legacy red embed;
 - verify users with `coins` data receive the legacy balance embed.
+
+If redeem flags were enabled and command sync apply was reviewed:
+
+- seed one disposable staging `codes` row with a fresh `time` millisecond value and known `price`;
+- run `/兌換 代碼:<seeded code>`;
+- verify the ephemeral green `成功兌換代碼!` embed appears;
+- verify the `codes` row is deleted and `chatgpt_gets.price` for the staging guild increased by the code price;
+- run `/兌換 代碼:<missing code>` and verify the legacy red missing-code embed;
+- seed an expired code older than 7 days, run `/兌換`, and verify the legacy expired-code embed while the code remains unconsumed.
 
 If translate flags were enabled and command sync apply was reviewed:
 

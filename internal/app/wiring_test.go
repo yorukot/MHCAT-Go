@@ -710,6 +710,35 @@ func TestBuildRuntimeRoutesBalanceQueryOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesRedeemOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("兌換", "", map[string]string{"代碼": "abc"})
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("redeem route should not be available without repository")
+	}
+
+	repo := fakemongo.NewRedeemRepository()
+	repo.Codes["abc"] = domain.RedeemCode{Code: "abc", Price: 3, CreatedAtMillis: time.Now().UnixMilli()}
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:           validTestConfig(),
+		RedeemRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with redeem repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch redeem: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || responder.Edits[0].Embeds[0].Author == nil || responder.Edits[0].Embeds[0].Author.Name != "成功兌換代碼!" {
+		t.Fatalf("redeem response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesAntiScamConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

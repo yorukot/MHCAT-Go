@@ -19,6 +19,7 @@
 - For anti-scam report smoke, use a safe staging webhook endpoint and pair `MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT=true` with `MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED=true` plus `MHCAT_REPORT_WEBHOOK_URL` or `REPORT_WEBHOOK`.
 - For economy sign-in smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true` with `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`.
 - For balance query smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true` with `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true`.
+- For redeem smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true` with `MHCAT_FEATURE_REDEEM_ENABLED=true`; seed only disposable `codes` rows.
 - For lottery disabled-command smoke, pair `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true` with `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`; it should only return the legacy unavailable embed and must not create a lottery.
 - Run `scripts/staging/command-sync-dry-run.sh`.
 - Review the diff plan before apply.
@@ -43,6 +44,7 @@
 - If anti-scam report smoke is enabled, run `/詐騙網址回報` with a safe staging URL, verify the webhook payload, then seed `not_a_good_webs.web` with the same URL and verify the duplicate error.
 - If economy sign-in smoke is enabled, run `/簽到`, then run `/簽到列表` and verify the public `簽到人數資訊` embed plus `discord.txt`.
 - If balance query smoke is enabled, run `/查看餘額` and verify the ephemeral green author embed reads `伺服器目前剩於餘額: <price>` or `0` when `chatgpt_gets` has no guild row.
+- If redeem smoke is enabled, seed a fresh staging `codes` row, run `/兌換`, verify the ephemeral success embed, verify the code was deleted and `chatgpt_gets.price` was credited, then verify missing and expired codes return the legacy red embeds.
 - If lottery disabled-command smoke is enabled, run `/抽獎設置` with placeholder options and verify the ephemeral unavailable embed.
 - Verify no duplicate initial response and no raw internal error.
 - Verify no command deletion or bulk overwrite happened.

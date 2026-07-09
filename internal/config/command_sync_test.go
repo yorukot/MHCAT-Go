@@ -70,6 +70,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeBalanceQuery {
 		t.Fatal("include balance query must default false")
 	}
+	if cfg.IncludeRedeem {
+		t.Fatal("include redeem must default false")
+	}
 	if cfg.IncludeAutoChatConfig {
 		t.Fatal("include autochat config must default false")
 	}
@@ -468,6 +471,48 @@ func TestCommandSyncIncludeStatsQueryStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeStatsQuery {
 		t.Fatal("expected include stats query to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeRedeemRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":               "token",
+		"MHCAT_DISCORD_APPLICATION_ID":      "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":       "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_REDEEM": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include redeem without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeRedeemRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":               "token",
+		"MHCAT_DISCORD_APPLICATION_ID":      "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":          "global",
+		"MHCAT_STAGING_MODE":                "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_REDEEM": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include redeem with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeRedeemStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":               "token",
+		"MHCAT_DISCORD_APPLICATION_ID":      "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":       "guild",
+		"MHCAT_STAGING_MODE":                "true",
+		"MHCAT_STAGING_GUILD_ID":            "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_REDEEM": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeRedeem {
+		t.Fatal("expected include redeem to be enabled explicitly")
 	}
 }
 

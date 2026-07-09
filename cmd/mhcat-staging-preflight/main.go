@@ -101,6 +101,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		translateRuntimePairing(lookup),
 		balanceQueryCommandSync(lookup),
 		balanceQueryRuntimePairing(lookup),
+		redeemCommandSync(lookup),
+		redeemRuntimePairing(lookup),
 		autoChatConfigCommandSync(lookup),
 		autoChatConfigRuntimePairing(lookup),
 		autoNotificationConfigCommandSync(lookup),
@@ -493,6 +495,38 @@ func balanceQueryRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "balance-query-runtime-pairing", Status: statusWarn, Message: "balance query runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "balance-query-runtime-pairing", Status: statusSkipped, Message: "balance query runtime and command sync include are disabled"}
+}
+
+func redeemCommandSync(lookup lookupFunc) checkResult {
+	includeRedeem, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_REDEEM")
+	if err != nil {
+		return checkResult{Name: "redeem-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeRedeem {
+		return checkResult{Name: "redeem-command-sync", Status: statusPass, Message: "redeem command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "redeem-command-sync", Status: statusSkipped, Message: "redeem command sync include is disabled"}
+}
+
+func redeemRuntimePairing(lookup lookupFunc) checkResult {
+	includeRedeem, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_REDEEM")
+	if err != nil {
+		return checkResult{Name: "redeem-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	redeemEnabled, err := boolValue(lookup, "MHCAT_FEATURE_REDEEM_ENABLED")
+	if err != nil {
+		return checkResult{Name: "redeem-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeRedeem && !redeemEnabled {
+		return checkResult{Name: "redeem-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true requires MHCAT_FEATURE_REDEEM_ENABLED=true in the staging runtime"}
+	}
+	if includeRedeem && redeemEnabled {
+		return checkResult{Name: "redeem-runtime-pairing", Status: statusPass, Message: "redeem command sync and runtime feature flag are paired"}
+	}
+	if redeemEnabled {
+		return checkResult{Name: "redeem-runtime-pairing", Status: statusWarn, Message: "redeem runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "redeem-runtime-pairing", Status: statusSkipped, Message: "redeem runtime and command sync include are disabled"}
 }
 
 func autoChatConfigCommandSync(lookup lookupFunc) checkResult {

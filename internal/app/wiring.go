@@ -22,6 +22,7 @@ import (
 	featurenotifications "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/notifications"
 	featureonboarding "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/onboarding"
 	featurepoll "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/poll"
+	featureredeem "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/redeem"
 	featuresafety "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/safety"
 	featurestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/stats"
 	featureticket "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/ticket"
@@ -57,6 +58,7 @@ type RuntimeOptions struct {
 	TranslateProvider             ports.Translator
 	TranslateFeatureEnabled       bool
 	BalanceRepository             ports.BalanceRepository
+	RedeemRepository              ports.RedeemRepository
 	AutoChatConfigRepository      ports.AutoChatConfigRepository
 	AutoNotificationRepository    ports.AutoNotificationScheduleRepository
 	AntiScamConfigRepository      ports.AntiScamConfigRepository
@@ -125,6 +127,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.BalanceRepository != nil {
 		definitions = append(definitions, featurebalance.Definitions()...)
+	}
+	if opts.RedeemRepository != nil {
+		definitions = append(definitions, featureredeem.Definitions()...)
 	}
 	if opts.AutoChatConfigRepository != nil {
 		definitions = append(definitions, featureautochat.Definitions()...)
@@ -270,6 +275,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.BalanceRepository != nil {
 		balanceModule := featurebalance.NewModule(opts.BalanceRepository, opts.UsageTracker)
 		if err := balanceModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.RedeemRepository != nil {
+		redeemModule := featureredeem.NewModule(opts.RedeemRepository, clockOrSystem(opts.Clock), opts.UsageTracker)
+		if err := redeemModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

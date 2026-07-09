@@ -23,6 +23,7 @@ import (
 	featurenotifications "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/notifications"
 	featureonboarding "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/onboarding"
 	featurepoll "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/poll"
+	featureredeem "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/redeem"
 	featuresafety "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/safety"
 	featurestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/stats"
 	featureticket "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/ticket"
@@ -204,6 +205,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeBalanceQuery {
 		definitions = append(definitions, featurebalance.Definitions()...)
 	}
+	if cfg.IncludeRedeem {
+		definitions = append(definitions, featureredeem.Definitions()...)
+	}
 	if cfg.IncludeAutoChatConfig {
 		definitions = append(definitions, featureautochat.Definitions()...)
 	}
@@ -295,6 +299,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeBalanceQuery {
 		expected = append(expected, featurebalance.CommandName)
+	}
+	if cfg.IncludeRedeem {
+		expected = append(expected, featureredeem.CommandName)
 	}
 	if cfg.IncludeAutoChatConfig {
 		expected = append(expected, featureautochat.AutoChatSetCommandName, featureautochat.AutoChatDeleteCommandName)

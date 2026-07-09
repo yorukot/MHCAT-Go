@@ -38,6 +38,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureWarningsEnabled:               DefaultFeatureWarningsEnabled,
 		FeatureTranslateEnabled:              DefaultFeatureTranslateEnabled,
 		FeatureBalanceQueryEnabled:           DefaultFeatureBalanceQueryEnabled,
+		FeatureRedeemEnabled:                 DefaultFeatureRedeemEnabled,
 		FeatureAutoChatConfigEnabled:         DefaultFeatureAutoChatConfigEnabled,
 		FeatureAutoNotificationConfigEnabled: DefaultFeatureAutoNotificationConfigEnabled,
 		FeatureAntiScamConfigEnabled:         DefaultFeatureAntiScamConfigEnabled,
@@ -130,6 +131,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureBalanceQueryEnabled, err = getBool(lookup, "MHCAT_FEATURE_BALANCE_QUERY_ENABLED", DefaultFeatureBalanceQueryEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureRedeemEnabled, err = getBool(lookup, "MHCAT_FEATURE_REDEEM_ENABLED", DefaultFeatureRedeemEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureAutoChatConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED", DefaultFeatureAutoChatConfigEnabled); err != nil {

@@ -26,6 +26,7 @@ const (
 	DefaultCommandSyncIncludeWarnings               = false
 	DefaultCommandSyncIncludeTranslate              = false
 	DefaultCommandSyncIncludeBalanceQuery           = false
+	DefaultCommandSyncIncludeRedeem                 = false
 	DefaultCommandSyncIncludeAutoChatConfig         = false
 	DefaultCommandSyncIncludeAutoNotificationConfig = false
 	DefaultCommandSyncIncludeAntiScamConfig         = false
@@ -72,6 +73,7 @@ type CommandSyncConfig struct {
 	IncludeWarnings               bool
 	IncludeTranslate              bool
 	IncludeBalanceQuery           bool
+	IncludeRedeem                 bool
 	IncludeAutoChatConfig         bool
 	IncludeAutoNotificationConfig bool
 	IncludeAntiScamConfig         bool
@@ -133,6 +135,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeWarnings:               DefaultCommandSyncIncludeWarnings,
 		IncludeTranslate:              DefaultCommandSyncIncludeTranslate,
 		IncludeBalanceQuery:           DefaultCommandSyncIncludeBalanceQuery,
+		IncludeRedeem:                 DefaultCommandSyncIncludeRedeem,
 		IncludeAutoChatConfig:         DefaultCommandSyncIncludeAutoChatConfig,
 		IncludeAutoNotificationConfig: DefaultCommandSyncIncludeAutoNotificationConfig,
 		IncludeAntiScamConfig:         DefaultCommandSyncIncludeAntiScamConfig,
@@ -194,6 +197,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeBalanceQuery, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY", DefaultCommandSyncIncludeBalanceQuery); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeRedeem, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_REDEEM", DefaultCommandSyncIncludeRedeem); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeAutoChatConfig, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG", DefaultCommandSyncIncludeAutoChatConfig); err != nil {
@@ -373,6 +379,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeRedeem {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_REDEEM requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_REDEEM requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeAutoChatConfig {

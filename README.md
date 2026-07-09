@@ -46,6 +46,7 @@ This module currently provides:
 - gated `打工系統` command schema, legacy dashboard-redirect UI for `新增打工事項`, legacy-style `打工介面` list/detail/start UI, and admin setup/delete/energy flows with explicit work repository writes.
 - gated read-only `/警告紀錄` warning-history lookup with legacy embed text and safer permission/member-cache handling.
 - gated `/翻譯` utility command with legacy loading/final embed shape and safe external-provider error handling.
+- gated `/兌換` redeem-code command with legacy ephemeral success/error embeds and rollback-compatible `codes`/`chatgpt_gets` writes.
 - gated `/自動通知列表` and `/自動通知刪除` config-maintenance commands with rollback-compatible `cron_sets` reads/deletes.
 - gated `/set-log-channel` logging-configuration command and `loggin_create`-compatible select route; event log emitters remain disabled.
 - gated read-only `/扭蛋獎池查詢` prize-pool query with legacy embed text and rollback-compatible `gifts`/`gift_changes` reads.
@@ -91,6 +92,7 @@ Implemented utility commands:
 - `/打工系統 新增打工事項` dashboard redirect, `/打工系統 打工介面` list/detail/start flow, and work admin setup/delete/energy flows when explicitly enabled with `MHCAT_FEATURE_WORK_ENABLED=true`
 - `/警告紀錄` when explicitly enabled with `MHCAT_FEATURE_WARNINGS_ENABLED=true`
 - `/翻譯` when explicitly enabled with `MHCAT_FEATURE_TRANSLATE_ENABLED=true`
+- `/兌換` when explicitly enabled with `MHCAT_FEATURE_REDEEM_ENABLED=true`
 - `/自動通知列表` and `/自動通知刪除` when explicitly enabled with `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true`
 - `/set-log-channel` when explicitly enabled with `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true`
 - `/扭蛋獎池查詢` when explicitly enabled with `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true`
@@ -132,6 +134,8 @@ Not implemented yet:
 
 `/自動通知列表` and `/自動通知刪除` are config-maintenance commands only. They read/delete legacy `cron_sets` rows behind `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`; they do not implement `automatic-notification`, cron setup modals/selects, scheduler ownership, or notification sends.
 
+`/兌換` is disabled by default and is available only when paired with `MHCAT_FEATURE_REDEEM_ENABLED=true` and `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true` in staging command sync. It consumes legacy `codes` rows, credits `chatgpt_gets.price`, enforces the legacy 7-day expiry check, and does not enable ChatGPT/autochat message runtime.
+
 Because `/info user` and `/info guild` changed the local command definition shape, staging or production Discord command definitions must be updated through `mhcat-command-sync`; bot startup still does not sync commands.
 
 ## Environment
@@ -165,6 +169,8 @@ Safe defaults:
 - `MHCAT_FEATURE_WORK_ENABLED=false`
 - `MHCAT_FEATURE_WARNINGS_ENABLED=false`
 - `MHCAT_FEATURE_TRANSLATE_ENABLED=false`
+- `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=false`
+- `MHCAT_FEATURE_REDEEM_ENABLED=false`
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=false`
@@ -231,6 +237,8 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_WORK=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST=false`

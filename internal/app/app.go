@@ -351,6 +351,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.BalanceRepository = balanceRepo
 	}
+	if cfg.FeatureRedeemEnabled {
+		redeemRepo, err := redeemRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.RedeemRepository = redeemRepo
+	}
 	if cfg.FeatureAutoChatConfigEnabled {
 		autoChatRepo, err := autoChatConfigRepositoryFromMongo(mongoClient)
 		if err != nil {
@@ -648,6 +655,22 @@ func balanceRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.Bal
 	repo, err := mongorepositories.NewBalanceRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("balance query feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func redeemRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.RedeemRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("redeem feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("redeem feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewRedeemRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("redeem feature repository: %w", err)
 	}
 	return repo, nil
 }
