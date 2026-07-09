@@ -45,3 +45,33 @@ func TestBirthdayConfigDocumentNilRoleDecodesEmpty(t *testing.T) {
 		t.Fatalf("domain = %#v", got)
 	}
 }
+
+func TestBirthdayProfileDocumentRoundTripDomain(t *testing.T) {
+	year, month, day, hour, minute := 1999, 2, 28, 8, 5
+	profile := domain.BirthdayProfile{
+		GuildID:       "guild-1",
+		UserID:        "user-1",
+		BirthdayYear:  &year,
+		BirthdayMonth: &month,
+		BirthdayDay:   &day,
+		SendHour:      &hour,
+		SendMinute:    &minute,
+		AllowAdmin:    true,
+	}
+
+	document := BirthdayProfileDocumentFromDomain(profile)
+	if document.Guild != "guild-1" || document.User != "user-1" || document.BirthdayYear == nil || *document.BirthdayYear != 1999 || !document.Allow {
+		t.Fatalf("document = %#v", document)
+	}
+	roundTrip := document.ToDomain()
+	if roundTrip.GuildID != "guild-1" || roundTrip.UserID != "user-1" || roundTrip.BirthdayMonth == nil || *roundTrip.BirthdayMonth != 2 || !roundTrip.AllowAdmin {
+		t.Fatalf("round trip = %#v", roundTrip)
+	}
+}
+
+func TestBirthdayProfileDocumentPreservesNullDateFields(t *testing.T) {
+	document := BirthdayProfileDocumentFromDomain(domain.BirthdayProfile{GuildID: "guild-1", UserID: "user-1", AllowAdmin: false})
+	if document.BirthdayYear != nil || document.BirthdayMonth != nil || document.BirthdayDay != nil || document.SendHour != nil || document.SendMinute != nil {
+		t.Fatalf("document = %#v", document)
+	}
+}

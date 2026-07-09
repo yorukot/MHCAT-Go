@@ -6,6 +6,7 @@ import (
 )
 
 var ErrInvalidBirthdayConfig = errors.New("invalid birthday config")
+var ErrInvalidBirthdayProfile = errors.New("invalid birthday profile")
 
 type BirthdayConfig struct {
 	GuildID                    string
@@ -14,6 +15,17 @@ type BirthdayConfig struct {
 	ChannelID                  string
 	EveryoneCanSetBirthdayDate bool
 	RoleID                     string
+}
+
+type BirthdayProfile struct {
+	GuildID       string
+	UserID        string
+	BirthdayYear  *int
+	BirthdayMonth *int
+	BirthdayDay   *int
+	SendHour      *int
+	SendMinute    *int
+	AllowAdmin    bool
 }
 
 func (c BirthdayConfig) Validate() error {
@@ -25,6 +37,13 @@ func (c BirthdayConfig) Validate() error {
 	}
 	if !validLegacyBirthdayUTCOffset(c.UTCOffset) {
 		return ErrInvalidBirthdayConfig
+	}
+	return nil
+}
+
+func (p BirthdayProfile) ValidateIdentity() error {
+	if strings.TrimSpace(p.GuildID) == "" || strings.TrimSpace(p.UserID) == "" {
+		return ErrInvalidBirthdayProfile
 	}
 	return nil
 }

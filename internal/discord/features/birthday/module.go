@@ -8,14 +8,16 @@ import (
 )
 
 type Module struct {
-	service coreservice.ConfigService
-	usage   ports.UsageTracker
+	configService  coreservice.ConfigService
+	profileService coreservice.ProfileService
+	usage          ports.UsageTracker
 }
 
 func NewModule(repo ports.BirthdayConfigRepository, usage ports.UsageTracker) Module {
 	return Module{
-		service: coreservice.NewConfigService(repo),
-		usage:   usage,
+		configService:  coreservice.NewConfigService(repo),
+		profileService: coreservice.NewProfileService(repo),
+		usage:          usage,
 	}
 }
 

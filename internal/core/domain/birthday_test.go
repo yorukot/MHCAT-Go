@@ -34,3 +34,12 @@ func TestBirthdayConfigValidateRequiresFields(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestBirthdayProfileValidateIdentity(t *testing.T) {
+	if err := (BirthdayProfile{GuildID: "guild-1", UserID: "user-1"}).ValidateIdentity(); err != nil {
+		t.Fatalf("validate identity: %v", err)
+	}
+	if err := (BirthdayProfile{GuildID: "guild-1"}).ValidateIdentity(); !errors.Is(err, ErrInvalidBirthdayProfile) {
+		t.Fatalf("err = %v", err)
+	}
+}

@@ -11,6 +11,17 @@ type BirthdayConfigDocument struct {
 	Role                       *string `bson:"role" json:"role"`
 }
 
+type BirthdayProfileDocument struct {
+	Guild         string `bson:"guild" json:"guild"`
+	User          string `bson:"user" json:"user"`
+	BirthdayYear  *int   `bson:"birthday_year" json:"birthday_year"`
+	BirthdayMonth *int   `bson:"birthday_month" json:"birthday_month"`
+	BirthdayDay   *int   `bson:"birthday_day" json:"birthday_day"`
+	SendHour      *int   `bson:"send_msg_hour" json:"send_msg_hour"`
+	SendMinute    *int   `bson:"send_msg_min" json:"send_msg_min"`
+	Allow         bool   `bson:"allow" json:"allow"`
+}
+
 func BirthdayConfigDocumentFromDomain(config domain.BirthdayConfig) BirthdayConfigDocument {
 	return BirthdayConfigDocument{
 		Guild:                      config.GuildID,
@@ -19,6 +30,19 @@ func BirthdayConfigDocumentFromDomain(config domain.BirthdayConfig) BirthdayConf
 		Channel:                    config.ChannelID,
 		EveryoneCanSetBirthdayDate: config.EveryoneCanSetBirthdayDate,
 		Role:                       stringPointerOrNil(config.RoleID),
+	}
+}
+
+func BirthdayProfileDocumentFromDomain(profile domain.BirthdayProfile) BirthdayProfileDocument {
+	return BirthdayProfileDocument{
+		Guild:         profile.GuildID,
+		User:          profile.UserID,
+		BirthdayYear:  intPointerOrNil(profile.BirthdayYear),
+		BirthdayMonth: intPointerOrNil(profile.BirthdayMonth),
+		BirthdayDay:   intPointerOrNil(profile.BirthdayDay),
+		SendHour:      intPointerOrNil(profile.SendHour),
+		SendMinute:    intPointerOrNil(profile.SendMinute),
+		Allow:         profile.AllowAdmin,
 	}
 }
 
@@ -31,4 +55,25 @@ func (d BirthdayConfigDocument) ToDomain() domain.BirthdayConfig {
 		EveryoneCanSetBirthdayDate: d.EveryoneCanSetBirthdayDate,
 		RoleID:                     stringValue(d.Role),
 	}
+}
+
+func (d BirthdayProfileDocument) ToDomain() domain.BirthdayProfile {
+	return domain.BirthdayProfile{
+		GuildID:       d.Guild,
+		UserID:        d.User,
+		BirthdayYear:  intPointerOrNil(d.BirthdayYear),
+		BirthdayMonth: intPointerOrNil(d.BirthdayMonth),
+		BirthdayDay:   intPointerOrNil(d.BirthdayDay),
+		SendHour:      intPointerOrNil(d.SendHour),
+		SendMinute:    intPointerOrNil(d.SendMinute),
+		AllowAdmin:    d.Allow,
+	}
+}
+
+func intPointerOrNil(value *int) *int {
+	if value == nil {
+		return nil
+	}
+	copied := *value
+	return &copied
 }
