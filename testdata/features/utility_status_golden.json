@@ -1,0 +1,11 @@
+[
+  {
+    "name": "info_bot_status",
+    "command": "info",
+    "input": { "subcommand": "bot" },
+    "want": {
+      "contains": ["MHCAT status", "Gateway: connected", "Guilds: 2", "Users: 30"],
+      "not_contains": ["secret", "token", "mongodb"]
+    }
+  }
+]

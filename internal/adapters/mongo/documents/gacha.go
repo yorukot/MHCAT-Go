@@ -1,0 +1,25 @@
+package documents
+
+import (
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"go.mongodb.org/mongo-driver/v2/bson"
+)
+
+type GiftDocument struct {
+	Guild      string        `bson:"guild" json:"guild"`
+	GiftName   string        `bson:"gift_name" json:"gift_name"`
+	GiftCode   string        `bson:"gift_code" json:"gift_code"`
+	GiftChance bson.RawValue `bson:"gift_chence" json:"gift_chence"`
+	AutoDelete bool          `bson:"auto_delete" json:"auto_delete"`
+	GiftCount  bson.RawValue `bson:"gift_count" json:"gift_count"`
+	GiveCoin   bson.RawValue `bson:"give_coin" json:"give_coin"`
+}
+
+func (d GiftDocument) ToDomain() domain.GachaPrize {
+	return domain.GachaPrize{
+		GuildID: d.Guild,
+		Name:    d.GiftName,
+		Chance:  legacyFloat64(d.GiftChance),
+		Count:   legacyInt64(d.GiftCount),
+	}
+}

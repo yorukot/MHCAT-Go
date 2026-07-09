@@ -1,0 +1,17 @@
+{
+  "database": "mhcat",
+  "collections": [
+    {
+      "name": "coin",
+      "document_count": 2,
+      "sampled_documents": 2,
+      "field_types": {
+        "coin": ["int64"],
+        "guild": ["string"],
+        "member": ["string"]
+      }
+    }
+  ],
+  "unknown_collections": ["legacy_unknown"],
+  "missing_collections": ["verification"]
+}

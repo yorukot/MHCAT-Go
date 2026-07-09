@@ -1,0 +1,15 @@
+{
+  "indexes": [
+    {
+      "collection": "coin",
+      "name": "guild_member_idx",
+      "keys": [
+        { "field": "guild", "order": 1 },
+        { "field": "member", "order": 1 }
+      ],
+      "unique": true,
+      "reason": "one balance document per guild/member after duplicate audit",
+      "requires_duplicate_audit": true
+    }
+  ]
+}

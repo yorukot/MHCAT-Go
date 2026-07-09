@@ -1,0 +1,7 @@
+[
+  { "name": "bad namespace", "raw": "other:v1:ticket:close:", "error": "ErrInvalidNamespace" },
+  { "name": "bad version", "raw": "mhcat:v2:ticket:close:", "error": "ErrUnsupportedVersion" },
+  { "name": "bad feature", "raw": "mhcat:v1:Ticket:close:", "error": "ErrInvalidFeature" },
+  { "name": "bad action", "raw": "mhcat:v1:ticket:Close:", "error": "ErrInvalidAction" },
+  { "name": "bad payload", "raw": "mhcat:v1:ticket:close:bad:payload", "error": "ErrInvalidPayload" }
+]

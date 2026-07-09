@@ -1,0 +1,182 @@
+package discordgo
+
+import (
+	"fmt"
+
+	dgo "github.com/bwmarrin/discordgo"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
+)
+
+func InteractionFromDiscord(event *dgo.InteractionCreate) (interactions.Interaction, error) {
+	if event == nil || event.Interaction == nil {
+		return interactions.Interaction{}, fmt.Errorf("discord interaction event is nil")
+	}
+	actor := actorFromDiscord(event.Interaction)
+	switch event.Type {
+	case dgo.InteractionApplicationCommand:
+		data := event.ApplicationCommandData()
+		subcommandGroup, subcommand, options, values, err := commandOptions(data.Options)
+		if err != nil {
+			return interactions.Interaction{}, err
+		}
+		return interactions.Interaction{
+			ID:              event.ID,
+			Type:            interactions.TypeSlash,
+			CommandName:     data.Name,
+			SubcommandGroup: subcommandGroup,
+			Subcommand:      subcommand,
+			Options:         options,
+			CommandOptions:  values,
+			ChannelID:       event.ChannelID,
+			Locale:          string(event.Locale),
+			GuildLocale:     guildLocale(event.Interaction),
+			Actor:           actor,
+		}, nil
+	case dgo.InteractionApplicationCommandAutocomplete:
+		data := event.ApplicationCommandData()
+		return interactions.Interaction{
+			ID:          event.ID,
+			Type:        interactions.TypeAutocomplete,
+			CommandName: data.Name,
+			ChannelID:   event.ChannelID,
+			Locale:      string(event.Locale),
+			GuildLocale: guildLocale(event.Interaction),
+			Actor:       actor,
+		}, nil
+	case dgo.InteractionMessageComponent:
+		data := event.MessageComponentData()
+		input, err := ComponentInputFromDiscord(data)
+		if err != nil {
+			return interactions.Interaction{}, err
+		}
+		return interactions.Interaction{
+			ID:          event.ID,
+			Type:        interactions.TypeComponent,
+			CustomID:    input.CustomID,
+			Values:      input.Values,
+			ChannelID:   event.ChannelID,
+			MessageID:   interactionMessageID(event.Interaction),
+			Locale:      string(event.Locale),
+			GuildLocale: guildLocale(event.Interaction),
+			Actor:       actor,
+		}, nil
+	case dgo.InteractionModalSubmit:
+		data := event.ModalSubmitData()
+		input, err := ModalInputFromDiscord(data)
+		if err != nil {
+			return interactions.Interaction{}, err
+		}
+		return interactions.Interaction{
+			ID:          event.ID,
+			Type:        interactions.TypeModal,
+			CustomID:    input.CustomID,
+			ModalFields: input.Fields,
+			ChannelID:   event.ChannelID,
+			Locale:      string(event.Locale),
+			GuildLocale: guildLocale(event.Interaction),
+			Actor:       actor,
+		}, nil
+	default:
+		return interactions.Interaction{}, fmt.Errorf("unsupported discord interaction type %d", event.Type)
+	}
+}
+
+func commandOptions(options []*dgo.ApplicationCommandInteractionDataOption) (string, string, map[string]string, map[string]interactions.CommandOptionValue, error) {
+	internalOptions := make([]interactions.CommandOption, 0, len(options))
+	for _, option := range options {
+		if option == nil {
+			continue
+		}
+		internalOptions = append(internalOptions, fromDiscordOption(option))
+	}
+	parsed, err := interactions.ParseCommandOptions(internalOptions)
+	if err != nil {
+		return "", "", nil, nil, err
+	}
+	return parsed.SubcommandGroup, parsed.Subcommand, parsed.Options, parsed.Values, nil
+}
+
+func fromDiscordOption(option *dgo.ApplicationCommandInteractionDataOption) interactions.CommandOption {
+	converted := interactions.CommandOption{
+		Name:  option.Name,
+		Type:  fromDiscordOptionType(option.Type),
+		Value: option.Value,
+	}
+	for _, child := range option.Options {
+		if child != nil {
+			converted.Options = append(converted.Options, fromDiscordOption(child))
+		}
+	}
+	return converted
+}
+
+func fromDiscordOptionType(value dgo.ApplicationCommandOptionType) interactions.CommandOptionType {
+	switch value {
+	case dgo.ApplicationCommandOptionString:
+		return interactions.CommandOptionString
+	case dgo.ApplicationCommandOptionInteger:
+		return interactions.CommandOptionInteger
+	case dgo.ApplicationCommandOptionNumber:
+		return interactions.CommandOptionNumber
+	case dgo.ApplicationCommandOptionBoolean:
+		return interactions.CommandOptionBoolean
+	case dgo.ApplicationCommandOptionUser:
+		return interactions.CommandOptionUser
+	case dgo.ApplicationCommandOptionChannel:
+		return interactions.CommandOptionChannel
+	case dgo.ApplicationCommandOptionRole:
+		return interactions.CommandOptionRole
+	case dgo.ApplicationCommandOptionMentionable:
+		return interactions.CommandOptionMentionable
+	case dgo.ApplicationCommandOptionSubCommand:
+		return interactions.CommandOptionSubcommand
+	case dgo.ApplicationCommandOptionSubCommandGroup:
+		return interactions.CommandOptionSubcommandGroup
+	default:
+		return interactions.CommandOptionType(fmt.Sprintf("unsupported:%d", value))
+	}
+}
+
+func guildLocale(interaction *dgo.Interaction) string {
+	if interaction == nil || interaction.GuildLocale == nil {
+		return ""
+	}
+	return string(*interaction.GuildLocale)
+}
+
+func actorFromDiscord(interaction *dgo.Interaction) interactions.Actor {
+	actor := interactions.Actor{GuildID: interaction.GuildID}
+	if interaction.Member != nil && interaction.Member.User != nil {
+		actor.UserID = interaction.Member.User.ID
+		actor.Username = interaction.Member.User.Username
+		actor.UserTag = userTag(interaction.Member.User)
+		actor.AvatarURL = interaction.Member.User.AvatarURL("")
+		actor.RoleIDs = append([]string(nil), interaction.Member.Roles...)
+		actor.PermissionBits = interaction.Member.Permissions
+		return actor
+	}
+	if interaction.User != nil {
+		actor.UserID = interaction.User.ID
+		actor.Username = interaction.User.Username
+		actor.UserTag = userTag(interaction.User)
+		actor.AvatarURL = interaction.User.AvatarURL("")
+	}
+	return actor
+}
+
+func interactionMessageID(interaction *dgo.Interaction) string {
+	if interaction == nil || interaction.Message == nil {
+		return ""
+	}
+	return interaction.Message.ID
+}
+
+func userTag(user *dgo.User) string {
+	if user == nil {
+		return ""
+	}
+	if user.Discriminator != "" && user.Discriminator != "0" {
+		return user.Username + "#" + user.Discriminator
+	}
+	return user.Username
+}

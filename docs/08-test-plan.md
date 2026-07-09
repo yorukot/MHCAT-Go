@@ -1,0 +1,150 @@
+# Test Plan
+
+Status: Phase 1 consolidated. Legacy has only a live Discord login smoke test; the Go refactor needs tests before feature implementation claims.
+
+## Legacy Test Inventory
+
+- `npm test` runs `node test-startup.js`.
+- `test-startup.js` requires a real `TOKEN`, logs into Discord, waits for ready, then destroys the client.
+- No unit tests, fake Discord tests, Mongo repository tests, fixture tests, or CI were found.
+
+## Unit Tests
+
+- Domain logic for XP, level thresholds, economy, gacha, work, polls, birthday, warnings, cron validation, anti-scam normalization.
+- Permission policy, owner/admin policy, role hierarchy checks, bot permission requirements.
+- Cooldown/rate-limit policy.
+- Config/env alias validation and secret redaction.
+- Error mapping and safe user-facing errors.
+- Custom ID codec and parsers.
+- Mongo document conversion and compatibility decoders.
+- Discord input parsing without DiscordGo in core.
+
+## Table-Driven Command Tests
+
+- Command metadata snapshot for all 74 slash command modules.
+- Command names, descriptions, options, choices, localizations, default permissions, cooldown metadata.
+- Handler selection by command name.
+- Public vs ephemeral/deferred response metadata.
+- Disabled/inactive feature behavior for birthday scheduler and lottery creation.
+
+## Discord Fake Adapter Tests
+
+- Slash command routing.
+- Invalid/unknown command.
+- Permission denied and missing bot permissions.
+- Cooldown hit.
+- Owner-only paths and no hardcoded ID bypass.
+- Defer, follow-up, edit original, delete original, ephemeral flags.
+- Duplicate response prevention.
+- Component routing and modal routing.
+- Legacy custom ID compatibility and collision/spoofing tests.
+- Discord API failure, rate limit, DM failure, channel/role/member mutation failure.
+- Panic recovery and safe error response.
+
+## Mongo Repository Contract Tests
+
+- Legacy collection name mapping.
+- BSON decode with missing fields, unknown fields, and mixed string/number/bool fields.
+- Not found, conflict, timeout, canceled, invalid input error mapping.
+- Upsert and `$setOnInsert`.
+- Atomic `$inc` for counters.
+- Array updates for poll voters, lottery members, warnings, lock users.
+- Duplicate handling for candidate unique keys.
+- Context timeout and cancellation.
+- Node-readable Go writes.
+
+## Mongo Integration Strategy
+
+- Prefer local ephemeral MongoDB when available.
+- If no MongoDB is available, run repository contract tests against a fake only for adapter-independent behavior and mark integration tests skipped with reason.
+- Do not require production MongoDB for automated tests.
+
+## Behavior Parity Tests
+
+- Given legacy fixtures and equivalent internal events, assert response payload, Mongo side effects, Discord side effects, and user-facing error behavior.
+- High-priority parity fixtures:
+  - `ping`, `info`, `help`
+  - sign-in and coin lookup/rank
+  - text/voice XP lookup/rank
+  - warning add/list/remove
+  - poll create/vote/result
+  - verification
+  - ticket open/delete
+  - voice room create/lock/delete
+  - cron notification setup/list/delete
+  - welcome/leave templates
+  - gacha draw/shop purchase
+
+## Golden Fixture Tests
+
+- Command table JSON.
+- Custom ID table.
+- Sample embeds/components for high-risk commands.
+- Welcome/leave/announcement/ticket messages.
+- Poll result/export output.
+- Rank/profile/sign images with seeded inputs where deterministic rendering is feasible.
+
+## Context and Timeout Tests
+
+- Mongo operations.
+- Discord REST calls.
+- Translation calls.
+- Canvas/chart/Excel rendering.
+- Member/user fetches.
+- Clear/bulk delete loops.
+- Work/game collectors.
+- Modal waits and component collectors.
+- Scheduler jobs.
+
+## Race Tests
+
+Run `go test -race ./...` when implementation exists. Race-prone flows:
+
+- concurrent sign-in
+- XP updates
+- coin games
+- gacha/shop inventory
+- poll votes
+- lottery joins
+- work completion
+- scheduler reload
+- command registration diff
+
+## Benchmark Tests
+
+- Command routing.
+- XP hot path.
+- Coin balance/rank queries.
+- Poll result on large guild.
+- Rank/profile rendering.
+- Scam URL matching.
+- Channel status update planning.
+
+## Fuzz Tests
+
+- Cron expressions.
+- Custom ID parsers.
+- Poll option parser.
+- Lottery duration parser.
+- Color/image URL validators.
+- Message template placeholders.
+- Domain/URL normalization.
+- Numeric bounds for coin/XP/work/birthday.
+
+## Manual Staging Checklist
+
+- Staging bot token and staging guild configured.
+- Commands registered guild-scoped only.
+- Mongo points to staging/sanitized DB.
+- `SHADOW_READ_ONLY=true` tested with side effects disabled.
+- Canary guild feature ownership confirmed before enabling writes.
+- Rollback drill proves Node can read Go-written documents.
+
+## Required Checks By Wave
+
+- Wave 1: `go fmt ./...`, `go test ./...`, `go vet ./...`, safe missing-env run.
+- Wave 2: domain/ports unit tests and import-boundary tests.
+- Wave 3: Mongo repository contracts, compatibility fixtures, index dry-run tests.
+- Wave 4: Discord fake adapter, responder, router, permission/cooldown tests.
+- Wave 5+: per-feature parity tests before checklist moves to tested/verified.
+- Final: `go fmt`, `go test`, `go vet`, `go test -race` if feasible, `go build` for bot and tools.

@@ -1,0 +1,26 @@
+[
+  {
+    "name": "duplicate exact",
+    "rules": [
+      { "name": "one", "pattern": "tic" },
+      { "name": "two", "pattern": "tic" }
+    ],
+    "want_issue": true
+  },
+  {
+    "name": "prefix overlap",
+    "rules": [
+      { "name": "poll", "pattern": "poll_" },
+      { "name": "poll yes", "pattern": "poll_Yes" }
+    ],
+    "want_issue": true
+  },
+  {
+    "name": "versioned no collision",
+    "rules": [
+      { "name": "ticket close", "pattern": "mhcat:v1:ticket:close:" },
+      { "name": "poll vote", "pattern": "mhcat:v1:poll:vote:opt_1" }
+    ],
+    "want_issue": false
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "name": "empty payload",
+    "kind": "component",
+    "raw": "mhcat:v1:ticket:close:",
+    "want": { "feature": "ticket", "action": "close", "version": "v1", "legacy": false }
+  },
+  {
+    "name": "token payload",
+    "kind": "component",
+    "raw": "mhcat:v1:poll:vote:opt_1",
+    "want": { "feature": "poll", "action": "vote", "version": "v1", "legacy": false }
+  },
+  {
+    "name": "state payload",
+    "kind": "modal",
+    "raw": "mhcat:v1:ticket:rename:state=abc123",
+    "want": { "feature": "ticket", "action": "rename", "version": "v1", "legacy": false }
+  }
+]

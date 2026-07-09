@@ -1,0 +1,29 @@
+package mongo
+
+import "testing"
+
+func TestIndexPlanValidateValid(t *testing.T) {
+	plan := IndexPlan{Indexes: []IndexSpec{plainIndex("coin", "guild_member_idx")}}
+	if err := plan.Validate(); err != nil {
+		t.Fatalf("validate index plan: %v", err)
+	}
+}
+
+func TestIndexPlanValidateUniqueRequiresDuplicateAudit(t *testing.T) {
+	spec := plainIndex("coin", "guild_member_idx")
+	spec.Unique = true
+	plan := IndexPlan{Indexes: []IndexSpec{spec}}
+	if err := plan.Validate(); err == nil {
+		t.Fatal("expected validation error")
+	}
+}
+
+func TestIndexPlanValidateTTLRequiresRetentionADR(t *testing.T) {
+	ttlSeconds := int32(3600)
+	spec := plainIndex("sessions", "expire_idx")
+	spec.TTLSeconds = &ttlSeconds
+	plan := IndexPlan{Indexes: []IndexSpec{spec}}
+	if err := plan.Validate(); err == nil {
+		t.Fatal("expected validation error")
+	}
+}

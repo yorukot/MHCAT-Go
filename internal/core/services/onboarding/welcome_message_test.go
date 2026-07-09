@@ -1,0 +1,138 @@
+package onboarding
+
+import (
+	"context"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
+)
+
+func TestWelcomeMessageDeliveryMissingConfigNoop(t *testing.T) {
+	repo := fakemongo.NewJoinMessageConfigRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects}
+
+	if err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{GuildID: "guild-1", UserID: "user-1"}); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if len(sideEffects.Sent) != 0 {
+		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+}
+
+func TestWelcomeMessageDeliveryDisabledConfigNoop(t *testing.T) {
+	repo := fakemongo.NewJoinMessageConfigRepository()
+	repo.Configs["guild-1"] = domain.JoinMessageConfig{
+		GuildID:        "guild-1",
+		Enabled:        false,
+		ChannelID:      "channel-1",
+		MessageContent: "hello",
+		Color:          "#53FF53",
+	}
+	sideEffects := fakediscord.NewSideEffects()
+	service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects}
+
+	if err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{GuildID: "guild-1", UserID: "user-1"}); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if len(sideEffects.Sent) != 0 {
+		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+}
+
+func TestWelcomeMessageDeliveryGenericLegacyEmbed(t *testing.T) {
+	now := time.Unix(2_000_000, 0)
+	repo := fakemongo.NewJoinMessageConfigRepository()
+	repo.Configs["guild-1"] = domain.JoinMessageConfig{
+		GuildID:        "guild-1",
+		Enabled:        true,
+		ChannelID:      "channel-1",
+		MessageContent: "歡迎 (MEMBERNAME) {MEMBERNAME} {membername} (TAG) {TAG} {tag}",
+		Color:          "#53FF53",
+		ImageURL:       "https://example.test/welcome.png",
+	}
+	sideEffects := fakediscord.NewSideEffects()
+	service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects}
+
+	err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{
+		GuildID:      "guild-1",
+		GuildName:    "測試伺服器",
+		GuildIconURL: "https://example.test/guild.png",
+		BotAvatarURL: "https://example.test/bot.png",
+		UserID:       "user-1",
+		Username:     "Yoru",
+		UserTag:      "Yoru#0001",
+		AvatarURL:    "https://example.test/avatar.png",
+		Now:          now,
+	})
+	if err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].ChannelID != "channel-1" {
+		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+	message := sideEffects.Sent[0].Message
+	if len(message.AllowedMentions.UserIDs) != 1 || message.AllowedMentions.UserIDs[0] != "user-1" || message.AllowedMentions.ParseEveryone || message.AllowedMentions.ParseRoles {
+		t.Fatalf("allowed mentions = %#v", message.AllowedMentions)
+	}
+	embed := message.Embeds[0]
+	if embed.AuthorName != "🪂 歡迎加入 測試伺服器" || embed.AuthorIconURL != "https://example.test/guild.png" {
+		t.Fatalf("author = %#v", embed)
+	}
+	if embed.Description != "歡迎 Yoru Yoru Yoru <@user-1> <@user-1> <@user-1>" {
+		t.Fatalf("description = %q", embed.Description)
+	}
+	if embed.Color != 0x53FF53 || embed.ThumbnailURL != "https://example.test/avatar.png" || embed.ImageURL != "https://example.test/welcome.png" || !embed.Timestamp.Equal(now) {
+		t.Fatalf("embed = %#v", embed)
+	}
+}
+
+func TestWelcomeMessageDeliverySpecialLegacyEmbed(t *testing.T) {
+	now := time.Unix(2_000_000, 0)
+	sideEffects := fakediscord.NewSideEffects()
+	service := WelcomeMessageDeliveryService{
+		Messages: sideEffects,
+		Special: SpecialWelcomeConfig{
+			GuildID:          "special-guild",
+			BotID:            "special-bot",
+			ChannelID:        "special-channel",
+			ChatChannelID:    "111111111111111111",
+			HelpChannelID:    "222222222222222222",
+			BugChannelID:     "333333333333333333",
+			SupportChannelID: "444444444444444444",
+		},
+	}
+
+	err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{
+		GuildID:      "special-guild",
+		BotUserID:    "special-bot",
+		BotAvatarURL: "https://example.test/bot.png",
+		UserID:       "user-1",
+		UserTag:      "Yoru#0001",
+		AvatarURL:    "https://example.test/avatar.png",
+		Now:          now,
+	})
+	if err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].ChannelID != "special-channel" {
+		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+	embed := sideEffects.Sent[0].Message.Embeds[0]
+	if embed.AuthorName != "🪂 歡迎加入 MHCAT!" || embed.AuthorURL != "https://dsc.gg/MHCAT" || embed.AuthorIconURL != "https://example.test/bot.png" {
+		t.Fatalf("author = %#v", embed)
+	}
+	if !strings.Contains(embed.Description, "歡迎 __Yoru#0001__ 的加入!") ||
+		!strings.Contains(embed.Description, "<#111111111111111111>想要聊天") ||
+		!strings.Contains(embed.Description, "<#222222222222222222>對指令") ||
+		!strings.Contains(embed.Description, "<#333333333333333333>有任何bug") ||
+		!strings.Contains(embed.Description, "<#444444444444444444>開啟客服頻道") ||
+		embed.ImageURL != "https://i.imgur.com/cLCPRNq.png" ||
+		embed.Color == 0 {
+		t.Fatalf("embed = %#v", embed)
+	}
+}

@@ -1,0 +1,38 @@
+# Staging Smoke Checklist
+
+- Confirm the Discord bot token belongs to the staging application, not production.
+- Confirm `MHCAT_STAGING_GUILD_ID` is a staging guild, not production.
+- Confirm `MHCAT_COMMAND_SYNC_SCOPE=guild`.
+- If syncing optional features, confirm every `MHCAT_COMMAND_SYNC_INCLUDE_*` flag is paired with the matching `MHCAT_FEATURE_*_ENABLED=true` runtime flag.
+- For text-XP config smoke, use an isolated staging database and pair `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true` with `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`.
+- For voice-XP config smoke, use an isolated staging database and pair `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true` with `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`.
+- For join-role config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=true` with `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true`.
+- For welcome-message config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_WELCOME_MESSAGE_CONFIG=true` with `MHCAT_FEATURE_WELCOME_MESSAGE_CONFIG_ENABLED=true`.
+- For welcome-message delivery smoke, first create/confirm a safe staging `join_messages` row, then enable `MHCAT_FEATURE_WELCOME_MESSAGE_DELIVERY_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`; this event-only path has no command-sync include flag and writes no Mongo data.
+- For verification config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_CONFIG=true` with `MHCAT_FEATURE_VERIFICATION_CONFIG_ENABLED=true`.
+- For verification full-flow smoke, first configure `/驗證設置`, then pair `MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_FLOW=true` with `MHCAT_FEATURE_VERIFICATION_FLOW_ENABLED=true`.
+- For account-age config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG=true` with `MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED=true`.
+- For account-age member-gate smoke, use only a disposable staging member and enable `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`.
+- For lottery disabled-command smoke, pair `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true` with `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`; it should only return the legacy unavailable embed and must not create a lottery.
+- Run `scripts/staging/command-sync-dry-run.sh`.
+- Review the diff plan before apply.
+- Optionally run `scripts/staging/command-sync-apply-guild.sh` only with `MHCAT_STAGING_MODE=true` and `MHCAT_STAGING_ALLOW_COMMAND_APPLY=true`.
+- Start gateway smoke with `scripts/staging/gateway-smoke.sh` only with `MHCAT_STAGING_ALLOW_GATEWAY_SMOKE=true`.
+- In the staging guild, manually run `/ping`.
+- Run `/help`.
+- Run `/help 指令名稱:ping`.
+- Run `/info bot`.
+- If text-XP config smoke is enabled, run `/聊天經驗設定` with a staging channel and then `/聊天經驗刪除`.
+- If voice-XP config smoke is enabled, run `/語音經驗設定` with a staging channel and then `/語音經驗刪除`.
+- If join-role config smoke is enabled, run `/加入身份組設置` with a staging role below the bot's highest role and then `/加入身份組刪除`.
+- If welcome-message config smoke is enabled, run `/加入訊息設置` and verify the dashboard redirect, then run `/退出訊息設置` with a staging channel and submit the legacy modal.
+- If welcome-message delivery smoke is enabled, join with a disposable staging member and verify one legacy-style welcome embed in the configured `join_messages.channel`, placeholder replacement, joining-user-only mention behavior, and no command registration or Mongo write.
+- If verification config smoke is enabled, run `/驗證設置` with a staging role below the bot's highest role and optional rename template.
+- If verification full-flow smoke is enabled, run `/驗證`, verify `captcha.jpeg`, click `點我進行驗證!`, verify the `請輸入驗證碼!` modal, test one wrong answer, test one correct answer, and confirm the role/nickname side effects.
+- If account-age config smoke is enabled, run `/帳號需創建時數 小時數` with a safe staging threshold, optionally configure/delete `被踢出資訊頻道`, and verify the legacy group-protection embeds.
+- If account-age member-gate smoke is enabled, join with a disposable too-new staging member and verify the legacy DM, kick reason, optional log embed, and that join-role/welcome side effects do not run after the kick.
+- If lottery disabled-command smoke is enabled, run `/抽獎設置` with placeholder options and verify the ephemeral unavailable embed.
+- Verify no duplicate initial response and no raw internal error.
+- Verify no command deletion or bulk overwrite happened.
+- Verify no Mongo feature write happened except explicitly tested staging config writes, and verify no index creation happened.
+- Shut the bot down cleanly.

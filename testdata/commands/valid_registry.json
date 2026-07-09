@@ -1,0 +1,17 @@
+{
+  "scope": {
+    "kind": "guild",
+    "guild_id": "guild-1"
+  },
+  "commands": [
+    {
+      "type": 1,
+      "name": "ping",
+      "description": "Check bot latency"
+    },
+    {
+      "type": 2,
+      "name": "View Profile"
+    }
+  ]
+}

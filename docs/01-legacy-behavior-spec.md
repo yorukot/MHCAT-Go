@@ -1,0 +1,168 @@
+# Legacy Behavior Spec
+
+Status: Phase 1 consolidated. This is the Gate A behavior baseline. Exact command option JSON, embed payloads, and component payload grammar still need generated snapshots before implementation.
+
+## Runtime Behavior
+
+- Bot starts through `shard.js`, then each shard runs `index.js`.
+- Mongo connects before handlers load and before Discord login.
+- Global slash commands are created on every shard `ready`; orphan application commands are deleted.
+- Slash dispatch is in `events/SlashCommands.js`.
+- Prefix dispatcher exists for `commands/**/*.js` with prefix `/`, but no `commands/` directory exists in this checkout.
+- Direct message-content restart commands exist in `index.js`.
+- Declared command cooldowns are metadata only; central enforcement was not found.
+- Permissions are checked ad hoc inside commands and components.
+- Many interactions perform Mongo, Discord REST, member fetch, or rendering work before a consistent defer policy.
+
+## Slash Command Matrix
+
+Compact group matrix. Full command snapshot tests must preserve exact command names, option names, localizations, descriptions, and default permissions.
+
+| Command group | Commands | Inputs | Permissions | Cooldown | Mongo reads/writes | Discord/external side effects | Response behavior | Legacy edge cases | Feature parity status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 群組防護 | `詐騙網址回報`, `帳號需創建時數`, `防詐騙網址` | URLs, hour count, channel/delete toggles | public or `KickMembers`/`ManageMessages` | mostly 10s metadata | `not_a_good_web`, `create_hours`, `good_web` | report webhook, join kick, message delete | defer/edit | user-controlled regex risk; cooldown not enforced | in-progress: `/帳號需創建時數` config and member-add account-age gate implemented behind explicit flags |
+| 抽獎系統 | `抽獎設置` | date, winner count, gift, content, roles, max entrants | `ManageMessages` metadata; runtime check unreachable because disabled response returns first | 10s metadata | none in current visible path; unreachable legacy code would use `lotter` | none in current visible path; unreachable legacy code would send lottery messages/buttons | ephemeral defer/edit with green unavailable embed | creation returns unavailable before legacy logic; components can still handle existing rows | in-progress: disabled-command unavailable response implemented behind explicit runtime/sync gates; creation/components not-started |
+| 統計系統 | `統計系統查詢`, `統計系統創建`, `統計身分組人數`, `統計系統刪除` | stat type, channels, roles | mutating paths use `ManageMessages` | 10s/30s metadata | `Number`, `role_number` | create/rename/delete statistic channels | reply/followUp/edit | old channel type strings under discord.js v14 | not-started |
+| 自動通知 | `automatic-notification`, `自動通知列表`, `自動通知刪除` | cron/time menus, channel, message | `ManageMessages` | 10s metadata | `cron_set` | cron channel sends | modal/defer/edit/reply | cron validation fragile; jobs not centrally tracked | not-started |
+| 代幣系統 | `簽到`, `簽到列表`, `代幣查詢`, `代幣排行榜`, `代幣增加`, `代幣重製`, `coin-related-settings`, `剪刀石頭布`, `代幣遊戲`, `代幣商店`, `my-profile` | user, amount, wager/options, shop quantity | mixed public, `ManageMessages`, owner-like paths | 1s-100s metadata | `coin`, `gift_change`, `sign_list`, `ghp`, `text_xp`, `voice_xp`, `work_user`, `work_set` | DMs, images, buttons, games | reply/defer/followUp/canvas/buttons | non-atomic coin/inventory/game updates | in-progress: `/代幣查詢` read-only, gated `/簽到`, and gated `/coin-related-settings`; other economy paths not-started |
+| 打工系統 | `打工系統` subcommands | setup/add/delete/interface/add energy | public interface, others `ManageMessages` | 5s metadata | `work_set`, `work_something`, `work_user`, `coin` | dashboard link, work buttons, minute payout job | defer/modal/buttons | scheduler-owned payout; energy/type drift | in-progress: one-shot payout tool, gated `新增打工事項` dashboard redirect, `打工介面` list/captcha/detail/start UI, and setup/delete/energy admin writes; recurring scheduler and payout ownership not-started |
+| 實用工具 | `ping`, `info`, `help`, `翻譯`, `自動聊天頻道`, `自動聊天頻道刪除` | language/text, channel | mostly public; chat setup `ManageMessages` | 0s-10s metadata | `chat` | Google Translate, select menu, bot/guild/user/shard info | reply/defer/followUp/select | translate needs timeout/defer; chatbot worker unknown | not-started |
+| 扭蛋系統 | `扭蛋`, `扭蛋獎池增加`, `扭蛋獎品編輯`, `扭蛋獎池刪除`, `扭蛋獎池查詢` | gift name/code/chance/count, draw count | draw/list public; edits `ManageMessages` | 1s/10s metadata | `gift`, `coin`, `gift_change` | DM prize codes, notification channel | defer/followUp/edit | prize count and coin races | in-progress: read-only `/扭蛋獎池查詢`; draw/edit/delete/shop writes not-started |
+| 私人頻道 | `私人頻道設置`, `私人頻道刪除` | ticket category/admin/everyone settings | `ManageMessages` | 10s metadata | `ticket` | create/delete ticket text channels via `tic`/`del` | modal/defer/edit | channel permission mutation requires bot permission checks | in-progress |
+| 公告系統 | `公告發送`, `公告頻道設置` | announcement content, channel, tag/title/color | `ManageMessages` | 10s metadata | `guild`, `ann_all_set` | announcement channel send; config writes channel settings | modal/defer/edit/component confirm | Go implements `公告頻道設置` and gated one-time `公告發送`; tag mentions are suppressed as a safety fix; bound relay uses Message Content and remains not-started | in-progress: config and one-time send implemented behind explicit runtime/sync gates; bound relay not-started |
+| 警告系統 | `警告`, `警告紀錄`, `警告清除`, `警告全部清除`, `警告設定` | user, reason, warning index, threshold action | mostly `ManageMessages` | 10s metadata | `warndb`, `errors_set` | DM user, kick/ban threshold | defer/edit | one advertised permission lacks runtime check | not-started |
+| 生日系統 | `生日系統` subcommands | birthday date/time, message/channel/role settings | config/admin paths `ManageMessages` | 5s metadata | `birthday`, `birthday_set` | intended birthday messages/roles | defer/select/edit | sender/role scheduler commented out | not-started |
+| 管理系統 | `刪除訊息`, `投票創建`, `選取身分組-表情符號`, `選取身分組刪除-表情符號`, `選取身分組-按鈕`, `set-log-channel`, `刪除資料`, `兌換`, `查看餘額` | message count, poll data, role/message/reaction, log toggles, delete target, code | mostly `ManageMessages` | 0s-60s metadata | `message_reaction`, `btn`, `poll`, `logging`, `code`, `chatgpt_get`, many config collections | bulk delete, role reactions/buttons, logging config, destructive config deletes | defer/modal/select/edit | delete-data destructive; poll can fetch full guild | in-progress: poll create/vote/export and gated `/set-log-channel`; destructive/delete-data/reaction-role/redeem/chatgpt paths not-started |
+| 加入設置 | `加入訊息設置`, `退出訊息設置`, `加入身份組設置`, `加入身份組刪除`, `驗證`, `驗證設置` | message templates, roles, channels, captcha input | setup `ManageMessages`; verify public | 5s/10s metadata | `join_message`, `leave_message`, `join_role`, `verification` | role add, nickname set, captcha | modal/defer/edit | `join_message.enable` unique Boolean risk; legacy verification embeds captcha answer in custom IDs | in-progress: join-role config, welcome-message config, welcome/leave event delivery, verification setup config, and gated `/驗證` captcha/role/nickname flow implemented behind explicit flags; account-age gate is covered under 群組防護/create_hours |
+| 語音包廂 | `語音包廂設置`, `語音包廂刪除`, `上鎖頻道` | voice category/name/limit/lock/password | setup/delete `ManageMessages`; lock owner-ish | 10s metadata | `voice_channel`, `voice_channel_id`, `lock_channel` | create/move/delete voice channels, permission overwrites, modal password | defer/edit | voice state ownership and cleanup are shard-sensitive | not-started |
+| 經驗系統 | `聊天經驗`, `語音經驗`, `聊天排行榜`, `語音排行榜`, settings/delete/role/reset/add commands | user/channel/background/color/message/role/xp | reads public; writes `ManageMessages`/`KickMembers`/owner-like paths | 10s metadata | `text_xp`, `voice_xp`, `text_xp_channel`, `voice_xp_channel`, `chat_role`, `voice_role` | role rewards, rank images | defer/reply/edit/canvas/buttons | XP/level stored as strings; rank scans guild docs | in-progress: config-only `聊天經驗設定`/`聊天經驗刪除` and `語音經驗設定`/`語音經驗刪除`; XP accrual/rank/roles not-started |
+
+### Implemented Low-risk Economy Slice
+
+| Command name | Type | Category | Inputs | Permissions | Cooldown | Mongo reads | Mongo writes | Discord API calls | External API calls | Response type | Error behavior | Legacy edge cases | Feature parity status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `代幣查詢` | slash | 代幣系統 | optional user option `使用者` | public | metadata `10`; not centrally enforced in legacy | `coins` by `{guild, member}`, then `gift_changes` by `{guild}` only when balance exists | legacy global slash dispatcher increments `all_use_count`; Go slice intentionally no-op until usage repository is approved | deferred ephemeral edit; optional selected-user lookup | none | legacy-style ephemeral embed | no balance returns legacy red embed title | missing `gift_changes` uses default `500` and preserves footer quirk `<user>還差:500`; footer icon is invoker avatar | implemented behind `MHCAT_FEATURE_ECONOMY_QUERY_ENABLED` |
+
+### Implemented Low-risk Logging Config Slice
+
+| Command name | Type | Category | Inputs | Permissions | Cooldown | Mongo reads | Mongo writes | Discord API calls | External API calls | Response type | Error behavior | Legacy edge cases | Feature parity status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `set-log-channel` / `設置日誌` | slash | 管理系統 | required channel option `channel` / `頻道`, channel types text/news | `ManageMessages` (`8192`) | metadata `0`; not centrally enforced in legacy | none | `loggings` by `guild`, fields `channel_id`, `message_update`, `message_delete`, `channel_update`, `member_voice_update` | deferred prompt, select menu, edit original | none | legacy yellow prompt embed with log-type select | permission denied returns a safe error; legacy orphaned `loggin_create` select returns a rerun message because the old collector-carried channel is unrecoverable | legacy saved by delete+insert and could duplicate/race; Go uses rollback-compatible `UpdateMany` plus upsert and does not create indexes | implemented behind `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED` and `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG`; logging event emitters remain not-started |
+
+### Implemented Low-risk Gacha Prize-list Slice
+
+| Command name | Type | Category | Inputs | Permissions | Cooldown | Mongo reads | Mongo writes | Discord API calls | External API calls | Response type | Error behavior | Legacy edge cases | Feature parity status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `扭蛋獎池查詢` | slash | 扭蛋系統 | none | public | metadata `10`; not centrally enforced in legacy | `gifts` by `{guild}`, `gift_changes` by `{guild}` | legacy global slash dispatcher increments `all_use_count`; Go slice intentionally no-op until usage repository is approved | deferred public edit; optional guild info lookup for guild name | none | legacy-style public embed with prize fields | empty pool returns legacy red embed title | preserves misspelled `gift_chence` field and legacy value text, including the visible apostrophe before the counter emoji; Go splits more than 25 prize fields into multiple embeds to avoid Discord API failure | implemented behind `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED` and `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST`; draw/add/edit/delete/shop writes remain not-started |
+| `統計系統查詢` | slash | 統計系統 | none | public | metadata `10`; not centrally enforced in legacy | none | legacy global slash dispatcher increments `all_use_count`; Go slice intentionally no-op until usage repository is approved | public reply | none | legacy static stats help embed | none found | preserves the static legacy help text and random-color behavior | implemented behind `MHCAT_FEATURE_STATS_QUERY_ENABLED` and `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY`; stats channel create/delete/role-count and `channel_status` rename worker remain not-started |
+| `聊天經驗設定` | slash | 經驗系統 | required channel `頻道` (text/news), optional string `訊息`, optional string `顏色` | `ManageMessages` (`8192`) | metadata `10`; runtime check in command | none | `text_xp_channels` by `{guild}`, fields `channel`, `color`, `message`; clears `background` | legacy global slash dispatcher increments `all_use_count`; Go slice intentionally no-op until usage repository is approved | deferred public edit; optional preview send to invoking channel | none | green `聊天經驗系統` success embed and legacy preview separator | invalid color returns red legacy error; permission denial returns red legacy error | legacy delete+insert can race and leaves mention pings in preview; Go uses duplicate-tolerant update/upsert and suppresses allowed mentions in preview | implemented behind `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED` and `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG`; XP accrual/rank not-started |
+| `聊天經驗刪除` | slash | 經驗系統 | none | `ManageMessages` (`8192`) | metadata `10`; runtime check in command | none | deletes `text_xp_channels` by `{guild}` | legacy global slash dispatcher increments `all_use_count`; Go slice intentionally no-op until usage repository is approved | deferred public edit | none | green `聊天經驗系統` success embed with `成功刪除!` | missing config returns red `你本來就沒有對聊天經驗設定喔!` | legacy deletes one found row; Go deletes duplicate `{guild}` rows to keep rollback-consistent data | implemented behind `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED` and `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG`; XP accrual/rank not-started |
+| `語音經驗設定` | slash | 經驗系統 | required channel `頻道` (text/news), optional string `訊息`, optional string `顏色`, optional string `背景` | `ManageMessages` (`8192`) | metadata `10`; runtime check in command | none | `voice_xp_channels` by `{guild}`, fields `channel`, `color`, `message`; clears `background` because legacy exposed but did not save it | legacy global slash dispatcher increments `all_use_count`; Go slice intentionally no-op until usage repository is approved | deferred public edit; optional preview send to invoking channel | none | green `語音經驗系統` success embed and legacy preview separator | invalid color returns red legacy error; permission denial returns red legacy error | legacy delete+insert can race and leaves mention pings in preview; Go uses duplicate-tolerant update/upsert and suppresses allowed mentions in preview | implemented behind `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED` and `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG`; voice-state XP accrual/rank not-started |
+| `語音經驗刪除` | slash | 經驗系統 | none | `ManageMessages` (`8192`) | metadata `10`; runtime check in command | none | deletes `voice_xp_channels` by `{guild}` | legacy global slash dispatcher increments `all_use_count`; Go slice intentionally no-op until usage repository is approved | deferred public edit | none | green `語音經驗系統` success embed with `成功刪除!` | missing config returns red `你本來就沒有對語音經驗設定喔!` | legacy deletes one found row; Go deletes duplicate `{guild}` rows to keep rollback-consistent data | implemented behind `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED` and `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG`; voice-state XP accrual/rank not-started |
+| `加入身份組設置` | slash | 加入設置 | required role `身分組`, optional string `給人還是給機器人` choices `all_user`/`all_bot`/`all_member` | `ManageMessages` (`8192`) | metadata `10`; runtime check in command | role hierarchy through Discord adapter only | `join_roles` insert by `{guild,role}`, fields `guild`, `role`, `give_to_who` | legacy global slash dispatcher increments `all_use_count`; Go slice intentionally no-op until usage repository is approved | deferred public edit | none | green `🪂 加入身分組系統` success embed with legacy `<@roleID>` formatting | duplicate role returns red `很抱歉，這個身分組已經被註冊了，請重試!`; unassignable role returns legacy hierarchy error | legacy find-then-save can race; Go uses upsert `$setOnInsert`; member-add role assignment remains disabled | implemented behind `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED` and `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG`; Guild Members intent/event assignment not-started |
+| `加入身份組刪除` | slash | 加入設置 | required role `身分組` | `ManageMessages` (`8192`) | metadata `10`; runtime check in command | none | deletes `join_roles` by `{guild,role}` | legacy global slash dispatcher increments `all_use_count`; Go slice intentionally no-op until usage repository is approved | deferred public edit | none | green `🪂 加入身分組系統` delete embed with legacy `<@roleID>` formatting | missing config returns red `找不到這個身份組!` | legacy deletes one found row; Go deletes duplicate `{guild,role}` rows to keep data rollback-consistent | implemented behind `MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED` and `MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG`; member-add side effects not-started |
+
+## Prefix / Message Command Matrix
+
+| Command name | Type | Category | Inputs | Permissions | Cooldown | Mongo reads | Mongo writes | Discord API calls | External API calls | Response type | Error behavior | Legacy edge cases | Feature parity status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `MHCAT restart now` | message | admin/restart | exact message text | hardcoded admin user IDs | none enforced | none | none | `client.shard.respawnAll`, message reply | none found | channel reply | raw message content | requires `MessageContent`; should become owner-only slash or ops action by ADR | not-started |
+| `請MHCAT開始執行重啟任務!` | message | restart signal | exact message text from hardcoded bot/webhook path | hardcoded bot ID | none enforced | none | none | restart flow/reply | hardcoded webhook sends this on `beforeExit` | channel reply | possible loop if copied | hardcoded webhook must not be copied | not-started |
+
+## Component Matrix
+
+| Component ID / pattern | Type | Source file | Inputs | Permissions | Mongo reads | Mongo writes | Discord API calls | Response behavior | Error behavior | Feature parity status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `poll_*`, `poll_menu`, `see_result`, `menu_choose` | button/select | `events/poll.js` | poll choice/menu/result | poll rules from DB | `poll` | `poll` arrays | edit/follow-up/chart/export | update/reply | broad matching collision risk | not-started |
+| `tic`, `del` | button | ticket events | ticket open/delete | channel permission context | `ticket` | channel state | create/delete channels | reply/update | permission/rate-limit risk | in-progress |
+| `lock_start`, `<channel>anser` | button/modal | voice lock events | password/channel ID | owner-ish | `lock_channel` | lock/unlock state | voice permissions/move | modal/update | custom ID spoofing risk | not-started |
+| `<captcha>verification`, `<captcha>ver`; new `mhcat:v1:verification:*:state=<id>` | button/modal | verification/welcome/modal | captcha input | public | `verification` | member role state | role add/nickname | modal/reply | legacy captcha custom ID parsing risk; new IDs intentionally hide captcha answer | in-progress: legacy IDs decoded, new Go messages use state IDs, role/nickname completion implemented behind explicit flags |
+| `cron_set*`, `week_menu`, `hour_menu`, `min_menu` | buttons/selects/modal | cron events/modal | schedule/message/channel | `ManageMessages` | `cron_set` | `cron_set` | scheduled sends | modal/edit | scheduler lifecycle risk | not-started |
+| `loggin_create` | select | `slashCommands/管理系統/create_logging.js` | selected log types | message-scoped legacy collector plus `ManageMessages` setup command | none | `logging` | edit/update logging prompt | update/edit | legacy custom ID has no channel payload and depended on process-local collector state | in-progress: new Go messages use versioned `mhcat:v1:logging:configure:c=<channel>`; old orphaned `loggin_create` is recognized and returns a safe rerun error |
+| `text_rank`, `voice_rank`, `coin_rank` page IDs | buttons | `events/rank.js` | page/user | public | XP/coin collections | none | image render/edit | update/edit | render-before-ACK risk | not-started |
+| `<user>_sing...`, `<user>my-profile`, `botinfoupdate`, `shardinfoupdate` | buttons | economy/profile/rank events | user/year/month | user-scoped | coin/sign/profile data | possible profile/sign state | image render/edit | update/edit | user spoofing/collision risk | in-progress: sign-page legacy IDs supported; profile not-started |
+| `roleadd*`, `*add`, `*delete` | buttons | `events/btn.js` | role IDs | member role context | `btn`/role configs | role membership | add/remove roles | update/reply | component ID collision risk | not-started |
+| `lotter*` | buttons | lottery handlers | lottery ID/user | lottery rules | `lotter` | `lotter.member/end` | message edits | update/reply | creation command disabled but existing rows may work | not-started |
+| game IDs: `yesssss`, `nooooo`, `main_get_card`, `user_get_card`, `lookmenumber`, `teach21point`, `thansize` | buttons | economy game | wager/game state | participant-scoped | `coin` | `coin` | game message edits | update/reply | collector/timer/race risk | not-started |
+
+## Modal Matrix
+
+| Modal ID / pattern | Source file | Inputs | Validation | Mongo reads | Mongo writes | Response behavior | Error behavior | Feature parity status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `*anser` | voice lock modal | password | compare stored password | `lock_channel` | channel access state | unlock/move response | ad hoc | not-started |
+| `cron_set*` | cron setup | schedule/message | cron expression validation | `cron_set` | creates scheduled job doc | defer/edit | ad hoc | not-started |
+| `join_msg*`, `leave_msg*` | join/leave setup | message/embed fields | length/color/channel validation | `join_message`/`leave_message` | config writes | edit | ad hoc | not-started |
+| `ticket*` | ticket setup | ticket config | channel/role validation | `ticket` | config writes | edit | ad hoc | in-progress |
+| `ann*`, `announcement_yes/no` | announcement | message/embed confirmation | color/text validation | `guild`/`ann_all_set` | announcement sends/config writes | send/edit | ad hoc | not-started |
+| `<captcha>ver`; new `mhcat:v1:verification:answer:state=<id>` | verification | captcha answer | compare expected answer | `verification` | none directly; role/nickname side effects through Discord | defer/edit success or red error embed | wrong answer, missing config, missing/unassignable role, owner nickname error | in-progress: legacy and versioned modal IDs supported behind explicit verification flow flag |
+| work captcha/job-name buttons | work | captcha/task name | captcha/name validation | `work_*` | work state/coin writes | reply/edit | versioned IDs for new messages, legacy-compatible parser | in-progress |
+
+## Event Matrix
+
+| Event | Source file | Trigger | Inputs | Mongo reads | Mongo writes | Discord API calls | External side effects | Error behavior | Shard/idempotency concern | Feature parity status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ready` | `events/ready.js`, `handler/slash_commands.js` | shard ready | client/application state | command state | application command state | command create/delete, webhook/status | webhook/logging | raw logs | every shard mutates global commands | not-started |
+| `interactionCreate` | `SlashCommands.js`, `btn.js`, `modal.js`, `poll.js`, `rank.js`, ticket events | slash/component/modal/select | interaction payload | many | many | replies/edits/modals/channels/roles | rendering/translation as needed | broad try/catch, raw errors | multiple listeners can double-handle | not-started |
+| `messageCreate` | `index.js`, `MessageCreate.js`, `Chatbot.js`, `ann_message.js`, `text_xp.js`, `safe_server.js` | message in guild/DM | content/author/channel | chat/XP/scam/config | XP/chatgpt/etc. | reply/delete/send/restart | chatbot/scam/report | ad hoc | requires `MessageContent` | not-started |
+| `voiceStateUpdate` | `voice_xp.js`, `voice_create.js`, `LoggingSystem.js` | voice join/leave/move | old/new state | voice config/XP/locks | voice XP/session/channel state | channel create/delete/move/disconnect/log | none found | ad hoc | intervals and restart risk | not-started |
+| `guildMemberAdd/Remove` | `welcome.js` | member join/leave | member/guild | join/leave/role/verification/create_hours | role/nickname state | role add, nickname, kick, send logs | webhook/logging | ad hoc | requires `GuildMembers`; account-age must run before join-role/welcome handlers | in-progress for join-role assignment, welcome/leave-message delivery, and gated account-age kick/logging |
+| `messageReactionAdd/Remove` | `message_reaction.js` | reaction role | message/reaction/member | `message_reaction` | member role state | add/remove roles | none found | ad hoc | partial fetch behavior unclear | not-started |
+| `messageUpdate/Delete`, `channelUpdate` | `LoggingSystem.js` | audit/log events | old/new message/channel | `logging` | none | log channel sends/audit fetch | logging | ad hoc | privacy/logging risk | not-started |
+
+## Cron Job Matrix
+
+| Job | Source file | Schedule source | Mongo reads | Mongo writes | Discord API calls | External side effects | Shard coordination | Error behavior | Feature parity status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Persisted automatic notifications | `handler/cron.js`, cron command/modal | `cron_set.cron` | `cron_set` | schedule metadata | channel sends | none | per-process jobs | ad hoc | not-started |
+| Daily coin/work reset | `handler/cron.js` | 00:00 Asia/Taipei, shard 0 | `gift_change`, `coin`, `work_set`, `work_user` | reset `coin.today`, refill/clamp `work_user.energi` | none | none | shard-0 guard only | ad hoc | in-progress: one-shot dry-run/apply tool exists; recurring scheduler not-started |
+| Work completion payout | `handler/gift.js` | every minute | `work_user`, `coin`, `gift_change` | increment balance and reset work state | none for payout path | none | shard-0 guard only; no distributed lease | ad hoc | in-progress: one-shot dry-run/apply tool exists behind scheduler lease; recurring scheduler not-started |
+| Channel status rename | `handler/channel_status.js` | every 20 minutes | `Number`, `role_number` | cached channel-name data | channel rename | none | per shard/process risk | ad hoc | not-started |
+| Birthday notifications/roles | `handler/gift.js` | intended minute job | `birthday`, `birthday_set` | intended allow/role changes | send birthday messages/roles | none | inactive/commented | inactive | intentional decision required |
+
+## Permission Model
+
+- Some admin behavior uses hardcoded user IDs in `index.js`.
+- Slash command permissions are checked ad hoc inside handlers.
+- Declared `UserPerms`/permission metadata is not a reliable runtime policy.
+- Some commands advertise permissions but lack runtime checks.
+- No consistent `DefaultMemberPermissions` policy was found during registration.
+- New design must centralize owner/admin/user/bot permission checks, role hierarchy checks, and `guildOnly` behavior.
+
+## Cooldown Model
+
+Cooldown fields exist on slash command modules but central enforcement was not found. Treat legacy cooldown values as intended behavior metadata. Enforcing them consistently is a user-visible behavior change and must be documented.
+
+## Error Behavior
+
+- Global unhandled rejection and exception handlers log stack/error details.
+- `functions/error_send.js` can send raw errors to Discord channels.
+- Many callback errors are ignored or thrown from async callbacks.
+- New design must use safe user-facing errors and redacted structured logs.
+
+## User-Facing Output Notes
+
+Preserve command names, option names, public/ephemeral behavior, embeds, emojis, buttons, select menus, modals, and error text where safe.
+
+Likely required intentional changes:
+
+- Remove hardcoded webhook behavior.
+- Centralize and enforce permissions/cooldowns.
+- Prevent raw error disclosure.
+- Avoid unsafe regex from user input.
+- Defer long interactions consistently.
+
+## Mongo Side Effects
+
+Common collections: `guild`, `logging`, `Number`, `role_number`, `all_use_count`, join/leave/verification/ticket/voice config, XP/economy/work/gacha/poll/lottery/birthday/cron/warning/chat collections. See `02-mongo-collection-catalog.md`.
+
+## Discord Side Effects
+
+Sends/edits/deletes messages, bulk deletes, creates/deletes/renames channels, edits permission overwrites, adds/removes roles, kicks/bans/moves/disconnects members, sends DMs/webhooks, fetches audit logs, registers/deletes global application commands.
+
+## External API Side Effects
+
+Google Translate, captcha generation, canvas/chart rendering, Excel/text attachments, Discord CDN/image loading, dashboard/docs links, PM2/Docker runtime. No direct OpenAI API call found.
+
+## Behavior Parity Checklist
+
+See `docs/10-feature-parity-checklist.md`.

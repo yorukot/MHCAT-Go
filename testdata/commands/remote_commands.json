@@ -1,0 +1,14 @@
+[
+  {
+    "id": "remote-ping",
+    "application_id": "app-1",
+    "guild_id": "guild-1",
+    "version": "1",
+    "owned": true,
+    "definition": {
+      "type": 1,
+      "name": "ping",
+      "description": "Check bot latency"
+    }
+  }
+]

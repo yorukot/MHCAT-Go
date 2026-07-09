@@ -1,0 +1,20 @@
+[
+  {
+    "name": "help_overview",
+    "command": "help",
+    "input": {},
+    "want": {
+      "contains": ["MHCAT help", "/help", "/info", "/ping"],
+      "not_contains": ["/ticket", "/coin", "/verification"]
+    }
+  },
+  {
+    "name": "help_ping_detail",
+    "command": "help",
+    "input": { "指令名稱": "ping" },
+    "want": {
+      "contains": ["Command detail", "Name: /ping", "查看我的ping"],
+      "not_contains": ["ticket", "coin"]
+    }
+  }
+]

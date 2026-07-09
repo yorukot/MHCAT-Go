@@ -1,0 +1,211 @@
+#!/usr/bin/env sh
+set -eu
+
+: "${MHCAT_DISCORD_TOKEN:?MHCAT_DISCORD_TOKEN is required}"
+: "${MHCAT_DISCORD_APPLICATION_ID:?MHCAT_DISCORD_APPLICATION_ID is required}"
+: "${MHCAT_STAGING_GUILD_ID:?MHCAT_STAGING_GUILD_ID is required}"
+
+if [ "${MHCAT_COMMAND_SYNC_SCOPE:-guild}" != "guild" ]; then
+  echo "refusing command sync: staging dry-run requires guild scope" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TICKETS:-false}" = "true" ] && [ "${MHCAT_FEATURE_TICKETS_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: ticket command dry-run requires MHCAT_FEATURE_TICKETS_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_POLLS:-false}" = "true" ] && [ "${MHCAT_FEATURE_POLLS_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: poll command dry-run requires MHCAT_FEATURE_POLLS_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_QUERY:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_QUERY_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: economy query command dry-run requires MHCAT_FEATURE_ECONOMY_QUERY_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: economy sign-in command dry-run requires MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: economy settings command dry-run requires MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WORK:-false}" = "true" ] && [ "${MHCAT_FEATURE_WORK_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: work command dry-run requires MHCAT_FEATURE_WORK_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS:-false}" = "true" ] && [ "${MHCAT_FEATURE_WARNINGS_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: warning-history command dry-run requires MHCAT_FEATURE_WARNINGS_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ] && [ "${MHCAT_FEATURE_TRANSLATE_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: translate command dry-run requires MHCAT_FEATURE_TRANSLATE_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_LOGGING_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: logging config command dry-run requires MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST:-false}" = "true" ] && [ "${MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: gacha prize-list command dry-run requires MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND:-false}" = "true" ] && [ "${MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: lottery disabled command dry-run requires MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY:-false}" = "true" ] && [ "${MHCAT_FEATURE_STATS_QUERY_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: stats query command dry-run requires MHCAT_FEATURE_STATS_QUERY_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: announcement config command dry-run requires MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_SEND:-false}" = "true" ] && [ "${MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: announcement send command dry-run requires MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: text XP config command dry-run requires MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: voice XP config command dry-run requires MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: join-role config command dry-run requires MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WELCOME_MESSAGE_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_WELCOME_MESSAGE_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: welcome-message config command dry-run requires MHCAT_FEATURE_WELCOME_MESSAGE_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_VERIFICATION_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: verification config command dry-run requires MHCAT_FEATURE_VERIFICATION_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_FLOW:-false}" = "true" ] && [ "${MHCAT_FEATURE_VERIFICATION_FLOW_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: verification flow command dry-run requires MHCAT_FEATURE_VERIFICATION_FLOW_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG:-false}" = "true" ] && [ "${MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: account-age config command dry-run requires MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
+
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TICKETS:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including ticket commands for review" >&2
+else
+  echo "staging command sync dry-run: ticket commands are excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_POLLS:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including poll commands for review" >&2
+else
+  echo "staging command sync dry-run: poll commands are excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_QUERY:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including economy query command for review" >&2
+else
+  echo "staging command sync dry-run: economy query command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including economy sign-in command for review" >&2
+else
+  echo "staging command sync dry-run: economy sign-in command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including economy settings command for review" >&2
+else
+  echo "staging command sync dry-run: economy settings command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WORK:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including work command for review" >&2
+else
+  echo "staging command sync dry-run: work command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including warning-history command for review" >&2
+else
+  echo "staging command sync dry-run: warning-history command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including translate command for review" >&2
+else
+  echo "staging command sync dry-run: translate command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including logging config command for review" >&2
+else
+  echo "staging command sync dry-run: logging config command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including gacha prize-list command for review" >&2
+else
+  echo "staging command sync dry-run: gacha prize-list command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including lottery disabled command for review" >&2
+else
+  echo "staging command sync dry-run: lottery disabled command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including stats query command for review" >&2
+else
+  echo "staging command sync dry-run: stats query command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including announcement config command for review" >&2
+else
+  echo "staging command sync dry-run: announcement config command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_SEND:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including announcement send command for review" >&2
+else
+  echo "staging command sync dry-run: announcement send command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including text XP config commands for review" >&2
+else
+  echo "staging command sync dry-run: text XP config commands are excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including voice XP config commands for review" >&2
+else
+  echo "staging command sync dry-run: voice XP config commands are excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including join-role config commands for review" >&2
+else
+  echo "staging command sync dry-run: join-role config commands are excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_WELCOME_MESSAGE_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including welcome-message config commands for review" >&2
+else
+  echo "staging command sync dry-run: welcome-message config commands are excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including verification config command for review" >&2
+else
+  echo "staging command sync dry-run: verification config command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_FLOW:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including verification flow command for review" >&2
+else
+  echo "staging command sync dry-run: verification flow command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including account-age config command for review" >&2
+else
+  echo "staging command sync dry-run: account-age config command is excluded" >&2
+fi
+
+MHCAT_COMMAND_SYNC_SCOPE=guild \
+MHCAT_COMMAND_SYNC_GUILD_ID="$MHCAT_STAGING_GUILD_ID" \
+MHCAT_COMMAND_SYNC_DRY_RUN=true \
+MHCAT_COMMAND_SYNC_ALLOW_DELETE=false \
+MHCAT_COMMAND_SYNC_ALLOW_BULK_OVERWRITE=false \
+go run ./cmd/mhcat-command-sync \
+  --scope guild \
+  --guild-id "$MHCAT_STAGING_GUILD_ID" \
+  --dry-run

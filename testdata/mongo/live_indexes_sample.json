@@ -1,0 +1,11 @@
+{
+  "coin": [
+    {
+      "collection": "coin",
+      "name": "_id_",
+      "keys": [
+        { "field": "_id", "order": 1 }
+      ]
+    }
+  ]
+}

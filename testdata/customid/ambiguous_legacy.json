@@ -1,0 +1,6 @@
+[
+  { "name": "announcement yes reused", "kind": "component", "raw": "announcement_yes", "error": "ErrAmbiguousID" },
+  { "name": "announcement no reused", "kind": "component", "raw": "announcement_no", "error": "ErrAmbiguousID" },
+  { "name": "hour menu reused", "kind": "component", "raw": "hour_menu", "error": "ErrAmbiguousID" },
+  { "name": "raw item work lottery id", "kind": "component", "raw": "plainitem", "error": "ErrAmbiguousID" }
+]

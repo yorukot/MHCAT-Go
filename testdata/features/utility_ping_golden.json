@@ -1,0 +1,11 @@
+[
+  {
+    "name": "ping_150ms",
+    "command": "ping",
+    "input": { "latency_ms": "150" },
+    "want": {
+      "contains": ["Pong!", "`150`ms"],
+      "not_contains": ["token", "mongodb"]
+    }
+  }
+]

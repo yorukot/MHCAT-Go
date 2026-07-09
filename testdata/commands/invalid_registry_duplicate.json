@@ -1,0 +1,18 @@
+{
+  "scope": {
+    "kind": "guild",
+    "guild_id": "guild-1"
+  },
+  "commands": [
+    {
+      "type": 1,
+      "name": "ping",
+      "description": "First definition"
+    },
+    {
+      "type": 1,
+      "name": "ping",
+      "description": "Duplicate definition"
+    }
+  ]
+}

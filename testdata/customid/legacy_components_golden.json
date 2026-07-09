@@ -1,0 +1,114 @@
+[
+  {
+    "name": "help menu",
+    "kind": "component",
+    "raw": "helphelphelphelpmenu",
+    "want": { "feature": "help", "action": "category_select", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/btn.js:1055; functions/menu.js"
+  },
+  {
+    "name": "ticket open",
+    "kind": "component",
+    "raw": "tic",
+    "want": { "feature": "ticket", "action": "open", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/Ticket System.js:26"
+  },
+  {
+    "name": "ticket close",
+    "kind": "component",
+    "raw": "del",
+    "want": { "feature": "ticket", "action": "close", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/yicket system.js:24"
+  },
+  {
+    "name": "poll vote",
+    "kind": "component",
+    "raw": "poll_Yes",
+    "want": { "feature": "poll", "action": "vote", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/poll.js:76"
+  },
+  {
+    "name": "poll result",
+    "kind": "component",
+    "raw": "see_result",
+    "want": { "feature": "poll", "action": "result", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/poll.js:186"
+  },
+  {
+    "name": "verification prompt",
+    "kind": "component",
+    "raw": "AB12verification",
+    "want": { "feature": "verification", "action": "prompt", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/btn.js:968"
+  },
+  {
+    "name": "text rank page",
+    "kind": "component",
+    "raw": "[123456789012345678]{2}text_rank",
+    "want": { "feature": "rank", "action": "text_page", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/rank.js:69"
+  },
+  {
+    "name": "sign page",
+    "kind": "component",
+    "raw": "/123456789012345678_sing{2024}-[7]",
+    "want": { "feature": "economy", "action": "sign_page", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/btn.js:107"
+  },
+  {
+    "name": "profile refresh",
+    "kind": "component",
+    "raw": "123456789012345678my-profile",
+    "want": { "feature": "profile", "action": "refresh", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/btn.js:283"
+  },
+  {
+    "name": "role add",
+    "kind": "component",
+    "raw": "202401011230123456add",
+    "want": { "feature": "role_button", "action": "add", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/btn.js:649"
+  },
+  {
+    "name": "bot info refresh",
+    "kind": "component",
+    "raw": "botinfoupdate",
+    "want": { "feature": "info", "action": "bot_refresh", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/btn.js:543"
+  },
+  {
+    "name": "voice lock prompt",
+    "kind": "component",
+    "raw": "lock_start",
+    "want": { "feature": "voice_lock", "action": "prompt", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/voice_create.js:53"
+  },
+  {
+    "name": "shop quantity",
+    "kind": "component",
+    "raw": "1ghp_number",
+    "want": { "feature": "shop", "action": "quantity", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "slashCommands/代幣系統/ghp_shop.js:23"
+  },
+  {
+    "name": "game help",
+    "kind": "component",
+    "raw": "teach21point",
+    "want": { "feature": "game", "action": "teach_21_point", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/btn.js:1004"
+  }
+]

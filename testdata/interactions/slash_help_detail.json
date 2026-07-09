@@ -1,0 +1,7 @@
+{
+  "id": "100000000000000002",
+  "type": "slash",
+  "command_name": "help",
+  "options": { "指令名稱": "ping" },
+  "actor": { "user_id": "200000000000000001", "guild_id": "300000000000000001" }
+}

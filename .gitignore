@@ -1,0 +1,13 @@
+.env
+.env.local
+.env.production
+.smoke/
+.gocache/
+mhcat-bot
+mhcat-command-sync
+mhcat-mongo-audit
+mhcat-mongo-index
+mhcat-staging-preflight
+mhcat-economy-reset
+mhcat-scheduler-lease
+mhcat-work-payout

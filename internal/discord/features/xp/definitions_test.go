@@ -1,0 +1,67 @@
+package xp
+
+import (
+	"testing"
+
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
+)
+
+func TestDefinitionsMatchLegacy(t *testing.T) {
+	set := TextXPSetDefinition()
+	if set.Name != TextXPSetCommandName || set.Description != "設定聊天經驗通知要在哪發送" {
+		t.Fatalf("set definition = %#v", set)
+	}
+	if len(set.Options) != 3 || set.Options[0].Name != "頻道" || !set.Options[0].Required || len(set.Options[0].ChannelTypes) != 2 {
+		t.Fatalf("set options = %#v", set.Options)
+	}
+	del := TextXPDeleteDefinition()
+	if del.Name != TextXPDeleteCommandName || del.Description != "刪除聊天經驗發送訊息設置" {
+		t.Fatalf("delete definition = %#v", del)
+	}
+	for _, definition := range Definitions() {
+		if definition.Ownership == nil || definition.Ownership.Owner != commands.OwnerMHCATRefactor || definition.Ownership.SinceWave != "text-xp-config" {
+			t.Fatalf("ownership = %#v", definition.Ownership)
+		}
+	}
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, Definitions())); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+}
+
+func TestVoiceDefinitionsMatchLegacy(t *testing.T) {
+	set := VoiceXPSetDefinition()
+	if set.Name != VoiceXPSetCommandName || set.Description != "設定語音經驗通知要在哪發送" {
+		t.Fatalf("voice set definition = %#v", set)
+	}
+	if len(set.Options) != 4 || set.Options[0].Name != "頻道" || !set.Options[0].Required || len(set.Options[0].ChannelTypes) != 2 {
+		t.Fatalf("voice set options = %#v", set.Options)
+	}
+	if set.Options[3].Name != "背景" || set.Options[3].Description != "輸入玩家查詢的背景(默認為discord色)支援png和jpg(可使用discord的複製連結)最佳大小為931*231" {
+		t.Fatalf("voice background option = %#v", set.Options[3])
+	}
+	del := VoiceXPDeleteDefinition()
+	if del.Name != VoiceXPDeleteCommandName || del.Description != "刪除語音發送訊息設置" {
+		t.Fatalf("voice delete definition = %#v", del)
+	}
+	for _, definition := range VoiceDefinitions() {
+		if definition.Ownership == nil || definition.Ownership.Owner != commands.OwnerMHCATRefactor || definition.Ownership.SinceWave != "voice-xp-config" {
+			t.Fatalf("voice ownership = %#v", definition.Ownership)
+		}
+	}
+	if err := commands.ValidateRegistry(commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, VoiceDefinitions())); err != nil {
+		t.Fatalf("validate voice: %v", err)
+	}
+}
+
+func TestTextAndVoiceDefinitionsAreSeparateGates(t *testing.T) {
+	for _, definition := range TextDefinitions() {
+		if definition.Name == VoiceXPSetCommandName || definition.Name == VoiceXPDeleteCommandName {
+			t.Fatalf("text definitions leaked voice command: %#v", definition)
+		}
+	}
+	for _, definition := range VoiceDefinitions() {
+		if definition.Name == TextXPSetCommandName || definition.Name == TextXPDeleteCommandName {
+			t.Fatalf("voice definitions leaked text command: %#v", definition)
+		}
+	}
+}

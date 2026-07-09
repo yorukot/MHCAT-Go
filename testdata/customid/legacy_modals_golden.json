@@ -1,0 +1,83 @@
+[
+  {
+    "name": "announcement modal",
+    "kind": "modal",
+    "raw": "nal",
+    "fields": [{ "custom_id": "anntag", "value": "notice" }],
+    "want": { "feature": "announcement", "action": "submit", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/modal.js:749; slashCommands/公告系統/announcement.js:42"
+  },
+  {
+    "name": "ticket panel modal",
+    "kind": "modal",
+    "raw": "nal",
+    "fields": [{ "custom_id": "ticketcolor", "value": "#ffffff" }],
+    "want": { "feature": "ticket", "action": "panel_submit", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/modal.js:705; slashCommands/私人頻道/ticket.js:68"
+  },
+  {
+    "name": "leave message modal",
+    "kind": "modal",
+    "raw": "nal",
+    "fields": [{ "custom_id": "leave_msgcolor", "value": "#df1f2f" }],
+    "want": { "feature": "welcome", "action": "leave_submit", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "slashCommands/加入設置/leave_message.js:73 creates leave_msgcolor as first field; events/modal.js:633 routes by first field custom ID includes leave_msg"
+  },
+  {
+    "name": "leave message modal content-first compatibility",
+    "kind": "modal",
+    "raw": "nal",
+    "fields": [{ "custom_id": "leave_msgcontent", "value": "bye" }],
+    "want": { "feature": "welcome", "action": "leave_submit", "version": "legacy", "legacy": true },
+    "confidence": "medium",
+    "notes": "Compatibility for earlier Go fixture and possible live reordered modal submits"
+  },
+  {
+    "name": "role button modal",
+    "kind": "modal",
+    "raw": "nal",
+    "fields": [{ "custom_id": "roleaddcontent202401011230123456", "value": "choose role" }],
+    "want": { "feature": "role_button", "action": "modal_submit", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/modal.js:680"
+  },
+  {
+    "name": "cron modal",
+    "kind": "modal",
+    "raw": "1700000000000",
+    "fields": [{ "custom_id": "cron_setcron", "value": "* * * * *" }],
+    "want": { "feature": "cron", "action": "submit", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/modal.js:112"
+  },
+  {
+    "name": "voice lock answer modal",
+    "kind": "modal",
+    "raw": "123456789012345678anser",
+    "fields": [{ "custom_id": "anser", "value": "1234" }],
+    "want": { "feature": "voice_lock", "action": "answer", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/modal.js:58"
+  },
+  {
+    "name": "verification answer modal",
+    "kind": "modal",
+    "raw": "AB12ver",
+    "fields": [{ "custom_id": "AB12ver", "value": "AB12" }],
+    "want": { "feature": "verification", "action": "answer", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/modal.js:727"
+  },
+  {
+    "name": "work captcha modal",
+    "kind": "modal",
+    "raw": "42",
+    "fields": [{ "custom_id": "captcha", "value": "42" }],
+    "want": { "feature": "work", "action": "captcha", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "slashCommands/打工系統/work_set.js"
+  }
+]
