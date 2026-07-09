@@ -70,6 +70,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeEconomyCoinRank {
 		t.Fatal("include economy coin-rank must default false")
 	}
+	if cfg.IncludeEconomyProfile {
+		t.Fatal("include economy profile must default false")
+	}
 	if cfg.IncludeWork {
 		t.Fatal("include work must default false")
 	}
@@ -1293,6 +1296,48 @@ func TestCommandSyncIncludeEconomyCoinRankStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeEconomyCoinRank {
 		t.Fatal("expected include economy coin-rank to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeEconomyProfileRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include economy profile without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeEconomyProfileRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                   "global",
+		"MHCAT_STAGING_MODE":                         "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include economy profile with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeEconomyProfileStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_DISCORD_APPLICATION_ID":               "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                "guild",
+		"MHCAT_STAGING_MODE":                         "true",
+		"MHCAT_STAGING_GUILD_ID":                     "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeEconomyProfile {
+		t.Fatal("expected include economy profile to be enabled explicitly")
 	}
 }
 

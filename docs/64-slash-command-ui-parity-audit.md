@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 51
-- Matching command definitions: 51
+- Current Go command definitions: 52
+- Matching command definitions: 52
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 23
+- Legacy commands without Go definitions: 22
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -22,6 +22,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `coin-related-settings` | `slashCommands/代幣系統/coin_cange.js` | matching-definition | none |
 | `help` | `slashCommands/實用工具/help.js` | matching-definition | none |
 | `info` | `slashCommands/實用工具/info.js` | matching-definition | none |
+| `my-profile` | `slashCommands/代幣系統/user-info.js` | matching-definition | none |
 | `ping` | `slashCommands/實用工具/ping.js` | matching-definition | none |
 | `set-log-channel` | `slashCommands/管理系統/create_logging.js` | matching-definition | none |
 | `代幣增加` | `slashCommands/代幣系統/addcoin.js` | matching-definition | none |
@@ -80,7 +81,6 @@ None.
 | Command | Category | Legacy file | Description |
 | --- | --- | --- | --- |
 | `automatic-notification` | 自動通知 | `slashCommands/自動通知/cron_set.js` | Set where automatic notification should be send |
-| `my-profile` | 代幣系統 | `slashCommands/代幣系統/user-info.js` | Check about data in specific server!! |
 | `上鎖頻道` | 語音包廂 | `slashCommands/語音包廂/lock_channel.js` | 設定語音包廂密碼 |
 | `代幣商店` | 代幣系統 | `slashCommands/代幣系統/ghp_shop.js` | 使用你所賺到的代幣買一些特別的東西吧! |
 | `代幣遊戲` | 代幣系統 | `slashCommands/代幣系統/game.js` | 遊玩有關代幣的小遊戲 |

@@ -33,6 +33,18 @@ type EconomyCoinRankRepository interface {
 	ListCoinBalances(ctx context.Context, guildID string) ([]domain.CoinBalance, error)
 }
 
+type EconomyProfileRepository interface {
+	GetCoinBalance(ctx context.Context, guildID string, userID string) (domain.CoinBalance, error)
+	GetEconomyConfig(ctx context.Context, guildID string) (domain.EconomyConfig, error)
+	ListCoinBalances(ctx context.Context, guildID string) ([]domain.CoinBalance, error)
+	GetWorkConfig(ctx context.Context, guildID string) (domain.WorkConfig, error)
+	GetWorkUser(ctx context.Context, guildID string, userID string) (domain.WorkUserState, error)
+	GetTextXPProfile(ctx context.Context, guildID string, userID string) (domain.XPProfile, error)
+	ListTextXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error)
+	GetVoiceXPProfile(ctx context.Context, guildID string, userID string) (domain.XPProfile, error)
+	ListVoiceXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error)
+}
+
 type EconomySettingsRepository interface {
 	SaveEconomyConfig(ctx context.Context, config domain.EconomyConfig) (domain.EconomyConfig, error)
 }

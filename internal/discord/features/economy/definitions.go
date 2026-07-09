@@ -9,6 +9,7 @@ const (
 	CoinQueryCommandName       = "代幣查詢"
 	CoinAdminCommandName       = "代幣增加"
 	CoinRankCommandName        = "代幣排行榜"
+	ProfileCommandName         = "my-profile"
 	SignInCommandName          = "簽到"
 	SignInListCommandName      = "簽到列表"
 	EconomySettingsCommandName = "coin-related-settings"
@@ -37,6 +38,10 @@ func CoinRankDefinitions() []commands.Definition {
 	return []commands.Definition{CoinRankDefinition()}
 }
 
+func ProfileDefinitions() []commands.Definition {
+	return []commands.Definition{ProfileDefinition()}
+}
+
 func CoinQueryDefinition() commands.Definition {
 	return commands.Definition{
 		Type:        commands.CommandTypeChatInput,
@@ -61,6 +66,45 @@ func CoinRankDefinition() commands.Definition {
 		Name:        CoinRankCommandName,
 		Description: "查詢代幣的排行榜",
 		Ownership:   commands.ManagedOwnership("economy-coin-rank", commands.ScopeGuild),
+	}
+}
+
+func ProfileDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        ProfileCommandName,
+		Description: "Check about data in specific server!!",
+		NameLocalizations: map[string]string{
+			"zh-TW": "我的檔案",
+			"zh-CN": "我的档案",
+			"en-US": "my-profile",
+			"en-GB": "my-profile",
+		},
+		DescriptionLocalizations: map[string]string{
+			"zh-TW": "查看自己在伺服器內的所有資料!",
+			"zh-CN": "查看自己在伺服器内的所有资料!",
+			"en-US": "Check about data in specific server!",
+			"en-GB": "Check about data in specific server!",
+		},
+		Options: []commands.Option{{
+			Type:        commands.OptionTypeUser,
+			Name:        "user",
+			Description: "查詢某位使用者的資料",
+			NameLocalizations: map[string]string{
+				"zh-TW": "使用者",
+				"zh-CN": "使用者",
+				"en-US": "user",
+				"en-GB": "user",
+			},
+			DescriptionLocalizations: map[string]string{
+				"zh-TW": "查詢某位使用者的資料!",
+				"zh-CN": "查询某位使用者的资料!",
+				"en-US": "Check a users data!",
+				"en-GB": "Check a users data!",
+			},
+		}},
+		DocsURL:   "https://docsmhcat.yorukot.me/docs/snig",
+		Ownership: commands.ManagedOwnership("economy-profile", commands.ScopeGuild),
 	}
 }
 

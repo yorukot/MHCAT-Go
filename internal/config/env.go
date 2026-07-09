@@ -36,6 +36,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureEconomySettingsEnabled:        DefaultFeatureEconomySettingsEnabled,
 		FeatureEconomyCoinAdminEnabled:       DefaultFeatureEconomyCoinAdminEnabled,
 		FeatureEconomyCoinRankEnabled:        DefaultFeatureEconomyCoinRankEnabled,
+		FeatureEconomyProfileEnabled:         DefaultFeatureEconomyProfileEnabled,
 		FeatureWorkEnabled:                   DefaultFeatureWorkEnabled,
 		FeatureWarningsEnabled:               DefaultFeatureWarningsEnabled,
 		FeatureWarningSettingsEnabled:        DefaultFeatureWarningSettingsEnabled,
@@ -132,6 +133,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureEconomyCoinRankEnabled, err = getBool(lookup, "MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED", DefaultFeatureEconomyCoinRankEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureEconomyProfileEnabled, err = getBool(lookup, "MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED", DefaultFeatureEconomyProfileEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureWorkEnabled, err = getBool(lookup, "MHCAT_FEATURE_WORK_ENABLED", DefaultFeatureWorkEnabled); err != nil {

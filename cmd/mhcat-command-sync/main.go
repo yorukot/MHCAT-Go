@@ -199,6 +199,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeEconomyCoinRank {
 		definitions = append(definitions, featureeconomy.CoinRankDefinitions()...)
 	}
+	if cfg.IncludeEconomyProfile {
+		definitions = append(definitions, featureeconomy.ProfileDefinitions()...)
+	}
 	if cfg.IncludeWork {
 		definitions = append(definitions, featurework.Definitions()...)
 	}
@@ -314,6 +317,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeEconomyCoinRank {
 		expected = append(expected, featureeconomy.CoinRankCommandName)
+	}
+	if cfg.IncludeEconomyProfile {
+		expected = append(expected, featureeconomy.ProfileCommandName)
 	}
 	if cfg.IncludeWork {
 		expected = append(expected, "打工系統")

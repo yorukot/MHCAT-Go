@@ -2,15 +2,20 @@ package ports
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
+var ErrDiscordMemberNotFound = errors.New("discord member not found")
+
 type DiscordUserInfo struct {
-	ID        string
-	Username  string
-	AvatarURL string
-	CreatedAt time.Time
-	JoinedAt  time.Time
+	ID            string
+	Username      string
+	Nickname      string
+	Discriminator string
+	AvatarURL     string
+	CreatedAt     time.Time
+	JoinedAt      time.Time
 }
 
 type DiscordGuildInfo struct {

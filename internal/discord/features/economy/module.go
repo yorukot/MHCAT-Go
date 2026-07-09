@@ -17,6 +17,7 @@ type Module struct {
 	settings     coreeconomy.SettingsService
 	coinAdmin    coreeconomy.CoinAdminService
 	coinRank     coreeconomy.CoinRankService
+	profile      coreeconomy.ProfileService
 	discord      ports.DiscordInfoProvider
 	usage        ports.UsageTracker
 	clock        ports.Clock
@@ -101,6 +102,18 @@ func NewCoinRankModule(repo ports.EconomyCoinRankRepository, discordInfo ports.D
 	}
 }
 
+func NewProfileModule(repo ports.EconomyProfileRepository, discordInfo ports.DiscordInfoProvider, clock ports.Clock, usage ports.UsageTracker) Module {
+	return Module{
+		profile: coreeconomy.ProfileService{Repository: repo},
+		discord: discordInfo,
+		usage:   usage,
+		clock:   clock,
+		color:   legacyRandomColor,
+		defs:    ProfileDefinitions(),
+		feature: "economy-profile",
+	}
+}
+
 func (m Module) Name() string {
 	return m.feature
 }
@@ -146,6 +159,14 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 			return err
 		}
 		if err := router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: "legacy", Feature: "rank", Action: "coin_page", Legacy: true}, m.CoinRankPageHandler()); err != nil {
+			return err
+		}
+	}
+	if m.profile.Repository != nil {
+		if err := router.RegisterSlash(ProfileCommandName, m.ProfileHandler()); err != nil {
+			return err
+		}
+		if err := router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: "legacy", Feature: "profile", Action: "refresh", Legacy: true}, m.ProfileRefreshHandler()); err != nil {
 			return err
 		}
 	}

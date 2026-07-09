@@ -380,6 +380,35 @@ func TestBuildRuntimeRoutesEconomyCoinRankWithoutPublishingOtherEconomyCommands(
 	}
 }
 
+func TestBuildRuntimeRoutesEconomyProfileWithoutPublishingOtherEconomyCommands(t *testing.T) {
+	repo := fakemongo.NewEconomyProfileRepository()
+	userID := "123456789012345678"
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: userID, Coins: 42})
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		EconomyProfileRepository: repo,
+		Clock:                    appFixedClock{now: time.Unix(1_000, 0)},
+	})
+	if err != nil {
+		t.Fatalf("build runtime with economy profile repo: %v", err)
+	}
+	for _, commandName := range []string{"代幣查詢", "簽到", "coin-related-settings", "代幣增加", "代幣排行榜"} {
+		responder := fakediscord.NewResponder()
+		if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction(commandName), responder); err == nil {
+			t.Fatalf("%s route should not be available with profile repository alone", commandName)
+		}
+	}
+	interaction := fakediscord.SlashInteraction("my-profile")
+	interaction.Actor.UserID = userID
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch economy profile: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Files) != 1 {
+		t.Fatalf("profile response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesWorkOnlyWhenEnabled(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

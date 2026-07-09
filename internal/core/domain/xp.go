@@ -24,6 +24,13 @@ type VoiceXPConfig struct {
 	Message   string
 }
 
+type XPProfile struct {
+	GuildID string
+	UserID  string
+	XP      int64
+	Level   int64
+}
+
 func (c TextXPConfig) Validate() error {
 	if strings.TrimSpace(c.GuildID) == "" || strings.TrimSpace(c.ChannelID) == "" {
 		return ErrInvalidTextXPConfig

@@ -9,6 +9,8 @@ import (
 
 var ErrTextXPConfigMissing = errors.New("text xp config is missing")
 var ErrVoiceXPConfigMissing = errors.New("voice xp config is missing")
+var ErrTextXPProfileMissing = errors.New("text xp profile is missing")
+var ErrVoiceXPProfileMissing = errors.New("voice xp profile is missing")
 
 type TextXPConfigRepository interface {
 	SaveTextXPConfig(ctx context.Context, config domain.TextXPConfig) error

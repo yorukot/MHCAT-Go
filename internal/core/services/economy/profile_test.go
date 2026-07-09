@@ -1,0 +1,127 @@
+package economy
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
+)
+
+func TestProfileServiceQueriesLegacyReadModels(t *testing.T) {
+	repo := fakemongo.NewEconomyProfileRepository()
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 500, Today: 1})
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-2", Coins: 600})
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-3", Coins: 500})
+	repo.PutConfig(domain.EconomyConfig{GuildID: "guild-1", GachaCost: 1000, SignCoins: 25, XPMultiple: 1.5, ResetMarker: 3600})
+	repo.PutWorkConfig(domain.WorkConfig{GuildID: "guild-1", DailyEnergy: 10, MaxEnergy: 100})
+	repo.PutWorkUser(domain.WorkUserState{GuildID: "guild-1", UserID: "user-1", Energy: 55, EndTimeUnix: 2_000})
+	repo.PutTextXP(domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 50, Level: 2})
+	repo.PutTextXP(domain.XPProfile{GuildID: "guild-1", UserID: "user-2", XP: 10, Level: 3})
+	repo.PutVoiceXP(domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 80, Level: 2})
+	repo.PutVoiceXP(domain.XPProfile{GuildID: "guild-1", UserID: "user-2", XP: 90, Level: 3})
+
+	result, err := (ProfileService{Repository: repo}).Query(context.Background(), ProfileQuery{
+		GuildID: " guild-1 ",
+		UserID:  " user-1 ",
+		Now:     time.Unix(1_500, 0),
+	})
+	if err != nil {
+		t.Fatalf("query profile: %v", err)
+	}
+	if !result.CoinFound || result.CoinRank != 3 || result.SignStatus != "已簽到" {
+		t.Fatalf("coin result = found %t rank %d sign %q", result.CoinFound, result.CoinRank, result.SignStatus)
+	}
+	if !result.TextXPFound || result.TextRank != 2 {
+		t.Fatalf("text xp = found %t rank %d", result.TextXPFound, result.TextRank)
+	}
+	if !result.VoiceXPFound || result.VoiceRank != 2 {
+		t.Fatalf("voice xp = found %t rank %d", result.VoiceXPFound, result.VoiceRank)
+	}
+	if !result.WorkConfigFound || !result.WorkUserFound || result.WorkUser.Energy != 55 {
+		t.Fatalf("work data = %#v", result)
+	}
+}
+
+func TestProfileServiceAllowsMissingOptionalRows(t *testing.T) {
+	result, err := (ProfileService{Repository: fakemongo.NewEconomyProfileRepository()}).Query(context.Background(), ProfileQuery{
+		GuildID: "guild-1",
+		UserID:  "user-1",
+		Now:     time.Unix(10, 0),
+	})
+	if err != nil {
+		t.Fatalf("query missing profile: %v", err)
+	}
+	if result.CoinFound || result.TextXPFound || result.VoiceXPFound || result.WorkConfigFound || result.WorkUserFound {
+		t.Fatalf("expected missing optional data, got %#v", result)
+	}
+	if result.SignStatus != "沒有資料" {
+		t.Fatalf("sign status = %q", result.SignStatus)
+	}
+}
+
+func TestProfileServiceSignStatusUsesLegacyCooldown(t *testing.T) {
+	repo := fakemongo.NewEconomyProfileRepository()
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 1, Today: 1_000})
+	repo.PutConfig(domain.EconomyConfig{GuildID: "guild-1", ResetMarker: 3600})
+
+	result, err := (ProfileService{Repository: repo}).Query(context.Background(), ProfileQuery{GuildID: "guild-1", UserID: "user-1", Now: time.Unix(4_500, 0)})
+	if err != nil {
+		t.Fatalf("query signed profile: %v", err)
+	}
+	if result.SignStatus != "已簽到" {
+		t.Fatalf("within cooldown sign status = %q", result.SignStatus)
+	}
+	result, err = (ProfileService{Repository: repo}).Query(context.Background(), ProfileQuery{GuildID: "guild-1", UserID: "user-1", Now: time.Unix(4_700, 0)})
+	if err != nil {
+		t.Fatalf("query unsigned profile: %v", err)
+	}
+	if result.SignStatus != "未簽到" {
+		t.Fatalf("after cooldown sign status = %q", result.SignStatus)
+	}
+}
+
+func TestProfileServiceRejectsInvalidQuery(t *testing.T) {
+	_, err := (ProfileService{Repository: fakemongo.NewEconomyProfileRepository()}).Query(context.Background(), ProfileQuery{GuildID: "guild-1"})
+	if !errors.Is(err, domain.ErrInvalidEconomyProfileQuery) {
+		t.Fatalf("expected ErrInvalidEconomyProfileQuery, got %v", err)
+	}
+	_, err = (ProfileService{}).Query(context.Background(), ProfileQuery{GuildID: "guild-1", UserID: "user-1"})
+	if !errors.Is(err, domain.ErrInvalidEconomyProfileQuery) {
+		t.Fatalf("expected ErrInvalidEconomyProfileQuery for nil repo, got %v", err)
+	}
+}
+
+func TestProfileServicePropagatesUnexpectedRepositoryErrors(t *testing.T) {
+	repo := fakemongo.NewEconomyProfileRepository()
+	repo.Err = ports.ErrCoinLimitExceeded
+	_, err := (ProfileService{Repository: repo}).Query(context.Background(), ProfileQuery{GuildID: "guild-1", UserID: "user-1"})
+	if !errors.Is(err, ports.ErrCoinLimitExceeded) {
+		t.Fatalf("expected repo error, got %v", err)
+	}
+}
+
+func TestLegacyProfileFormatting(t *testing.T) {
+	cases := map[float64]string{
+		999:           "999",
+		1_000:         "1K",
+		1_200:         "1.2K",
+		1_000_000:     "1M",
+		1_500_000_000: "1.5G",
+		1.5:           "1.5",
+	}
+	for input, want := range cases {
+		if got := LegacyProfileAmount(input); got != want {
+			t.Fatalf("LegacyProfileAmount(%v) = %q, want %q", input, got, want)
+		}
+	}
+	if got := LegacyProfileXPRequired(2, false); got != 233 {
+		t.Fatalf("text required XP = %d, want 233", got)
+	}
+	if got := LegacyProfileXPRequired(2, true); got != 300 {
+		t.Fatalf("voice required XP = %d, want 300", got)
+	}
+}

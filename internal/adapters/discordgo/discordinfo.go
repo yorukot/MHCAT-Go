@@ -81,11 +81,13 @@ func userInfoFromMember(member *dgo.Member) ports.DiscordUserInfo {
 	}
 	createdAt, _ := dgo.SnowflakeTimestamp(member.User.ID)
 	return ports.DiscordUserInfo{
-		ID:        member.User.ID,
-		Username:  member.User.Username,
-		AvatarURL: member.AvatarURL(""),
-		CreatedAt: createdAt,
-		JoinedAt:  member.JoinedAt,
+		ID:            member.User.ID,
+		Username:      member.User.Username,
+		Nickname:      member.Nick,
+		Discriminator: member.User.Discriminator,
+		AvatarURL:     member.AvatarURL(""),
+		CreatedAt:     createdAt,
+		JoinedAt:      member.JoinedAt,
 	}
 }
 

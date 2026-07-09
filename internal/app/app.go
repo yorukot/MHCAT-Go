@@ -323,6 +323,13 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 			opts.EconomyCoinRankRepository = economyRepo
 		}
 	}
+	if cfg.FeatureEconomyProfileEnabled {
+		profileRepo, err := economyProfileRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		opts.EconomyProfileRepository = profileRepo
+	}
 	if cfg.FeatureEconomySettingsEnabled {
 		economyRepo, err := economyRepositoryFromMongo(mongoClient)
 		if err != nil {
@@ -625,6 +632,22 @@ func economyRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.Eco
 	repo, err := mongorepositories.NewEconomyRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("economy query feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func economyProfileRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.EconomyProfileRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("economy profile feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("economy profile feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewEconomyProfileRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("economy profile feature repository: %w", err)
 	}
 	return repo, nil
 }

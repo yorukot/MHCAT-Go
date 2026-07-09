@@ -45,10 +45,12 @@ func TestDiscordInfoProviderUserInfoFromState(t *testing.T) {
 			GuildID:  "guild-1",
 			JoinedAt: joinedAt,
 			User: &dgo.User{
-				ID:       "4194304",
-				Username: "Yoru",
-				Avatar:   "avatar-hash",
+				ID:            "4194304",
+				Username:      "Yoru",
+				Discriminator: "1234",
+				Avatar:        "avatar-hash",
 			},
+			Nick: "YoruNick",
 		}},
 	}); err != nil {
 		t.Fatalf("guild add: %v", err)
@@ -59,5 +61,8 @@ func TestDiscordInfoProviderUserInfoFromState(t *testing.T) {
 	}
 	if info.ID != "4194304" || info.Username != "Yoru" || !info.JoinedAt.Equal(joinedAt) || info.AvatarURL == "" || info.CreatedAt.IsZero() {
 		t.Fatalf("info = %#v", info)
+	}
+	if info.Nickname != "YoruNick" || info.Discriminator != "1234" {
+		t.Fatalf("missing legacy name fields: %#v", info)
 	}
 }

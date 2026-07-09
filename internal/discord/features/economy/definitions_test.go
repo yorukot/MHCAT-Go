@@ -47,6 +47,39 @@ func TestCoinRankDefinitionMatchesLegacyCommand(t *testing.T) {
 	}
 }
 
+func TestProfileDefinitionMatchesLegacyCommand(t *testing.T) {
+	definition := ProfileDefinition()
+	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}, []commands.Definition{definition})
+	if err := commands.ValidateRegistry(registry); err != nil {
+		t.Fatalf("validate registry: %v", err)
+	}
+	if definition.Name != ProfileCommandName || definition.Description != "Check about data in specific server!!" {
+		t.Fatalf("unexpected profile definition: %#v", definition)
+	}
+	if definition.NameLocalizations["zh-TW"] != "我的檔案" || definition.NameLocalizations["zh-CN"] != "我的档案" {
+		t.Fatalf("profile name localizations = %#v", definition.NameLocalizations)
+	}
+	if definition.DescriptionLocalizations["zh-TW"] != "查看自己在伺服器內的所有資料!" || definition.DescriptionLocalizations["en-US"] != "Check about data in specific server!" {
+		t.Fatalf("profile description localizations = %#v", definition.DescriptionLocalizations)
+	}
+	if len(definition.Options) != 1 {
+		t.Fatalf("expected one option, got %#v", definition.Options)
+	}
+	option := definition.Options[0]
+	if option.Type != commands.OptionTypeUser || option.Name != "user" || option.Description != "查詢某位使用者的資料" || option.Required {
+		t.Fatalf("unexpected profile user option: %#v", option)
+	}
+	if option.NameLocalizations["zh-TW"] != "使用者" || option.DescriptionLocalizations["en-US"] != "Check a users data!" {
+		t.Fatalf("profile option localizations = %#v", option)
+	}
+	if definition.DefaultMemberPermissions != nil {
+		t.Fatalf("profile should not require default permissions: %#v", definition.DefaultMemberPermissions)
+	}
+	if !commands.IsManagedForScope(definition, commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}) {
+		t.Fatal("profile command should be marked managed for guild-scoped staging sync")
+	}
+}
+
 func TestSignInDefinitionsMatchLegacyCommands(t *testing.T) {
 	definitions := SignInDefinitions()
 	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}, definitions)

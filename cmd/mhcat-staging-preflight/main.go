@@ -97,6 +97,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		economyCoinAdminRuntimePairing(lookup),
 		economyCoinRankCommandSync(lookup),
 		economyCoinRankRuntimePairing(lookup),
+		economyProfileCommandSync(lookup),
+		economyProfileRuntimePairing(lookup),
 		workCommandSync(lookup),
 		workRuntimePairing(lookup),
 		warningsCommandSync(lookup),
@@ -445,6 +447,38 @@ func economyCoinRankRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "economy-coin-rank-runtime-pairing", Status: statusWarn, Message: "economy coin-rank runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "economy-coin-rank-runtime-pairing", Status: statusSkipped, Message: "economy coin-rank runtime and command sync include are disabled"}
+}
+
+func economyProfileCommandSync(lookup lookupFunc) checkResult {
+	includeProfile, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE")
+	if err != nil {
+		return checkResult{Name: "economy-profile-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeProfile {
+		return checkResult{Name: "economy-profile-command-sync", Status: statusPass, Message: "economy profile command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "economy-profile-command-sync", Status: statusSkipped, Message: "economy profile command sync include is disabled"}
+}
+
+func economyProfileRuntimePairing(lookup lookupFunc) checkResult {
+	includeProfile, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE")
+	if err != nil {
+		return checkResult{Name: "economy-profile-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	profileEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED")
+	if err != nil {
+		return checkResult{Name: "economy-profile-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeProfile && !profileEnabled {
+		return checkResult{Name: "economy-profile-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE=true requires MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true in the staging runtime"}
+	}
+	if includeProfile && profileEnabled {
+		return checkResult{Name: "economy-profile-runtime-pairing", Status: statusPass, Message: "economy profile command sync and runtime feature flag are paired"}
+	}
+	if profileEnabled {
+		return checkResult{Name: "economy-profile-runtime-pairing", Status: statusWarn, Message: "economy profile runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "economy-profile-runtime-pairing", Status: statusSkipped, Message: "economy profile runtime and command sync include are disabled"}
 }
 
 func workCommandSync(lookup lookupFunc) checkResult {
