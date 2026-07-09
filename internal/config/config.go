@@ -41,6 +41,7 @@ const (
 	DefaultFeatureLoggingConfigEnabled          = false
 	DefaultFeatureGachaPrizeListEnabled         = false
 	DefaultFeatureGachaPrizeCreateEnabled       = false
+	DefaultFeatureGachaPrizeEditEnabled         = false
 	DefaultFeatureGachaPrizeDeleteEnabled       = false
 	DefaultFeatureLotteryDisabledCommandEnabled = false
 	DefaultFeatureStatsQueryEnabled             = false
@@ -110,6 +111,7 @@ type Config struct {
 	FeatureLoggingConfigEnabled          bool
 	FeatureGachaPrizeListEnabled         bool
 	FeatureGachaPrizeCreateEnabled       bool
+	FeatureGachaPrizeEditEnabled         bool
 	FeatureGachaPrizeDeleteEnabled       bool
 	FeatureLotteryDisabledCommandEnabled bool
 	FeatureStatsQueryEnabled             bool

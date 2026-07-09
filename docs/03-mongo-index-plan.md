@@ -40,7 +40,7 @@ Status: Platform Wave B. The default Go index plan is now derived from the full 
 | `voice_channels` | `{guild:1, ticket_channel:1}` | candidate after audit | no | no | trigger voice channel config | voice state event | name mismatch | audit first | safe to drop |
 | `voice_channel_ids` | `{guild:1, channel_id:1}` | candidate after audit | no | no | dynamic channel cleanup | voice room deletion | stale channels | audit first | safe to drop |
 | `ghps` | `{guild:1, commodity_id:1}` | candidate after audit | no | no | shop item lookup | shop purchase | duplicate commodity IDs | audit first | safe to drop |
-| `gifts` | `{guild:1, gift_name:1}` | candidate after audit | no | no | gacha prize lookup/edit | gacha draw/edit | duplicate names and inventory races | audit first | safe to drop |
+| `gifts` | `{guild:1, gift_name:1}` | candidate after audit | no | no | gacha prize lookup/edit/delete | gacha draw/shop/admin writes | duplicate names and inventory races | audit first | safe to drop |
 | `gift_changes` | `{guild:1}` | candidate after audit | no | no | economy config singleton | sign/gacha config | duplicates | audit first | safe to drop |
 | `gift_changes` | `{time:1, guild:1}` | no | partial for `time != 0` if useful | no | daily reset exclusion | `distinct('guild', {time: {$ne: 0}})` | partial semantics must match legacy | dry-run only until data known | safe to drop |
 | singleton config collections | `{guild:1}` | candidate after audit | no | no | guild config lookup | many `findOne({guild})` paths | duplicates common | dry-run duplicate audit first | drop if config resolver handles duplicates |

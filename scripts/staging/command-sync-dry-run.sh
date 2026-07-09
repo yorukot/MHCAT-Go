@@ -113,6 +113,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE:-false}" = "true" ] && [ "
   echo "refusing command sync: gacha prize-create command dry-run requires MHCAT_FEATURE_GACHA_PRIZE_CREATE_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_EDIT:-false}" = "true" ] && [ "${MHCAT_FEATURE_GACHA_PRIZE_EDIT_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: gacha prize-edit command dry-run requires MHCAT_FEATURE_GACHA_PRIZE_EDIT_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE:-false}" = "true" ] && [ "${MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED:-false}" != "true" ]; then
   echo "refusing command sync: gacha prize-delete command dry-run requires MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -310,6 +314,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE:-false}" = "true" ]; then
   echo "staging command sync dry-run: including gacha prize-create command for review" >&2
 else
   echo "staging command sync dry-run: gacha prize-create command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_EDIT:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including gacha prize-edit command for review" >&2
+else
+  echo "staging command sync dry-run: gacha prize-edit command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE:-false}" = "true" ]; then
   echo "staging command sync dry-run: including gacha prize-delete command for review" >&2

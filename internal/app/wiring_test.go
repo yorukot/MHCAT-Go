@@ -927,6 +927,48 @@ func TestBuildRuntimeRoutesGachaPrizeCreateOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesGachaPrizeEditOnlyWithRepository(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("扭蛋獎品編輯", "", map[string]string{
+		"獎品名稱": "大獎",
+		"機率":   "12.5",
+	})
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("gacha prize-edit route should not be available without repository")
+	}
+
+	repo := fakemongo.NewGachaRepository()
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 10, Count: 2}}
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		GachaPrizeEditRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with gacha prize-edit repo: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch gacha prize-edit: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "編輯成功成功") {
+		t.Fatalf("gacha prize-edit response = %#v", responder.Edits)
+	}
+	if len(repo.Prizes["guild-1"]) != 1 || repo.Prizes["guild-1"][0].Chance != 12.5 || repo.Prizes["guild-1"][0].Count != 1 {
+		t.Fatalf("prize should be edited: %#v", repo.Prizes["guild-1"])
+	}
+
+	responder = fakediscord.NewResponder()
+	listInteraction := fakediscord.SlashInteraction("扭蛋獎池查詢")
+	if err := dispatcher.Dispatch(context.Background(), listInteraction, responder); err == nil {
+		t.Fatal("gacha prize-list route should not be available with edit-only repository")
+	}
+}
+
 func TestBuildRuntimeRoutesLotteryDisabledCommandOnlyWhenEnabled(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

@@ -317,6 +317,154 @@ func TestPrizeCreateNegativeCountReturnsLegacyError(t *testing.T) {
 	}
 }
 
+func TestPrizeEditUpdatesPrizeAndRendersLegacySuccess(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 10, Count: 2}}
+	repo.PrizeConfigs["guild-1"] = []domain.GachaPrizeConfig{{
+		GuildID:    "guild-1",
+		Name:       "大獎",
+		Code:       "old-code",
+		Chance:     10,
+		AutoDelete: false,
+		Count:      2,
+		GiveCoin:   5,
+	}}
+	usage := &fakeusage.Tracker{}
+	module := NewEditModule(repo, usage)
+	responder := fakediscord.NewResponder()
+	interaction := gachaPrizeEditInteraction("大獎")
+	interaction.Options[gachaPrizeCodeOption] = "new-code"
+	interaction.CommandOptions = map[string]interactions.CommandOptionValue{
+		gachaPrizeChanceOption:     {Type: interactions.CommandOptionNumber, Float: 12.5},
+		gachaPrizeAutoDeleteOption: {Type: interactions.CommandOptionBoolean, Bool: true},
+		gachaPrizeCountOption:      {Type: interactions.CommandOptionInteger, Int: 3},
+		gachaPrizeGiveCoinOption:   {Type: interactions.CommandOptionInteger, Int: 7},
+	}
+
+	if err := module.PrizeEditHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral {
+		t.Fatalf("defers = %#v", responder.Defers)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	embed := responder.Edits[0].Embeds[0]
+	if embed.Title != "<a:green_tick:994529015652163614>編輯成功成功" || embed.Color != gachaPrizeEditSuccessColor || len(embed.Fields) != 6 {
+		t.Fatalf("embed = %#v", embed)
+	}
+	for _, want := range []struct {
+		index int
+		value string
+	}{
+		{0, "大獎"},
+		{1, "12.5"},
+		{2, "new-code"},
+		{3, "3個"},
+		{4, "true"},
+		{5, "7個"},
+	} {
+		if embed.Fields[want.index].Value != want.value || !embed.Fields[want.index].Inline {
+			t.Fatalf("field %d = %#v", want.index, embed.Fields[want.index])
+		}
+	}
+	saved := repo.PrizeConfigs["guild-1"][0]
+	if saved.Code != "new-code" || saved.Chance != 12.5 || !saved.AutoDelete || saved.Count != 3 || saved.GiveCoin != 7 {
+		t.Fatalf("saved = %#v", saved)
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != GachaPrizeEditCommandName || usage.Events[0].Feature != "gacha-prize-edit" {
+		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
+func TestPrizeEditDefaultsUIAndPreservesLegacyFalseyFields(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 10, Count: 2}}
+	repo.PrizeConfigs["guild-1"] = []domain.GachaPrizeConfig{{
+		GuildID:    "guild-1",
+		Name:       "大獎",
+		Code:       "old-code",
+		Chance:     10,
+		AutoDelete: false,
+		Count:      2,
+		GiveCoin:   5,
+	}}
+	module := NewEditModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	interaction := gachaPrizeEditInteraction("大獎")
+	interaction.Options[gachaPrizeAutoDeleteOption] = "false"
+	interaction.Options[gachaPrizeGiveCoinOption] = "0"
+
+	if err := module.PrizeEditHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	fields := responder.Edits[0].Embeds[0].Fields
+	for _, want := range []struct {
+		index int
+		value string
+	}{
+		{1, "null"},
+		{2, "該獎品無代碼"},
+		{3, "1個"},
+		{4, "false"},
+		{5, "0個"},
+	} {
+		if fields[want.index].Value != want.value {
+			t.Fatalf("field %d = %#v", want.index, fields[want.index])
+		}
+	}
+	saved := repo.PrizeConfigs["guild-1"][0]
+	if saved.Code != "old-code" || saved.Chance != 10 || saved.AutoDelete || saved.Count != 1 || saved.GiveCoin != 5 {
+		t.Fatalf("saved = %#v", saved)
+	}
+}
+
+func TestPrizeEditMissingPrizeReturnsLegacyError(t *testing.T) {
+	module := NewEditModule(fakemongo.NewGachaRepository(), nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.PrizeEditHandler()(context.Background(), gachaPrizeEditInteraction("不存在"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 找不到這個獎品!" {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestPrizeEditRequiresManageMessages(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 10, Count: 2}}
+	module := NewEditModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	interaction := gachaPrizeEditInteraction("大獎")
+	interaction.Actor.PermissionBits = 0
+
+	if err := module.PrizeEditHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 你沒有權限使用這個指令" {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if repo.Prizes["guild-1"][0].Count != 2 {
+		t.Fatalf("prize should not be edited without permission: %#v", repo.Prizes["guild-1"])
+	}
+}
+
+func TestPrizeEditNegativeCountReturnsLegacyError(t *testing.T) {
+	module := NewEditModule(fakemongo.NewGachaRepository(), nil)
+	responder := fakediscord.NewResponder()
+	interaction := gachaPrizeEditInteraction("大獎")
+	interaction.Options[gachaPrizeCountOption] = "-1"
+
+	if err := module.PrizeEditHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 獎品必須大於1" {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func gachaPrizeDeleteInteraction(prizeName string) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(GachaPrizeDeleteCommandName, "", map[string]string{gachaPrizeNameOption: prizeName})
 	interaction.Actor.PermissionBits = gachaManageMessagesPermissionBit
@@ -327,6 +475,14 @@ func gachaPrizeCreateInteraction(prizeName string) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(GachaPrizeCreateCommandName, "", map[string]string{
 		gachaPrizeNameOption:   prizeName,
 		gachaPrizeChanceOption: "10",
+	})
+	interaction.Actor.PermissionBits = gachaManageMessagesPermissionBit
+	return interaction
+}
+
+func gachaPrizeEditInteraction(prizeName string) interactions.Interaction {
+	interaction := fakediscord.SlashInteractionWithOptions(GachaPrizeEditCommandName, "", map[string]string{
+		gachaPrizeNameOption: prizeName,
 	})
 	interaction.Actor.PermissionBits = gachaManageMessagesPermissionBit
 	return interaction

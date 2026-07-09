@@ -27,3 +27,7 @@ type GachaPrizeCreateRepository interface {
 	CountGachaPrizes(ctx context.Context, guildID string) (int64, error)
 	CreateGachaPrize(ctx context.Context, prize domain.GachaPrizeConfig) error
 }
+
+type GachaPrizeEditRepository interface {
+	EditGachaPrize(ctx context.Context, edit domain.GachaPrizeEdit) (domain.GachaPrizeConfig, error)
+}

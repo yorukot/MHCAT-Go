@@ -151,6 +151,7 @@ func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
 	var foundCoinAdmin bool
 	var foundCoinRank bool
 	var foundGachaPrizeCreate bool
+	var foundGachaPrizeEdit bool
 	var foundGachaPrizeDelete bool
 	for _, definition := range CurrentGoDefinitions() {
 		if definition.Name == "警告設定" {
@@ -177,6 +178,9 @@ func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
 		if definition.Name == "扭蛋獎池增加" {
 			foundGachaPrizeCreate = true
 		}
+		if definition.Name == "扭蛋獎品編輯" {
+			foundGachaPrizeEdit = true
+		}
 		if definition.Name == "扭蛋獎池刪除" {
 			foundGachaPrizeDelete = true
 		}
@@ -201,6 +205,9 @@ func TestCurrentGoDefinitionsIncludesSplitFeatureDefinitions(t *testing.T) {
 	}
 	if !foundGachaPrizeCreate {
 		t.Fatal("current Go definitions should include gacha prize create")
+	}
+	if !foundGachaPrizeEdit {
+		t.Fatal("current Go definitions should include gacha prize edit")
 	}
 	if !foundGachaPrizeDelete {
 		t.Fatal("current Go definitions should include gacha prize delete")

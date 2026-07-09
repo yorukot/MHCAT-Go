@@ -85,6 +85,7 @@ type RuntimeOptions struct {
 	LoggingConfigRepository       ports.LoggingConfigRepository
 	GachaPrizePoolRepository      ports.GachaPrizePoolRepository
 	GachaPrizeCreateRepository    ports.GachaPrizeCreateRepository
+	GachaPrizeEditRepository      ports.GachaPrizeEditRepository
 	GachaPrizeDeleteRepository    ports.GachaPrizeDeleteRepository
 	LotteryDisabledCommandEnabled bool
 	StatsQueryEnabled             bool
@@ -200,6 +201,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.GachaPrizeCreateRepository != nil {
 		definitions = append(definitions, featuregacha.PrizeCreateDefinitions()...)
+	}
+	if opts.GachaPrizeEditRepository != nil {
+		definitions = append(definitions, featuregacha.PrizeEditDefinitions()...)
 	}
 	if opts.GachaPrizeDeleteRepository != nil {
 		definitions = append(definitions, featuregacha.PrizeDeleteDefinitions()...)
@@ -420,8 +424,8 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 			return nil, err
 		}
 	}
-	if opts.GachaPrizePoolRepository != nil || opts.GachaPrizeCreateRepository != nil || opts.GachaPrizeDeleteRepository != nil {
-		gachaModule := featuregacha.NewModuleWithRepositories(opts.GachaPrizePoolRepository, opts.GachaPrizeCreateRepository, opts.GachaPrizeDeleteRepository, concreteDiscord, opts.UsageTracker)
+	if opts.GachaPrizePoolRepository != nil || opts.GachaPrizeCreateRepository != nil || opts.GachaPrizeEditRepository != nil || opts.GachaPrizeDeleteRepository != nil {
+		gachaModule := featuregacha.NewModuleWithRepositories(opts.GachaPrizePoolRepository, opts.GachaPrizeCreateRepository, opts.GachaPrizeEditRepository, opts.GachaPrizeDeleteRepository, concreteDiscord, opts.UsageTracker)
 		if err := gachaModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

@@ -467,7 +467,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.LoggingConfigRepository = loggingRepo
 	}
-	if cfg.FeatureGachaPrizeListEnabled || cfg.FeatureGachaPrizeCreateEnabled || cfg.FeatureGachaPrizeDeleteEnabled {
+	if cfg.FeatureGachaPrizeListEnabled || cfg.FeatureGachaPrizeCreateEnabled || cfg.FeatureGachaPrizeEditEnabled || cfg.FeatureGachaPrizeDeleteEnabled {
 		gachaRepo, err := gachaRepositoryFromMongo(mongoClient)
 		if err != nil {
 			return nil, err
@@ -477,6 +477,9 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		if cfg.FeatureGachaPrizeCreateEnabled {
 			opts.GachaPrizeCreateRepository = gachaRepo
+		}
+		if cfg.FeatureGachaPrizeEditEnabled {
+			opts.GachaPrizeEditRepository = gachaRepo
 		}
 		if cfg.FeatureGachaPrizeDeleteEnabled {
 			opts.GachaPrizeDeleteRepository = gachaRepo

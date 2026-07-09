@@ -13,6 +13,7 @@ import (
 type Module struct {
 	service       coreservice.PrizePoolService
 	createService coreservice.PrizeCreateService
+	editService   coreservice.PrizeEditService
 	deleteService coreservice.PrizeDeleteService
 	discord       ports.DiscordInfoProvider
 	usage         ports.UsageTracker
@@ -44,10 +45,19 @@ func NewCreateModule(repo ports.GachaPrizeCreateRepository, usage ports.UsageTra
 	}
 }
 
-func NewModuleWithRepositories(listRepo ports.GachaPrizePoolRepository, createRepo ports.GachaPrizeCreateRepository, deleteRepo ports.GachaPrizeDeleteRepository, discord ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
+func NewEditModule(repo ports.GachaPrizeEditRepository, usage ports.UsageTracker) Module {
+	return Module{
+		editService: coreservice.PrizeEditService{Repository: repo},
+		usage:       usage,
+		color:       legacyRandomColor,
+	}
+}
+
+func NewModuleWithRepositories(listRepo ports.GachaPrizePoolRepository, createRepo ports.GachaPrizeCreateRepository, editRepo ports.GachaPrizeEditRepository, deleteRepo ports.GachaPrizeDeleteRepository, discord ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
 	return Module{
 		service:       coreservice.PrizePoolService{Repository: listRepo},
 		createService: coreservice.PrizeCreateService{Repository: createRepo},
+		editService:   coreservice.PrizeEditService{Repository: editRepo},
 		deleteService: coreservice.PrizeDeleteService{Repository: deleteRepo},
 		discord:       discord,
 		usage:         usage,
@@ -71,6 +81,9 @@ func (m Module) Name() string {
 	if m.createService.Repository != nil {
 		enabled++
 	}
+	if m.editService.Repository != nil {
+		enabled++
+	}
 	if m.deleteService.Repository != nil {
 		enabled++
 	}
@@ -79,6 +92,9 @@ func (m Module) Name() string {
 	}
 	if m.createService.Repository != nil {
 		return "gacha-prize-create"
+	}
+	if m.editService.Repository != nil {
+		return "gacha-prize-edit"
 	}
 	if m.deleteService.Repository != nil {
 		return "gacha-prize-delete"
@@ -94,6 +110,9 @@ func (m Module) Commands() []commands.Definition {
 	if m.createService.Repository != nil {
 		definitions = append(definitions, PrizeCreateDefinitions()...)
 	}
+	if m.editService.Repository != nil {
+		definitions = append(definitions, PrizeEditDefinitions()...)
+	}
 	if m.deleteService.Repository != nil {
 		definitions = append(definitions, PrizeDeleteDefinitions()...)
 	}
@@ -108,6 +127,11 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 	}
 	if m.createService.Repository != nil {
 		if err := router.RegisterSlash(GachaPrizeCreateCommandName, m.PrizeCreateHandler()); err != nil {
+			return err
+		}
+	}
+	if m.editService.Repository != nil {
+		if err := router.RegisterSlash(GachaPrizeEditCommandName, m.PrizeEditHandler()); err != nil {
 			return err
 		}
 	}

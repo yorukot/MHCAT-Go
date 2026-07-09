@@ -140,3 +140,89 @@ func TestPrizeCreateRejectsInvalidInput(t *testing.T) {
 		}
 	}
 }
+
+func TestPrizeEditUpdatesPrizeWithLegacyMerge(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 10, Count: 2}}
+	repo.PrizeConfigs["guild-1"] = []domain.GachaPrizeConfig{{
+		GuildID:    "guild-1",
+		Name:       "大獎",
+		Code:       "old-code",
+		Chance:     10,
+		AutoDelete: false,
+		Count:      2,
+		GiveCoin:   5,
+	}}
+	updated, err := (PrizeEditService{Repository: repo}).Edit(context.Background(), domain.GachaPrizeEdit{
+		GuildID:    "guild-1",
+		Name:       "大獎",
+		Code:       "new-code",
+		Chance:     12.5,
+		ChanceSet:  true,
+		AutoDelete: true,
+		Count:      3,
+		GiveCoin:   7,
+	})
+	if err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+	if updated.Code != "new-code" || updated.Chance != 12.5 || !updated.AutoDelete || updated.Count != 3 || updated.GiveCoin != 7 {
+		t.Fatalf("updated = %#v", updated)
+	}
+	if len(repo.Prizes["guild-1"]) != 1 || repo.Prizes["guild-1"][0].Chance != 12.5 || repo.Prizes["guild-1"][0].Count != 3 {
+		t.Fatalf("prizes = %#v", repo.Prizes["guild-1"])
+	}
+}
+
+func TestPrizeEditPreservesLegacyFalseyOldFields(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 10, Count: 2}}
+	repo.PrizeConfigs["guild-1"] = []domain.GachaPrizeConfig{{
+		GuildID:    "guild-1",
+		Name:       "大獎",
+		Code:       "old-code",
+		Chance:     10,
+		AutoDelete: false,
+		Count:      2,
+		GiveCoin:   5,
+	}}
+	updated, err := (PrizeEditService{Repository: repo}).Edit(context.Background(), domain.GachaPrizeEdit{
+		GuildID:    "guild-1",
+		Name:       "大獎",
+		Chance:     0,
+		ChanceSet:  true,
+		AutoDelete: false,
+		Count:      1,
+		GiveCoin:   0,
+	})
+	if err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+	if updated.Code != "old-code" || updated.Chance != 10 || updated.AutoDelete || updated.Count != 1 || updated.GiveCoin != 5 {
+		t.Fatalf("updated = %#v", updated)
+	}
+}
+
+func TestPrizeEditMissingPrize(t *testing.T) {
+	_, err := (PrizeEditService{Repository: fakemongo.NewGachaRepository()}).Edit(context.Background(), domain.GachaPrizeEdit{GuildID: "guild-1", Name: "不存在", Count: 1})
+	if !errors.Is(err, ports.ErrGachaPrizeMissing) {
+		t.Fatalf("expected ErrGachaPrizeMissing, got %v", err)
+	}
+}
+
+func TestPrizeEditRejectsInvalidInput(t *testing.T) {
+	for _, tc := range []struct {
+		edit domain.GachaPrizeEdit
+		repo ports.GachaPrizeEditRepository
+	}{
+		{edit: domain.GachaPrizeEdit{GuildID: "", Name: "大獎", Count: 1}, repo: fakemongo.NewGachaRepository()},
+		{edit: domain.GachaPrizeEdit{GuildID: "guild-1", Name: "", Count: 1}, repo: fakemongo.NewGachaRepository()},
+		{edit: domain.GachaPrizeEdit{GuildID: "guild-1", Name: "大獎", Count: 0}, repo: fakemongo.NewGachaRepository()},
+		{edit: domain.GachaPrizeEdit{GuildID: "guild-1", Name: "大獎", Count: 1}, repo: nil},
+	} {
+		_, err := (PrizeEditService{Repository: tc.repo}).Edit(context.Background(), tc.edit)
+		if !errors.Is(err, domain.ErrInvalidGachaPrize) {
+			t.Fatalf("expected ErrInvalidGachaPrize, got %v", err)
+		}
+	}
+}

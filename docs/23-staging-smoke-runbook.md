@@ -207,6 +207,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE=true
 
 Set both together only when testing `/扭蛋獎池增加` against disposable `gifts` rows. This path inserts one prize row after the legacy duplicate and pool-size checks; it does not draw prizes, write user coin balances, decrement inventory counts, send DMs, or enable shop behavior.
 
+Optional gacha prize-edit smoke flags:
+
+```bash
+export MHCAT_FEATURE_GACHA_PRIZE_EDIT_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_EDIT=true
+```
+
+Set both together only when testing `/扭蛋獎品編輯` against disposable `gifts` rows. This path replaces one prize row by `{guild,gift_name}` using the legacy delete-plus-insert shape; it does not draw prizes, write user coin balances, decrement inventory counts, send DMs, or enable shop behavior.
+
 Optional gacha prize-delete smoke flags:
 
 ```bash
@@ -428,6 +437,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`, confirm `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true` and the selected log channel is staging-only.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true` and the staging database has safe gacha fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_CREATE_ENABLED=true` and the staging database has only disposable `gifts` fixtures for the target prize name.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_EDIT=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_EDIT_ENABLED=true` and the staging database has only disposable `gifts` fixtures for the target prize name.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=true` and the staging database has disposable `gifts` fixtures for the target prize name.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true`, confirm `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true` and that the expected result is only the unavailable embed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=true`, confirm `MHCAT_FEATURE_STATS_QUERY_ENABLED=true` and that the expected result is only the static stats help embed.
@@ -621,6 +631,13 @@ For gacha prize-delete staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE=true`;
 - `MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=true`;
 - plan includes managed `扭蛋獎池刪除`;
+- plan still performs no create/update/delete during dry-run.
+
+For gacha prize-edit staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_EDIT=true`;
+- `MHCAT_FEATURE_GACHA_PRIZE_EDIT_ENABLED=true`;
+- plan includes managed `扭蛋獎品編輯`;
 - plan still performs no create/update/delete during dry-run.
 
 For gacha prize-create staging smoke, expected additionally:

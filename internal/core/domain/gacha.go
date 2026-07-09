@@ -22,6 +22,17 @@ type GachaPrizeConfig struct {
 	GiveCoin   int64
 }
 
+type GachaPrizeEdit struct {
+	GuildID    string
+	Name       string
+	Code       string
+	Chance     float64
+	ChanceSet  bool
+	AutoDelete bool
+	Count      int64
+	GiveCoin   int64
+}
+
 type GachaPrizePool struct {
 	GuildID     string
 	Prizes      []GachaPrize

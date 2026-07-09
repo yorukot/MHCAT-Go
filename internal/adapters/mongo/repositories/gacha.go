@@ -144,6 +144,56 @@ func (r *GachaRepository) CreateGachaPrize(ctx context.Context, prize domain.Gac
 	return ctx.Err()
 }
 
+func (r *GachaRepository) EditGachaPrize(ctx context.Context, edit domain.GachaPrizeEdit) (domain.GachaPrizeConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.GachaPrizeConfig{}, err
+	}
+	edit.GuildID = strings.TrimSpace(edit.GuildID)
+	edit.Name = strings.TrimSpace(edit.Name)
+	if edit.GuildID == "" || edit.Name == "" || edit.Count <= 0 {
+		return domain.GachaPrizeConfig{}, domain.ErrInvalidGachaPrize
+	}
+	filter := bson.D{{Key: "guild", Value: edit.GuildID}, {Key: "gift_name", Value: edit.Name}}
+	var document documents.GiftDocument
+	err := r.gifts.FindOneAndDelete(ctx, filter).Decode(&document)
+	if err != nil {
+		if err == drivermongo.ErrNoDocuments {
+			return domain.GachaPrizeConfig{}, ports.ErrGachaPrizeMissing
+		}
+		return domain.GachaPrizeConfig{}, mhcatmongo.MapError(fmt.Errorf("delete gacha prize before edit: %w", err))
+	}
+	updated := mergeLegacyGachaPrizeEdit(document.ToConfig(), edit)
+	if _, err := r.gifts.InsertOne(ctx, documents.GiftWriteDocumentFromDomain(updated)); err != nil {
+		mapped := mhcatmongo.MapError(fmt.Errorf("insert edited gacha prize: %w", err))
+		if mhcatmongo.ErrorIs(mapped, mhcatmongo.ErrorKindConflict) {
+			return domain.GachaPrizeConfig{}, ports.ErrGachaPrizeExists
+		}
+		return domain.GachaPrizeConfig{}, mapped
+	}
+	return updated, ctx.Err()
+}
+
+func mergeLegacyGachaPrizeEdit(existing domain.GachaPrizeConfig, edit domain.GachaPrizeEdit) domain.GachaPrizeConfig {
+	updated := existing
+	updated.GuildID = edit.GuildID
+	updated.Name = edit.Name
+	if edit.Code != "" {
+		updated.Code = edit.Code
+	}
+	if edit.ChanceSet && edit.Chance != 0 {
+		updated.Chance = edit.Chance
+	}
+	if edit.AutoDelete {
+		updated.AutoDelete = true
+	}
+	updated.Count = edit.Count
+	if edit.GiveCoin != 0 {
+		updated.GiveCoin = edit.GiveCoin
+	}
+	return updated
+}
+
 var _ ports.GachaPrizePoolRepository = (*GachaRepository)(nil)
 var _ ports.GachaPrizeDeleteRepository = (*GachaRepository)(nil)
 var _ ports.GachaPrizeCreateRepository = (*GachaRepository)(nil)
+var _ ports.GachaPrizeEditRepository = (*GachaRepository)(nil)

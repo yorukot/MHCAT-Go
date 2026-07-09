@@ -28,6 +28,37 @@ func TestGiftDocumentToDomainPreservesLegacyFields(t *testing.T) {
 	}
 }
 
+func TestGiftDocumentToConfigPreservesEditableLegacyFields(t *testing.T) {
+	chanceType, chanceValue, err := bson.MarshalValue(12.5)
+	if err != nil {
+		t.Fatalf("marshal chance: %v", err)
+	}
+	countType, countValue, err := bson.MarshalValue("3")
+	if err != nil {
+		t.Fatalf("marshal count: %v", err)
+	}
+	coinType, coinValue, err := bson.MarshalValue(int64(7))
+	if err != nil {
+		t.Fatalf("marshal give coin: %v", err)
+	}
+	document := GiftDocument{
+		Guild:      "guild-1",
+		GiftName:   "大獎",
+		GiftCode:   "code-1",
+		GiftChance: bson.RawValue{Type: chanceType, Value: chanceValue},
+		AutoDelete: false,
+		GiftCount:  bson.RawValue{Type: countType, Value: countValue},
+		GiveCoin:   bson.RawValue{Type: coinType, Value: coinValue},
+	}
+	config := document.ToConfig()
+	if config.GuildID != "guild-1" || config.Name != "大獎" || config.Code != "code-1" {
+		t.Fatalf("config identity = %#v", config)
+	}
+	if config.Chance != 12.5 || config.AutoDelete || config.Count != 3 || config.GiveCoin != 7 {
+		t.Fatalf("config values = %#v", config)
+	}
+}
+
 func TestGiftWriteDocumentFromDomainPreservesLegacyBSONFields(t *testing.T) {
 	document := GiftWriteDocumentFromDomain(domain.GachaPrizeConfig{
 		GuildID:    "guild-1",

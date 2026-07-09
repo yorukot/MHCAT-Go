@@ -27,6 +27,10 @@ type PrizeCreateService struct {
 	Repository ports.GachaPrizeCreateRepository
 }
 
+type PrizeEditService struct {
+	Repository ports.GachaPrizeEditRepository
+}
+
 func (s PrizePoolService) Query(ctx context.Context, guildID string) (domain.GachaPrizePool, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.GachaPrizePool{}, err
@@ -93,4 +97,16 @@ func (s PrizeCreateService) Create(ctx context.Context, prize domain.GachaPrizeC
 		return ports.ErrGachaPrizePoolFull
 	}
 	return s.Repository.CreateGachaPrize(ctx, prize)
+}
+
+func (s PrizeEditService) Edit(ctx context.Context, edit domain.GachaPrizeEdit) (domain.GachaPrizeConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.GachaPrizeConfig{}, err
+	}
+	edit.GuildID = strings.TrimSpace(edit.GuildID)
+	edit.Name = strings.TrimSpace(edit.Name)
+	if edit.GuildID == "" || edit.Name == "" || edit.Count <= 0 || s.Repository == nil {
+		return domain.GachaPrizeConfig{}, domain.ErrInvalidGachaPrize
+	}
+	return s.Repository.EditGachaPrize(ctx, edit)
 }

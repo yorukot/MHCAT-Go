@@ -49,3 +49,15 @@ func (d GiftDocument) ToDomain() domain.GachaPrize {
 		Count:   legacyInt64(d.GiftCount),
 	}
 }
+
+func (d GiftDocument) ToConfig() domain.GachaPrizeConfig {
+	return domain.GachaPrizeConfig{
+		GuildID:    d.Guild,
+		Name:       d.GiftName,
+		Code:       d.GiftCode,
+		Chance:     legacyFloat64(d.GiftChance),
+		AutoDelete: d.AutoDelete,
+		Count:      legacyInt64(d.GiftCount),
+		GiveCoin:   legacyInt64(d.GiveCoin),
+	}
+}
