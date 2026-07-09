@@ -178,7 +178,7 @@ export MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true
 ```
 
-Set both together only when testing `/自動通知列表` and `/自動通知刪除`. This path reads/deletes `cron_sets` rows and may clean abandoned setup drafts whose `cron` is null or missing. It does not enable `automatic-notification`, the cron modal/select flow, Message Content intent, recurring scheduler ownership, or notification sends.
+Set both together only when testing `automatic-notification`, `/自動通知列表`, and `/自動通知刪除`. This path writes pending `cron_sets` setup rows, completes direct cron modal submits, sends setup previews, reads/deletes `cron_sets` rows, and may clean abandoned setup drafts whose `cron` is null or missing. It does not enable the simplified cron select-menu flow, Message Content intent, recurring scheduler ownership, or recurring notification sends.
 
 Optional logging-config smoke flags:
 
@@ -442,7 +442,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`, confirm `MHCAT_FEATURE_TRANSLATE_ENABLED=true` and external translate calls are allowed for the staging bot.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true` and the staging database has only disposable `codes` fixtures for `/兌換`.
-- If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database has safe `cron_sets` fixtures for list/delete.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database/channel targets are disposable for auto-notification setup/list/delete.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`, confirm `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true` and the selected log channel is staging-only.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true` and the staging database has safe gacha fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW=true`, confirm `MHCAT_FEATURE_GACHA_DRAW_ENABLED=true`, the staging database has isolated `coins`/`gifts`/`gift_changes` fixtures, and DMs/notification-channel sends are acceptable for the test account.
@@ -619,7 +619,7 @@ For auto-notification config staging smoke, expected additionally:
 
 - `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`;
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true`;
-- plan includes managed `自動通知列表` and `自動通知刪除`;
+- plan includes managed `automatic-notification`, `自動通知列表`, and `自動通知刪除`;
 - plan still performs no create/update/delete during dry-run.
 
 For logging-config staging smoke, expected additionally:
@@ -896,7 +896,7 @@ If logging-config inclusion is enabled, expected:
 
 If auto-notification config inclusion is enabled, expected:
 
-- create/update managed `自動通知列表` and `自動通知刪除` only in addition to the utility commands;
+- create/update managed `automatic-notification`, `自動通知列表`, and `自動通知刪除` only in addition to the utility commands;
 - no command deletion;
 - no bulk overwrite;
 - no global command mutation.
@@ -1025,13 +1025,16 @@ If delete-data flags were enabled and command sync apply was reviewed:
 
 If auto-notification config flags were enabled and command sync apply was reviewed:
 
+- run `/automatic-notification channel:<test channel>` and submit the legacy modal with a safe direct cron such as `*/30 * * * *`;
+- verify the completion message includes the generated id and a setup preview message appears in the interaction channel;
+- verify the staging `cron_sets` row contains `guild`, `channel`, `id`, `cron`, and rollback-compatible `message`;
 - create or confirm a safe staging `cron_sets` active row with `guild`, `id`, `cron`, and `channel`;
 - optionally create a disposable staging draft row with null or missing `cron`;
 - run `/自動通知列表` and verify the legacy list embed includes active rows and does not render pending drafts;
 - verify the pending draft row was cleaned from staging data;
 - run `/自動通知刪除 id:<active id>` and verify the legacy green delete embed appears;
 - run `/自動通知刪除 id:<missing id>` and verify the legacy red missing-id tutorial embed appears;
-- verify no `automatic-notification` setup modal, scheduler job, channel send, index creation, or Message Content intent was involved.
+- verify no simplified cron select-menu flow, recurring scheduler job, recurring channel send, index creation, or Message Content intent was involved.
 
 If announcement relay was explicitly enabled:
 
@@ -1176,7 +1179,7 @@ Verify:
   - Exception: economy coin-admin smoke writes disposable staging `coins` rows only.
   - Exception: logging-config smoke writes the legacy-compatible `loggings` config only after the setup select is submitted.
   - Exception: delete-data smoke deletes selected disposable staging config rows only.
-  - Exception: auto-notification config smoke deletes selected `cron_sets` rows and abandoned pending drafts only.
+  - Exception: auto-notification config smoke writes/completes disposable setup `cron_sets` rows, sends a setup preview, and deletes selected rows and abandoned pending drafts only.
   - Exception: voice-room config smoke writes/deletes legacy-compatible `voice_channels` rows only.
 
 ## 6. Record Result

@@ -376,7 +376,7 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 		expected = append(expected, featureautochat.AutoChatSetCommandName, featureautochat.AutoChatDeleteCommandName)
 	}
 	if cfg.IncludeAutoNotificationConfig {
-		expected = append(expected, featurenotifications.AutoNotificationListCommandName, featurenotifications.AutoNotificationDeleteCommandName)
+		expected = append(expected, featurenotifications.AutoNotificationSetupCommandName, featurenotifications.AutoNotificationListCommandName, featurenotifications.AutoNotificationDeleteCommandName)
 	}
 	if cfg.IncludeAntiScamConfig {
 		expected = append(expected, featuresafety.AntiScamCommandName)

@@ -1429,7 +1429,7 @@ func TestCommandSyncIncludeAutoNotificationConfigStagingDryRunIncludesDefinition
 	if len(fake.Created) != 0 || len(fake.Updated) != 0 || len(fake.Deleted) != 0 {
 		t.Fatalf("dry-run performed writes: %#v", fake)
 	}
-	if !strings.Contains(stdout, "自動通知列表") || !strings.Contains(stdout, "自動通知刪除") {
+	if !strings.Contains(stdout, "automatic-notification") || !strings.Contains(stdout, "自動通知列表") || !strings.Contains(stdout, "自動通知刪除") {
 		t.Fatalf("expected auto-notification definitions in stdout=%q", stdout)
 	}
 }

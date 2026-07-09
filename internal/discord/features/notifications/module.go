@@ -7,14 +7,16 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/notifications"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 )
 
 type Module struct {
-	service coreservice.ScheduleService
-	discord ports.DiscordInfoProvider
-	usage   ports.UsageTracker
-	color   func() int
+	service  coreservice.ScheduleService
+	discord  ports.DiscordInfoProvider
+	messages ports.DiscordMessagePort
+	usage    ports.UsageTracker
+	color    func() int
 }
 
 func NewModule(repo ports.AutoNotificationScheduleRepository, discord ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
@@ -24,6 +26,12 @@ func NewModule(repo ports.AutoNotificationScheduleRepository, discord ports.Disc
 		usage:   usage,
 		color:   legacyRandomColor,
 	}
+}
+
+func NewModuleWithMessagePort(repo ports.AutoNotificationScheduleRepository, discord ports.DiscordInfoProvider, messages ports.DiscordMessagePort, usage ports.UsageTracker) Module {
+	module := NewModule(repo, discord, usage)
+	module.messages = messages
+	return module
 }
 
 func NewModuleWithColor(repo ports.AutoNotificationScheduleRepository, discord ports.DiscordInfoProvider, usage ports.UsageTracker, color func() int) Module {
@@ -43,10 +51,16 @@ func (m Module) Commands() []commands.Definition {
 }
 
 func (m Module) RegisterRoutes(router *interactions.Router) error {
+	if err := router.RegisterSlash(AutoNotificationSetupCommandName, m.SetupHandler()); err != nil {
+		return err
+	}
 	if err := router.RegisterSlash(AutoNotificationListCommandName, m.ListHandler()); err != nil {
 		return err
 	}
-	return router.RegisterSlash(AutoNotificationDeleteCommandName, m.DeleteHandler())
+	if err := router.RegisterSlash(AutoNotificationDeleteCommandName, m.DeleteHandler()); err != nil {
+		return err
+	}
+	return router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeModal, Version: customid.LegacyVersion, Feature: "cron", Action: "submit", Legacy: true}, m.SetupModalHandler())
 }
 
 func legacyRandomColor() int {

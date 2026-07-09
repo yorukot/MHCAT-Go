@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 )
@@ -17,7 +20,35 @@ const (
 	autoNotificationErrorColor  = 0xED4245
 	autoNotificationGreenColor  = 0x57F287
 	autoNotificationFallbackGld = "這個伺服器"
+	fieldCron                   = "cron_setcron"
+	fieldMessage                = "cron_setmsg"
+	fieldColor                  = "cron_setcolor"
+	fieldTitle                  = "cron_settitle"
+	fieldContent                = "cron_setcontent"
 )
+
+func (m Module) SetupHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if !interaction.Actor.HasPermission(permissionManageMessages) {
+			return responder.Reply(ctx, autoNotificationErrorMessage("你需要有`訊息管理`才能使用此指令"))
+		}
+		id := setupID(interaction.CreatedAt)
+		if err := m.service.StartSetup(ctx, domain.AutoNotificationSetupDraft{
+			GuildID:   interaction.Actor.GuildID,
+			ID:        id,
+			ChannelID: firstOption(interaction, optionChannel, "頻道"),
+		}); err != nil {
+			if errors.Is(err, ports.ErrAutoNotificationScheduleLimit) {
+				return responder.Reply(ctx, autoNotificationErrorMessage("一個伺服器最多只能設置10個自動通知，請使用`/備份列表`進行刪除"))
+			}
+			return responder.Reply(ctx, autoNotificationErrorFromError(err))
+		}
+		if err := responder.ShowModal(ctx, autoNotificationSetupModal(id)); err != nil {
+			return err
+		}
+		return m.track(ctx, interaction, AutoNotificationSetupCommandName)
+	}
+}
 
 func (m Module) ListHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
@@ -58,6 +89,47 @@ func (m Module) DeleteHandler() interactions.Handler {
 	}
 }
 
+func (m Module) SetupModalHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		fields := autoNotificationModalFields(interaction.ModalFields)
+		message := domain.AutoNotificationMessage{
+			Content:          fields[fieldMessage],
+			EmbedTitle:       fields[fieldTitle],
+			EmbedDescription: fields[fieldContent],
+			EmbedColor:       fields[fieldColor],
+		}.Normalized()
+		if message.EmbedColor != "" && message.EmbedColor != "Random" && !domain.ValidLegacyColor(message.EmbedColor) {
+			return responder.EditOriginal(ctx, autoNotificationErrorMessage("你傳送的並不是顏色(色碼)"))
+		}
+		if message.Empty() {
+			return responder.EditOriginal(ctx, autoNotificationErrorMessage("你都沒輸入你要發送甚麼，我要怎麼發送啦!"))
+		}
+		cron := strings.TrimSpace(fields[fieldCron])
+		if !validDirectCron(cron) {
+			return responder.EditOriginal(ctx, autoNotificationErrorMessage("目前請輸入完整 cron 表達式，簡易設定流程會在後續切片補上"))
+		}
+		id := strings.TrimSpace(interaction.CustomID)
+		if err := m.service.CompleteSetup(ctx, domain.AutoNotificationSetup{
+			GuildID: interaction.Actor.GuildID,
+			ID:      id,
+			Cron:    cron,
+			Message: message,
+		}); err != nil {
+			return responder.EditOriginal(ctx, autoNotificationErrorFromError(err))
+		}
+		if err := responder.EditOriginal(ctx, autoNotificationSetupCompleteMessage(id)); err != nil {
+			return err
+		}
+		if m.messages != nil && strings.TrimSpace(interaction.ChannelID) != "" {
+			_, _ = m.messages.SendMessage(ctx, interaction.ChannelID, autoNotificationPreviewOutbound(message, m.color()))
+		}
+		return nil
+	}
+}
+
 func (m Module) guildName(ctx context.Context, guildID string) string {
 	if m.discord == nil || strings.TrimSpace(guildID) == "" {
 		return autoNotificationFallbackGld
@@ -67,6 +139,41 @@ func (m Module) guildName(ctx context.Context, guildID string) string {
 		return autoNotificationFallbackGld
 	}
 	return info.Name
+}
+
+func autoNotificationSetupModal(id string) responses.Modal {
+	return responses.Modal{
+		CustomID: id,
+		Title:    "自動發送通知系統!",
+		Rows: []responses.ModalRow{
+			{Inputs: []responses.TextInput{{
+				CustomID: fieldCron,
+				Label:    "請輸入corn表達式(如想用簡化版，請直接輸入取消或cancel就可以簡易設置corn)",
+				Style:    responses.TextInputStyleShort,
+				Required: true,
+			}}},
+			{Inputs: []responses.TextInput{{
+				CustomID: fieldMessage,
+				Label:    "請輸入文字(如不輸入這項請務必輸入下面三項)",
+				Style:    responses.TextInputStyleParagraph,
+			}}},
+			{Inputs: []responses.TextInput{{
+				CustomID: fieldColor,
+				Label:    "請輸入你的嵌入訊息顏色(如不輸入嵌入訊息相關，請務必輸入文字)",
+				Style:    responses.TextInputStyleShort,
+			}}},
+			{Inputs: []responses.TextInput{{
+				CustomID: fieldTitle,
+				Label:    "請輸入你的嵌入標題(如不輸入嵌入訊息相關，請務必輸入文字)",
+				Style:    responses.TextInputStyleShort,
+			}}},
+			{Inputs: []responses.TextInput{{
+				CustomID: fieldContent,
+				Label:    "請輸入嵌入內文(如不輸入嵌入訊息相關，請務必輸入文字)",
+				Style:    responses.TextInputStyleParagraph,
+			}}},
+		},
+	}
 }
 
 func autoNotificationListMessage(guildName string, schedules []domain.AutoNotificationSchedule, color int) responses.Message {
@@ -87,6 +194,13 @@ func autoNotificationListMessage(guildName string, schedules []domain.AutoNotifi
 	}
 }
 
+func autoNotificationSetupCompleteMessage(id string) responses.Message {
+	return responses.Message{
+		Content:         fmt.Sprintf(":white_check_mark:**以下是該自動通知id:**`%s`\n使用`/自動通知刪除 id:%s`進行刪除\n~~我只是個分隔線，下面是你的訊息預覽~~", id, id),
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
 func autoNotificationDeleteMessage() responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
@@ -96,6 +210,31 @@ func autoNotificationDeleteMessage() responses.Message {
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
+}
+
+func autoNotificationPreviewOutbound(message domain.AutoNotificationMessage, color int) ports.OutboundMessage {
+	message = message.Normalized()
+	result := ports.OutboundMessage{
+		Content:         message.Content,
+		AllowedMentions: ports.AllowedMentions{},
+	}
+	if !message.HasEmbed() {
+		return result
+	}
+	embedColor := 0
+	if message.EmbedColor == "Random" {
+		embedColor = color
+	} else if message.EmbedColor != "" {
+		if parsed, ok := domain.ParseLegacyColorValue(message.EmbedColor); ok {
+			embedColor = parsed
+		}
+	}
+	result.Embeds = []ports.OutboundEmbed{{
+		Title:       message.EmbedTitle,
+		Description: message.EmbedDescription,
+		Color:       embedColor,
+	}}
+	return result
 }
 
 func autoNotificationErrorFromError(err error) responses.Message {
@@ -126,6 +265,49 @@ func firstOption(interaction interactions.Interaction, names ...string) string {
 		}
 	}
 	return ""
+}
+
+func setupID(createdAt time.Time) string {
+	if createdAt.IsZero() {
+		createdAt = time.Now()
+	}
+	return strconv.FormatInt(createdAt.UnixMilli(), 10)
+}
+
+func autoNotificationModalFields(fields []customid.ModalField) map[string]string {
+	values := make(map[string]string, len(fields))
+	for _, field := range fields {
+		values[field.CustomID] = strings.TrimSpace(field.Value)
+	}
+	return values
+}
+
+func validDirectCron(value string) bool {
+	fields := strings.Fields(value)
+	if len(fields) != 5 {
+		return false
+	}
+	for _, field := range fields {
+		if field == "" {
+			return false
+		}
+		for _, char := range field {
+			if (char >= '0' && char <= '9') || char == '*' || char == '/' || char == ',' || char == '-' {
+				continue
+			}
+			return false
+		}
+	}
+	if fields[0] == "*" {
+		return false
+	}
+	if strings.HasPrefix(fields[0], "*/") {
+		step, err := strconv.Atoi(strings.TrimPrefix(fields[0], "*/"))
+		if err != nil || step < 15 {
+			return false
+		}
+	}
+	return true
 }
 
 func (m Module) track(ctx context.Context, interaction interactions.Interaction, commandName string) error {

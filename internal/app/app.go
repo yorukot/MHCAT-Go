@@ -443,7 +443,12 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		if err != nil {
 			return nil, err
 		}
+		sideEffects, err := ticketSideEffectsFromSession(session)
+		if err != nil {
+			return nil, err
+		}
 		opts.AutoNotificationRepository = autoNotificationRepo
+		opts.AutoNotificationMessagePort = sideEffects
 	}
 	if cfg.FeatureAntiScamConfigEnabled {
 		antiScamRepo, err := antiScamConfigRepositoryFromMongo(mongoClient)

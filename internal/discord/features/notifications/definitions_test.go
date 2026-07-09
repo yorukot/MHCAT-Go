@@ -7,6 +7,19 @@ import (
 )
 
 func TestDefinitionsMatchLegacy(t *testing.T) {
+	setup := SetupDefinition()
+	if setup.Name != AutoNotificationSetupCommandName || setup.Description != "Set where automatic notification should be send" {
+		t.Fatalf("setup definition = %#v", setup)
+	}
+	if setup.DefaultMemberPermissions == nil || *setup.DefaultMemberPermissions != manageMessagesPermission {
+		t.Fatalf("setup permissions = %#v", setup.DefaultMemberPermissions)
+	}
+	if len(setup.Options) != 1 || setup.Options[0].Name != optionChannel || setup.Options[0].Type != commands.OptionTypeChannel || !setup.Options[0].Required {
+		t.Fatalf("setup options = %#v", setup.Options)
+	}
+	if len(setup.Options[0].ChannelTypes) != 2 || setup.Options[0].ChannelTypes[0] != 0 || setup.Options[0].ChannelTypes[1] != 5 {
+		t.Fatalf("setup channel types = %#v", setup.Options[0].ChannelTypes)
+	}
 	list := ListDefinition()
 	if list.Name != AutoNotificationListCommandName || list.Description != "查看所有的自動通知列表" {
 		t.Fatalf("list definition = %#v", list)

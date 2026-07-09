@@ -79,6 +79,7 @@ type RuntimeOptions struct {
 	RedeemRepository              ports.RedeemRepository
 	AutoChatConfigRepository      ports.AutoChatConfigRepository
 	AutoNotificationRepository    ports.AutoNotificationScheduleRepository
+	AutoNotificationMessagePort   ports.DiscordMessagePort
 	AntiScamConfigRepository      ports.AntiScamConfigRepository
 	ScamURLCatalogRepository      ports.ScamURLCatalog
 	ScamReportSender              ports.ScamReportSender
@@ -413,7 +414,7 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		}
 	}
 	if opts.AutoNotificationRepository != nil {
-		notificationModule := featurenotifications.NewModule(opts.AutoNotificationRepository, concreteDiscord, opts.UsageTracker)
+		notificationModule := featurenotifications.NewModuleWithMessagePort(opts.AutoNotificationRepository, concreteDiscord, opts.AutoNotificationMessagePort, opts.UsageTracker)
 		if err := notificationModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

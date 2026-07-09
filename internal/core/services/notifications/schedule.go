@@ -63,3 +63,43 @@ func (s ScheduleService) Delete(ctx context.Context, guildID string, id string) 
 	}
 	return s.Repository.DeleteAutoNotificationSchedule(ctx, guildID, id)
 }
+
+func (s ScheduleService) StartSetup(ctx context.Context, draft domain.AutoNotificationSetupDraft) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if s.Repository == nil {
+		return domain.ErrInvalidAutoNotificationSchedule
+	}
+	draft = draft.Normalized()
+	if err := domain.ValidateAutoNotificationSetupDraft(draft); err != nil {
+		return err
+	}
+	schedules, err := s.Repository.ListAutoNotificationSchedules(ctx, draft.GuildID)
+	if err != nil {
+		return err
+	}
+	if len(schedules) >= 10 {
+		return ports.ErrAutoNotificationScheduleLimit
+	}
+	for _, schedule := range schedules {
+		if strings.TrimSpace(schedule.ID) == draft.ID {
+			return ports.ErrAutoNotificationScheduleExists
+		}
+	}
+	return s.Repository.CreatePendingAutoNotificationSchedule(ctx, draft)
+}
+
+func (s ScheduleService) CompleteSetup(ctx context.Context, setup domain.AutoNotificationSetup) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if s.Repository == nil {
+		return domain.ErrInvalidAutoNotificationSchedule
+	}
+	setup = setup.Normalized()
+	if err := domain.ValidateAutoNotificationSetup(setup); err != nil {
+		return err
+	}
+	return s.Repository.CompleteAutoNotificationSchedule(ctx, setup)
+}

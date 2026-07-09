@@ -50,3 +50,56 @@ func TestDeleteValidatesIdentityAndPropagatesMissing(t *testing.T) {
 		t.Fatalf("expected missing schedule error, got %v", err)
 	}
 }
+
+func TestStartSetupCreatesPendingDraft(t *testing.T) {
+	repo := fakemongo.NewAutoNotificationScheduleRepository()
+	service := NewScheduleService(repo)
+
+	err := service.StartSetup(context.Background(), domain.AutoNotificationSetupDraft{
+		GuildID:   " guild-1 ",
+		ID:        " 1700000000000 ",
+		ChannelID: " channel-1 ",
+	})
+	if err != nil {
+		t.Fatalf("start setup: %v", err)
+	}
+	schedules := repo.Schedules["guild-1"]
+	if len(schedules) != 1 || schedules[0].ID != "1700000000000" || schedules[0].ChannelID != "channel-1" || !schedules[0].Pending {
+		t.Fatalf("schedules = %#v", schedules)
+	}
+}
+
+func TestStartSetupRejectsScheduleLimit(t *testing.T) {
+	repo := fakemongo.NewAutoNotificationScheduleRepository()
+	for index := 0; index < 10; index++ {
+		repo.Schedules["guild-1"] = append(repo.Schedules["guild-1"], domain.AutoNotificationSchedule{GuildID: "guild-1", ID: string(rune('a' + index)), Cron: "0 9 * * 1"})
+	}
+	service := NewScheduleService(repo)
+
+	err := service.StartSetup(context.Background(), domain.AutoNotificationSetupDraft{GuildID: "guild-1", ID: "new", ChannelID: "channel-1"})
+	if !errors.Is(err, ports.ErrAutoNotificationScheduleLimit) {
+		t.Fatalf("expected schedule limit, got %v", err)
+	}
+	if len(repo.Schedules["guild-1"]) != 10 {
+		t.Fatalf("schedule count changed: %#v", repo.Schedules["guild-1"])
+	}
+}
+
+func TestCompleteSetupUpdatesPendingDraft(t *testing.T) {
+	repo := fakemongo.NewAutoNotificationScheduleRepository()
+	repo.Schedules["guild-1"] = []domain.AutoNotificationSchedule{{GuildID: "guild-1", ID: "1700000000000", ChannelID: "channel-1", Pending: true}}
+	service := NewScheduleService(repo)
+
+	err := service.CompleteSetup(context.Background(), domain.AutoNotificationSetup{
+		GuildID: "guild-1",
+		ID:      "1700000000000",
+		Cron:    "*/30 * * * *",
+		Message: domain.AutoNotificationMessage{Content: "hello"},
+	})
+	if err != nil {
+		t.Fatalf("complete setup: %v", err)
+	}
+	if len(repo.Completed) != 1 || repo.Completed[0].Cron != "*/30 * * * *" || repo.Schedules["guild-1"][0].Pending {
+		t.Fatalf("completed=%#v schedules=%#v", repo.Completed, repo.Schedules["guild-1"])
+	}
+}

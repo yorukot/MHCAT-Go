@@ -80,6 +80,50 @@ func (r *AutoNotificationScheduleRepository) DeleteAutoNotificationSchedule(ctx 
 	return ctx.Err()
 }
 
+func (r *AutoNotificationScheduleRepository) CreatePendingAutoNotificationSchedule(ctx context.Context, draft domain.AutoNotificationSetupDraft) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	draft = draft.Normalized()
+	if err := domain.ValidateAutoNotificationSetupDraft(draft); err != nil {
+		return err
+	}
+	_, err := r.collection.InsertOne(ctx, documents.AutoNotificationPendingWriteDocumentFromDomain(draft))
+	if err != nil {
+		mapped := mhcatmongo.MapError(fmt.Errorf("create pending auto-notification schedule: %w", err))
+		if mhcatmongo.ErrorIs(mapped, mhcatmongo.ErrorKindConflict) {
+			return ports.ErrAutoNotificationScheduleExists
+		}
+		return mapped
+	}
+	return ctx.Err()
+}
+
+func (r *AutoNotificationScheduleRepository) CompleteAutoNotificationSchedule(ctx context.Context, setup domain.AutoNotificationSetup) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	setup = setup.Normalized()
+	if err := domain.ValidateAutoNotificationSetup(setup); err != nil {
+		return err
+	}
+	result, err := r.collection.UpdateOne(
+		ctx,
+		bson.D{{Key: "guild", Value: setup.GuildID}, {Key: "id", Value: setup.ID}},
+		bson.D{{Key: "$set", Value: bson.D{
+			{Key: "cron", Value: setup.Cron},
+			{Key: "message", Value: documents.AutoNotificationMessageBSON(setup.Message)},
+		}}},
+	)
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("complete auto-notification schedule: %w", err))
+	}
+	if result.MatchedCount == 0 {
+		return ports.ErrAutoNotificationScheduleMissing
+	}
+	return ctx.Err()
+}
+
 func (r *AutoNotificationScheduleRepository) DeletePendingAutoNotificationSchedules(ctx context.Context, guildID string) error {
 	if err := ctx.Err(); err != nil {
 		return err

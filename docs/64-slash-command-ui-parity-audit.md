@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 60
-- Matching command definitions: 60
+- Current Go command definitions: 61
+- Matching command definitions: 61
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 14
+- Legacy commands without Go definitions: 13
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -19,6 +19,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 | Command | Legacy file | Status | Findings |
 | --- | --- | --- | --- |
+| `automatic-notification` | `slashCommands/自動通知/cron_set.js` | matching-definition | none |
 | `coin-related-settings` | `slashCommands/代幣系統/coin_cange.js` | matching-definition | none |
 | `help` | `slashCommands/實用工具/help.js` | matching-definition | none |
 | `info` | `slashCommands/實用工具/info.js` | matching-definition | none |
@@ -88,7 +89,6 @@ None.
 
 | Command | Category | Legacy file | Description |
 | --- | --- | --- | --- |
-| `automatic-notification` | 自動通知 | `slashCommands/自動通知/cron_set.js` | Set where automatic notification should be send |
 | `代幣商店` | 代幣系統 | `slashCommands/代幣系統/ghp_shop.js` | 使用你所賺到的代幣買一些特別的東西吧! |
 | `代幣遊戲` | 代幣系統 | `slashCommands/代幣系統/game.js` | 遊玩有關代幣的小遊戲 |
 | `代幣重製` | 代幣系統 | `slashCommands/代幣系統/coin_rest.js` | 重製所有人的代幣，或者是進行代幣改變幣值 |

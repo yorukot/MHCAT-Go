@@ -379,14 +379,14 @@ MHCAT_FEATURE_REDEEM_ENABLED=true
 
 This command reads and deletes `codes` by `code`, then credits `chatgpt_gets.price` for the guild. It preserves the legacy 7-day expiry check and ephemeral success/error embeds. It does not enable ChatGPT/autochat message runtime, does not require Message Content intent, and creates no indexes.
 
-Auto-notification list/delete commands are available only when both staging command sync and runtime flags are explicitly enabled:
+Auto-notification setup/list/delete commands are available only when both staging command sync and runtime flags are explicitly enabled:
 
 ```bash
 MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true
 MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true
 ```
 
-These commands read/delete legacy `cron_sets` rows only. `/自動通知列表` filters abandoned setup drafts from the response and cleans rows whose `cron` is null or missing. `/自動通知刪除` deletes one `{guild,id}` row. This does not enable `automatic-notification`, the cron modal/select flow, Message Content intent, recurring scheduler ownership, or notification sends. See `docs/66-auto-notification-config.md`.
+These commands read/write/delete legacy `cron_sets` rows. `automatic-notification` creates a pending setup row, opens the legacy modal, accepts direct cron expressions, writes the rollback-compatible message payload, and sends a best-effort preview message. `/自動通知列表` filters abandoned setup drafts from the response and cleans rows whose `cron` is null or missing. `/自動通知刪除` deletes one `{guild,id}` row. This does not enable the simplified cron select-menu flow, Message Content intent, recurring scheduler ownership, or recurring notification sends. See `docs/66-auto-notification-config.md`.
 
 `/set-log-channel` is available only when both staging command sync and runtime flags are explicitly enabled:
 
