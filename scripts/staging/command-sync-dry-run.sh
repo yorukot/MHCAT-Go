@@ -137,6 +137,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY:-false}" = "true" ] && [ "${MHCAT
   echo "refusing command sync: stats query command dry-run requires MHCAT_FEATURE_STATS_QUERY_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE:-false}" = "true" ] && [ "${MHCAT_FEATURE_STATS_CREATE_ENABLED:-false}" != "true" ]; then
+  echo "refusing command sync: stats create command dry-run requires MHCAT_FEATURE_STATS_CREATE_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE:-false}" = "true" ] && [ "${MHCAT_FEATURE_STATS_DELETE_ENABLED:-false}" != "true" ]; then
   echo "refusing command sync: stats delete command dry-run requires MHCAT_FEATURE_STATS_DELETE_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -356,6 +360,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY:-false}" = "true" ]; then
   echo "staging command sync dry-run: including stats query command for review" >&2
 else
   echo "staging command sync dry-run: stats query command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE:-false}" = "true" ]; then
+  echo "staging command sync dry-run: including stats create command for review" >&2
+else
+  echo "staging command sync dry-run: stats create command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE:-false}" = "true" ]; then
   echo "staging command sync dry-run: including stats delete command for review" >&2

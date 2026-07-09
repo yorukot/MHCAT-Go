@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 )
 
@@ -25,6 +26,10 @@ type SideEffects struct {
 	Kicked            []KickAction
 	Banned            []BanAction
 	NonBotMembers     int
+	TotalMembers      int
+	ChannelCount      int
+	TextChannelCount  int
+	VoiceChannelCount int
 	MemberTagValues   map[string]string
 	AssignableRoles   map[string]bool
 	MissingRoles      map[string]bool
@@ -85,6 +90,20 @@ func NewSideEffects() *SideEffects {
 	return &SideEffects{MemberTagValues: map[string]string{}, AssignableRoles: map[string]bool{}, MissingRoles: map[string]bool{}, ModerationAllowed: map[string]bool{}, nextChannel: 1, nextMessage: 1}
 }
 
+func (s *SideEffects) FindChannelByID(ctx context.Context, guildID string, channelID string) (ports.ChannelRef, error) {
+	if err := s.ready(ctx); err != nil {
+		return ports.ChannelRef{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, channel := range s.Channels {
+		if channel.GuildID == guildID && channel.ChannelID == channelID {
+			return channel, nil
+		}
+	}
+	return ports.ChannelRef{}, ports.ErrChannelNotFound
+}
+
 func (s *SideEffects) FindChannelByName(ctx context.Context, guildID string, name string, channelType int) (ports.ChannelRef, error) {
 	if err := s.ready(ctx); err != nil {
 		return ports.ChannelRef{}, err
@@ -97,6 +116,54 @@ func (s *SideEffects) FindChannelByName(ctx context.Context, guildID string, nam
 		}
 	}
 	return ports.ChannelRef{}, ports.ErrChannelNotFound
+}
+
+func (s *SideEffects) GuildStats(ctx context.Context, guildID string) (domain.StatsSnapshot, error) {
+	if err := s.ready(ctx); err != nil {
+		return domain.StatsSnapshot{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snapshot := domain.StatsSnapshot{
+		MemberCount:       s.TotalMembers,
+		UserCount:         s.NonBotMembers,
+		BotCount:          s.TotalMembers - s.NonBotMembers,
+		ChannelCount:      s.ChannelCount,
+		TextChannelCount:  s.TextChannelCount,
+		VoiceChannelCount: s.VoiceChannelCount,
+	}
+	if snapshot.BotCount < 0 {
+		snapshot.BotCount = 0
+	}
+	if snapshot.ChannelCount == 0 || snapshot.TextChannelCount == 0 || snapshot.VoiceChannelCount == 0 {
+		for _, channel := range s.Channels {
+			if channel.GuildID != guildID {
+				continue
+			}
+			switch channel.Type {
+			case 0:
+				if s.TextChannelCount == 0 {
+					snapshot.TextChannelCount++
+				}
+				if s.ChannelCount == 0 {
+					snapshot.ChannelCount++
+				}
+			case 2:
+				if s.VoiceChannelCount == 0 {
+					snapshot.VoiceChannelCount++
+				}
+				if s.ChannelCount == 0 {
+					snapshot.ChannelCount++
+				}
+			case 4:
+			default:
+				if s.ChannelCount == 0 {
+					snapshot.ChannelCount++
+				}
+			}
+		}
+	}
+	return snapshot, nil
 }
 
 func (s *SideEffects) CountNonBotMembers(ctx context.Context, guildID string) (int, error) {

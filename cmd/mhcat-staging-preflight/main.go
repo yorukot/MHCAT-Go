@@ -145,6 +145,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		lotteryDisabledRuntimePairing(lookup),
 		statsQueryCommandSync(lookup),
 		statsQueryRuntimePairing(lookup),
+		statsCreateCommandSync(lookup),
+		statsCreateRuntimePairing(lookup),
 		statsDeleteCommandSync(lookup),
 		statsDeleteRuntimePairing(lookup),
 		birthdayConfigCommandSync(lookup),
@@ -1251,6 +1253,38 @@ func statsDeleteCommandSync(lookup lookupFunc) checkResult {
 		return checkResult{Name: "stats-delete-command-sync", Status: statusPass, Message: "stats delete command sync include is enabled for staging review"}
 	}
 	return checkResult{Name: "stats-delete-command-sync", Status: statusSkipped, Message: "stats delete command sync include is disabled"}
+}
+
+func statsCreateCommandSync(lookup lookupFunc) checkResult {
+	includeStats, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE")
+	if err != nil {
+		return checkResult{Name: "stats-create-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeStats {
+		return checkResult{Name: "stats-create-command-sync", Status: statusPass, Message: "stats create command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "stats-create-command-sync", Status: statusSkipped, Message: "stats create command sync include is disabled"}
+}
+
+func statsCreateRuntimePairing(lookup lookupFunc) checkResult {
+	includeStats, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE")
+	if err != nil {
+		return checkResult{Name: "stats-create-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	statsEnabled, err := boolValue(lookup, "MHCAT_FEATURE_STATS_CREATE_ENABLED")
+	if err != nil {
+		return checkResult{Name: "stats-create-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeStats && !statsEnabled {
+		return checkResult{Name: "stats-create-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true requires MHCAT_FEATURE_STATS_CREATE_ENABLED=true in the staging runtime"}
+	}
+	if includeStats && statsEnabled {
+		return checkResult{Name: "stats-create-runtime-pairing", Status: statusPass, Message: "stats create command sync and runtime feature flag are paired"}
+	}
+	if statsEnabled {
+		return checkResult{Name: "stats-create-runtime-pairing", Status: statusWarn, Message: "stats create runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "stats-create-runtime-pairing", Status: statusSkipped, Message: "stats create runtime and command sync include are disabled"}
 }
 
 func statsDeleteRuntimePairing(lookup lookupFunc) checkResult {

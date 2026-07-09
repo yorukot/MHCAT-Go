@@ -134,6 +134,7 @@ type DiscordDirectMessagePort interface {
 }
 
 type DiscordChannelPort interface {
+	FindChannelByID(ctx context.Context, guildID string, channelID string) (ChannelRef, error)
 	FindChannelByName(ctx context.Context, guildID string, name string, channelType int) (ChannelRef, error)
 	CreateChannel(ctx context.Context, req ChannelCreateRequest) (ChannelRef, error)
 	DeleteChannel(ctx context.Context, channelID string) error

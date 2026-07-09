@@ -3,9 +3,11 @@ package stats
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	corestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/stats"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 )
@@ -22,6 +24,33 @@ func (m Module) QueryHandler() interactions.Handler {
 			return err
 		}
 		return m.track(ctx, interaction, StatsQueryCommandName, "stats-query")
+	}
+}
+
+func (m Module) CreateHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if m.createService.Repository == nil || m.createService.Channels == nil || m.createService.GuildStats == nil {
+			return domain.ErrInvalidStatsConfigRequest
+		}
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		if !interaction.Actor.HasPermission(permissionManageMessages) {
+			return responder.FollowUp(ctx, statsErrorMessage("你需要有`訊息管理`才能使用此指令"))
+		}
+		_, err := m.createService.Create(ctx, corestats.CreateRequest{
+			GuildID:     interaction.Actor.GuildID,
+			ChannelType: firstStatsOption(interaction, statsOptionChannelType),
+			Option:      firstStatsOption(interaction, statsOptionStat),
+			BotUserID:   m.botUserID,
+		})
+		if err != nil {
+			return responder.FollowUp(ctx, statsCreateErrorMessage(err))
+		}
+		if err := responder.FollowUp(ctx, statsCreateSuccessMessage()); err != nil {
+			return err
+		}
+		return m.track(ctx, interaction, StatsCreateCommandName, "stats-create")
 	}
 }
 
@@ -50,6 +79,31 @@ func (m Module) DeleteHandler() interactions.Handler {
 	}
 }
 
+func statsCreateSuccessMessage() responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<a:greentick:980496858445135893> | 成功創建!頻道(不要動到數字就沒問題)跟類別的名稱都能自行更改喔!",
+			Color: statsSuccessColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func statsCreateErrorMessage(err error) responses.Message {
+	switch {
+	case errors.Is(err, domain.ErrInvalidStatsChannelType):
+		return statsErrorMessage("你沒有進行設置要文字頻道還是語音頻道!或是你打錯了!")
+	case errors.Is(err, domain.ErrStatsOptionRequired):
+		return statsErrorMessage("由於你已經創建過了，所以你必須說明你要創建的統計名稱，或是刪除現有的統計資料(使用統計資料刪除)!")
+	case errors.Is(err, domain.ErrStatsChannelAlreadyExists):
+		return statsErrorMessage("這個統計你已經創建過了!")
+	case errors.Is(err, domain.ErrInvalidStatsOption):
+		return statsErrorMessage("沒有這項統計可以創建欸QQ")
+	default:
+		return statsErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+	}
+}
+
 func legacyQueryMessage(color int) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
@@ -73,6 +127,18 @@ func legacyQueryMessage(color int) responses.Message {
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
+}
+
+func firstStatsOption(interaction interactions.Interaction, names ...string) string {
+	for _, name := range names {
+		if value := strings.TrimSpace(interaction.Options[name]); value != "" {
+			return value
+		}
+		if option, ok := interaction.CommandOptions[name]; ok {
+			return strings.TrimSpace(option.String)
+		}
+	}
+	return ""
 }
 
 func statsDeleteSuccessMessage(parentID string) responses.Message {

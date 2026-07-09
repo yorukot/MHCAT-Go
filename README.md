@@ -121,6 +121,7 @@ Implemented utility commands:
 - `/扭蛋獎池刪除` when explicitly enabled with `MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=true`
 - `/抽獎設置` disabled-command parity response when explicitly enabled with `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`
 - `/統計系統查詢` when explicitly enabled with `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`
+- `/統計系統創建` when explicitly enabled with `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`
 - `/統計系統刪除` when explicitly enabled with `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`
 - `/公告頻道設置` when explicitly enabled with `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`
 - `/公告發送` modal preview/confirm/send flow when explicitly enabled with `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true`
@@ -219,6 +220,7 @@ Safe defaults:
 - `MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=false`
 - `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=false`
 - `MHCAT_FEATURE_STATS_QUERY_ENABLED=false`
+- `MHCAT_FEATURE_STATS_CREATE_ENABLED=false`
 - `MHCAT_FEATURE_STATS_DELETE_ENABLED=false`
 - `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=false`
@@ -303,6 +305,7 @@ Command sync variables:
 - `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=false`
+- `MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG=false`
 - `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_SEND=false`
@@ -562,6 +565,8 @@ The `/扭蛋獎池刪除` command is available only when `MHCAT_FEATURE_GACHA_PR
 The `/抽獎設置` disabled-command parity response is available only when `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command preserves the current legacy unavailable embed and does not create lottery rows, send lottery panels, register lottery buttons, write Mongo, or enable old `lotter*` component behavior.
 
 The `/統計系統查詢` command is available only when `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command preserves the legacy static stats help embed and does not read/write Mongo, create/delete channels, rename channels, create indexes, or enable `channel_status` scheduler behavior.
+
+The `/統計系統創建` command is available only when `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires Manage Messages, creates the legacy stats category plus base member/user/bot channels, can add the legacy channel-count/text-count/voice-count stat channels after the base row exists, and writes rollback-compatible `numbers` rows. It does not create `role_number` rows, implement `/統計身分組人數`, delete Discord channels, create indexes, or enable the `channel_status` rename scheduler. Test only in an isolated staging guild/database because it creates Discord channels and writes `numbers`.
 
 The `/統計系統刪除` command is available only when `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires Manage Messages, deletes legacy `numbers` rows for the guild, and preserves the legacy success/error embeds. It does not delete Discord channels, create indexes, or enable `channel_status`.
 

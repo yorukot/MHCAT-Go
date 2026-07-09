@@ -139,6 +139,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeStatsQuery {
 		t.Fatal("include stats query must default false")
 	}
+	if cfg.IncludeStatsCreate {
+		t.Fatal("include stats create must default false")
+	}
 	if cfg.IncludeStatsDelete {
 		t.Fatal("include stats delete must default false")
 	}
@@ -819,6 +822,48 @@ func TestCommandSyncIncludeStatsDeleteStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeStatsDelete {
 		t.Fatal("expected include stats delete to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeStatsCreateRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":            "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":             "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include stats create without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeStatsCreateRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":            "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                "global",
+		"MHCAT_STAGING_MODE":                      "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include stats create with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeStatsCreateStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":            "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":             "guild",
+		"MHCAT_STAGING_MODE":                      "true",
+		"MHCAT_STAGING_GUILD_ID":                  "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeStatsCreate {
+		t.Fatal("expected include stats create to be enabled explicitly")
 	}
 }
 

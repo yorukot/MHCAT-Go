@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 63
-- Matching command definitions: 63
+- Current Go command definitions: 64
+- Matching command definitions: 64
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 11
+- Legacy commands without Go definitions: 10
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -55,6 +55,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `簽到` | `slashCommands/代幣系統/sing.js` | matching-definition | none |
 | `簽到列表` | `slashCommands/代幣系統/sing_list.js` | matching-definition | none |
 | `統計系統刪除` | `slashCommands/統計系統/number_delete.js` | matching-definition | none |
+| `統計系統創建` | `slashCommands/統計系統/number_create.js` | matching-definition | none |
 | `統計系統查詢` | `slashCommands/統計系統/number.js` | matching-definition | none |
 | `經驗值改變` | `slashCommands/經驗系統/xp_add.js` | matching-definition | none |
 | `翻譯` | `slashCommands/實用工具/translate.js` | matching-definition | none |
@@ -94,7 +95,6 @@ None.
 | `代幣商店` | 代幣系統 | `slashCommands/代幣系統/ghp_shop.js` | 使用你所賺到的代幣買一些特別的東西吧! |
 | `代幣遊戲` | 代幣系統 | `slashCommands/代幣系統/game.js` | 遊玩有關代幣的小遊戲 |
 | `代幣重製` | 代幣系統 | `slashCommands/代幣系統/coin_rest.js` | 重製所有人的代幣，或者是進行代幣改變幣值 |
-| `統計系統創建` | 統計系統 | `slashCommands/統計系統/number_create.js` | 創建統計消息 |
 | `統計身分組人數` | 統計系統 | `slashCommands/統計系統/role_create.js` | 統計某個特定的身分組的人數 |
 | `經驗值重製` | 經驗系統 | `slashCommands/經驗系統/reset_xp.js` | 重製整個伺服器的經驗 |
 | `聊天排行榜` | 經驗系統 | `slashCommands/經驗系統/text_rank.js` | 查詢聊天經驗的排行榜 |

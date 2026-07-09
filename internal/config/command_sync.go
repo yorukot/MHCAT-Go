@@ -48,6 +48,7 @@ const (
 	DefaultCommandSyncIncludeGachaPrizeDelete       = false
 	DefaultCommandSyncIncludeLotteryDisabledCommand = false
 	DefaultCommandSyncIncludeStatsQuery             = false
+	DefaultCommandSyncIncludeStatsCreate            = false
 	DefaultCommandSyncIncludeStatsDelete            = false
 	DefaultCommandSyncIncludeBirthdayConfig         = false
 	DefaultCommandSyncIncludeAnnouncementConfig     = false
@@ -112,6 +113,7 @@ type CommandSyncConfig struct {
 	IncludeGachaPrizeDelete       bool
 	IncludeLotteryDisabledCommand bool
 	IncludeStatsQuery             bool
+	IncludeStatsCreate            bool
 	IncludeStatsDelete            bool
 	IncludeBirthdayConfig         bool
 	IncludeAnnouncementConfig     bool
@@ -191,6 +193,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeGachaPrizeDelete:       DefaultCommandSyncIncludeGachaPrizeDelete,
 		IncludeLotteryDisabledCommand: DefaultCommandSyncIncludeLotteryDisabledCommand,
 		IncludeStatsQuery:             DefaultCommandSyncIncludeStatsQuery,
+		IncludeStatsCreate:            DefaultCommandSyncIncludeStatsCreate,
 		IncludeStatsDelete:            DefaultCommandSyncIncludeStatsDelete,
 		IncludeBirthdayConfig:         DefaultCommandSyncIncludeBirthdayConfig,
 		IncludeAnnouncementConfig:     DefaultCommandSyncIncludeAnnouncementConfig,
@@ -314,6 +317,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeStatsQuery, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY", DefaultCommandSyncIncludeStatsQuery); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeStatsCreate, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE", DefaultCommandSyncIncludeStatsCreate); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeStatsDelete, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE", DefaultCommandSyncIncludeStatsDelete); err != nil {
@@ -657,6 +663,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeStatsCreate {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeStatsDelete {

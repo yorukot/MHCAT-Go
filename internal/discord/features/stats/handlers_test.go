@@ -82,6 +82,106 @@ func TestDeleteHandlerRequiresManageMessages(t *testing.T) {
 	}
 }
 
+func TestCreateHandlerRequiresManageMessages(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	discord := fakediscord.NewSideEffects()
+	module := NewCreateModule(repo, discord, discord, nil, "bot-1")
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteractionWithOptions(StatsCreateCommandName, "", map[string]string{
+		statsOptionChannelType: "文字頻道",
+	})
+
+	if err := module.CreateHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 {
+		t.Fatalf("defers = %#v", responder.Defers)
+	}
+	if len(responder.Follow) != 1 || !strings.Contains(responder.Follow[0].Embeds[0].Title, "你需要有`訊息管理`") {
+		t.Fatalf("followups = %#v", responder.Follow)
+	}
+	if len(discord.Created) != 0 {
+		t.Fatalf("created channels = %#v", discord.Created)
+	}
+}
+
+func TestCreateHandlerCreatesStatsWithLegacySuccess(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	discord := fakediscord.NewSideEffects()
+	discord.TotalMembers = 15
+	discord.NonBotMembers = 12
+	usage := &fakeusage.Tracker{}
+	module := NewCreateModule(repo, discord, discord, usage, "bot-1")
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteractionWithOptions(StatsCreateCommandName, "", map[string]string{
+		statsOptionChannelType: "文字頻道",
+	})
+	interaction.Actor.PermissionBits = permissionManageMessages
+
+	if err := module.CreateHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 || len(responder.Follow) != 1 {
+		t.Fatalf("defers=%#v followups=%#v", responder.Defers, responder.Follow)
+	}
+	if title := responder.Follow[0].Embeds[0].Title; title != "<a:greentick:980496858445135893> | 成功創建!頻道(不要動到數字就沒問題)跟類別的名稱都能自行更改喔!" {
+		t.Fatalf("title = %q", title)
+	}
+	if len(discord.Created) != 4 || discord.Created[1].Name != "總人數: 15" {
+		t.Fatalf("created channels = %#v", discord.Created)
+	}
+	if saved := repo.Configs["guild-1"]; saved.MemberNumberName != "15" || saved.UserNumberName != "12" || saved.BotNumberName != "3" {
+		t.Fatalf("saved = %#v", saved)
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != StatsCreateCommandName || usage.Events[0].Feature != "stats-create" {
+		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
+func TestCreateHandlerExistingStatsRequiresOptionWithLegacyError(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "parent-1"})
+	discord := fakediscord.NewSideEffects()
+	module := NewCreateModule(repo, discord, discord, nil, "")
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteractionWithOptions(StatsCreateCommandName, "", map[string]string{
+		statsOptionChannelType: "文字頻道",
+	})
+	interaction.Actor.PermissionBits = permissionManageMessages
+
+	if err := module.CreateHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Follow) != 1 || !strings.Contains(responder.Follow[0].Embeds[0].Title, "由於你已經創建過了") {
+		t.Fatalf("followups = %#v", responder.Follow)
+	}
+}
+
+func TestCreateHandlerAddsOptionalStatsChannel(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "parent-1"})
+	discord := fakediscord.NewSideEffects()
+	discord.Channels = append(discord.Channels, ports.ChannelRef{GuildID: "guild-1", ChannelID: "parent-1", Name: "stats", Type: 4})
+	discord.TextChannelCount = 9
+	module := NewCreateModule(repo, discord, discord, nil, "")
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteractionWithOptions(StatsCreateCommandName, "", map[string]string{
+		statsOptionChannelType: "文字頻道",
+		statsOptionStat:        "文字頻道數量",
+	})
+	interaction.Actor.PermissionBits = permissionManageMessages
+
+	if err := module.CreateHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(discord.Created) != 1 || discord.Created[0].Name != "總文字頻道數: 9" || discord.Created[0].ParentID != "parent-1" {
+		t.Fatalf("created channels = %#v", discord.Created)
+	}
+	if saved := repo.Configs["guild-1"]; saved.TextNumberName != "9" || saved.TextNumberID == "" {
+		t.Fatalf("saved = %#v", saved)
+	}
+}
+
 func TestDeleteHandlerDeletesStatsConfigWithLegacySuccess(t *testing.T) {
 	repo := fakemongo.NewStatsConfigRepository()
 	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "parent-1"})

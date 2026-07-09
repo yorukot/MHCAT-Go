@@ -509,6 +509,19 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.StatsDeleteRepository = statsRepo
 	}
+	if cfg.FeatureStatsCreateEnabled {
+		statsRepo, err := statsConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "stats create feature")
+		if err != nil {
+			return nil, err
+		}
+		opts.StatsCreateRepository = statsRepo
+		opts.StatsCreateChannelPort = sideEffects
+		opts.StatsCreateGuildStats = sideEffects
+	}
 	if cfg.FeatureBirthdayConfigEnabled {
 		birthdayRepo, err := birthdayConfigRepositoryFromMongo(mongoClient)
 		if err != nil {

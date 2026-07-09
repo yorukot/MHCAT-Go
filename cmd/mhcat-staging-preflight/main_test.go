@@ -1283,6 +1283,43 @@ func TestPreflightWarnsWhenStatsDeleteRuntimeEnabledWithoutCommandSync(t *testin
 	}
 }
 
+func TestPreflightRejectsStatsCreateCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "stats-create-runtime-pairing status=fail") {
+		t.Fatalf("expected stats create pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsStatsCreateCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE"] = "true"
+	env["MHCAT_FEATURE_STATS_CREATE_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "stats-create-command-sync status=pass") || !strings.Contains(stdout, "stats-create-runtime-pairing status=pass") {
+		t.Fatalf("expected stats create pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenStatsCreateRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_STATS_CREATE_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "stats-create-runtime-pairing status=warn") {
+		t.Fatalf("expected stats create runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsBirthdayConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_BIRTHDAY_CONFIG"] = "true"

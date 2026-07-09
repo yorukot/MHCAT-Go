@@ -1,6 +1,6 @@
 # Stats Query/Delete Slice
 
-Implemented slices: `/統計系統查詢` and `/統計系統刪除`.
+Implemented slices: `/統計系統查詢`, `/統計系統創建`, and `/統計系統刪除`.
 
 Legacy evidence:
 - `MHCAT/slashCommands/統計系統/number.js` defines command name `統計系統查詢`, description `查詢統計消息`, cooldown metadata `10`, and a public `interaction.reply` with a single static embed.
@@ -11,6 +11,8 @@ Legacy evidence:
 Go behavior:
 - Runtime route is available only when `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`.
 - Command sync includes the command only when `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=true`.
+- `/統計系統創建` is available only when `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`.
+- Command sync includes the create command only when `MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true`.
 - `/統計系統刪除` is available only when `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`.
 - Command sync includes the delete command only when `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true`.
 - Staging preflight and staging scripts reject unpaired command-sync/runtime flags.
@@ -19,11 +21,13 @@ Go behavior:
 - The delete handler deletes legacy `numbers` rows for the guild, returning the first row's `parent` in the legacy success title. It does not delete Discord channels, matching the legacy command's actual behavior.
 - Usage tracking remains the no-op production tracker unless a future usage repository is approved.
 
+Implemented separately in the create slice:
+- `統計系統創建` creates the legacy category/base stat channels, writes `numbers`, and can add channel-count/text-count/voice-count stat channels.
+
 Intentionally not implemented:
-- `統計系統創建`.
 - `統計身分組人數`.
-- `Number` creation/update and `role_number` Mongo writes.
-- Channel create/rename side effects.
+- `role_number` Mongo writes.
+- Channel rename side effects.
 - `handler/channel_status.js` 20-minute rename worker.
 - Any Mongo index creation.
 

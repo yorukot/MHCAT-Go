@@ -1122,6 +1122,44 @@ func TestBuildRuntimeRoutesStatsDeleteOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesStatsCreateOnlyWithDependencies(t *testing.T) {
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("統計系統創建", "", map[string]string{"統計頻道類型": "文字頻道"})
+	interaction.Actor.PermissionBits = 8192
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err == nil {
+		t.Fatal("stats create route should not be available without dependencies")
+	}
+
+	repo := fakemongo.NewStatsConfigRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.TotalMembers = 11
+	sideEffects.NonBotMembers = 9
+	dispatcher, err = BuildRuntime(RuntimeOptions{
+		Config:                 validTestConfig(),
+		StatsCreateRepository:  repo,
+		StatsCreateChannelPort: sideEffects,
+		StatsCreateGuildStats:  sideEffects,
+		BotUserID:              "bot-1",
+	})
+	if err != nil {
+		t.Fatalf("build runtime with stats create: %v", err)
+	}
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch stats create: %v", err)
+	}
+	if len(responder.Follow) != 1 || len(responder.Follow[0].Embeds) != 1 || !strings.Contains(responder.Follow[0].Embeds[0].Title, "成功創建") {
+		t.Fatalf("stats create response = %#v", responder.Follow)
+	}
+	if len(sideEffects.Created) != 4 || repo.Configs["guild-1"].MemberNumberName != "11" {
+		t.Fatalf("created=%#v repo=%#v", sideEffects.Created, repo.Configs)
+	}
+}
+
 func TestBuildRuntimeRoutesXPRoleConfigOnlyWithRepositories(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

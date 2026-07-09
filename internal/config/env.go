@@ -60,6 +60,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureGachaPrizeDeleteEnabled:       DefaultFeatureGachaPrizeDeleteEnabled,
 		FeatureLotteryDisabledCommandEnabled: DefaultFeatureLotteryDisabledCommandEnabled,
 		FeatureStatsQueryEnabled:             DefaultFeatureStatsQueryEnabled,
+		FeatureStatsCreateEnabled:            DefaultFeatureStatsCreateEnabled,
 		FeatureStatsDeleteEnabled:            DefaultFeatureStatsDeleteEnabled,
 		FeatureBirthdayConfigEnabled:         DefaultFeatureBirthdayConfigEnabled,
 		FeatureAnnouncementConfigEnabled:     DefaultFeatureAnnouncementConfigEnabled,
@@ -214,6 +215,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureStatsQueryEnabled, err = getBool(lookup, "MHCAT_FEATURE_STATS_QUERY_ENABLED", DefaultFeatureStatsQueryEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureStatsCreateEnabled, err = getBool(lookup, "MHCAT_FEATURE_STATS_CREATE_ENABLED", DefaultFeatureStatsCreateEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureStatsDeleteEnabled, err = getBool(lookup, "MHCAT_FEATURE_STATS_DELETE_ENABLED", DefaultFeatureStatsDeleteEnabled); err != nil {

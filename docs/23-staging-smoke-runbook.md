@@ -261,6 +261,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=true
 
 Set both together only when testing `/統計系統查詢`. This path sends the legacy static help embed only; it does not write `Number`/`role_number`, create channels, rename channels, or enable `channel_status`.
 
+Optional stats create smoke flags:
+
+```bash
+export MHCAT_FEATURE_STATS_CREATE_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true
+```
+
+Set both together only when testing `/統計系統創建` in an isolated staging guild. This path creates the legacy stats category/base channels, can add channel-count/text-count/voice-count channels, and writes `numbers`; it does not create `role_number` rows or enable `channel_status`.
+
 Optional stats delete smoke flags:
 
 ```bash
@@ -470,6 +479,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=true` and the staging database has disposable `gifts` fixtures for the target prize name.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true`, confirm `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true` and that the expected result is only the unavailable embed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=true`, confirm `MHCAT_FEATURE_STATS_QUERY_ENABLED=true` and that the expected result is only the static stats help embed.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true`, confirm `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`, the staging guild can safely receive new stat channels, and the staging database has disposable `numbers` rows.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true`, confirm `MHCAT_FEATURE_STATS_DELETE_ENABLED=true` and the staging database has disposable `numbers` rows.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG=true`, confirm `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`, the staging database can safely write `guilds` and `ann_all_sets`, and the expected result is only config changes.
 - If `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, the staging bound channel is safe for message deletion tests, and tag pings are expected to be suppressed.
@@ -704,6 +714,14 @@ For stats query staging smoke, expected additionally:
 - `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`;
 - plan includes managed `統計系統查詢`;
 - `/統計系統查詢` returns the legacy static stats help embed and performs no Mongo or channel writes.
+
+For stats create staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true`;
+- `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`;
+- plan includes managed `統計系統創建`;
+- run `/統計系統創建 統計頻道類型:文字頻道`, verify the stats category plus member/user/bot channels are created, and verify one `numbers` row is written for the staging guild;
+- rerun with `統計選項:頻道數量` and verify one channel-count stat channel is added under the saved category.
 
 For stats delete staging smoke, expected additionally:
 

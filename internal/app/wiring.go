@@ -94,6 +94,9 @@ type RuntimeOptions struct {
 	GachaPrizeDeleteRepository    ports.GachaPrizeDeleteRepository
 	LotteryDisabledCommandEnabled bool
 	StatsQueryEnabled             bool
+	StatsCreateRepository         ports.StatsConfigRepository
+	StatsCreateChannelPort        ports.DiscordChannelPort
+	StatsCreateGuildStats         ports.DiscordGuildStatsReader
 	StatsDeleteRepository         ports.StatsConfigRepository
 	BirthdayConfigRepository      ports.BirthdayConfigRepository
 	AnnouncementConfigRepository  ports.AnnouncementConfigRepository
@@ -225,6 +228,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.StatsQueryEnabled {
 		definitions = append(definitions, featurestats.QueryDefinitions()...)
+	}
+	if opts.StatsCreateRepository != nil && opts.StatsCreateChannelPort != nil && opts.StatsCreateGuildStats != nil {
+		definitions = append(definitions, featurestats.CreateDefinitions()...)
 	}
 	if opts.StatsDeleteRepository != nil {
 		definitions = append(definitions, featurestats.DeleteDefinitions()...)
@@ -469,6 +475,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.StatsQueryEnabled {
 		statsModule := featurestats.NewModule(opts.UsageTracker)
+		if err := statsModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.StatsCreateRepository != nil && opts.StatsCreateChannelPort != nil && opts.StatsCreateGuildStats != nil {
+		statsModule := featurestats.NewCreateModule(opts.StatsCreateRepository, opts.StatsCreateChannelPort, opts.StatsCreateGuildStats, opts.UsageTracker, opts.BotUserID)
 		if err := statsModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

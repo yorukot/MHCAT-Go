@@ -14,12 +14,15 @@ const legacyRandomColorFallback = 0x5865F2
 
 type Module struct {
 	service       corestats.ConfigService
+	createService corestats.CreateService
 	usage         ports.UsageTracker
 	color         func() int
 	defs          []commands.Definition
 	feature       string
 	queryEnabled  bool
+	createEnabled bool
 	deleteEnabled bool
+	botUserID     string
 }
 
 func NewModule(usage ports.UsageTracker) Module {
@@ -50,6 +53,22 @@ func NewDeleteModule(repo ports.StatsConfigRepository, usage ports.UsageTracker)
 	}
 }
 
+func NewCreateModule(repo ports.StatsConfigRepository, channels ports.DiscordChannelPort, guildStats ports.DiscordGuildStatsReader, usage ports.UsageTracker, botUserID string) Module {
+	return Module{
+		createService: corestats.CreateService{
+			Repository: repo,
+			Channels:   channels,
+			GuildStats: guildStats,
+		},
+		usage:         usage,
+		color:         func() int { return legacyRandomColorFallback },
+		defs:          CreateDefinitions(),
+		feature:       "stats-create",
+		createEnabled: true,
+		botUserID:     botUserID,
+	}
+}
+
 func (m Module) Name() string {
 	return m.feature
 }
@@ -61,6 +80,11 @@ func (m Module) Commands() []commands.Definition {
 func (m Module) RegisterRoutes(router *interactions.Router) error {
 	if m.queryEnabled {
 		if err := router.RegisterSlash(StatsQueryCommandName, m.QueryHandler()); err != nil {
+			return err
+		}
+	}
+	if m.createEnabled {
+		if err := router.RegisterSlash(StatsCreateCommandName, m.CreateHandler()); err != nil {
 			return err
 		}
 	}

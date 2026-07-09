@@ -8,6 +8,7 @@ import (
 	"time"
 
 	dgo "github.com/bwmarrin/discordgo"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 )
 
@@ -179,6 +180,71 @@ func (c SideEffectClient) FindChannelByName(ctx context.Context, guildID string,
 		return ports.ChannelRef{GuildID: channel.GuildID, ChannelID: channel.ID, Name: channel.Name, Type: int(channel.Type)}, ctx.Err()
 	}
 	return ports.ChannelRef{}, ports.ErrChannelNotFound
+}
+
+func (c SideEffectClient) FindChannelByID(ctx context.Context, guildID string, channelID string) (ports.ChannelRef, error) {
+	session, err := c.session()
+	if err != nil {
+		return ports.ChannelRef{}, err
+	}
+	channel, err := session.Channel(channelID, dgo.WithContext(ctx))
+	if err != nil {
+		if isDiscordNotFound(err) {
+			return ports.ChannelRef{}, ports.ErrChannelNotFound
+		}
+		return ports.ChannelRef{}, fmt.Errorf("load discord channel: %w", err)
+	}
+	if channel == nil || channel.ID == "" || channel.GuildID != guildID {
+		return ports.ChannelRef{}, ports.ErrChannelNotFound
+	}
+	return ports.ChannelRef{GuildID: channel.GuildID, ChannelID: channel.ID, Name: channel.Name, Type: int(channel.Type)}, ctx.Err()
+}
+
+func (c SideEffectClient) GuildStats(ctx context.Context, guildID string) (domain.StatsSnapshot, error) {
+	session, err := c.session()
+	if err != nil {
+		return domain.StatsSnapshot{}, err
+	}
+	guild, err := stateGuild(session, guildID)
+	if err != nil {
+		guild, err = session.GuildWithCounts(guildID, dgo.WithContext(ctx))
+		if err != nil {
+			return domain.StatsSnapshot{}, fmt.Errorf("load discord guild stats: %w", err)
+		}
+	}
+	channels, err := session.GuildChannels(guildID, dgo.WithContext(ctx))
+	if err != nil {
+		return domain.StatsSnapshot{}, fmt.Errorf("list discord guild channels for stats: %w", err)
+	}
+	nonBotMembers, err := c.CountNonBotMembers(ctx, guildID)
+	if err != nil {
+		return domain.StatsSnapshot{}, err
+	}
+	snapshot := domain.StatsSnapshot{UserCount: nonBotMembers}
+	if guild != nil {
+		snapshot.MemberCount = guild.MemberCount
+	}
+	snapshot.BotCount = snapshot.MemberCount - snapshot.UserCount
+	if snapshot.BotCount < 0 {
+		snapshot.BotCount = 0
+	}
+	for _, channel := range channels {
+		if channel == nil {
+			continue
+		}
+		switch channel.Type {
+		case dgo.ChannelTypeGuildText:
+			snapshot.TextChannelCount++
+			snapshot.ChannelCount++
+		case dgo.ChannelTypeGuildVoice:
+			snapshot.VoiceChannelCount++
+			snapshot.ChannelCount++
+		case dgo.ChannelTypeGuildCategory:
+		default:
+			snapshot.ChannelCount++
+		}
+	}
+	return snapshot, ctx.Err()
 }
 
 func (c SideEffectClient) CountNonBotMembers(ctx context.Context, guildID string) (int, error) {
@@ -665,6 +731,7 @@ var _ ports.DiscordMessagePort = SideEffectClient{}
 var _ ports.DiscordMessageCleaner = SideEffectClient{}
 var _ ports.DiscordDirectMessagePort = SideEffectClient{}
 var _ ports.DiscordGuildMemberReader = SideEffectClient{}
+var _ ports.DiscordGuildStatsReader = SideEffectClient{}
 var _ ports.DiscordRoleInspector = SideEffectClient{}
 var _ ports.DiscordMemberPort = SideEffectClient{}
 var _ ports.DiscordMemberHierarchyInspector = SideEffectClient{}
