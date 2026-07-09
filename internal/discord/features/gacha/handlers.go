@@ -16,6 +16,7 @@ import (
 
 const (
 	gachaErrorColor                  = 0xED4245
+	gachaPrizeCreateSuccessColor     = 0x53FF53
 	gachaPrizeDeleteSuccessColor     = 0x53FF53
 	gachaManageMessagesPermissionBit = int64(8192)
 	legacyDoneEmoji                  = "<a:green_tick:994529015652163614>"
@@ -66,6 +67,49 @@ func (m Module) PrizeDeleteHandler() interactions.Handler {
 			return err
 		}
 		return m.track(ctx, interaction, GachaPrizeDeleteCommandName, "gacha-prize-delete")
+	}
+}
+
+func (m Module) PrizeCreateHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{Ephemeral: true}); err != nil {
+			return err
+		}
+		if !interaction.Actor.HasPermission(gachaManageMessagesPermissionBit) {
+			return responder.EditOriginal(ctx, gachaErrorMessage("你沒有權限使用這個指令"))
+		}
+		prizeName := gachaStringOption(interaction, gachaPrizeNameOption)
+		if len([]rune(prizeName)) > 200 {
+			return responder.EditOriginal(ctx, gachaErrorMessage("獎品名稱不能這麼長!(需小於200)"))
+		}
+		prize := domain.GachaPrizeConfig{
+			GuildID:    interaction.Actor.GuildID,
+			Name:       prizeName,
+			Code:       gachaStringOption(interaction, gachaPrizeCodeOption),
+			Chance:     gachaNumberOption(interaction, gachaPrizeChanceOption),
+			AutoDelete: gachaBoolOptionDefault(interaction, gachaPrizeAutoDeleteOption, true),
+			Count:      gachaIntOptionDefault(interaction, gachaPrizeCountOption, 1, true),
+			GiveCoin:   gachaIntOptionDefault(interaction, gachaPrizeGiveCoinOption, 0, false),
+		}
+		if prize.Count <= 0 {
+			return responder.EditOriginal(ctx, gachaErrorMessage("獎品必須大於1"))
+		}
+		if err := m.createService.Create(ctx, prize); err != nil {
+			switch {
+			case errors.Is(err, ports.ErrGachaPrizePoolFull):
+				return responder.EditOriginal(ctx, gachaErrorMessage("你的獎品數量已經過多了!!請先刪除部分獎品!"))
+			case errors.Is(err, ports.ErrGachaPrizeExists):
+				return responder.EditOriginal(ctx, gachaErrorMessage("獎品名稱重複，請將之前的刪除或等待被抽中!"))
+			case errors.Is(err, domain.ErrInvalidGachaPrize):
+				return responder.EditOriginal(ctx, gachaErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+			default:
+				return responder.EditOriginal(ctx, gachaErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+			}
+		}
+		if err := responder.EditOriginal(ctx, gachaPrizeCreateSuccessMessage(prize)); err != nil {
+			return err
+		}
+		return m.track(ctx, interaction, GachaPrizeCreateCommandName, "gacha-prize-create")
 	}
 }
 
@@ -184,6 +228,29 @@ func gachaPrizeDeleteSuccessMessage(prize domain.GachaPrize) responses.Message {
 	}
 }
 
+func gachaPrizeCreateSuccessMessage(prize domain.GachaPrizeConfig) responses.Message {
+	code := strings.TrimSpace(prize.Code)
+	if code == "" {
+		code = "該獎品無代碼"
+	}
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: legacyDoneEmoji + "設置成功",
+			Color: gachaPrizeCreateSuccessColor,
+			Fields: []responses.EmbedField{
+				{Name: "<:id:985950321975128094> **獎品名:**", Value: prize.Name, Inline: true},
+				{Name: "<:dice:997374185322057799> **獎品機率:**", Value: formatLegacyNumber(prize.Chance), Inline: true},
+				{Name: "<:security:997374179257102396> **獎品代碼:**", Value: code, Inline: true},
+				{Name: "<:counter:994585977207140423> **獎品數量:**", Value: fmt.Sprintf("%d個", prize.Count), Inline: true},
+				{Name: "<:trashbin:995991389043163257> **自動刪除:**", Value: strconv.FormatBool(prize.AutoDelete), Inline: true},
+				{Name: "<:givemoney:1019632789110399068> **給予代幣數:**", Value: fmt.Sprintf("%d個", prize.GiveCoin), Inline: true},
+			},
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+		Ephemeral:       true,
+	}
+}
+
 func gachaStringOption(interaction interactions.Interaction, names ...string) string {
 	for _, name := range names {
 		if value := strings.TrimSpace(interaction.Options[name]); value != "" {
@@ -194,6 +261,57 @@ func gachaStringOption(interaction interactions.Interaction, names ...string) st
 		}
 	}
 	return ""
+}
+
+func gachaNumberOption(interaction interactions.Interaction, name string) float64 {
+	if option, ok := interaction.CommandOptions[name]; ok {
+		return option.Float
+	}
+	value := strings.TrimSpace(interaction.Options[name])
+	if value == "" {
+		return 0
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0
+	}
+	return parsed
+}
+
+func gachaIntOptionDefault(interaction interactions.Interaction, name string, fallback int64, zeroIsFallback bool) int64 {
+	if option, ok := interaction.CommandOptions[name]; ok {
+		if zeroIsFallback && option.Int == 0 {
+			return fallback
+		}
+		return option.Int
+	}
+	value := strings.TrimSpace(interaction.Options[name])
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return fallback
+	}
+	if zeroIsFallback && parsed == 0 {
+		return fallback
+	}
+	return parsed
+}
+
+func gachaBoolOptionDefault(interaction interactions.Interaction, name string, fallback bool) bool {
+	if option, ok := interaction.CommandOptions[name]; ok {
+		return option.Bool
+	}
+	value := strings.TrimSpace(interaction.Options[name])
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
 
 func (m Module) track(ctx context.Context, interaction interactions.Interaction, commandName string, feature string) error {

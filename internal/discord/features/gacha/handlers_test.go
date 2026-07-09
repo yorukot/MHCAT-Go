@@ -175,8 +175,159 @@ func TestPrizeDeleteRequiresManageMessages(t *testing.T) {
 	}
 }
 
+func TestPrizeCreateStoresPrizeAndRendersLegacySuccess(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	usage := &fakeusage.Tracker{}
+	module := NewCreateModule(repo, usage)
+	responder := fakediscord.NewResponder()
+	interaction := gachaPrizeCreateInteraction("大獎")
+	interaction.Options[gachaPrizeCodeOption] = "code-1"
+	interaction.CommandOptions = map[string]interactions.CommandOptionValue{
+		gachaPrizeChanceOption:     {Type: interactions.CommandOptionNumber, Float: 12.5},
+		gachaPrizeAutoDeleteOption: {Type: interactions.CommandOptionBoolean, Bool: false},
+		gachaPrizeCountOption:      {Type: interactions.CommandOptionInteger, Int: 3},
+		gachaPrizeGiveCoinOption:   {Type: interactions.CommandOptionInteger, Int: 7},
+	}
+
+	if err := module.PrizeCreateHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral {
+		t.Fatalf("defers = %#v", responder.Defers)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	embed := responder.Edits[0].Embeds[0]
+	if embed.Title != "<a:green_tick:994529015652163614>設置成功" || embed.Color != gachaPrizeCreateSuccessColor || len(embed.Fields) != 6 {
+		t.Fatalf("embed = %#v", embed)
+	}
+	for _, want := range []struct {
+		index int
+		name  string
+		value string
+	}{
+		{0, "<:id:985950321975128094> **獎品名:**", "大獎"},
+		{1, "<:dice:997374185322057799> **獎品機率:**", "12.5"},
+		{2, "<:security:997374179257102396> **獎品代碼:**", "code-1"},
+		{3, "<:counter:994585977207140423> **獎品數量:**", "3個"},
+		{4, "<:trashbin:995991389043163257> **自動刪除:**", "false"},
+		{5, "<:givemoney:1019632789110399068> **給予代幣數:**", "7個"},
+	} {
+		field := embed.Fields[want.index]
+		if field.Name != want.name || field.Value != want.value || !field.Inline {
+			t.Fatalf("field %d = %#v", want.index, field)
+		}
+	}
+	if len(repo.PrizeConfigs["guild-1"]) != 1 {
+		t.Fatalf("prize configs = %#v", repo.PrizeConfigs["guild-1"])
+	}
+	saved := repo.PrizeConfigs["guild-1"][0]
+	if saved.Name != "大獎" || saved.Code != "code-1" || saved.Chance != 12.5 || saved.AutoDelete || saved.Count != 3 || saved.GiveCoin != 7 {
+		t.Fatalf("saved prize = %#v", saved)
+	}
+	if len(usage.Events) != 1 || usage.Events[0].CommandName != GachaPrizeCreateCommandName || usage.Events[0].Feature != "gacha-prize-create" {
+		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
+func TestPrizeCreateDefaultsOptionalLegacyValues(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	module := NewCreateModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	interaction := gachaPrizeCreateInteraction("無代碼")
+	interaction.Options[gachaPrizeChanceOption] = "0.1"
+	interaction.Options[gachaPrizeCountOption] = "0"
+
+	if err := module.PrizeCreateHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(repo.PrizeConfigs["guild-1"]) != 1 {
+		t.Fatalf("prize configs = %#v", repo.PrizeConfigs["guild-1"])
+	}
+	saved := repo.PrizeConfigs["guild-1"][0]
+	if saved.Chance != 0.1 || !saved.AutoDelete || saved.Count != 1 || saved.GiveCoin != 0 {
+		t.Fatalf("saved defaults = %#v", saved)
+	}
+	fields := responder.Edits[0].Embeds[0].Fields
+	if fields[2].Value != "該獎品無代碼" || fields[3].Value != "1個" || fields[4].Value != "true" || fields[5].Value != "0個" {
+		t.Fatalf("fields = %#v", fields)
+	}
+}
+
+func TestPrizeCreateRequiresManageMessages(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	module := NewCreateModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	interaction := gachaPrizeCreateInteraction("大獎")
+	interaction.Actor.PermissionBits = 0
+
+	if err := module.PrizeCreateHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 你沒有權限使用這個指令" {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(repo.Prizes["guild-1"]) != 0 {
+		t.Fatalf("prize should not be created without permission: %#v", repo.Prizes["guild-1"])
+	}
+}
+
+func TestPrizeCreateDuplicateReturnsLegacyError(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Count: 1}}
+	module := NewCreateModule(repo, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.PrizeCreateHandler()(context.Background(), gachaPrizeCreateInteraction("大獎"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 獎品名稱重複，請將之前的刪除或等待被抽中!" {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestPrizeCreateFullPoolReturnsLegacyError(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	for i := 0; i < 25; i++ {
+		repo.Prizes["guild-1"] = append(repo.Prizes["guild-1"], domain.GachaPrize{GuildID: "guild-1", Name: "獎品", Count: 1})
+	}
+	module := NewCreateModule(repo, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.PrizeCreateHandler()(context.Background(), gachaPrizeCreateInteraction("新獎品"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 你的獎品數量已經過多了!!請先刪除部分獎品!" {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestPrizeCreateNegativeCountReturnsLegacyError(t *testing.T) {
+	module := NewCreateModule(fakemongo.NewGachaRepository(), nil)
+	responder := fakediscord.NewResponder()
+	interaction := gachaPrizeCreateInteraction("大獎")
+	interaction.Options[gachaPrizeCountOption] = "-1"
+
+	if err := module.PrizeCreateHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 獎品必須大於1" {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func gachaPrizeDeleteInteraction(prizeName string) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(GachaPrizeDeleteCommandName, "", map[string]string{gachaPrizeNameOption: prizeName})
+	interaction.Actor.PermissionBits = gachaManageMessagesPermissionBit
+	return interaction
+}
+
+func gachaPrizeCreateInteraction(prizeName string) interactions.Interaction {
+	interaction := fakediscord.SlashInteractionWithOptions(GachaPrizeCreateCommandName, "", map[string]string{
+		gachaPrizeNameOption:   prizeName,
+		gachaPrizeChanceOption: "10",
+	})
 	interaction.Actor.PermissionBits = gachaManageMessagesPermissionBit
 	return interaction
 }

@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 57
-- Matching command definitions: 57
+- Current Go command definitions: 58
+- Matching command definitions: 58
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 17
+- Legacy commands without Go definitions: 16
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -40,6 +40,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `帳號需創建時數` | `slashCommands/群組防護/create_hours.js` | matching-definition | none |
 | `打工系統` | `slashCommands/打工系統/work_set.js` | matching-definition | none |
 | `扭蛋獎池刪除` | `slashCommands/扭蛋系統/gift_delete.js` | matching-definition | none |
+| `扭蛋獎池增加` | `slashCommands/扭蛋系統/giftadd.js` | matching-definition | none |
 | `扭蛋獎池查詢` | `slashCommands/扭蛋系統/giftlist.js` | matching-definition | none |
 | `投票創建` | `slashCommands/管理系統/poll.js` | matching-definition | none |
 | `抽獎設置` | `slashCommands/抽獎系統/lotter_create.js` | matching-definition | none |
@@ -92,7 +93,6 @@ None.
 | `剪刀石頭布` | 代幣系統 | `slashCommands/代幣系統/rock_paper_scissors.js` | 跟電腦剪刀時候布來獲得代幣(有賺有賠) |
 | `扭蛋` | 扭蛋系統 | `slashCommands/扭蛋系統/gashapon.js` | 進行扭蛋，有機會抽中各種大獎喔!!!! |
 | `扭蛋獎品編輯` | 扭蛋系統 | `slashCommands/扭蛋系統/giftadd copy.js` | 增加扭蛋的獎池裡的獎品的數量 |
-| `扭蛋獎池增加` | 扭蛋系統 | `slashCommands/扭蛋系統/giftadd.js` | 增加扭蛋的獎池 |
 | `統計系統創建` | 統計系統 | `slashCommands/統計系統/number_create.js` | 創建統計消息 |
 | `統計身分組人數` | 統計系統 | `slashCommands/統計系統/role_create.js` | 統計某個特定的身分組的人數 |
 | `經驗值改變` | 經驗系統 | `slashCommands/經驗系統/xp_add.js` | 增加某人的經驗值 |

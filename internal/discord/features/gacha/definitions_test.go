@@ -44,3 +44,38 @@ func TestPrizeDeleteDefinitionMatchesLegacy(t *testing.T) {
 		t.Fatalf("validate: %v", err)
 	}
 }
+
+func TestPrizeCreateDefinitionMatchesLegacy(t *testing.T) {
+	definition := PrizeCreateDefinition()
+	if definition.Name != GachaPrizeCreateCommandName || definition.Description != "增加扭蛋的獎池" {
+		t.Fatalf("definition = %#v", definition)
+	}
+	if definition.DefaultMemberPermissions == nil || *definition.DefaultMemberPermissions != gachaManageMessagesPermission {
+		t.Fatalf("permissions = %#v", definition.DefaultMemberPermissions)
+	}
+	if len(definition.Options) != 6 {
+		t.Fatalf("expected six options, got %#v", definition.Options)
+	}
+	expected := []struct {
+		name        string
+		optionType  commands.OptionType
+		description string
+		required    bool
+	}{
+		{gachaPrizeNameOption, commands.OptionTypeString, "輸入這個獎品叫甚麼，以及簡單概述", true},
+		{gachaPrizeChanceOption, commands.OptionTypeNumber, "輸入中獎機率(百分比)ex:10 代表10% 0.1代表0.1%", true},
+		{gachaPrizeCodeOption, commands.OptionTypeString, "填上獎品的代碼ex:stram序號nitro連結等", false},
+		{gachaPrizeAutoDeleteOption, commands.OptionTypeBoolean, "抽中後是否自動刪除(預設為true，如果填否的話連獎品數量都不會變)", false},
+		{gachaPrizeCountOption, commands.OptionTypeInteger, "該獎品的數量", false},
+		{gachaPrizeGiveCoinOption, commands.OptionTypeInteger, "當抽中後是否要給予代幣", false},
+	}
+	for index, want := range expected {
+		option := definition.Options[index]
+		if option.Name != want.name || option.Type != want.optionType || option.Description != want.description || option.Required != want.required {
+			t.Fatalf("option %d = %#v", index, option)
+		}
+	}
+	if definition.Ownership == nil || definition.Ownership.Owner != commands.OwnerMHCATRefactor || definition.Ownership.SinceWave != "gacha-prize-create" || !definition.Ownership.Managed {
+		t.Fatalf("ownership = %#v", definition.Ownership)
+	}
+}

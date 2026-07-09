@@ -9,6 +9,8 @@ import (
 
 var (
 	ErrGachaPrizePoolEmpty = errors.New("gacha prize pool is empty")
+	ErrGachaPrizePoolFull  = errors.New("gacha prize pool is full")
+	ErrGachaPrizeExists    = errors.New("gacha prize already exists")
 	ErrGachaPrizeMissing   = errors.New("gacha prize is missing")
 )
 
@@ -19,4 +21,9 @@ type GachaPrizePoolRepository interface {
 
 type GachaPrizeDeleteRepository interface {
 	DeleteGachaPrize(ctx context.Context, guildID string, prizeName string) (domain.GachaPrize, error)
+}
+
+type GachaPrizeCreateRepository interface {
+	CountGachaPrizes(ctx context.Context, guildID string) (int64, error)
+	CreateGachaPrize(ctx context.Context, prize domain.GachaPrizeConfig) error
 }

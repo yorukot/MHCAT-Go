@@ -12,6 +12,7 @@ import (
 
 type Module struct {
 	service       coreservice.PrizePoolService
+	createService coreservice.PrizeCreateService
 	deleteService coreservice.PrizeDeleteService
 	discord       ports.DiscordInfoProvider
 	usage         ports.UsageTracker
@@ -35,9 +36,18 @@ func NewDeleteModule(repo ports.GachaPrizeDeleteRepository, usage ports.UsageTra
 	}
 }
 
-func NewModuleWithRepositories(listRepo ports.GachaPrizePoolRepository, deleteRepo ports.GachaPrizeDeleteRepository, discord ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
+func NewCreateModule(repo ports.GachaPrizeCreateRepository, usage ports.UsageTracker) Module {
+	return Module{
+		createService: coreservice.PrizeCreateService{Repository: repo},
+		usage:         usage,
+		color:         legacyRandomColor,
+	}
+}
+
+func NewModuleWithRepositories(listRepo ports.GachaPrizePoolRepository, createRepo ports.GachaPrizeCreateRepository, deleteRepo ports.GachaPrizeDeleteRepository, discord ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
 	return Module{
 		service:       coreservice.PrizePoolService{Repository: listRepo},
+		createService: coreservice.PrizeCreateService{Repository: createRepo},
 		deleteService: coreservice.PrizeDeleteService{Repository: deleteRepo},
 		discord:       discord,
 		usage:         usage,
@@ -54,8 +64,21 @@ func NewModuleWithColor(repo ports.GachaPrizePoolRepository, discord ports.Disco
 }
 
 func (m Module) Name() string {
-	if m.service.Repository != nil && m.deleteService.Repository != nil {
+	enabled := 0
+	if m.service.Repository != nil {
+		enabled++
+	}
+	if m.createService.Repository != nil {
+		enabled++
+	}
+	if m.deleteService.Repository != nil {
+		enabled++
+	}
+	if enabled > 1 {
 		return "gacha"
+	}
+	if m.createService.Repository != nil {
+		return "gacha-prize-create"
 	}
 	if m.deleteService.Repository != nil {
 		return "gacha-prize-delete"
@@ -68,6 +91,9 @@ func (m Module) Commands() []commands.Definition {
 	if m.service.Repository != nil {
 		definitions = append(definitions, PrizeListDefinitions()...)
 	}
+	if m.createService.Repository != nil {
+		definitions = append(definitions, PrizeCreateDefinitions()...)
+	}
 	if m.deleteService.Repository != nil {
 		definitions = append(definitions, PrizeDeleteDefinitions()...)
 	}
@@ -77,6 +103,11 @@ func (m Module) Commands() []commands.Definition {
 func (m Module) RegisterRoutes(router *interactions.Router) error {
 	if m.service.Repository != nil {
 		if err := router.RegisterSlash(GachaPrizeListCommandName, m.PrizeListHandler()); err != nil {
+			return err
+		}
+	}
+	if m.createService.Repository != nil {
+		if err := router.RegisterSlash(GachaPrizeCreateCommandName, m.PrizeCreateHandler()); err != nil {
 			return err
 		}
 	}

@@ -250,6 +250,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeGachaPrizeList {
 		definitions = append(definitions, featuregacha.PrizeListDefinitions()...)
 	}
+	if cfg.IncludeGachaPrizeCreate {
+		definitions = append(definitions, featuregacha.PrizeCreateDefinitions()...)
+	}
 	if cfg.IncludeGachaPrizeDelete {
 		definitions = append(definitions, featuregacha.PrizeDeleteDefinitions()...)
 	}
@@ -380,6 +383,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeGachaPrizeList {
 		expected = append(expected, featuregacha.GachaPrizeListCommandName)
+	}
+	if cfg.IncludeGachaPrizeCreate {
+		expected = append(expected, featuregacha.GachaPrizeCreateCommandName)
 	}
 	if cfg.IncludeGachaPrizeDelete {
 		expected = append(expected, featuregacha.GachaPrizeDeleteCommandName)

@@ -23,6 +23,10 @@ type PrizeDeleteService struct {
 	Repository ports.GachaPrizeDeleteRepository
 }
 
+type PrizeCreateService struct {
+	Repository ports.GachaPrizeCreateRepository
+}
+
 func (s PrizePoolService) Query(ctx context.Context, guildID string) (domain.GachaPrizePool, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.GachaPrizePool{}, err
@@ -70,4 +74,23 @@ func (s PrizeDeleteService) Delete(ctx context.Context, guildID string, prizeNam
 		return domain.GachaPrize{}, domain.ErrInvalidGachaQuery
 	}
 	return s.Repository.DeleteGachaPrize(ctx, guildID, prizeName)
+}
+
+func (s PrizeCreateService) Create(ctx context.Context, prize domain.GachaPrizeConfig) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	prize.GuildID = strings.TrimSpace(prize.GuildID)
+	prize.Name = strings.TrimSpace(prize.Name)
+	if prize.GuildID == "" || prize.Name == "" || prize.Count <= 0 || s.Repository == nil {
+		return domain.ErrInvalidGachaPrize
+	}
+	count, err := s.Repository.CountGachaPrizes(ctx, prize.GuildID)
+	if err != nil {
+		return err
+	}
+	if count > 24 {
+		return ports.ErrGachaPrizePoolFull
+	}
+	return s.Repository.CreateGachaPrize(ctx, prize)
 }

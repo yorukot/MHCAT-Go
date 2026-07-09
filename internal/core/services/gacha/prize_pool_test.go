@@ -81,3 +81,62 @@ func TestPrizeDeleteRejectsInvalidInput(t *testing.T) {
 		}
 	}
 }
+
+func TestPrizeCreateStoresPrize(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	prize := domain.GachaPrizeConfig{
+		GuildID:    "guild-1",
+		Name:       "大獎",
+		Code:       "code-1",
+		Chance:     12.5,
+		AutoDelete: true,
+		Count:      3,
+		GiveCoin:   7,
+	}
+	if err := (PrizeCreateService{Repository: repo}).Create(context.Background(), prize); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if len(repo.Prizes["guild-1"]) != 1 || repo.Prizes["guild-1"][0].Name != "大獎" {
+		t.Fatalf("prizes = %#v", repo.Prizes["guild-1"])
+	}
+	if len(repo.PrizeConfigs["guild-1"]) != 1 || repo.PrizeConfigs["guild-1"][0].Code != "code-1" || !repo.PrizeConfigs["guild-1"][0].AutoDelete {
+		t.Fatalf("prize configs = %#v", repo.PrizeConfigs["guild-1"])
+	}
+}
+
+func TestPrizeCreateRejectsFullPool(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	for i := 0; i < 25; i++ {
+		repo.Prizes["guild-1"] = append(repo.Prizes["guild-1"], domain.GachaPrize{GuildID: "guild-1", Name: "獎品"})
+	}
+	err := (PrizeCreateService{Repository: repo}).Create(context.Background(), domain.GachaPrizeConfig{GuildID: "guild-1", Name: "新獎品", Count: 1})
+	if !errors.Is(err, ports.ErrGachaPrizePoolFull) {
+		t.Fatalf("expected ErrGachaPrizePoolFull, got %v", err)
+	}
+}
+
+func TestPrizeCreateRejectsDuplicatePrize(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Count: 1}}
+	err := (PrizeCreateService{Repository: repo}).Create(context.Background(), domain.GachaPrizeConfig{GuildID: "guild-1", Name: "大獎", Count: 1})
+	if !errors.Is(err, ports.ErrGachaPrizeExists) {
+		t.Fatalf("expected ErrGachaPrizeExists, got %v", err)
+	}
+}
+
+func TestPrizeCreateRejectsInvalidInput(t *testing.T) {
+	for _, tc := range []struct {
+		prize domain.GachaPrizeConfig
+		repo  ports.GachaPrizeCreateRepository
+	}{
+		{prize: domain.GachaPrizeConfig{GuildID: "", Name: "大獎", Count: 1}, repo: fakemongo.NewGachaRepository()},
+		{prize: domain.GachaPrizeConfig{GuildID: "guild-1", Name: "", Count: 1}, repo: fakemongo.NewGachaRepository()},
+		{prize: domain.GachaPrizeConfig{GuildID: "guild-1", Name: "大獎", Count: 0}, repo: fakemongo.NewGachaRepository()},
+		{prize: domain.GachaPrizeConfig{GuildID: "guild-1", Name: "大獎", Count: 1}, repo: nil},
+	} {
+		err := (PrizeCreateService{Repository: tc.repo}).Create(context.Background(), tc.prize)
+		if !errors.Is(err, domain.ErrInvalidGachaPrize) {
+			t.Fatalf("expected ErrInvalidGachaPrize, got %v", err)
+		}
+	}
+}

@@ -102,5 +102,48 @@ func (r *GachaRepository) DeleteGachaPrize(ctx context.Context, guildID string, 
 	return document.ToDomain(), ctx.Err()
 }
 
+func (r *GachaRepository) CountGachaPrizes(ctx context.Context, guildID string) (int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return 0, domain.ErrInvalidGachaQuery
+	}
+	count, err := r.gifts.CountDocuments(ctx, bson.D{{Key: "guild", Value: guildID}})
+	if err != nil {
+		return 0, mhcatmongo.MapError(fmt.Errorf("count gacha prizes: %w", err))
+	}
+	return count, ctx.Err()
+}
+
+func (r *GachaRepository) CreateGachaPrize(ctx context.Context, prize domain.GachaPrizeConfig) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	prize.GuildID = strings.TrimSpace(prize.GuildID)
+	prize.Name = strings.TrimSpace(prize.Name)
+	if prize.GuildID == "" || prize.Name == "" || prize.Count <= 0 {
+		return domain.ErrInvalidGachaPrize
+	}
+	filter := bson.D{{Key: "guild", Value: prize.GuildID}, {Key: "gift_name", Value: prize.Name}}
+	err := r.gifts.FindOne(ctx, filter).Err()
+	if err == nil {
+		return ports.ErrGachaPrizeExists
+	}
+	if err != drivermongo.ErrNoDocuments {
+		return mhcatmongo.MapError(fmt.Errorf("find gacha prize before create: %w", err))
+	}
+	if _, err := r.gifts.InsertOne(ctx, documents.GiftWriteDocumentFromDomain(prize)); err != nil {
+		mapped := mhcatmongo.MapError(fmt.Errorf("create gacha prize: %w", err))
+		if mhcatmongo.ErrorIs(mapped, mhcatmongo.ErrorKindConflict) {
+			return ports.ErrGachaPrizeExists
+		}
+		return mapped
+	}
+	return ctx.Err()
+}
+
 var _ ports.GachaPrizePoolRepository = (*GachaRepository)(nil)
 var _ ports.GachaPrizeDeleteRepository = (*GachaRepository)(nil)
+var _ ports.GachaPrizeCreateRepository = (*GachaRepository)(nil)

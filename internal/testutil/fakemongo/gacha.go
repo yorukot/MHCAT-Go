@@ -8,15 +8,17 @@ import (
 )
 
 type GachaRepository struct {
-	Prizes  map[string][]domain.GachaPrize
-	Configs map[string]domain.EconomyConfig
-	Err     error
+	Prizes       map[string][]domain.GachaPrize
+	PrizeConfigs map[string][]domain.GachaPrizeConfig
+	Configs      map[string]domain.EconomyConfig
+	Err          error
 }
 
 func NewGachaRepository() *GachaRepository {
 	return &GachaRepository{
-		Prizes:  map[string][]domain.GachaPrize{},
-		Configs: map[string]domain.EconomyConfig{},
+		Prizes:       map[string][]domain.GachaPrize{},
+		PrizeConfigs: map[string][]domain.GachaPrizeConfig{},
+		Configs:      map[string]domain.EconomyConfig{},
 	}
 }
 
@@ -48,9 +50,45 @@ func (r *GachaRepository) DeleteGachaPrize(ctx context.Context, guildID string, 
 			continue
 		}
 		r.Prizes[guildID] = append(append([]domain.GachaPrize(nil), prizes[:index]...), prizes[index+1:]...)
+		configs := r.PrizeConfigs[guildID]
+		for configIndex, config := range configs {
+			if config.Name == prizeName {
+				r.PrizeConfigs[guildID] = append(append([]domain.GachaPrizeConfig(nil), configs[:configIndex]...), configs[configIndex+1:]...)
+				break
+			}
+		}
 		return prize, nil
 	}
 	return domain.GachaPrize{}, ports.ErrGachaPrizeMissing
+}
+
+func (r *GachaRepository) CountGachaPrizes(ctx context.Context, guildID string) (int64, error) {
+	if err := r.ready(ctx); err != nil {
+		return 0, err
+	}
+	return int64(len(r.Prizes[guildID])), nil
+}
+
+func (r *GachaRepository) CreateGachaPrize(ctx context.Context, prize domain.GachaPrizeConfig) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	if prize.GuildID == "" || prize.Name == "" || prize.Count <= 0 {
+		return domain.ErrInvalidGachaPrize
+	}
+	for _, existing := range r.Prizes[prize.GuildID] {
+		if existing.Name == prize.Name {
+			return ports.ErrGachaPrizeExists
+		}
+	}
+	r.Prizes[prize.GuildID] = append(r.Prizes[prize.GuildID], domain.GachaPrize{
+		GuildID: prize.GuildID,
+		Name:    prize.Name,
+		Chance:  prize.Chance,
+		Count:   prize.Count,
+	})
+	r.PrizeConfigs[prize.GuildID] = append(r.PrizeConfigs[prize.GuildID], prize)
+	return nil
 }
 
 func (r *GachaRepository) ready(ctx context.Context) error {
@@ -62,3 +100,4 @@ func (r *GachaRepository) ready(ctx context.Context) error {
 
 var _ ports.GachaPrizePoolRepository = (*GachaRepository)(nil)
 var _ ports.GachaPrizeDeleteRepository = (*GachaRepository)(nil)
+var _ ports.GachaPrizeCreateRepository = (*GachaRepository)(nil)

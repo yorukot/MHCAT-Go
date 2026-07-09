@@ -118,6 +118,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeGachaPrizeList {
 		t.Fatal("include gacha prize-list must default false")
 	}
+	if cfg.IncludeGachaPrizeCreate {
+		t.Fatal("include gacha prize-create must default false")
+	}
 	if cfg.IncludeGachaPrizeDelete {
 		t.Fatal("include gacha prize-delete must default false")
 	}
@@ -510,6 +513,48 @@ func TestCommandSyncIncludeGachaPrizeDeleteStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeGachaPrizeDelete {
 		t.Fatal("expected include gacha prize-delete to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeGachaPrizeCreateRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                           "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                  "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                   "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include gacha prize-create without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeGachaPrizeCreateRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                           "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                  "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                      "global",
+		"MHCAT_STAGING_MODE":                            "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include gacha prize-create with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeGachaPrizeCreateStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                           "token",
+		"MHCAT_DISCORD_APPLICATION_ID":                  "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":                   "guild",
+		"MHCAT_STAGING_MODE":                            "true",
+		"MHCAT_STAGING_GUILD_ID":                        "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeGachaPrizeCreate {
+		t.Fatal("expected include gacha prize-create to be enabled explicitly")
 	}
 }
 

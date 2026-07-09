@@ -41,6 +41,7 @@ const (
 	DefaultCommandSyncIncludeAntiScamReport         = false
 	DefaultCommandSyncIncludeLoggingConfig          = false
 	DefaultCommandSyncIncludeGachaPrizeList         = false
+	DefaultCommandSyncIncludeGachaPrizeCreate       = false
 	DefaultCommandSyncIncludeGachaPrizeDelete       = false
 	DefaultCommandSyncIncludeLotteryDisabledCommand = false
 	DefaultCommandSyncIncludeStatsQuery             = false
@@ -100,6 +101,7 @@ type CommandSyncConfig struct {
 	IncludeAntiScamReport         bool
 	IncludeLoggingConfig          bool
 	IncludeGachaPrizeList         bool
+	IncludeGachaPrizeCreate       bool
 	IncludeGachaPrizeDelete       bool
 	IncludeLotteryDisabledCommand bool
 	IncludeStatsQuery             bool
@@ -174,6 +176,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeAntiScamReport:         DefaultCommandSyncIncludeAntiScamReport,
 		IncludeLoggingConfig:          DefaultCommandSyncIncludeLoggingConfig,
 		IncludeGachaPrizeList:         DefaultCommandSyncIncludeGachaPrizeList,
+		IncludeGachaPrizeCreate:       DefaultCommandSyncIncludeGachaPrizeCreate,
 		IncludeGachaPrizeDelete:       DefaultCommandSyncIncludeGachaPrizeDelete,
 		IncludeLotteryDisabledCommand: DefaultCommandSyncIncludeLotteryDisabledCommand,
 		IncludeStatsQuery:             DefaultCommandSyncIncludeStatsQuery,
@@ -278,6 +281,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeGachaPrizeList, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST", DefaultCommandSyncIncludeGachaPrizeList); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeGachaPrizeCreate, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE", DefaultCommandSyncIncludeGachaPrizeCreate); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeGachaPrizeDelete, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE", DefaultCommandSyncIncludeGachaPrizeDelete); err != nil {
@@ -571,6 +577,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeGachaPrizeCreate {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeGachaPrizeDelete {
