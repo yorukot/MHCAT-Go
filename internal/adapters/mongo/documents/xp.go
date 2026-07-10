@@ -25,10 +25,11 @@ type VoiceXPChannelDocument struct {
 }
 
 type XPProfileDocument struct {
-	Guild  string        `bson:"guild" json:"guild"`
-	Member string        `bson:"member" json:"member"`
-	XP     bson.RawValue `bson:"xp" json:"xp"`
-	Leavel bson.RawValue `bson:"leavel" json:"leavel"`
+	Guild     string        `bson:"guild" json:"guild"`
+	Member    string        `bson:"member" json:"member"`
+	XP        bson.RawValue `bson:"xp" json:"xp"`
+	Leavel    bson.RawValue `bson:"leavel" json:"leavel"`
+	LeaveJoin string        `bson:"leavejoin,omitempty" json:"leavejoin,omitempty"`
 }
 
 type XPRewardRoleDocument struct {
@@ -76,10 +77,11 @@ func (d VoiceXPChannelDocument) ToDomain() domain.VoiceXPConfig {
 
 func (d XPProfileDocument) ToDomain() domain.XPProfile {
 	return domain.XPProfile{
-		GuildID: d.Guild,
-		UserID:  d.Member,
-		XP:      legacyInt64(d.XP),
-		Level:   legacyInt64(d.Leavel),
+		GuildID:   d.Guild,
+		UserID:    d.Member,
+		XP:        legacyInt64(d.XP),
+		Level:     legacyInt64(d.Leavel),
+		LeaveJoin: d.LeaveJoin,
 	}
 }
 

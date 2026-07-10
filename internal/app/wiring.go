@@ -853,6 +853,13 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		}
 		featurevoice.NewRoomEventModule(configRepo, stateRepo, lockRepo, sideEffects, sideEffects, sideEffects).RegisterEventRoutes(dispatcher)
 	}
+	if cfg.FeatureVoiceXPSessionsEnabled {
+		repo, err := xpAdminRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		featurexp.NewVoiceEventModule(repo).RegisterEventRoutes(dispatcher)
+	}
 	return dispatcher, nil
 }
 

@@ -13,6 +13,11 @@ var ErrInvalidXPRewardRoleConfig = errors.New("invalid xp reward role config")
 var ErrInvalidXPAdjustment = errors.New("invalid xp adjustment")
 var ErrInvalidXPRankQuery = errors.New("invalid xp rank query")
 
+const (
+	VoiceXPSessionJoined = "join"
+	VoiceXPSessionLeft   = "leave"
+)
+
 type TextXPConfig struct {
 	GuildID   string
 	ChannelID string
@@ -28,10 +33,11 @@ type VoiceXPConfig struct {
 }
 
 type XPProfile struct {
-	GuildID string
-	UserID  string
-	XP      int64
-	Level   int64
+	GuildID   string
+	UserID    string
+	XP        int64
+	Level     int64
+	LeaveJoin string
 }
 
 type XPAdjustment struct {
@@ -70,6 +76,7 @@ func (c VoiceXPConfig) Validate() error {
 func (p XPProfile) Normalize() XPProfile {
 	p.GuildID = strings.TrimSpace(p.GuildID)
 	p.UserID = strings.TrimSpace(p.UserID)
+	p.LeaveJoin = strings.TrimSpace(p.LeaveJoin)
 	return p
 }
 

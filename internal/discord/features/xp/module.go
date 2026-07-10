@@ -53,6 +53,10 @@ type RankModule struct {
 	usage   ports.UsageTracker
 }
 
+type VoiceEventModule struct {
+	service coreservice.VoiceSessionService
+}
+
 func NewModule(repo ports.TextXPConfigRepository, messages ports.DiscordMessagePort, usage ports.UsageTracker) Module {
 	return Module{
 		service:  coreservice.TextConfigService{Repository: repo},
@@ -114,6 +118,12 @@ func NewRankModule(repo ports.XPRankRepository, guilds ports.DiscordInfoProvider
 	}
 }
 
+func NewVoiceEventModule(repo ports.VoiceXPSessionRepository) VoiceEventModule {
+	return VoiceEventModule{
+		service: coreservice.VoiceSessionService{Repository: repo},
+	}
+}
+
 func (m Module) Name() string {
 	return "text-xp-config"
 }
@@ -140,6 +150,10 @@ func (m ResetModule) Name() string {
 
 func (m RankModule) Name() string {
 	return "xp-rank"
+}
+
+func (m VoiceEventModule) Name() string {
+	return "voice-xp-sessions"
 }
 
 func (m Module) Commands() []commands.Definition {
@@ -229,4 +243,11 @@ func (m ResetModule) RegisterEventRoutes(dispatcher *events.Dispatcher) {
 	if dispatcher != nil {
 		dispatcher.Register(events.TypeMessageCreate, m.ConfirmationHandler())
 	}
+}
+
+func (m VoiceEventModule) RegisterEventRoutes(dispatcher *events.Dispatcher) {
+	if dispatcher == nil || m.service.Repository == nil {
+		return
+	}
+	dispatcher.Register(events.TypeVoiceState, m.VoiceStateHandler())
 }

@@ -55,6 +55,7 @@ Primary Go env vars:
 - `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED`
 - `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED`
 - `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED`
+- `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED`
 - `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED`
 - `MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED`
 - `MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED`
@@ -556,6 +557,8 @@ MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true
 ```
 
 These commands write only legacy-compatible `voice_xp_channels` config fields and require Manage Messages. They update duplicate rows for a guild, only upsert when no row exists, and clear `background` because the legacy command showed `背景` but did not save it. They do not enable Voice State intent, voice XP accrual, rank rendering, automatic reward-role assignment/removal, or usage-counter writes.
+
+Voice XP session tracking is event-only and has no command-sync flag. Test it only against disposable staging `voice_xps` rows with `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`; it marks `leavejoin` join/leave state but does not award XP or send level announcements.
 
 Config-only `/聊天經驗身分組設定` and `/語音經驗身分組設定` are available only when both staging command sync and runtime flags are explicitly enabled:
 

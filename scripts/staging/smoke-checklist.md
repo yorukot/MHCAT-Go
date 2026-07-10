@@ -6,6 +6,7 @@
 - If syncing optional features, confirm every `MHCAT_COMMAND_SYNC_INCLUDE_*` flag is paired with the matching `MHCAT_FEATURE_*_ENABLED=true` runtime flag.
 - For text-XP config smoke, use an isolated staging database and pair `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true` with `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`.
 - For voice-XP config smoke, use an isolated staging database and pair `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true` with `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`.
+- For voice-XP session smoke, use an isolated staging database with disposable `voice_xps` rows and enable `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`; this has no command-sync flag.
 - For XP reward-role config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true` with `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`; use roles below the bot's highest role.
 - For disabled XP profile smoke, pair `MHCAT_COMMAND_SYNC_INCLUDE_XP_PROFILE_DISABLED_COMMANDS=true` with `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true`; these commands only return the legacy replacement message and must not write Mongo data.
 - For XP admin smoke, use only disposable staging `text_xps`/`voice_xps` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN=true` with `MHCAT_FEATURE_XP_ADMIN_ENABLED=true`.

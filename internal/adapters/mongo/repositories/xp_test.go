@@ -91,6 +91,27 @@ func TestVoiceXPProfileUpdateSetsLegacyLeaveJoinOnInsert(t *testing.T) {
 	}
 }
 
+func TestVoiceXPSessionUpdateTracksLegacyJoinState(t *testing.T) {
+	update := voiceXPSessionUpdate(" guild-1 ", " user-1 ", domain.VoiceXPSessionJoined)
+	set := documentValue(t, update, "$set")
+	if value := documentValue(t, set, "leavejoin"); value != "join" {
+		t.Fatalf("leavejoin set = %#v", value)
+	}
+	setOnInsert := documentValue(t, update, "$setOnInsert")
+	if value := documentValue(t, setOnInsert, "guild"); value != "guild-1" {
+		t.Fatalf("guild setOnInsert = %#v", value)
+	}
+	if value := documentValue(t, setOnInsert, "member"); value != "user-1" {
+		t.Fatalf("member setOnInsert = %#v", value)
+	}
+	if value := documentValue(t, setOnInsert, "xp"); value != "0" {
+		t.Fatalf("xp setOnInsert = %#v", value)
+	}
+	if value := documentValue(t, setOnInsert, "leavel"); value != "0" {
+		t.Fatalf("leavel setOnInsert = %#v", value)
+	}
+}
+
 func TestXPProfileDeleteFiltersUseLegacyFields(t *testing.T) {
 	filter := xpProfileFilter(" guild-1 ", " user-1 ")
 	if value := documentValue(t, filter, "guild"); value != "guild-1" {

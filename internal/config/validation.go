@@ -72,6 +72,14 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_FEATURE_XP_RESET_ENABLED requires MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureVoiceXPSessionsEnabled {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordVoiceStateIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED requires MHCAT_DISCORD_VOICE_STATE_INTENT=true", ErrInvalidConfig)
+		}
+	}
 	if cfg.FeatureEconomyCoinResetEnabled {
 		if !cfg.DiscordEnableGateway {
 			return fmt.Errorf("%w: MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)

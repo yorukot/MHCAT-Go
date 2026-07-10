@@ -228,6 +228,14 @@ func (r *XPAdminRepository) SaveVoiceXPProfile(ctx context.Context, profile doma
 	return saveAdminXPProfile(ctx, r.voiceProfiles, profile, "voice", true)
 }
 
+func (r *XPAdminRepository) MarkVoiceXPJoined(ctx context.Context, guildID string, userID string) error {
+	return markVoiceXPSession(ctx, r.voiceProfiles, guildID, userID, domain.VoiceXPSessionJoined)
+}
+
+func (r *XPAdminRepository) MarkVoiceXPLeft(ctx context.Context, guildID string, userID string) error {
+	return markVoiceXPSession(ctx, r.voiceProfiles, guildID, userID, domain.VoiceXPSessionLeft)
+}
+
 func (r *XPAdminRepository) ListTextXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error) {
 	return listAdminXPProfiles(ctx, r.textProfiles, guildID, "text")
 }
@@ -438,6 +446,22 @@ func saveAdminXPProfile(ctx context.Context, collection *drivermongo.Collection,
 	return ctx.Err()
 }
 
+func markVoiceXPSession(ctx context.Context, collection *drivermongo.Collection, guildID string, userID string, state string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	guildID = strings.TrimSpace(guildID)
+	userID = strings.TrimSpace(userID)
+	if guildID == "" || userID == "" {
+		return domain.ErrInvalidXPAdjustment
+	}
+	_, err := collection.UpdateOne(ctx, xpProfileFilter(guildID, userID), voiceXPSessionUpdate(guildID, userID, state), options.UpdateOne().SetUpsert(true))
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("mark voice xp session: %w", err))
+	}
+	return ctx.Err()
+}
+
 func deleteAdminXPProfile(ctx context.Context, collection *drivermongo.Collection, guildID string, userID string, missing error, label string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -497,10 +521,25 @@ func xpProfileUpdate(profile domain.XPProfile, voice bool) bson.D {
 	}
 }
 
+func voiceXPSessionUpdate(guildID string, userID string, state string) bson.D {
+	return bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "leavejoin", Value: state},
+		}},
+		{Key: "$setOnInsert", Value: bson.D{
+			{Key: "guild", Value: strings.TrimSpace(guildID)},
+			{Key: "member", Value: strings.TrimSpace(userID)},
+			{Key: "xp", Value: "0"},
+			{Key: "leavel", Value: "0"},
+		}},
+	}
+}
+
 var _ ports.TextXPConfigRepository = (*TextXPConfigRepository)(nil)
 var _ ports.VoiceXPConfigRepository = (*VoiceXPConfigRepository)(nil)
 var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
 var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)
 var _ ports.XPAdminRepository = (*XPAdminRepository)(nil)
+var _ ports.VoiceXPSessionRepository = (*XPAdminRepository)(nil)
 var _ ports.XPResetRepository = (*XPAdminRepository)(nil)
 var _ ports.XPRankRepository = (*XPAdminRepository)(nil)

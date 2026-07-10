@@ -237,6 +237,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureVoiceXPConfigEnabled {
 		t.Fatal("voice XP config feature must be disabled by default")
 	}
+	if cfg.FeatureVoiceXPSessionsEnabled {
+		t.Fatal("voice XP sessions feature must be disabled by default")
+	}
 	if cfg.FeatureXPRoleConfigEnabled {
 		t.Fatal("XP role config feature must be disabled by default")
 	}
@@ -332,6 +335,42 @@ func TestFeatureVoiceXPConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureVoiceXPConfigEnabled {
 		t.Fatal("expected voice XP config feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureVoiceXPSessionsRequiresGatewayAndVoiceStateIntent(t *testing.T) {
+	base := map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_MONGODB_URI":                       "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                  "mhcat",
+		"MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED": "true",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":            "true",
+		"MHCAT_DISCORD_VOICE_STATE_INTENT":        "true",
+	}
+	cfg, err := LoadWithLookup(mapLookup(base))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureVoiceXPSessionsEnabled {
+		t.Fatal("expected voice XP sessions feature to be enabled explicitly")
+	}
+
+	for key, want := range map[string]string{
+		"MHCAT_DISCORD_ENABLE_GATEWAY":     "MHCAT_DISCORD_ENABLE_GATEWAY=true",
+		"MHCAT_DISCORD_VOICE_STATE_INTENT": "MHCAT_DISCORD_VOICE_STATE_INTENT=true",
+	} {
+		env := map[string]string{}
+		for k, v := range base {
+			env[k] = v
+		}
+		env[key] = "false"
+		_, err := LoadWithLookup(mapLookup(env))
+		if !errors.Is(err, ErrInvalidConfig) {
+			t.Fatalf("expected ErrInvalidConfig for %s, got %v", key, err)
+		}
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected error to mention %q, got %v", want, err)
+		}
 	}
 }
 

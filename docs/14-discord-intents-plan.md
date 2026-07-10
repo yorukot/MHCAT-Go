@@ -127,7 +127,7 @@ Startup validation must reject impossible combinations, for example:
 
 - `TEXT_XP_ENABLED=true` while `ENABLE_GUILD_MESSAGES_INTENT=false`.
 - `CHATBOT_ENABLED=true` while `ENABLE_MESSAGE_CONTENT_INTENT=false`.
-- `VOICE_XP_ENABLED=true` while `ENABLE_VOICE_STATE_INTENT=false`.
+- `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true` while `MHCAT_DISCORD_VOICE_STATE_INTENT=false`.
 
 ## Tests Required
 

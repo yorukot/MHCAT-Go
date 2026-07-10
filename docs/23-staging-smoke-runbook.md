@@ -347,6 +347,16 @@ export MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true
 
 Set both together only in an isolated staging database when testing `/語音經驗設定` and `/語音經驗刪除`. This path writes `voice_xp_channels`; it does not enable Voice State intent, voice XP accrual, rank cards, or XP rewards. The legacy `背景` option is visible for command UI parity, but the legacy command did not save it.
 
+Optional voice-XP session smoke flags:
+
+```bash
+export MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_DISCORD_VOICE_STATE_INTENT=true
+```
+
+Use only an isolated staging database with disposable `voice_xps` rows. This event-only path has no command-sync flag and only marks `leavejoin` as users join or leave voice channels; it does not award XP or send announcements.
+
 Optional XP reward-role config smoke flags:
 
 ```bash
@@ -852,6 +862,13 @@ For voice-XP config staging smoke, expected additionally:
 - `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`;
 - plan includes managed `語音經驗設定` and `語音經驗刪除`;
 - plan still performs no create/update/delete during dry-run.
+
+For voice-XP session staging smoke, expected additionally:
+
+- `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`;
+- `MHCAT_DISCORD_ENABLE_GATEWAY=true`;
+- `MHCAT_DISCORD_VOICE_STATE_INTENT=true`;
+- no command-sync plan changes are expected; verify `voice_xps.leavejoin` changes only against disposable rows.
 
 For XP reward-role config staging smoke, expected additionally:
 

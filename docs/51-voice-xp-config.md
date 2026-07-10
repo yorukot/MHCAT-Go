@@ -21,6 +21,8 @@ Status: implemented behind explicit runtime and command-sync gates.
 
 This slice is announcement-config only. It does not enable voice-state XP accrual, rank cards, automatic reward-role assignment/removal, coin rewards, or Voice State intent. Voice reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
 
+Voice XP session tracking is implemented separately behind `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`, with `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`. That event slice mirrors the legacy join/leave session flag by upserting missing `voice_xps` rows with `xp:"0"`, `leavel:"0"`, and `leavejoin:"join"`/`"leave"`, but it does not start the legacy periodic XP interval.
+
 ## Legacy UI/UX Preserved
 
 `語音經驗設定` keeps:
@@ -56,11 +58,11 @@ This slice is announcement-config only. It does not enable voice-state XP accrua
 
 ## Not Implemented
 
-- `events/voice_xp.js` / voice XP accrual.
+- periodic `events/voice_xp.js` XP accrual ticks, level announcements, coin rewards, and reward-role changes.
 - `/語音排行榜`, rank image rendering, rank buttons, and the old XP profile card lookup behind `/語音經驗`; the current `/語音經驗` command is implemented separately as a disabled replacement response only.
 - automatic voice reward-role assignment/removal; the config command is tracked separately from XP accrual.
 - XP-to-coin rewards.
-- Voice State intent enablement.
+- Voice State intent enablement by the config commands; session tracking has its own explicit event gate.
 - Usage counter writes to `all_use_count`.
 
 ## Rollout Notes

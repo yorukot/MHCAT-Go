@@ -61,6 +61,7 @@ This module currently provides:
 - gated config-only `/公告頻道設置` command with legacy subcommands, embeds, and rollback-compatible `guilds`/`ann_all_sets` writes.
 - gated bound announcement message relay from legacy `ann_message.js`, disabled by default and requiring explicit gateway/message-content flags.
 - gated config-only `/聊天經驗設定` and `/聊天經驗刪除` commands with legacy embed/preview UI and rollback-compatible `text_xp_channels` writes.
+- gated voice XP session tracking from legacy `events/voice_xp.js`, disabled by default and requiring explicit gateway/Voice State intent flags; it maintains `voice_xps.leavejoin` only, with periodic XP ticks/rewards still disabled.
 - gated `/聊天經驗身分組設定` and `/語音經驗身分組設定` reward-role config commands with legacy pagination UI and rollback-compatible `chat_roles`/`voice_roles` writes.
 - gated disabled-response `/聊天經驗` and `/語音經驗` commands that preserve the legacy replacement message pointing users to `/我的檔案`.
 - gated `/經驗值改變` XP admin command with legacy Kick Members permission, success/error embeds, and rollback-compatible `text_xps`/`voice_xps` writes.
@@ -129,6 +130,7 @@ Implemented utility commands:
 - `/公告發送` modal preview/confirm/send flow when explicitly enabled with `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true`
 - `/聊天經驗設定` and `/聊天經驗刪除` when explicitly enabled with `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`
 - `/語音經驗設定` and `/語音經驗刪除` when explicitly enabled with `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`
+- voice XP session tracking when explicitly enabled with `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`, gateway enabled, and Voice State intent enabled
 - `/聊天經驗身分組設定` and `/語音經驗身分組設定` when explicitly enabled with `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`
 - `/聊天經驗` and `/語音經驗` disabled-command replacement responses when explicitly enabled with `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=true`
 - `/經驗值改變` when explicitly enabled with `MHCAT_FEATURE_XP_ADMIN_ENABLED=true`
@@ -162,7 +164,7 @@ Implemented event features:
 
 Not implemented yet:
 
-- remaining economy game/shop writes, text/voice XP accrual, rank cards, gacha draw/shop, gift delivery, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
+- remaining economy game/shop writes, text XP accrual, voice XP periodic accrual/rewards, rank cards, gacha draw/shop, gift delivery, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete, and the daily reset is either run by the explicit one-shot tool under an operator process or owned by a future lease-backed scheduler.
 
@@ -239,6 +241,7 @@ Safe defaults:
 - `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=false`
 - `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=false`
+- `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=false`
 - `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED=false`
 - `MHCAT_FEATURE_XP_ADMIN_ENABLED=false`
@@ -604,7 +607,7 @@ The bound announcement relay is available only when `MHCAT_FEATURE_ANNOUNCEMENT_
 
 The `/聊天經驗設定` and `/聊天經驗刪除` commands are available only when `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `text_xp_channels` config and do not enable text XP accrual, rank cards, voice XP, Message Content intent, or XP reward behavior.
 
-The `/語音經驗設定` and `/語音經驗刪除` commands are available only when `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `voice_xp_channels` config, preserve the old visible `背景` option without saving it, and do not enable Voice State intent, voice XP accrual, rank cards, or XP reward behavior.
+The `/語音經驗設定` and `/語音經驗刪除` commands are available only when `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `voice_xp_channels` config, preserve the old visible `背景` option without saving it, and do not enable Voice State intent, voice XP accrual, rank cards, or XP reward behavior. Voice XP session tracking is a separate event gate: `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true` requires `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`, creates missing `voice_xps` rows with legacy string `xp`/`leavel`, and marks `leavejoin` as `join` or `leave`; it still does not award XP, announce levels, grant coins, or apply reward roles.
 
 The `/聊天經驗身分組設定` and `/語音經驗身分組設定` commands are available only when `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true`; staging preflight and scripts reject unpaired sync/runtime flags. These commands add, delete, query, and paginate legacy-compatible `chat_roles` and `voice_roles` reward-role config rows with the legacy misspelled `leavel` field. They require Manage Messages and verify the selected role is assignable by the bot before saving. They do not enable XP accrual, rank cards, automatic role assignment/removal, coin rewards, Message Content intent, Guild Messages intent, Voice State intent, or usage-counter writes.
 
