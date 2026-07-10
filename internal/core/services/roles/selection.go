@@ -78,7 +78,7 @@ func (s SelectionService) ConfigureReaction(ctx context.Context, command Reactio
 	if !assignable {
 		return domain.RoleReactionConfig{}, ports.ErrDiscordRoleNotAssignable
 	}
-	target, err := domain.ParseDiscordMessageURL(command.MessageURL)
+	target, err := domain.ParseLegacyDiscordMessageURL(command.MessageURL, true)
 	if err != nil {
 		return domain.RoleReactionConfig{}, err
 	}
@@ -123,7 +123,7 @@ func (s SelectionService) DeleteReaction(ctx context.Context, command ReactionDe
 		return domain.ErrInvalidRoleSelectionConfig
 	}
 	guildID := strings.TrimSpace(command.GuildID)
-	target, err := domain.ParseDiscordMessageURL(command.MessageURL)
+	target, err := domain.ParseLegacyDiscordMessageURL(command.MessageURL, false)
 	if err != nil {
 		return err
 	}

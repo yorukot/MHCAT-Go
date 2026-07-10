@@ -115,6 +115,29 @@ func TestReactionDeleteHandlerDeletesConfig(t *testing.T) {
 	}
 }
 
+func TestReactionDeleteHandlerRejectsLegacyDiscordAppHost(t *testing.T) {
+	repo := fakemongo.NewRoleSelectionRepository()
+	discord := fakediscord.NewSideEffects()
+	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+	interaction := fakediscord.SlashInteractionWithOptions(RoleReactionDeleteCommandName, "", map[string]string{
+		"訊息url": "https://discordapp.com/channels/guild-1/channel-1/message-1",
+		"表情符號":  "✅",
+	})
+	interaction.Actor.PermissionBits = permissionManageMessages
+	responder := fakediscord.NewResponder()
+
+	if err := module.ReactionDeleteHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	want := roleSelectionErrorPrefix + "你輸入的不是一個訊息連結"
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != want {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(discord.Reactions) != 0 {
+		t.Fatalf("reactions = %#v", discord.Reactions)
+	}
+}
+
 func TestButtonSetupShowsLegacyModalAndStoresButtonConfigs(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	discord := fakediscord.NewSideEffects()

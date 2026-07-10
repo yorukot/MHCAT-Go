@@ -5,15 +5,14 @@ import (
 	"testing"
 )
 
-func TestParseDiscordMessageURLAcceptsLegacyHosts(t *testing.T) {
+func TestParseLegacyDiscordMessageURLAcceptsSetupHosts(t *testing.T) {
 	for _, raw := range []string{
 		"https://discord.com/channels/guild-1/channel-1/message-1",
 		"https://discordapp.com/channels/guild-1/channel-1/message-1",
-		"<https://discord.com/channels/guild-1/channel-1/message-1>",
 	} {
-		target, err := ParseDiscordMessageURL(raw)
+		target, err := ParseLegacyDiscordMessageURL(raw, true)
 		if err != nil {
-			t.Fatalf("ParseDiscordMessageURL(%q): %v", raw, err)
+			t.Fatalf("ParseLegacyDiscordMessageURL(%q): %v", raw, err)
 		}
 		if target.GuildID != "guild-1" || target.ChannelID != "channel-1" || target.MessageID != "message-1" {
 			t.Fatalf("target = %#v", target)
@@ -21,8 +20,25 @@ func TestParseDiscordMessageURLAcceptsLegacyHosts(t *testing.T) {
 	}
 }
 
-func TestParseDiscordMessageURLRejectsInvalidURL(t *testing.T) {
-	_, err := ParseDiscordMessageURL("https://example.com/channels/guild/channel/message")
+func TestParseLegacyDiscordMessageURLPreservesJavaScriptParsing(t *testing.T) {
+	target, err := ParseLegacyDiscordMessageURL("<https://discord.com/channels/guild-1/channel-1/message-1>", true)
+	if err != nil {
+		t.Fatalf("ParseLegacyDiscordMessageURL: %v", err)
+	}
+	if target.GuildID != "<guild-1" || target.ChannelID != "channel-1" || target.MessageID != "message-1>" {
+		t.Fatalf("target = %#v", target)
+	}
+}
+
+func TestParseLegacyDiscordMessageURLDeleteRejectsDiscordAppHost(t *testing.T) {
+	_, err := ParseLegacyDiscordMessageURL("https://discordapp.com/channels/guild/channel/message", false)
+	if !errors.Is(err, ErrInvalidRoleSelectionConfig) {
+		t.Fatalf("expected invalid config, got %v", err)
+	}
+}
+
+func TestParseLegacyDiscordMessageURLRejectsInvalidURL(t *testing.T) {
+	_, err := ParseLegacyDiscordMessageURL("https://example.com/channels/guild/channel/message", true)
 	if !errors.Is(err, ErrInvalidRoleSelectionConfig) {
 		t.Fatalf("expected invalid config, got %v", err)
 	}

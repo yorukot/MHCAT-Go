@@ -10,8 +10,12 @@ var ErrInvalidRoleSelectionConfig = errors.New("invalid role selection config")
 var ErrInvalidRoleSelectionEmoji = errors.New("invalid role selection emoji")
 
 var (
-	discordMessageURLRe = regexp.MustCompile(`^https://(?:discordapp\.com|discord\.com)/channels/([^/]+)/([^/]+)/([^/?#]+)`)
-	customEmojiRe       = regexp.MustCompile(`^<a?:([A-Za-z0-9_]{1,32}):([0-9]{17,20})>$`)
+	customEmojiRe = regexp.MustCompile(`^<a?:([A-Za-z0-9_]{1,32}):([0-9]{17,20})>$`)
+)
+
+const (
+	discordMessageURLPrefix    = "https://discord.com/channels/"
+	discordAppMessageURLPrefix = "https://discordapp.com/channels/"
 )
 
 type RoleReactionConfig struct {
@@ -72,21 +76,43 @@ func (c RoleButtonConfig) Validate() error {
 	return nil
 }
 
-func ParseDiscordMessageURL(raw string) (DiscordMessageTarget, error) {
-	raw = strings.Trim(strings.TrimSpace(raw), "<>")
-	matches := discordMessageURLRe.FindStringSubmatch(raw)
-	if matches == nil {
+func ParseLegacyDiscordMessageURL(raw string, allowDiscordApp bool) (DiscordMessageTarget, error) {
+	value := raw + "{"
+	if !strings.Contains(value, discordMessageURLPrefix) && (!allowDiscordApp || !strings.Contains(value, discordAppMessageURLPrefix)) {
 		return DiscordMessageTarget{}, ErrInvalidRoleSelectionConfig
 	}
+	value = strings.Replace(value, discordMessageURLPrefix, "", 1)
+	if allowDiscordApp {
+		value = strings.Replace(value, discordAppMessageURLPrefix, "", 1)
+	}
+	firstSlash := strings.Index(value, "/")
+	lastSlash := strings.LastIndex(value, "/")
+	messageSource := legacySubstring(value, firstSlash+1, strings.LastIndex(value, "{")) + "{"
 	target := DiscordMessageTarget{
-		GuildID:   strings.TrimSpace(matches[1]),
-		ChannelID: strings.TrimSpace(matches[2]),
-		MessageID: strings.TrimSpace(matches[3]),
-	}
-	if target.GuildID == "" || target.ChannelID == "" || target.MessageID == "" {
-		return DiscordMessageTarget{}, ErrInvalidRoleSelectionConfig
+		GuildID:   legacySubstring(value, 0, firstSlash),
+		ChannelID: legacySubstring(value, firstSlash+1, lastSlash),
+		MessageID: legacySubstring(messageSource, strings.Index(messageSource, "/")+1, strings.LastIndex(messageSource, "{")),
 	}
 	return target, nil
+}
+
+func legacySubstring(value string, start int, end int) string {
+	if start < 0 {
+		start = 0
+	}
+	if end < 0 {
+		end = 0
+	}
+	if start > len(value) {
+		start = len(value)
+	}
+	if end > len(value) {
+		end = len(value)
+	}
+	if start > end {
+		start, end = end, start
+	}
+	return value[start:end]
 }
 
 func NormalizeLegacyReaction(raw string) (LegacyReaction, error) {

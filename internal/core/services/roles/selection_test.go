@@ -174,3 +174,21 @@ func TestConfigureReactionRejectsInvalidLegacyEmoji(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteReactionRejectsLegacyDiscordAppHost(t *testing.T) {
+	repo := fakemongo.NewRoleSelectionRepository()
+	discord := fakediscord.NewSideEffects()
+	service := SelectionService{Repository: repo, Reactions: discord}
+
+	err := service.DeleteReaction(context.Background(), ReactionDeleteCommand{
+		GuildID:    "guild-1",
+		MessageURL: "https://discordapp.com/channels/guild-1/channel-1/message-1",
+		Emoji:      "✅",
+	})
+	if !errors.Is(err, domain.ErrInvalidRoleSelectionConfig) {
+		t.Fatalf("expected invalid URL, got %v", err)
+	}
+	if len(discord.Reactions) != 0 {
+		t.Fatalf("reactions = %#v", discord.Reactions)
+	}
+}
