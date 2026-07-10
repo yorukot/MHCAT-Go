@@ -3,6 +3,7 @@ package discordgo
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	dgo "github.com/bwmarrin/discordgo"
@@ -46,7 +47,9 @@ func (p DiscordInfoProvider) GuildInfo(ctx context.Context, guildID string) (por
 			return ports.DiscordGuildInfo{}, fmt.Errorf("load guild: %w", err)
 		}
 	}
-	return guildInfoFromGuild(guild), nil
+	info := guildInfoFromGuild(guild)
+	info.BotDisplayColor = discordBotDisplayColor(session, guild)
+	return info, nil
 }
 
 func (p DiscordInfoProvider) session() (*dgo.Session, error) {
@@ -110,6 +113,31 @@ func guildInfoFromGuild(guild *dgo.Guild) ports.DiscordGuildInfo {
 		PreferredLocale:          guild.PreferredLocale,
 		VerificationLevel:        int(guild.VerificationLevel),
 	}
+}
+
+func discordBotDisplayColor(session *dgo.Session, guild *dgo.Guild) int {
+	if session == nil || session.State == nil || session.State.User == nil || guild == nil {
+		return 0
+	}
+	member, err := session.State.Member(guild.ID, session.State.User.ID)
+	if err != nil || member == nil {
+		return 0
+	}
+	memberRoles := make(map[string]struct{}, len(member.Roles))
+	for _, roleID := range member.Roles {
+		memberRoles[roleID] = struct{}{}
+	}
+	roles := append(dgo.Roles(nil), guild.Roles...)
+	sort.Sort(roles)
+	for _, role := range roles {
+		if role == nil || role.Color == 0 {
+			continue
+		}
+		if _, ok := memberRoles[role.ID]; ok {
+			return role.Color
+		}
+	}
+	return 0
 }
 
 func zeroIfInvalid(value time.Time) time.Time {

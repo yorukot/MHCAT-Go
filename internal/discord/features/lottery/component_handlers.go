@@ -17,7 +17,6 @@ import (
 const (
 	permissionManageMessages     int64 = 8192
 	legacyLotteryGreenColor            = 0x57F287
-	legacyLotteryResultColor           = 0x5865F2
 	legacyLotteryWinnerLimit           = 50
 	legacyLotteryParticipantFile       = "discord.txt"
 )
@@ -73,12 +72,13 @@ func (m Module) RerollHandler() interactions.Handler {
 		if !ok {
 			return responder.EditOriginal(ctx, lotteryComponentErrorMessage("很抱歉，出現了錯誤!"))
 		}
-		guildOwnerID := m.guildOwnerID(ctx, interaction.Actor.GuildID)
+		guild := m.guildInfo(ctx, interaction.Actor.GuildID)
+		guildOwnerID := strings.TrimSpace(guild.OwnerID)
 		lottery, err := m.service.GetManaged(ctx, interaction.Actor.GuildID, id, interaction.Actor.UserID, guildOwnerID, interaction.Actor.HasPermission(permissionManageMessages))
 		if err != nil {
 			return responder.EditOriginal(ctx, lotteryManageErrorMessage(err, false))
 		}
-		message, err := m.lotteryWinnerMessage(lottery)
+		message, err := m.lotteryWinnerMessage(lottery, guild.BotDisplayColor)
 		if err != nil || m.messages == nil || lottery.ChannelID == "" {
 			return responder.EditOriginal(ctx, lotteryComponentErrorMessage("很抱歉，出現了錯誤!"))
 		}
@@ -110,14 +110,18 @@ func (m Module) StopHandler() interactions.Handler {
 }
 
 func (m Module) guildOwnerID(ctx context.Context, guildID string) string {
+	return strings.TrimSpace(m.guildInfo(ctx, guildID).OwnerID)
+}
+
+func (m Module) guildInfo(ctx context.Context, guildID string) ports.DiscordGuildInfo {
 	if m.discord == nil || strings.TrimSpace(guildID) == "" {
-		return ""
+		return ports.DiscordGuildInfo{}
 	}
 	guild, err := m.discord.GuildInfo(ctx, guildID)
 	if err != nil {
-		return ""
+		return ports.DiscordGuildInfo{}
 	}
-	return strings.TrimSpace(guild.OwnerID)
+	return guild
 }
 
 func (m Module) lotterySearchMessage(ctx context.Context, lottery domain.Lottery, actorUserID string, canManage bool) responses.Message {
@@ -181,7 +185,7 @@ func (m Module) lotterySearchMessage(ctx context.Context, lottery domain.Lottery
 	return message
 }
 
-func (m Module) lotteryWinnerMessage(lottery domain.Lottery) (ports.OutboundMessage, error) {
+func (m Module) lotteryWinnerMessage(lottery domain.Lottery, color int) (ports.OutboundMessage, error) {
 	winnerCount := lottery.WinnerCount
 	if winnerCount < 0 {
 		winnerCount = 0
@@ -210,7 +214,7 @@ func (m Module) lotteryWinnerMessage(lottery domain.Lottery) (ports.OutboundMess
 		Embeds: []ports.OutboundEmbed{{
 			Title:       "<:fireworks:997374182016958494> 恭喜中獎者! <:fireworks:997374182016958494>",
 			Description: description,
-			Color:       legacyLotteryResultColor,
+			Color:       color,
 			FooterText:  "沒抽中的我給你一個擁抱w",
 		}},
 		AllowedMentions: ports.AllowedMentions{UserIDs: uniqueLotteryUserIDs(winners)},

@@ -137,7 +137,7 @@ func TestLotteryRerollSendsOneLegacyWinnerMessageAndEndsLottery(t *testing.T) {
 			{UserID: "user-2"},
 		},
 	}
-	info := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "guild-owner"}}
+	info := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "guild-owner", BotDisplayColor: 0x123456}}
 	messages := fakediscord.NewSideEffects()
 	module := NewComponentModule(repo, info, nil, messages, lotteryFixedClock{})
 	module.randomIndex = func(int) (int, error) { return 1, nil }
@@ -151,7 +151,7 @@ func TestLotteryRerollSendsOneLegacyWinnerMessageAndEndsLottery(t *testing.T) {
 		t.Fatalf("sent = %#v", messages.Sent)
 	}
 	sent := messages.Sent[0].Message
-	if sent.Content != "<@user-2><@user-2>" || len(sent.Embeds) != 1 || !strings.Contains(sent.Embeds[0].Description, "Nitro") || len(sent.AllowedMentions.UserIDs) != 1 || sent.AllowedMentions.UserIDs[0] != "user-2" {
+	if sent.Content != "<@user-2><@user-2>" || len(sent.Embeds) != 1 || sent.Embeds[0].Color != 0x123456 || !strings.Contains(sent.Embeds[0].Description, "Nitro") || len(sent.AllowedMentions.UserIDs) != 1 || sent.AllowedMentions.UserIDs[0] != "user-2" {
 		t.Fatalf("winner message = %#v", sent)
 	}
 	if !repo.Lotteries["guild-1:"+lotteryTestID].Ended || len(repo.Ended) != 1 {

@@ -11,6 +11,7 @@ import (
 func TestDiscordInfoProviderGuildInfoFromState(t *testing.T) {
 	createdID := "4194304"
 	session := &Session{session: &dgo.Session{State: dgo.NewState()}, ready: make(chan struct{})}
+	session.session.State.User = &dgo.User{ID: "bot-1"}
 	session.session.State.GuildAdd(&dgo.Guild{
 		ID:                       createdID,
 		Name:                     "Guild",
@@ -23,12 +24,21 @@ func TestDiscordInfoProviderGuildInfoFromState(t *testing.T) {
 		PreferredLocale:          "zh-TW",
 		VerificationLevel:        dgo.VerificationLevel(2),
 		Emojis:                   []*dgo.Emoji{{ID: "emoji-1"}, {ID: "emoji-2"}},
+		Roles: []*dgo.Role{
+			{ID: "colored-low", Position: 1, Color: 0x123456},
+			{ID: "uncolored-high", Position: 2},
+		},
+		Members: []*dgo.Member{{
+			GuildID: createdID,
+			User:    &dgo.User{ID: "bot-1"},
+			Roles:   []string{"colored-low", "uncolored-high"},
+		}},
 	})
 	info, err := (DiscordInfoProvider{Session: session}).GuildInfo(context.Background(), createdID)
 	if err != nil {
 		t.Fatalf("guild info: %v", err)
 	}
-	if info.ID != createdID || info.Name != "Guild" || info.OwnerID != "owner-1" || info.MemberCount != 42 || info.EmojiCount != 2 {
+	if info.ID != createdID || info.Name != "Guild" || info.OwnerID != "owner-1" || info.MemberCount != 42 || info.EmojiCount != 2 || info.BotDisplayColor != 0x123456 {
 		t.Fatalf("info = %#v", info)
 	}
 	if info.IconURL == "" || info.BannerURL == "" || info.CreatedAt.IsZero() {

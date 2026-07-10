@@ -21,6 +21,7 @@ type DiscordUserInfo struct {
 type DiscordGuildInfo struct {
 	ID                       string
 	Name                     string
+	BotDisplayColor          int
 	IconURL                  string
 	BannerURL                string
 	MemberCount              int
