@@ -548,6 +548,27 @@ func TestCloseHandlerDeletesOwnerTicketChannel(t *testing.T) {
 	}
 }
 
+func TestCloseHandlerLoadsOwnerChannelNameWhenPayloadOmitsIt(t *testing.T) {
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.Channels = append(sideEffects.Channels, ports.ChannelRef{
+		GuildID:   testGuildID,
+		ChannelID: "ticket-channel",
+		Name:      "user-1",
+		Type:      discordChannelTypeGuildText,
+	})
+	module := NewModuleWithSideEffects(nil, sideEffects, sideEffects, "")
+	interaction := ticketButtonInteraction("del")
+	interaction.ChannelID = "ticket-channel"
+	interaction.ChannelName = ""
+
+	if err := module.CloseHandler()(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("close handler: %v", err)
+	}
+	if len(sideEffects.Deleted) != 1 || sideEffects.Deleted[0] != "ticket-channel" {
+		t.Fatalf("deleted channels = %#v", sideEffects.Deleted)
+	}
+}
+
 func TestCloseHandlerDeletesWhenActorCanManageMessages(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
 	module := NewModuleWithSideEffects(nil, sideEffects, sideEffects, "")

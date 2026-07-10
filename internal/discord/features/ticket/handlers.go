@@ -237,11 +237,21 @@ func (m Module) CloseHandler() interactions.Handler {
 		if interaction.ChannelID == "" {
 			return responder.Reply(ctx, ticketCloseDeniedMessage())
 		}
-		if !interaction.Actor.HasPermission(permissionManageMessages) && interaction.ChannelName != "" && interaction.ChannelName != interaction.Actor.UserID {
-			return responder.Reply(ctx, ticketCloseDeniedMessage())
-		}
-		if !interaction.Actor.HasPermission(permissionManageMessages) && interaction.ChannelName == "" {
-			return responder.Reply(ctx, ticketCloseDeniedMessage())
+		if !interaction.Actor.HasPermission(permissionManageMessages) {
+			channelName := interaction.ChannelName
+			if channelName == "" {
+				channel, err := m.channels.FindChannelByID(ctx, interaction.Actor.GuildID, interaction.ChannelID)
+				if errors.Is(err, ports.ErrChannelNotFound) {
+					return responder.Reply(ctx, ticketCloseDeniedMessage())
+				}
+				if err != nil {
+					return err
+				}
+				channelName = channel.Name
+			}
+			if channelName != interaction.Actor.UserID {
+				return responder.Reply(ctx, ticketCloseDeniedMessage())
+			}
 		}
 		if err := m.channels.DeleteChannel(ctx, interaction.ChannelID); err != nil {
 			return err
