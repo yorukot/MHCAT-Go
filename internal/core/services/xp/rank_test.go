@@ -10,6 +10,19 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
 
+type orderedRankRepository struct {
+	text  []domain.XPProfile
+	voice []domain.XPProfile
+}
+
+func (r orderedRankRepository) ListTextXPProfiles(context.Context, string) ([]domain.XPProfile, error) {
+	return append([]domain.XPProfile(nil), r.text...), nil
+}
+
+func (r orderedRankRepository) ListVoiceXPProfiles(context.Context, string) ([]domain.XPProfile, error) {
+	return append([]domain.XPProfile(nil), r.voice...), nil
+}
+
 func TestRankServiceSortsPagesAndComputesLegacyViewerRank(t *testing.T) {
 	repo := fakemongo.NewXPAdminRepository()
 	_ = repo.SaveTextXPProfile(context.Background(), domain.XPProfile{GuildID: "guild", UserID: "a", Level: 1, XP: 50})
@@ -60,6 +73,29 @@ func TestRankServicePaginatesTenRows(t *testing.T) {
 	}
 	if page.TotalPages != 2 {
 		t.Fatalf("total pages = %d", page.TotalPages)
+	}
+}
+
+func TestRankServiceReversesLegacySourceOrderForTies(t *testing.T) {
+	repo := orderedRankRepository{text: []domain.XPProfile{
+		{GuildID: "guild", UserID: "first", Level: 1, XP: 10},
+		{GuildID: "guild", UserID: "second", Level: 1, XP: 10},
+		{GuildID: "guild", UserID: "leader", Level: 2, XP: 500},
+	}}
+	page, err := (RankService{Repository: repo}).Query(context.Background(), RankQuery{
+		GuildID:  "guild",
+		ViewerID: "first",
+		Kind:     RankKindText,
+	})
+	if err != nil {
+		t.Fatalf("rank query: %v", err)
+	}
+	users := make([]string, 0, len(page.Entries))
+	for _, entry := range page.Entries {
+		users = append(users, entry.Profile.UserID)
+	}
+	if want := []string{"leader", "second", "first"}; !reflect.DeepEqual(users, want) {
+		t.Fatalf("users = %#v, want %#v", users, want)
 	}
 }
 

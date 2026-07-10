@@ -69,6 +69,10 @@ func (s RankService) Query(ctx context.Context, query RankQuery) (RankPage, erro
 	if err != nil {
 		return RankPage{}, err
 	}
+	// Legacy builds the sortable array from the Mongo result in reverse order.
+	for left, right := 0, len(profiles)-1; left < right; left, right = left+1, right-1 {
+		profiles[left], profiles[right] = profiles[right], profiles[left]
+	}
 	sort.SliceStable(profiles, func(i, j int) bool {
 		return legacyRankSortTotal(profiles[i]) > legacyRankSortTotal(profiles[j])
 	})
