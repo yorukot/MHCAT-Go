@@ -91,14 +91,17 @@ func (r *LotteryRepository) joinMissReason(ctx context.Context, request domain.L
 	if err != nil {
 		return err
 	}
-	if lottery.Ended || lottery.EndsAtUnix <= 0 || lottery.EndsAtUnix < request.NowUnix {
-		return ports.ErrLotteryEnded
-	}
 	if lottery.HasParticipant(request.UserID) {
+		if lottery.Ended {
+			return ports.ErrLotteryEnded
+		}
 		return ports.ErrLotteryAlreadyJoined
 	}
 	if lottery.AtCapacity() {
 		return ports.ErrLotteryFull
+	}
+	if lottery.Ended || lottery.EndsAtUnix <= 0 || lottery.EndsAtUnix < request.NowUnix {
+		return ports.ErrLotteryEnded
 	}
 	return ports.ErrLotteryEnded
 }

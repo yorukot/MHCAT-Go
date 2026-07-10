@@ -41,6 +41,33 @@ func TestJoinPreservesLegacyEligibilityRules(t *testing.T) {
 	}
 }
 
+func TestJoinPreservesLegacyDuplicateAndCapacityErrorPrecedence(t *testing.T) {
+	repo := fakemongo.NewLotteryRepository()
+	repo.Lotteries["guild-1:id-1"] = domain.Lottery{
+		GuildID:         "guild-1",
+		ID:              "id-1",
+		EndsAtUnix:      50,
+		MaxParticipants: 1,
+		Participants:    []domain.LotteryParticipant{{UserID: "user-1"}},
+	}
+	service := NewService(repo)
+	now := time.Unix(100, 0)
+
+	if _, err := service.Join(context.Background(), domain.LotteryJoinRequest{GuildID: "guild-1", ID: "id-1", UserID: "user-1"}, nil, now); !errors.Is(err, ports.ErrLotteryAlreadyJoined) {
+		t.Fatalf("expired duplicate error = %v", err)
+	}
+	if _, err := service.Join(context.Background(), domain.LotteryJoinRequest{GuildID: "guild-1", ID: "id-1", UserID: "user-2"}, nil, now); !errors.Is(err, ports.ErrLotteryFull) {
+		t.Fatalf("expired full error = %v", err)
+	}
+
+	ended := repo.Lotteries["guild-1:id-1"]
+	ended.Ended = true
+	repo.Lotteries["guild-1:id-1"] = ended
+	if _, err := service.Join(context.Background(), domain.LotteryJoinRequest{GuildID: "guild-1", ID: "id-1", UserID: "user-1"}, nil, now); !errors.Is(err, ports.ErrLotteryEnded) {
+		t.Fatalf("ended participant error = %v", err)
+	}
+}
+
 func TestManagedLotteryUsesLegacyOwnerFallback(t *testing.T) {
 	repo := fakemongo.NewLotteryRepository()
 	service := NewService(repo)

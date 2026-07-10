@@ -50,14 +50,17 @@ func (s Service) Join(ctx context.Context, request domain.LotteryJoinRequest, ac
 	if err != nil {
 		return domain.Lottery{}, err
 	}
-	if lottery.IsExpired(now) {
-		return domain.Lottery{}, ports.ErrLotteryEnded
-	}
 	if lottery.HasParticipant(request.UserID) {
+		if lottery.Ended {
+			return domain.Lottery{}, ports.ErrLotteryEnded
+		}
 		return domain.Lottery{}, ports.ErrLotteryAlreadyJoined
 	}
 	if lottery.AtCapacity() {
 		return domain.Lottery{}, ports.ErrLotteryFull
+	}
+	if lottery.IsExpired(now) {
+		return domain.Lottery{}, ports.ErrLotteryEnded
 	}
 	if !lotteryActorHasRequiredRoles(lottery, actorRoleIDs) {
 		return domain.Lottery{}, ports.ErrLotteryRoleDenied
