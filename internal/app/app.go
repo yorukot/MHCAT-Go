@@ -797,7 +797,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.RoleSelectionRepository = roleRepo
 		opts.RoleSelectionRolePort = sideEffects
-		opts.RoleSelectionRoleInspector = sideEffects
+		opts.RoleSelectionRoleInspector = discordadapter.NewCachedRoleInspector(sideEffects)
 		opts.RoleSelectionReactionPort = sideEffects
 		opts.RoleSelectionMessagePort = sideEffects
 		opts.RoleSelectionDirectMessage = sideEffects
