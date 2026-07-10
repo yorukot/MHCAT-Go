@@ -76,7 +76,7 @@ func (c JoinMessageConfig) Deliverable() bool {
 	return strings.TrimSpace(c.GuildID) != "" &&
 		c.Enabled &&
 		strings.TrimSpace(c.ChannelID) != "" &&
-		strings.TrimSpace(c.MessageContent) != "" &&
+		c.MessageContent != "" &&
 		strings.TrimSpace(c.Color) != ""
 }
 
@@ -123,7 +123,7 @@ func (c LeaveMessageConfig) ValidateContent() error {
 	if strings.TrimSpace(c.GuildID) == "" {
 		return ErrInvalidLeaveMessageConfig
 	}
-	if strings.TrimSpace(c.MessageContent) == "" || strings.TrimSpace(c.Title) == "" || strings.TrimSpace(c.Color) == "" {
+	if c.MessageContent == "" || c.Title == "" || strings.TrimSpace(c.Color) == "" {
 		return ErrInvalidLeaveMessageConfig
 	}
 	if !ValidLegacyColor(c.Color) && strings.TrimSpace(c.Color) != "Random" {

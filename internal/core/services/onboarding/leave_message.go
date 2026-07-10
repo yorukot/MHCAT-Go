@@ -88,8 +88,8 @@ type LeaveMemberEvent struct {
 func leaveMessageConfigDeliverable(config domain.LeaveMessageConfig) bool {
 	return strings.TrimSpace(config.GuildID) != "" &&
 		strings.TrimSpace(config.ChannelID) != "" &&
-		strings.TrimSpace(config.MessageContent) != "" &&
-		strings.TrimSpace(config.Title) != "" &&
+		config.MessageContent != "" &&
+		config.Title != "" &&
 		strings.TrimSpace(config.Color) != ""
 }
 

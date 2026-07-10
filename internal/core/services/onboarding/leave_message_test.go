@@ -58,6 +58,22 @@ func TestLeaveMessageServiceSave(t *testing.T) {
 	}
 }
 
+func TestLeaveMessageServicePreservesAllSpaceText(t *testing.T) {
+	repo := &fakeLeaveMessageRepo{prepared: domain.LeaveMessageConfig{GuildID: "guild", ChannelID: "channel"}}
+	service := LeaveMessageService{Repository: repo}
+	if err := service.Save(context.Background(), domain.LeaveMessageConfig{
+		GuildID:        "guild",
+		MessageContent: "   ",
+		Title:          "  ",
+		Color:          "#df1f2f",
+	}); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	if repo.saved.MessageContent != "   " || repo.saved.Title != "  " {
+		t.Fatalf("saved = %#v", repo.saved)
+	}
+}
+
 func TestLeaveMessageDeliveryServiceSendsLegacyLeaveEmbed(t *testing.T) {
 	now := time.Date(2026, 7, 4, 1, 2, 3, 0, time.UTC)
 	repo := &fakeLeaveMessageRepo{prepared: domain.LeaveMessageConfig{
@@ -114,6 +130,26 @@ func TestLeaveMessageDeliveryServiceNoopsForMissingOrIncompleteConfig(t *testing
 				t.Fatalf("sent = %#v", messages.sent)
 			}
 		})
+	}
+}
+
+func TestLeaveMessageDeliveryPreservesAllSpaceText(t *testing.T) {
+	now := time.Unix(2_000_000, 0)
+	repo := &fakeLeaveMessageRepo{prepared: domain.LeaveMessageConfig{
+		GuildID:        "guild",
+		ChannelID:      "channel",
+		Title:          "  ",
+		MessageContent: "   ",
+		Color:          "#df1f2f",
+	}}
+	messages := &fakeLeaveMessageSender{}
+	service := LeaveMessageDeliveryService{Repository: repo, Messages: messages}
+
+	if err := service.SendOnLeave(context.Background(), LeaveMemberEvent{GuildID: "guild", UserID: "user", Now: now}); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if len(messages.sent) != 1 || messages.sent[0].message.Embeds[0].Title != "  " || messages.sent[0].message.Embeds[0].Description != "   " {
+		t.Fatalf("sent = %#v", messages.sent)
 	}
 }
 

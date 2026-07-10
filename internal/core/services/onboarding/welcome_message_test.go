@@ -44,6 +44,26 @@ func TestWelcomeMessageDeliveryDisabledConfigNoop(t *testing.T) {
 	}
 }
 
+func TestWelcomeMessageDeliveryPreservesAllSpaceContent(t *testing.T) {
+	repo := fakemongo.NewJoinMessageConfigRepository()
+	repo.Configs["guild-1"] = domain.JoinMessageConfig{
+		GuildID:        "guild-1",
+		Enabled:        true,
+		ChannelID:      "channel-1",
+		MessageContent: "   ",
+		Color:          "#53FF53",
+	}
+	sideEffects := fakediscord.NewSideEffects()
+	service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects}
+
+	if err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{GuildID: "guild-1", UserID: "user-1"}); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Description != "   " {
+		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+}
+
 func TestWelcomeMessageDeliveryGenericLegacyEmbed(t *testing.T) {
 	now := time.Unix(2_000_000, 0)
 	repo := fakemongo.NewJoinMessageConfigRepository()
