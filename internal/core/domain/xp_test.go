@@ -117,6 +117,14 @@ func TestApplyTextXPAdjustmentMatchesLegacyLevelMath(t *testing.T) {
 	}
 }
 
+func TestTextXPRequiredForLevelPreservesLegacyOperationOrder(t *testing.T) {
+	const level = int64(11623802)
+	const want = int64(4503759097840233)
+	if got := textXPRequiredForLevel(level); got != want {
+		t.Fatalf("required XP = %d, want %d", got, want)
+	}
+}
+
 func TestApplyTextXPMessageMatchesLegacyAccrualLevelBehavior(t *testing.T) {
 	got, leveled := ApplyTextXPMessage(XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 95, Level: 0}, 5)
 	if leveled || got.Level != 0 || got.XP != 100 {

@@ -187,7 +187,7 @@ func applyXPAdjustment(profile XPProfile, delta int64, required func(int64) int6
 }
 
 func textXPRequiredForLevel(level int64) int64 {
-	return int64(float64(level)*float64(level)/3*100 + 100)
+	return int64(float64(level)*(float64(level)/3)*100 + 100)
 }
 
 func voiceXPRequiredForLevel(level int64) int64 {
