@@ -89,7 +89,7 @@ func (s *DraftStore) take(id string, guildID string, userID string, authorize bo
 	if !ok {
 		return AnnouncementDraft{}, ErrAnnouncementDraftNotFound
 	}
-	if !draft.ExpiresAt.IsZero() && s.now().After(draft.ExpiresAt) {
+	if !draft.ExpiresAt.IsZero() && !s.now().Before(draft.ExpiresAt) {
 		delete(s.drafts, id)
 		s.removeOrder(id)
 		return AnnouncementDraft{}, ErrAnnouncementDraftNotFound
