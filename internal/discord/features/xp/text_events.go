@@ -35,7 +35,17 @@ func (m TextEventModule) MessageCreateHandler() events.Handler {
 		if !result.Leveled {
 			return ctx.Err()
 		}
-		return m.sendLevelUpAnnouncement(ctx, event, userID, result.Profile.Level)
+		var firstErr error
+		if err := m.sendLevelUpAnnouncement(ctx, event, userID, result.Profile.Level); err != nil {
+			firstErr = err
+		}
+		if err := m.applyRewardRoles(ctx, guildID, userID, result.Profile.Level, event.Member); err != nil && firstErr == nil {
+			firstErr = err
+		}
+		if firstErr != nil {
+			return firstErr
+		}
+		return ctx.Err()
 	}
 }
 
@@ -66,4 +76,15 @@ func (m TextEventModule) sendLevelUpAnnouncement(ctx context.Context, event even
 		return err
 	}
 	return ctx.Err()
+}
+
+func (m TextEventModule) applyRewardRoles(ctx context.Context, guildID string, userID string, level int64, member *events.Member) error {
+	if m.rewardRoles.Repository == nil || m.rewardRoles.RolePort == nil {
+		return ctx.Err()
+	}
+	var currentRoleIDs []string
+	if member != nil {
+		currentRoleIDs = member.RoleIDs
+	}
+	return m.rewardRoles.ApplyLevelUp(ctx, guildID, userID, level, currentRoleIDs)
 }

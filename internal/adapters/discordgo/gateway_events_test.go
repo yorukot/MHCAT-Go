@@ -17,12 +17,16 @@ func TestEventFromMessage(t *testing.T) {
 		Content:   "hello",
 		Timestamp: timestamp,
 		Author:    &dgo.User{ID: "user-1", Username: "Yoru", Discriminator: "1234", Avatar: "avatar-hash", Bot: true},
+		Member:    &dgo.Member{Roles: []string{"role-1"}},
 	})
 	if event.Type != events.TypeMessageCreate || event.MessageID != "message-1" || event.UserID != "user-1" || !event.IsBot || !event.CreatedAt.Equal(timestamp) {
 		t.Fatalf("event = %#v", event)
 	}
 	if event.UserTag != "Yoru#1234" || event.AvatarURL == "" {
 		t.Fatalf("author metadata = %#v", event)
+	}
+	if event.Member == nil || event.Member.UserID != "user-1" || len(event.Member.RoleIDs) != 1 || event.Member.RoleIDs[0] != "role-1" {
+		t.Fatalf("member metadata = %#v", event.Member)
 	}
 }
 

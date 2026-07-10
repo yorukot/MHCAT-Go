@@ -50,6 +50,28 @@ func TestTextRewardRoleServiceRejectsUnassignableAndTooMany(t *testing.T) {
 	}
 }
 
+func TestTextRewardRoleServiceApplyLevelUpChangesConfiguredRoles(t *testing.T) {
+	repo := fakemongo.NewTextXPRewardRoleRepository()
+	repo.Configs = []domain.XPRewardRoleConfig{
+		{GuildID: "guild-1", Level: 0, RoleID: "old-role", DeleteWhenNot: true},
+		{GuildID: "guild-1", Level: 1, RoleID: "new-role"},
+		{GuildID: "guild-1", Level: 1, RoleID: "kept-role", DeleteWhenNot: false},
+		{GuildID: "other", Level: 1, RoleID: "other-role", DeleteWhenNot: true},
+	}
+	roles := fakediscord.NewSideEffects()
+	service := TextRewardRoleService{Repository: repo, RolePort: roles}
+
+	if err := service.ApplyLevelUp(context.Background(), " guild-1 ", " user-1 ", 1, []string{"old-role", "kept-role"}); err != nil {
+		t.Fatalf("apply level up: %v", err)
+	}
+	if len(roles.RemovedRoles) != 1 || roles.RemovedRoles[0].RoleID != "old-role" {
+		t.Fatalf("removed roles = %#v", roles.RemovedRoles)
+	}
+	if len(roles.AddedRoles) != 2 || roles.AddedRoles[0].RoleID != "new-role" || roles.AddedRoles[1].RoleID != "kept-role" {
+		t.Fatalf("added roles = %#v", roles.AddedRoles)
+	}
+}
+
 func TestVoiceRewardRoleServiceListAndDelete(t *testing.T) {
 	repo := fakemongo.NewVoiceXPRewardRoleRepository()
 	repo.Configs = []domain.XPRewardRoleConfig{

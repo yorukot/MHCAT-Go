@@ -110,6 +110,13 @@ func eventFromMessage(eventType events.Type, message *dgo.Message) events.Event 
 		event.AvatarURL = message.Author.AvatarURL("")
 		event.IsBot = message.Author.Bot
 	}
+	if message.Member != nil {
+		member := *message.Member
+		if member.User == nil {
+			member.User = message.Author
+		}
+		event.Member = memberFromDiscord(&member)
+	}
 	return event
 }
 

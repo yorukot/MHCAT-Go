@@ -14,6 +14,7 @@ const legacyRewardRoleLimit = 119
 type TextRewardRoleService struct {
 	Repository    ports.TextXPRewardRoleRepository
 	RoleInspector ports.DiscordRoleInspector
+	RolePort      ports.DiscordRolePort
 }
 
 type VoiceRewardRoleService struct {
@@ -63,6 +64,50 @@ func (s TextRewardRoleService) List(ctx context.Context, guildID string) ([]doma
 		return nil, domain.ErrInvalidXPRewardRoleConfig
 	}
 	return s.Repository.ListTextXPRewardRoles(ctx, guildID)
+}
+
+func (s TextRewardRoleService) ApplyLevelUp(ctx context.Context, guildID string, userID string, level int64, currentRoleIDs []string) error {
+	if s.Repository == nil || s.RolePort == nil {
+		return domain.ErrInvalidXPRewardRoleConfig
+	}
+	guildID = strings.TrimSpace(guildID)
+	userID = strings.TrimSpace(userID)
+	if guildID == "" || userID == "" {
+		return domain.ErrInvalidXPRewardRoleConfig
+	}
+	configs, err := s.Repository.ListTextXPRewardRoles(ctx, guildID)
+	if err != nil {
+		return err
+	}
+	currentRoles := map[string]struct{}{}
+	for _, roleID := range currentRoleIDs {
+		roleID = strings.TrimSpace(roleID)
+		if roleID != "" {
+			currentRoles[roleID] = struct{}{}
+		}
+	}
+	for _, config := range configs {
+		config = config.Normalize()
+		if !config.DeleteWhenNot || config.RoleID == "" {
+			continue
+		}
+		if _, ok := currentRoles[config.RoleID]; !ok {
+			continue
+		}
+		if err := s.RolePort.RemoveRole(ctx, guildID, userID, config.RoleID); err != nil {
+			return err
+		}
+	}
+	for _, config := range configs {
+		config = config.Normalize()
+		if config.RoleID == "" || config.Level != level {
+			continue
+		}
+		if err := s.RolePort.AddRole(ctx, guildID, userID, config.RoleID); err != nil {
+			return err
+		}
+	}
+	return ctx.Err()
 }
 
 func (s VoiceRewardRoleService) Add(ctx context.Context, config domain.XPRewardRoleConfig) error {

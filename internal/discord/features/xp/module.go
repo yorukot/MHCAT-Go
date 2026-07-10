@@ -54,9 +54,10 @@ type RankModule struct {
 }
 
 type TextEventModule struct {
-	service  coreservice.TextAccrualService
-	configs  ports.TextXPConfigReader
-	messages ports.DiscordMessagePort
+	service     coreservice.TextAccrualService
+	configs     ports.TextXPConfigReader
+	messages    ports.DiscordMessagePort
+	rewardRoles coreservice.TextRewardRoleService
 }
 
 type VoiceEventModule struct {
@@ -130,6 +131,11 @@ func NewTextEventModule(repo ports.TextXPAccrualRepository, configs ports.TextXP
 		configs:  configs,
 		messages: messages,
 	}
+}
+
+func (m TextEventModule) WithRewardRoles(repo ports.TextXPRewardRoleRepository, roles ports.DiscordRolePort) TextEventModule {
+	m.rewardRoles = coreservice.TextRewardRoleService{Repository: repo, RolePort: roles}
+	return m
 }
 
 func NewVoiceEventModule(repo ports.VoiceXPSessionRepository) VoiceEventModule {

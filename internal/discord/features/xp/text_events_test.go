@@ -138,6 +138,48 @@ func TestTextXPEventReturnsAnnouncementRepositoryError(t *testing.T) {
 	}
 }
 
+func TestTextXPEventAppliesRewardRolesOnLevelUp(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}
+	rewardRoles := fakemongo.NewTextXPRewardRoleRepository()
+	rewardRoles.Configs = []domain.XPRewardRoleConfig{
+		{GuildID: "guild-1", Level: 0, RoleID: "old-role", DeleteWhenNot: true},
+		{GuildID: "guild-1", Level: 1, RoleID: "new-role"},
+		{GuildID: "guild-1", Level: 2, RoleID: "future-role", DeleteWhenNot: true},
+	}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewTextEventModule(repo, fakemongo.NewTextXPConfigRepository(), sideEffects).WithRewardRoles(rewardRoles, sideEffects)
+	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
+	event := textXPEvent("hello")
+	event.Member = &events.Member{UserID: "user-1", RoleIDs: []string{"old-role"}}
+
+	if err := module.MessageCreateHandler()(context.Background(), event); err != nil {
+		t.Fatalf("message create: %v", err)
+	}
+	if len(sideEffects.RemovedRoles) != 1 || sideEffects.RemovedRoles[0].RoleID != "old-role" {
+		t.Fatalf("removed roles = %#v", sideEffects.RemovedRoles)
+	}
+	if len(sideEffects.AddedRoles) != 1 || sideEffects.AddedRoles[0].RoleID != "new-role" {
+		t.Fatalf("added roles = %#v", sideEffects.AddedRoles)
+	}
+}
+
+func TestTextXPEventDoesNotApplyRewardRolesWithoutLevelUp(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	rewardRoles := fakemongo.NewTextXPRewardRoleRepository()
+	rewardRoles.Configs = []domain.XPRewardRoleConfig{{GuildID: "guild-1", Level: 1, RoleID: "new-role"}}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewTextEventModule(repo, nil, nil).WithRewardRoles(rewardRoles, sideEffects)
+	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
+
+	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
+		t.Fatalf("message create: %v", err)
+	}
+	if len(sideEffects.AddedRoles) != 0 || len(sideEffects.RemovedRoles) != 0 {
+		t.Fatalf("role changes added=%#v removed=%#v", sideEffects.AddedRoles, sideEffects.RemovedRoles)
+	}
+}
+
 func textXPEvent(content string) events.Event {
 	return events.Event{
 		Type:      events.TypeMessageCreate,

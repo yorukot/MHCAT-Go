@@ -20,9 +20,9 @@ Status: implemented behind explicit runtime and command-sync gates.
 - Permission: Manage Messages (`8192`) at command definition and runtime check
 - Discord behavior: public defer, legacy-style green/red embeds, optional preview message
 
-This config slice is announcement-config only. It does not enable message-create XP accrual, rank cards, automatic reward-role assignment/removal, voice XP, coin rewards, or Message Content intent. Text reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
+This config slice is announcement-config only. It does not enable message-create XP accrual, rank cards, voice XP, coin rewards, or Message Content intent. Text reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
 
-Text XP message accrual is implemented separately behind `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true`, with `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`. That event slice mirrors the legacy per-message XP formula and `text_xps` profile updates, including XP reset on level-up, and sends configured/default level-up announcements when a `text_xp_channels` row exists. Coin rewards, automatic reward-role assignment/removal, and the legacy missing-channel/permission fallback messages remain disabled.
+Text XP message accrual is implemented separately behind `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true`, with `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`. That event slice mirrors the legacy per-message XP formula and `text_xps` profile updates, including XP reset on level-up, sends configured/default level-up announcements when a `text_xp_channels` row exists, and applies configured `chat_roles` reward-role changes on level-up. Coin rewards and the legacy missing-channel/permission fallback messages remain disabled.
 
 ## Legacy UI/UX Preserved
 
@@ -58,11 +58,10 @@ Text XP message accrual is implemented separately behind `MHCAT_FEATURE_TEXT_XP_
 
 ## Not Implemented
 
-- text XP coin rewards and reward-role changes.
+- text XP coin rewards.
 - legacy missing-channel reply and missing-permission DM fallback behavior for level-up announcements.
 - `/聊天排行榜`, rank image rendering, rank buttons, and the old XP profile card lookup behind `/聊天經驗`; the current `/聊天經驗` command is implemented separately as a disabled replacement response only.
 - XP-to-coin rewards.
-- automatic chat reward-role assignment/removal; the config command is tracked separately from XP accrual.
 - voice XP and voice level-role behavior.
 - Message Content or Guild Messages intent enablement by the config commands; accrual has its own explicit event gate.
 - Usage counter writes to `all_use_count`.
