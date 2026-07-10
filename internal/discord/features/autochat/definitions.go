@@ -5,7 +5,6 @@ import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 const (
 	AutoChatSetCommandName    = "自動聊天頻道"
 	AutoChatDeleteCommandName = "自動聊天頻道刪除"
-	manageMessagesPermission  = "8192"
 	optionChannel             = "頻道"
 )
 
@@ -15,12 +14,11 @@ func Definitions() []commands.Definition {
 
 func SetDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     AutoChatSetCommandName,
-		Description:              "設定自動聊天頻道要在哪裡發送",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		DocsURL:                  "https://docsmhcat.yorukot.me/docs/chat_xp_set",
-		Ownership:                commands.ManagedOwnership("autochat-config", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        AutoChatSetCommandName,
+		Description: "設定自動聊天頻道要在哪裡發送",
+		DocsURL:     "https://docsmhcat.yorukot.me/docs/chat_xp_set",
+		Ownership:   commands.ManagedOwnership("autochat-config", commands.ScopeGuild),
 		Options: []commands.Option{{
 			Type:         commands.OptionTypeChannel,
 			Name:         optionChannel,
@@ -33,15 +31,10 @@ func SetDefinition() commands.Definition {
 
 func DeleteDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     AutoChatDeleteCommandName,
-		Description:              "刪除自動聊天頻道要在哪裡發送",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		DocsURL:                  "https://docsmhcat.yorukot.me/docs/chat_xp_set",
-		Ownership:                commands.ManagedOwnership("autochat-config", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        AutoChatDeleteCommandName,
+		Description: "刪除自動聊天頻道要在哪裡發送",
+		DocsURL:     "https://docsmhcat.yorukot.me/docs/chat_xp_set",
+		Ownership:   commands.ManagedOwnership("autochat-config", commands.ScopeGuild),
 	}
-}
-
-func stringPtr(value string) *string {
-	return &value
 }

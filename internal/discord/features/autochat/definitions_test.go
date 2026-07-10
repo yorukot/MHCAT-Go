@@ -15,8 +15,8 @@ func TestDefinitionsMatchLegacyCommandShape(t *testing.T) {
 	if set.Name != AutoChatSetCommandName || set.Description != "設定自動聊天頻道要在哪裡發送" {
 		t.Fatalf("set definition = %#v", set)
 	}
-	if set.DefaultMemberPermissions == nil || *set.DefaultMemberPermissions != manageMessagesPermission {
-		t.Fatalf("permissions = %#v", set.DefaultMemberPermissions)
+	if set.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy set command should not have default permissions: %#v", set.DefaultMemberPermissions)
 	}
 	if len(set.Options) != 1 || set.Options[0].Name != optionChannel || set.Options[0].Type != commands.OptionTypeChannel || !set.Options[0].Required {
 		t.Fatalf("channel option = %#v", set.Options)
@@ -28,7 +28,7 @@ func TestDefinitionsMatchLegacyCommandShape(t *testing.T) {
 	if deleteCommand.Name != AutoChatDeleteCommandName || deleteCommand.Description != "刪除自動聊天頻道要在哪裡發送" {
 		t.Fatalf("delete definition = %#v", deleteCommand)
 	}
-	if deleteCommand.DefaultMemberPermissions == nil || *deleteCommand.DefaultMemberPermissions != manageMessagesPermission {
-		t.Fatalf("delete permissions = %#v", deleteCommand.DefaultMemberPermissions)
+	if deleteCommand.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy delete command should not have default permissions: %#v", deleteCommand.DefaultMemberPermissions)
 	}
 }
