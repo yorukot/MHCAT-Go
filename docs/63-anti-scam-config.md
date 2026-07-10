@@ -1,6 +1,6 @@
 # Anti-Scam Config, Report, and Message Delete Slices
 
-Status: config toggle, URL report command, and message-delete runtime implemented behind explicit gates.
+Status: config toggle, URL report command, and message-delete runtime parity-audited behind explicit gates.
 
 ## Legacy References
 
@@ -20,9 +20,9 @@ These slices implement:
 
 `/防詐騙網址` toggles the guild `good_webs.open` flag.
 
-`/詐騙網址回報` validates an HTTP or HTTPS URL, checks the existing `not_a_good_webs` catalog for a matching stored URL, and sends the legacy webhook report content when the URL has not already been reported. It does not insert into or mutate `not_a_good_webs`.
+`/詐騙網址回報` validates with the loose `is-url@1.2.4` rules used by legacy, checks the existing `not_a_good_webs` catalog for a matching stored URL, and sends the legacy webhook report content when the URL has not already been reported. It does not insert into or mutate `not_a_good_webs`.
 
-The message-delete runtime reads `good_webs.open`; when enabled for the guild, it scans message content for existing `not_a_good_webs.web` values, deletes the matching message, and sends the legacy trashbin warning text.
+The message-delete runtime reads `good_webs.open`; when enabled for the guild, it scans message content for existing `not_a_good_webs.web` values, deletes the matching message, and sends the legacy trashbin warning text. Like legacy, it also scans bot-authored messages and preserves the warning's trailing newline.
 
 ## UI/UX Parity
 
@@ -30,7 +30,8 @@ The implemented config command path preserves:
 
 - command name `防詐騙網址`
 - description `設定是否開啟防詐騙網址功能(輸入這個指令就會更改)`
-- Manage Messages metadata and runtime check
+- public command discoverability with no Discord default-member-permission gate
+- runtime Manage Messages check, including the Administrator override
 - public defer/edit response flow
 - red legacy permission error embed
 - green `<:fraudalert:1000408260777611355> 自動偵測詐騙連結` success embed
@@ -47,6 +48,9 @@ The implemented report command path preserves:
 - green `<:fraudalert:1000408260777611355> 自動偵測詐騙連結` success embed
 - legacy success text format `成功回報<url>`
 - legacy webhook content shape with the URL in a code block and reporter mention on the next line
+- raw option text in validation, duplicate lookup, webhook content, and success output without trimming or normalization
+
+The URL classifier matches `is-url@1.2.4`, not modern URL-parser semantics. It accepts protocol-relative input such as `//example.com`, arbitrary word-character schemes such as `ftp://` and `custom_1://`, localhost forms, and Unicode domains that satisfy the legacy suffix-length check. It rejects surrounding JavaScript whitespace and uses JavaScript UTF-16 code-unit length for the suffix, so `//a.😀` is accepted while `//a.é` is rejected.
 
 ## Mongo Compatibility
 
@@ -56,6 +60,8 @@ Fields:
 
 - `guild`
 - `open`
+
+Reads preserve Mongoose Boolean compatibility for mixed legacy BSON scalars. Boolean `true`, numeric `1`, and strings `true`, `1`, or `yes` enable scanning; Boolean `false`, numeric `0`, strings `false`, `0`, or `no`, null/missing values, and unsupported values decode as disabled.
 
 Legacy deletes the found row and then inserts a replacement. Go intentionally updates all duplicate `{guild}` rows with `$set.open` and upserts only when no row matches. This preserves legacy field names while avoiding the delete/reinsert race.
 
@@ -67,7 +73,24 @@ Fields read:
 
 - `web`
 
-The report command reads this catalog only. Legacy queried with a user-controlled regex; Go escapes the reported URL with `regexp.QuoteMeta` before building the Mongo regex to avoid regex injection while preserving the legacy "stored URL contains reported URL" lookup direction. The message-delete runtime scans stored `web` values and checks whether the message content contains one. Go does not write new rows to `not_a_good_webs` in this slice.
+The report command reads this catalog only. It does not trim before validation, and valid reports use the same raw text for lookup and delivery. Legacy queried with a user-controlled regex; Go escapes the reported URL with `regexp.QuoteMeta` before building the Mongo regex to avoid regex injection while preserving the legacy "stored URL contains reported URL" lookup direction. The message-delete runtime scans stored `web` values and checks whether the message content contains one. Go does not write new rows to `not_a_good_webs` in this slice.
+
+## Intentional Safety Differences
+
+- Report lookup escapes the user-controlled Mongo regex while preserving the legacy lookup direction.
+- Webhook content neutralizes triple-backtick breakout inside the reported URL.
+- Go awaits webhook delivery before showing success and returns the safe generic error embed when delivery fails.
+- Toggle writes update every duplicate `good_webs` row for the guild instead of deleting and reinserting only the first row.
+- Message scanning checks whether content contains each catalog URL, fixing the legacy reversed-regex query that missed ordinary messages containing a listed URL.
+- Go awaits successful message deletion before sending the warning.
+
+## Parity Contracts
+
+Focused tests lock command definitions and public discoverability, runtime permission handling, visible response payloads, `is-url@1.2.4` classification, raw URL preservation, Mongo filters and Boolean coercion, webhook formatting/sanitization, bot-message scanning, and the exact delete warning. Run:
+
+```bash
+go test ./internal/core/domain ./internal/core/services/safety ./internal/discord/features/safety ./internal/adapters/mongo/documents ./internal/adapters/mongo/repositories ./internal/adapters/external ./internal/app ./internal/parity ./internal/config
+```
 
 ## Gates
 
