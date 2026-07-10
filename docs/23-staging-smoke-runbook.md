@@ -318,6 +318,16 @@ export MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true
 
 Set both together only when testing `/統計系統刪除` against disposable staging `numbers` rows. This path deletes guild-scoped legacy stats config rows and does not delete Discord channels or enable `channel_status`.
 
+Optional stats rename worker smoke flags:
+
+```bash
+export MHCAT_FEATURE_STATS_RENAME_WORKER_ENABLED=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
+```
+
+Set these only when testing the event-only `channel_status` parity worker in an isolated staging guild. Seed disposable `numbers`/`role_numbers` rows and matching stat channels, leave the legacy worker stopped for that guild, wait one 20-minute interval, and verify channel names plus stored `*_name`/`channel_name` counters update. Missing channels and Discord/API failures should be skipped/logged, not fatal.
+
 Optional announcement config smoke flags:
 
 ```bash
@@ -859,6 +869,14 @@ For stats delete staging smoke, expected additionally:
 - `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`;
 - plan includes managed `統計系統刪除`;
 - seed a disposable `numbers` row for the staging guild, run `/統計系統刪除`, and verify the row is deleted while Discord channels are untouched.
+
+For stats rename worker staging smoke, expected additionally:
+
+- `MHCAT_FEATURE_STATS_RENAME_WORKER_ENABLED=true`;
+- `MHCAT_DISCORD_ENABLE_GATEWAY=true`;
+- `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`;
+- no command-sync flag is needed;
+- seed disposable `numbers`/`role_numbers` rows and matching stat channels, leave the legacy worker stopped, wait one 20-minute interval, and verify renamed channels and updated old-number fields.
 
 For text-XP config staging smoke, expected additionally:
 

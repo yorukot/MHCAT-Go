@@ -54,6 +54,7 @@ const (
 	DefaultFeatureStatsCreateEnabled            = false
 	DefaultFeatureStatsRoleCountEnabled         = false
 	DefaultFeatureStatsDeleteEnabled            = false
+	DefaultFeatureStatsRenameWorkerEnabled      = false
 	DefaultFeatureBirthdayConfigEnabled         = false
 	DefaultFeatureAnnouncementConfigEnabled     = false
 	DefaultFeatureAnnouncementSendEnabled       = false
@@ -138,6 +139,7 @@ type Config struct {
 	FeatureStatsCreateEnabled            bool
 	FeatureStatsRoleCountEnabled         bool
 	FeatureStatsDeleteEnabled            bool
+	FeatureStatsRenameWorkerEnabled      bool
 	FeatureBirthdayConfigEnabled         bool
 	FeatureAnnouncementConfigEnabled     bool
 	FeatureAnnouncementSendEnabled       bool

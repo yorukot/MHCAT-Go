@@ -14,6 +14,7 @@ type SideEffects struct {
 	mu                sync.Mutex
 	Channels          []ports.ChannelRef
 	Created           []ports.ChannelCreateRequest
+	Renamed           []ChannelRename
 	Deleted           []string
 	Sent              []SentMessage
 	DirectMessages    []DirectMessage
@@ -53,6 +54,12 @@ type SentMessage struct {
 	ChannelID string
 	Message   ports.OutboundMessage
 	Ref       ports.MessageRef
+}
+
+type ChannelRename struct {
+	GuildID   string
+	ChannelID string
+	Name      string
 }
 
 type DirectMessage struct {
@@ -305,6 +312,23 @@ func (s *SideEffects) CreateChannel(ctx context.Context, req ports.ChannelCreate
 	s.Created = append(s.Created, req)
 	s.Channels = append(s.Channels, ref)
 	return ref, nil
+}
+
+func (s *SideEffects) RenameChannel(ctx context.Context, guildID string, channelID string, name string) (ports.ChannelRef, error) {
+	if err := s.ready(ctx); err != nil {
+		return ports.ChannelRef{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for index, channel := range s.Channels {
+		if channel.GuildID == guildID && channel.ChannelID == channelID {
+			channel.Name = name
+			s.Channels[index] = channel
+			s.Renamed = append(s.Renamed, ChannelRename{GuildID: guildID, ChannelID: channelID, Name: name})
+			return channel, nil
+		}
+	}
+	return ports.ChannelRef{}, ports.ErrChannelNotFound
 }
 
 func (s *SideEffects) DeleteChannel(ctx context.Context, channelID string) error {

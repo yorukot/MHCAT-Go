@@ -20,6 +20,13 @@ type StatsRoleConfigRepository interface {
 	SaveStatsRoleConfig(ctx context.Context, config domain.StatsRoleConfig) error
 }
 
+type StatsRenameRepository interface {
+	ListStatsConfigs(ctx context.Context) ([]domain.StatsConfig, error)
+	UpdateStatsConfigCounters(ctx context.Context, guildID string, update domain.StatsConfigCounterUpdate) error
+	ListStatsRoleConfigs(ctx context.Context) ([]domain.StatsRoleConfig, error)
+	UpdateStatsRoleConfigCounter(ctx context.Context, guildID string, roleID string, currentValue string) error
+}
+
 type DiscordGuildStatsReader interface {
 	GuildStats(ctx context.Context, guildID string) (domain.StatsSnapshot, error)
 }

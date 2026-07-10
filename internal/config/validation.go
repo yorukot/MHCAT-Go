@@ -167,6 +167,14 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED requires MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureStatsRenameWorkerEnabled {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_STATS_RENAME_WORKER_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordGuildMembersIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_STATS_RENAME_WORKER_ENABLED requires MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true", ErrInvalidConfig)
+		}
+	}
 	if err := ValidateStagingGatewaySmoke(cfg.Staging, cfg.DiscordGatewaySmokeTest); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
 	}

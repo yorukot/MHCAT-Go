@@ -54,11 +54,38 @@ type StatsConfig struct {
 	VoiceNumberName   string
 }
 
+type StatsConfigCounterUpdate struct {
+	MemberNumberName  *string
+	UserNumberName    *string
+	BotNumberName     *string
+	ChannelNumberName *string
+	TextNumberName    *string
+	VoiceNumberName   *string
+}
+
 type StatsRoleConfig struct {
 	GuildID     string
 	ChannelID   string
 	ChannelName string
 	RoleID      string
+}
+
+func StatsCounterValue(value int) *string {
+	text := strconv.Itoa(value)
+	return &text
+}
+
+func StatsRoleCounterValue(value int) string {
+	return strconv.Itoa(value)
+}
+
+func (u StatsConfigCounterUpdate) IsZero() bool {
+	return u.MemberNumberName == nil &&
+		u.UserNumberName == nil &&
+		u.BotNumberName == nil &&
+		u.ChannelNumberName == nil &&
+		u.TextNumberName == nil &&
+		u.VoiceNumberName == nil
 }
 
 func (c StatsRoleConfig) Normalize() StatsRoleConfig {

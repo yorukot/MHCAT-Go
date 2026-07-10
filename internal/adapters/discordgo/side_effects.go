@@ -467,6 +467,24 @@ func (c SideEffectClient) CreateChannel(ctx context.Context, req ports.ChannelCr
 	return channelRefFromDiscord(created), ctx.Err()
 }
 
+func (c SideEffectClient) RenameChannel(ctx context.Context, guildID string, channelID string, name string) (ports.ChannelRef, error) {
+	session, err := c.session()
+	if err != nil {
+		return ports.ChannelRef{}, err
+	}
+	updated, err := session.ChannelEdit(channelID, &dgo.ChannelEdit{Name: name}, dgo.WithContext(ctx))
+	if err != nil {
+		if isDiscordNotFound(err) {
+			return ports.ChannelRef{}, ports.ErrChannelNotFound
+		}
+		return ports.ChannelRef{}, fmt.Errorf("rename discord channel: %w", err)
+	}
+	if updated == nil || updated.ID == "" || updated.GuildID != guildID {
+		return ports.ChannelRef{}, ports.ErrChannelNotFound
+	}
+	return channelRefFromDiscord(updated), ctx.Err()
+}
+
 func (c SideEffectClient) DeleteChannel(ctx context.Context, channelID string) error {
 	session, err := c.session()
 	if err != nil {

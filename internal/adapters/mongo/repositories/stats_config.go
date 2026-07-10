@@ -133,6 +133,62 @@ func (r *StatsConfigRepository) DeleteStatsConfig(ctx context.Context, guildID s
 	return document.ToDomain().Normalize(), ctx.Err()
 }
 
+func (r *StatsConfigRepository) ListStatsConfigs(ctx context.Context) ([]domain.StatsConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	cursor, err := r.numbers.Find(ctx, bson.D{})
+	if err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("list stats configs: %w", err))
+	}
+	defer cursor.Close(ctx)
+	var configs []domain.StatsConfig
+	for cursor.Next(ctx) {
+		var document documents.StatsConfigDocument
+		if err := cursor.Decode(&document); err != nil {
+			return nil, mhcatmongo.MapError(fmt.Errorf("decode stats config: %w", err))
+		}
+		configs = append(configs, document.ToDomain().Normalize())
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("iterate stats configs: %w", err))
+	}
+	return configs, ctx.Err()
+}
+
+func (r *StatsConfigRepository) UpdateStatsConfigCounters(ctx context.Context, guildID string, update domain.StatsConfigCounterUpdate) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return domain.ErrInvalidStatsConfigRequest
+	}
+	if update.IsZero() {
+		return ctx.Err()
+	}
+	set := bson.D{}
+	appendCounter := func(key string, value *string) {
+		if value != nil {
+			set = append(set, bson.E{Key: key, Value: strings.TrimSpace(*value)})
+		}
+	}
+	appendCounter("memberNumber_name", update.MemberNumberName)
+	appendCounter("userNumber_name", update.UserNumberName)
+	appendCounter("BotNumber_name", update.BotNumberName)
+	appendCounter("channelnumber_name", update.ChannelNumberName)
+	appendCounter("textnumber_name", update.TextNumberName)
+	appendCounter("voicenumber_name", update.VoiceNumberName)
+	result, err := r.numbers.UpdateOne(ctx, statsConfigFilter(guildID), bson.D{{Key: "$set", Value: set}})
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("update stats config counters: %w", err))
+	}
+	if result.MatchedCount == 0 {
+		return ports.ErrStatsConfigMissing
+	}
+	return ctx.Err()
+}
+
 func (r *StatsConfigRepository) SaveStatsRoleConfig(ctx context.Context, config domain.StatsRoleConfig) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -150,6 +206,56 @@ func (r *StatsConfigRepository) SaveStatsRoleConfig(ctx context.Context, config 
 	}
 	if _, err := r.roleNumbers.InsertOne(ctx, documents.StatsRoleConfigDocumentFromDomain(config)); err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("save stats role config: %w", err))
+	}
+	return ctx.Err()
+}
+
+func (r *StatsConfigRepository) ListStatsRoleConfigs(ctx context.Context) ([]domain.StatsRoleConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if r.roleNumbers == nil {
+		return nil, errors.New("role_numbers collection is required")
+	}
+	cursor, err := r.roleNumbers.Find(ctx, bson.D{})
+	if err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("list stats role configs: %w", err))
+	}
+	defer cursor.Close(ctx)
+	var configs []domain.StatsRoleConfig
+	for cursor.Next(ctx) {
+		var document documents.StatsRoleConfigDocument
+		if err := cursor.Decode(&document); err != nil {
+			return nil, mhcatmongo.MapError(fmt.Errorf("decode stats role config: %w", err))
+		}
+		configs = append(configs, document.ToDomain().Normalize())
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("iterate stats role configs: %w", err))
+	}
+	return configs, ctx.Err()
+}
+
+func (r *StatsConfigRepository) UpdateStatsRoleConfigCounter(ctx context.Context, guildID string, roleID string, currentValue string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	guildID = strings.TrimSpace(guildID)
+	roleID = strings.TrimSpace(roleID)
+	currentValue = strings.TrimSpace(currentValue)
+	if guildID == "" || roleID == "" || currentValue == "" {
+		return domain.ErrInvalidStatsConfigRequest
+	}
+	if r.roleNumbers == nil {
+		return errors.New("role_numbers collection is required")
+	}
+	update := bson.D{{Key: "$set", Value: bson.D{{Key: "channel_name", Value: currentValue}}}}
+	result, err := r.roleNumbers.UpdateOne(ctx, statsRoleConfigFilter(guildID, roleID), update)
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("update stats role config counter: %w", err))
+	}
+	if result.MatchedCount == 0 {
+		return ports.ErrStatsConfigMissing
 	}
 	return ctx.Err()
 }
@@ -233,3 +339,4 @@ func statsOptionalFields(option string) (string, string, bool) {
 
 var _ ports.StatsConfigRepository = (*StatsConfigRepository)(nil)
 var _ ports.StatsRoleConfigRepository = (*StatsConfigRepository)(nil)
+var _ ports.StatsRenameRepository = (*StatsConfigRepository)(nil)

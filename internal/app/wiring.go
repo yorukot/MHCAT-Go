@@ -9,6 +9,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/config"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/onboarding"
+	corestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/stats"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 	discordevents "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	featureannouncements "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/features/announcements"
@@ -933,6 +934,27 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		}
 		module.RegisterEventRoutes(dispatcher)
 		dispatcher.RegisterShutdown(module.StopRuntimeWorker)
+	}
+	if cfg.FeatureStatsRenameWorkerEnabled {
+		repo, err := statsConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "stats rename worker feature")
+		if err != nil {
+			return nil, err
+		}
+		worker := corestats.NewRenameWorker(corestats.RenameService{
+			Repository: repo,
+			Channels:   sideEffects,
+			GuildStats: sideEffects,
+			RoleStats:  sideEffects,
+		}, corestats.LegacyStatsRenameInterval, logger)
+		worker.Start(context.Background())
+		dispatcher.RegisterShutdown(worker.Stop)
+		if logger != nil {
+			logger.Info("stats rename worker started", "interval", corestats.LegacyStatsRenameInterval.String())
+		}
 	}
 	return dispatcher, nil
 }

@@ -51,7 +51,9 @@ Primary Go env vars:
 - `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED`
 - `MHCAT_FEATURE_STATS_QUERY_ENABLED`
 - `MHCAT_FEATURE_STATS_CREATE_ENABLED`
+- `MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED`
 - `MHCAT_FEATURE_STATS_DELETE_ENABLED`
+- `MHCAT_FEATURE_STATS_RENAME_WORKER_ENABLED`
 - `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED`
 - `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED`
 - `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED`
@@ -540,6 +542,16 @@ MHCAT_FEATURE_STATS_DELETE_ENABLED=true
 ```
 
 This command requires Manage Messages, deletes legacy `numbers` rows for the guild, and preserves the legacy success/error embed text. It does not delete Discord channels, create indexes, or enable the `channel_status` scheduler. Test only against disposable staging stats config rows.
+
+Stats channel rename parity is event-only and has no command-sync flag. Test it only against an isolated staging guild and disposable `numbers`/`role_numbers` rows:
+
+```bash
+MHCAT_FEATURE_STATS_RENAME_WORKER_ENABLED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
+```
+
+The worker starts with the gateway runtime, then runs on the legacy 20-minute interval. It renames configured member/user/bot/channel/text/voice stat channels and role-count channels using the legacy replace-old-number-or-use-new-number rule, and updates only the corresponding stored old-number fields after a successful rename/no-op decision. It skips missing channels, logs Discord/API failures, writes no indexes, and deletes no Discord channels. Do not run it beside the legacy `channel_status.js` owner for the same guilds.
 
 Config-only `/聊天經驗設定` and `/聊天經驗刪除` are available only when both staging command sync and runtime flags are explicitly enabled:
 

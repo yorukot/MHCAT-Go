@@ -91,6 +91,57 @@ func (r *StatsConfigRepository) DeleteStatsConfig(ctx context.Context, guildID s
 	return config, nil
 }
 
+func (r *StatsConfigRepository) ListStatsConfigs(ctx context.Context) ([]domain.StatsConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if r.Err != nil {
+		return nil, r.Err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	configs := make([]domain.StatsConfig, 0, len(r.Configs))
+	for _, config := range r.Configs {
+		configs = append(configs, config.Normalize())
+	}
+	return configs, nil
+}
+
+func (r *StatsConfigRepository) UpdateStatsConfigCounters(ctx context.Context, guildID string, update domain.StatsConfigCounterUpdate) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if r.Err != nil {
+		return r.Err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	config, ok := r.Configs[guildID]
+	if !ok {
+		return ports.ErrStatsConfigMissing
+	}
+	if update.MemberNumberName != nil {
+		config.MemberNumberName = *update.MemberNumberName
+	}
+	if update.UserNumberName != nil {
+		config.UserNumberName = *update.UserNumberName
+	}
+	if update.BotNumberName != nil {
+		config.BotNumberName = *update.BotNumberName
+	}
+	if update.ChannelNumberName != nil {
+		config.ChannelNumberName = *update.ChannelNumberName
+	}
+	if update.TextNumberName != nil {
+		config.TextNumberName = *update.TextNumberName
+	}
+	if update.VoiceNumberName != nil {
+		config.VoiceNumberName = *update.VoiceNumberName
+	}
+	r.Configs[guildID] = config.Normalize()
+	return nil
+}
+
 func (r *StatsConfigRepository) SaveStatsRoleConfig(ctx context.Context, config domain.StatsRoleConfig) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -108,9 +159,45 @@ func (r *StatsConfigRepository) SaveStatsRoleConfig(ctx context.Context, config 
 	return nil
 }
 
+func (r *StatsConfigRepository) ListStatsRoleConfigs(ctx context.Context) ([]domain.StatsRoleConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if r.Err != nil {
+		return nil, r.Err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	configs := make([]domain.StatsRoleConfig, 0, len(r.RoleConfigs))
+	for _, config := range r.RoleConfigs {
+		configs = append(configs, config.Normalize())
+	}
+	return configs, nil
+}
+
+func (r *StatsConfigRepository) UpdateStatsRoleConfigCounter(ctx context.Context, guildID string, roleID string, currentValue string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if r.Err != nil {
+		return r.Err
+	}
+	key := statsRoleKey(guildID, roleID)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	config, ok := r.RoleConfigs[key]
+	if !ok {
+		return ports.ErrStatsConfigMissing
+	}
+	config.ChannelName = currentValue
+	r.RoleConfigs[key] = config.Normalize()
+	return nil
+}
+
 func statsRoleKey(guildID string, roleID string) string {
 	return guildID + "/" + roleID
 }
 
 var _ ports.StatsConfigRepository = (*StatsConfigRepository)(nil)
 var _ ports.StatsRoleConfigRepository = (*StatsConfigRepository)(nil)
+var _ ports.StatsRenameRepository = (*StatsConfigRepository)(nil)

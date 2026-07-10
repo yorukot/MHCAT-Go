@@ -36,6 +36,15 @@ func StatsRoleConfigDocumentFromDomain(config domain.StatsRoleConfig) StatsRoleC
 	}
 }
 
+func (d StatsRoleConfigDocument) ToDomain() domain.StatsRoleConfig {
+	return domain.StatsRoleConfig{
+		GuildID:     d.Guild,
+		ChannelID:   d.Channel,
+		ChannelName: d.ChannelName,
+		RoleID:      d.Role,
+	}
+}
+
 func (d StatsConfigDocument) ToDomain() domain.StatsConfig {
 	return domain.StatsConfig{
 		GuildID:           d.Guild,

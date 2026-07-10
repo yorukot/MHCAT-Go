@@ -67,6 +67,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureStatsCreateEnabled:            DefaultFeatureStatsCreateEnabled,
 		FeatureStatsRoleCountEnabled:         DefaultFeatureStatsRoleCountEnabled,
 		FeatureStatsDeleteEnabled:            DefaultFeatureStatsDeleteEnabled,
+		FeatureStatsRenameWorkerEnabled:      DefaultFeatureStatsRenameWorkerEnabled,
 		FeatureBirthdayConfigEnabled:         DefaultFeatureBirthdayConfigEnabled,
 		FeatureAnnouncementConfigEnabled:     DefaultFeatureAnnouncementConfigEnabled,
 		FeatureAnnouncementSendEnabled:       DefaultFeatureAnnouncementSendEnabled,
@@ -246,6 +247,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureStatsDeleteEnabled, err = getBool(lookup, "MHCAT_FEATURE_STATS_DELETE_ENABLED", DefaultFeatureStatsDeleteEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureStatsRenameWorkerEnabled, err = getBool(lookup, "MHCAT_FEATURE_STATS_RENAME_WORKER_ENABLED", DefaultFeatureStatsRenameWorkerEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureBirthdayConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_BIRTHDAY_CONFIG_ENABLED", DefaultFeatureBirthdayConfigEnabled); err != nil {
