@@ -295,6 +295,9 @@ func TestLockAnswerHandlerAllowsUserAndReturnsLegacySuccess(t *testing.T) {
 		t.Fatalf("allowed users = %#v", lock.AllowedUserIDs)
 	}
 	assertLockAnswerMessage(t, responder, legacyUnlockEmoji+" | 您成功輸入正確密碼\n可以重新加入語音頻道囉!")
+	if responder.Edits[0].Embeds[0].Color != legacyVoiceLockColor {
+		t.Fatalf("success color = %#x", responder.Edits[0].Embeds[0].Color)
+	}
 }
 
 func TestLockAnswerHandlerWrongPasswordUsesLegacyError(t *testing.T) {
@@ -315,6 +318,9 @@ func TestLockAnswerHandlerWrongPasswordUsesLegacyError(t *testing.T) {
 		t.Fatalf("wrong password should not allow user: %#v", got)
 	}
 	assertLockAnswerMessage(t, responder, "<a:Discord_AnimatedNo:1015989839809757295> | 你的密碼輸入錯誤!請重新加入語音頻道後在試一次!")
+	if responder.Edits[0].Embeds[0].Color != legacyVoiceLockErrorColor {
+		t.Fatalf("error color = %#x", responder.Edits[0].Embeds[0].Color)
+	}
 }
 
 func TestLockModuleRoutesLegacyAnswerModal(t *testing.T) {
@@ -447,7 +453,7 @@ func TestLockEventHandlerPromptsDisconnectsAndDMsLockedJoin(t *testing.T) {
 		t.Fatalf("sent messages = %#v", sideEffects.Sent)
 	}
 	prompt := sideEffects.Sent[0].Message
-	if prompt.Content != "<@user-1>" || len(prompt.Embeds) != 1 || !strings.Contains(prompt.Embeds[0].Description, "<#123456789012345678>") {
+	if prompt.Content != "<@user-1>" || len(prompt.Embeds) != 1 || prompt.Embeds[0].Color != legacyVoiceLockColor || !strings.Contains(prompt.Embeds[0].Description, "<#123456789012345678>") {
 		t.Fatalf("prompt = %#v", prompt)
 	}
 	if len(prompt.Components) != 1 || len(prompt.Components[0].Components) != 1 {

@@ -20,6 +20,8 @@ const (
 	permissionManageMessages  = int64(8192)
 	voiceErrorColor           = 0xED4245
 	voiceSuccessColor         = 0x57F287
+	legacyVoiceLockColor      = 0x53FF53
+	legacyVoiceLockErrorColor = 0xEA0000
 	legacyVoiceEmoji          = "<:Voice:994844272790610011>"
 	legacyDoneEmoji           = "<a:green_tick:994529015652163614>"
 	legacyDeleteEmoji         = "<:trashbin:995991389043163257>"
@@ -411,7 +413,7 @@ func voiceLockAnswerSuccessMessage(guildID string, channelID string) responses.M
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title: legacyUnlockEmoji + " | 您成功輸入正確密碼\n可以重新加入語音頻道囉!",
-			Color: voiceSuccessColor,
+			Color: legacyVoiceLockColor,
 		}},
 		Components:      []responses.ComponentRow{voiceLockChannelLinkRow(guildID, channelID)},
 		AllowedMentions: &responses.AllowedMentions{},
@@ -422,7 +424,7 @@ func voiceLockAnswerWrongMessage(guildID string, channelID string) responses.Mes
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title: "<a:Discord_AnimatedNo:1015989839809757295> | 你的密碼輸入錯誤!請重新加入語音頻道後在試一次!",
-			Color: voiceErrorColor,
+			Color: legacyVoiceLockErrorColor,
 		}},
 		Components:      []responses.ComponentRow{voiceLockChannelLinkRow(guildID, channelID)},
 		AllowedMentions: &responses.AllowedMentions{},
@@ -453,7 +455,7 @@ func voiceLockPromptOutbound(lock domain.VoiceRoomLock, userID string, expiresAt
 		Embeds: []ports.OutboundEmbed{{
 			Title:       legacyUnlockEmoji + " | 該包廂已被上鎖，請輸入密碼",
 			Description: "請於60秒內點選下面的按鈕\n輸入密碼來加入<#" + strings.TrimSpace(lock.ChannelID) + ">(請找房主拿密碼)",
-			Color:       voiceSuccessColor,
+			Color:       legacyVoiceLockColor,
 		}},
 		Components: []ports.OutboundComponentRow{{
 			Components: []ports.OutboundComponent{{
