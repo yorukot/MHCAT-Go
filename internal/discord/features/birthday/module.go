@@ -2,8 +2,9 @@ package birthday
 
 import (
 	"crypto/rand"
+	"encoding/hex"
+	"errors"
 	"math/big"
-	"strconv"
 	"sync"
 	"time"
 
@@ -80,16 +81,16 @@ type pendingBirthdayAdd struct {
 }
 
 type birthdayAddStateStore struct {
-	mu      sync.Mutex
-	next    uint64
-	entries map[string]pendingBirthdayAdd
+	mu       sync.Mutex
+	entries  map[string]pendingBirthdayAdd
+	randomID func() (string, error)
 }
 
 func newBirthdayAddStateStore() *birthdayAddStateStore {
-	return &birthdayAddStateStore{entries: map[string]pendingBirthdayAdd{}}
+	return &birthdayAddStateStore{entries: map[string]pendingBirthdayAdd{}, randomID: randomBirthdayAddStateID}
 }
 
-func (s *birthdayAddStateStore) create(now time.Time, entry pendingBirthdayAdd) string {
+func (s *birthdayAddStateStore) create(now time.Time, entry pendingBirthdayAdd) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for id, candidate := range s.entries {
@@ -97,10 +98,28 @@ func (s *birthdayAddStateStore) create(now time.Time, entry pendingBirthdayAdd) 
 			delete(s.entries, id)
 		}
 	}
-	s.next++
-	id := strconv.FormatUint(s.next, 36)
-	s.entries[id] = entry
-	return id
+	for range 4 {
+		id, err := s.randomID()
+		if err != nil {
+			return "", err
+		}
+		if _, exists := s.entries[id]; exists {
+			continue
+		}
+		s.entries[id] = entry
+		return id, nil
+	}
+	return "", errBirthdayAddStateID
+}
+
+var errBirthdayAddStateID = errors.New("generate birthday add state id")
+
+func randomBirthdayAddStateID() (string, error) {
+	var raw [12]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(raw[:]), nil
 }
 
 func (s *birthdayAddStateStore) get(id string, now time.Time) (pendingBirthdayAdd, bool) {

@@ -80,12 +80,15 @@ func (m Module) handleAdd(ctx context.Context, interaction interactions.Interact
 		return responder.EditOriginal(ctx, birthdayErrorMessage("很抱歉，出現了未知的錯誤，請重試!", ""))
 	}
 	expiresAt := now.Add(birthdayAddTimeout)
-	stateID := m.pendingAdds.create(now, pendingBirthdayAdd{
+	stateID, err := m.pendingAdds.create(now, pendingBirthdayAdd{
 		OwnerUserID: interaction.Actor.UserID,
 		AvatarURL:   interaction.Actor.AvatarURL,
 		Profile:     profile,
 		ExpiresAt:   expiresAt,
 	})
+	if err != nil {
+		return responder.EditOriginal(ctx, birthdayErrorMessage("很抱歉，出現了未知的錯誤，請重試!", ""))
+	}
 	customID, err := birthdayAddCustomID("hour", stateID)
 	if err != nil {
 		m.pendingAdds.delete(stateID)
