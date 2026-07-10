@@ -2,6 +2,7 @@ package poll
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -122,6 +123,26 @@ func TestCreateHandlerPreservesQuestionAndChoiceWhitespace(t *testing.T) {
 	}
 	if len(saved.Choices) != 2 || saved.Choices[0] != " A " || saved.Choices[1] != " " {
 		t.Fatalf("saved choices = %#v", saved.Choices)
+	}
+}
+
+func TestCreateHandlerCleansSentPollAfterCanceledRepositoryFailure(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	wantErr := errors.New("create poll failed")
+	repo := &cancelingCreatePollRepository{
+		PollRepository: fakemongo.NewPollRepository(),
+		cancel:         cancel,
+		err:            wantErr,
+	}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewModuleWithSideEffects(repo, sideEffects, nil, nil)
+
+	err := module.CreateHandler()(ctx, pollCreateInteraction("問題", "A^B"), fakediscord.NewResponder())
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("create handler error = %v", err)
+	}
+	if len(sideEffects.Sent) != 1 || len(sideEffects.DeletedMessage) != 1 || sideEffects.DeletedMessage[0] != sideEffects.Sent[0].Ref {
+		t.Fatalf("sent = %#v deleted = %#v", sideEffects.Sent, sideEffects.DeletedMessage)
 	}
 }
 
@@ -531,3 +552,14 @@ func seededPollRepo(t *testing.T) *fakemongo.PollRepository {
 
 var _ ports.PollRepository = (*fakemongo.PollRepository)(nil)
 var _ responses.Responder = (*fakediscord.Responder)(nil)
+
+type cancelingCreatePollRepository struct {
+	ports.PollRepository
+	cancel context.CancelFunc
+	err    error
+}
+
+func (r *cancelingCreatePollRepository) CreatePoll(context.Context, domain.PollCreate) (domain.Poll, error) {
+	r.cancel()
+	return domain.Poll{}, r.err
+}

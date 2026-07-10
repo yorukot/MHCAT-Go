@@ -25,6 +25,7 @@ const (
 	permissionManageMessages = 8192
 	pollSuccessColor         = 0x57F287
 	pollErrorColor           = 0xED4245
+	pollRollbackTimeout      = 5 * time.Second
 )
 
 func (m Module) CreateHandler() interactions.Handler {
@@ -68,7 +69,11 @@ func (m Module) CreateHandler() interactions.Handler {
 			Choices:   choices,
 		})
 		if err != nil {
-			_ = m.messages.DeleteMessage(ctx, sent)
+			rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), pollRollbackTimeout)
+			defer cancel()
+			if rollbackErr := m.messages.DeleteMessage(rollbackCtx, sent); rollbackErr != nil {
+				return errors.Join(err, rollbackErr)
+			}
 			return err
 		}
 		if sent.MessageID != "" {
