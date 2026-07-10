@@ -17,10 +17,19 @@ type VoiceRoomConfigRepository struct {
 }
 
 type VoiceRoomLockRepository struct {
-	mu    sync.Mutex
-	Locks map[string]domain.VoiceRoomLock
-	Saved []domain.VoiceRoomLock
-	Err   error
+	mu      sync.Mutex
+	Locks   map[string]domain.VoiceRoomLock
+	Saved   []domain.VoiceRoomLock
+	Deleted []domain.VoiceRoomLock
+	Err     error
+}
+
+type VoiceRoomStateRepository struct {
+	mu      sync.Mutex
+	States  map[string]domain.VoiceRoomState
+	Saved   []domain.VoiceRoomState
+	Deleted []domain.VoiceRoomState
+	Err     error
 }
 
 func NewVoiceRoomConfigRepository() *VoiceRoomConfigRepository {
@@ -29,6 +38,26 @@ func NewVoiceRoomConfigRepository() *VoiceRoomConfigRepository {
 
 func NewVoiceRoomLockRepository() *VoiceRoomLockRepository {
 	return &VoiceRoomLockRepository{Locks: map[string]domain.VoiceRoomLock{}}
+}
+
+func NewVoiceRoomStateRepository() *VoiceRoomStateRepository {
+	return &VoiceRoomStateRepository{States: map[string]domain.VoiceRoomState{}}
+}
+
+func (r *VoiceRoomConfigRepository) GetVoiceRoomConfigByTrigger(ctx context.Context, guildID string, triggerChannelID string) (domain.VoiceRoomConfig, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.VoiceRoomConfig{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.Configs == nil {
+		r.Configs = map[string]domain.VoiceRoomConfig{}
+	}
+	config, ok := r.Configs[voiceRoomKey(guildID, triggerChannelID)]
+	if !ok {
+		return domain.VoiceRoomConfig{}, ports.ErrVoiceRoomConfigMissing
+	}
+	return config, nil
 }
 
 func (r *VoiceRoomConfigRepository) SaveVoiceRoomConfig(ctx context.Context, config domain.VoiceRoomConfig) error {
@@ -146,6 +175,30 @@ func (r *VoiceRoomLockRepository) SaveVoiceRoomLock(ctx context.Context, lock do
 	return nil
 }
 
+func (r *VoiceRoomLockRepository) DeleteVoiceRoomLock(ctx context.Context, guildID string, channelID string) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	if guildID == "" || channelID == "" {
+		return domain.ErrInvalidVoiceRoomLock
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.Locks == nil {
+		r.Locks = map[string]domain.VoiceRoomLock{}
+	}
+	key := voiceRoomKey(guildID, channelID)
+	lock, ok := r.Locks[key]
+	if !ok {
+		return ports.ErrVoiceRoomLockMissing
+	}
+	delete(r.Locks, key)
+	r.Deleted = append(r.Deleted, lock)
+	return nil
+}
+
 func (r *VoiceRoomLockRepository) AllowVoiceRoomLockUser(ctx context.Context, guildID string, channelID string, userID string) error {
 	if err := r.ready(ctx); err != nil {
 		return err
@@ -194,3 +247,74 @@ func (r *VoiceRoomLockRepository) ready(ctx context.Context) error {
 }
 
 var _ ports.VoiceRoomLockRepository = (*VoiceRoomLockRepository)(nil)
+
+func (r *VoiceRoomStateRepository) GetVoiceRoomState(ctx context.Context, guildID string, channelID string) (domain.VoiceRoomState, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.VoiceRoomState{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.States == nil {
+		r.States = map[string]domain.VoiceRoomState{}
+	}
+	state, ok := r.States[voiceRoomKey(guildID, channelID)]
+	if !ok {
+		return domain.VoiceRoomState{}, ports.ErrVoiceRoomStateMissing
+	}
+	return state, nil
+}
+
+func (r *VoiceRoomStateRepository) SaveVoiceRoomState(ctx context.Context, state domain.VoiceRoomState) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	state.GuildID = strings.TrimSpace(state.GuildID)
+	state.ChannelID = strings.TrimSpace(state.ChannelID)
+	if err := state.Validate(); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.States == nil {
+		r.States = map[string]domain.VoiceRoomState{}
+	}
+	key := voiceRoomKey(state.GuildID, state.ChannelID)
+	if _, exists := r.States[key]; !exists {
+		r.States[key] = state
+		r.Saved = append(r.Saved, state)
+	}
+	return nil
+}
+
+func (r *VoiceRoomStateRepository) DeleteVoiceRoomState(ctx context.Context, guildID string, channelID string) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	if guildID == "" || channelID == "" {
+		return domain.ErrInvalidVoiceRoomConfig
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.States == nil {
+		r.States = map[string]domain.VoiceRoomState{}
+	}
+	key := voiceRoomKey(guildID, channelID)
+	state, ok := r.States[key]
+	if !ok {
+		return ports.ErrVoiceRoomStateMissing
+	}
+	delete(r.States, key)
+	r.Deleted = append(r.Deleted, state)
+	return nil
+}
+
+func (r *VoiceRoomStateRepository) ready(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return r.Err
+}
+
+var _ ports.VoiceRoomStateRepository = (*VoiceRoomStateRepository)(nil)

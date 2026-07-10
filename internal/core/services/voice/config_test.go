@@ -47,6 +47,58 @@ func TestConfigServiceRejectsInvalidVoiceRoomConfig(t *testing.T) {
 	}
 }
 
+func TestRoomServiceTriggerConfig(t *testing.T) {
+	configs := fakemongo.NewVoiceRoomConfigRepository()
+	configs.Configs["guild-1\x00trigger-1"] = domain.VoiceRoomConfig{
+		GuildID:          "guild-1",
+		TriggerChannelID: "trigger-1",
+		ParentID:         "parent-1",
+		Name:             " {name} room ",
+		Limit:            8,
+		Lock:             true,
+	}
+	service := coreservice.NewRoomService(configs, fakemongo.NewVoiceRoomStateRepository(), fakemongo.NewVoiceRoomLockRepository())
+	config, ok, err := service.TriggerConfig(context.Background(), " guild-1 ", " trigger-1 ")
+	if err != nil {
+		t.Fatalf("trigger config: %v", err)
+	}
+	if !ok || config.Name != "{name} room" || config.ParentID != "parent-1" || !config.Lock {
+		t.Fatalf("config=%#v ok=%t", config, ok)
+	}
+	if _, ok, err := service.TriggerConfig(context.Background(), "guild-1", "missing"); err != nil || ok {
+		t.Fatalf("missing trigger should no-op: ok=%t err=%v", ok, err)
+	}
+}
+
+func TestRoomServiceTrackAndDeleteDynamicRoom(t *testing.T) {
+	states := fakemongo.NewVoiceRoomStateRepository()
+	locks := fakemongo.NewVoiceRoomLockRepository()
+	service := coreservice.NewRoomService(fakemongo.NewVoiceRoomConfigRepository(), states, locks)
+	if err := service.TrackDynamicRoom(context.Background(), " guild-1 ", " voice-1 ", " owner-1 ", true); err != nil {
+		t.Fatalf("track dynamic room: %v", err)
+	}
+	if _, ok := states.States["guild-1\x00voice-1"]; !ok {
+		t.Fatalf("state not saved: %#v", states.States)
+	}
+	lock := locks.Locks["guild-1\x00voice-1"]
+	if lock.OwnerID != "owner-1" || lock.Password != "" || lock.TextChannelID != "" {
+		t.Fatalf("seed lock = %#v", lock)
+	}
+	tracked, err := service.IsDynamicRoom(context.Background(), "guild-1", "voice-1")
+	if err != nil || !tracked {
+		t.Fatalf("tracked=%t err=%v", tracked, err)
+	}
+	if err := service.DeleteDynamicRoomLock(context.Background(), "guild-1", "voice-1"); err != nil {
+		t.Fatalf("delete lock: %v", err)
+	}
+	if err := service.DeleteDynamicRoomState(context.Background(), "guild-1", "voice-1"); err != nil {
+		t.Fatalf("delete state: %v", err)
+	}
+	if tracked, err := service.IsDynamicRoom(context.Background(), "guild-1", "voice-1"); err != nil || tracked {
+		t.Fatalf("deleted tracked=%t err=%v", tracked, err)
+	}
+}
+
 func TestLockServiceSetPasswordSavesReplacement(t *testing.T) {
 	repo := fakemongo.NewVoiceRoomLockRepository()
 	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{

@@ -61,11 +61,17 @@ func TestVoiceRoomLockNormalizeAndValidate(t *testing.T) {
 		t.Fatalf("password is optional: %v", err)
 	}
 
+	lockSeed := normalized
+	lockSeed.Password = ""
+	lockSeed.TextChannelID = ""
+	if err := lockSeed.Validate(); err != nil {
+		t.Fatalf("dynamic lock seed text channel is optional: %v", err)
+	}
+
 	for _, invalid := range []domain.VoiceRoomLock{
 		{ChannelID: "voice-1", OwnerID: "owner-1", TextChannelID: "text-1"},
 		{GuildID: "guild-1", OwnerID: "owner-1", TextChannelID: "text-1"},
 		{GuildID: "guild-1", ChannelID: "voice-1", TextChannelID: "text-1"},
-		{GuildID: "guild-1", ChannelID: "voice-1", OwnerID: "owner-1"},
 	} {
 		if err := invalid.Validate(); !errors.Is(err, domain.ErrInvalidVoiceRoomLock) {
 			t.Fatalf("expected invalid lock error for %#v, got %v", invalid, err)

@@ -19,12 +19,22 @@ type LockService struct {
 	Repository ports.VoiceRoomLockRepository
 }
 
+type RoomService struct {
+	Configs ports.VoiceRoomConfigRepository
+	States  ports.VoiceRoomStateRepository
+	Locks   ports.VoiceRoomLockRepository
+}
+
 func NewConfigService(repo ports.VoiceRoomConfigRepository) ConfigService {
 	return ConfigService{Repository: repo}
 }
 
 func NewLockService(repo ports.VoiceRoomLockRepository) LockService {
 	return LockService{Repository: repo}
+}
+
+func NewRoomService(configs ports.VoiceRoomConfigRepository, states ports.VoiceRoomStateRepository, locks ports.VoiceRoomLockRepository) RoomService {
+	return RoomService{Configs: configs, States: states, Locks: locks}
 }
 
 func (s ConfigService) Save(ctx context.Context, config domain.VoiceRoomConfig) error {
@@ -63,6 +73,99 @@ func (s ConfigService) DeleteByParent(ctx context.Context, guildID string, paren
 		return domain.ErrInvalidVoiceRoomConfig
 	}
 	return s.Repository.DeleteVoiceRoomConfigsByParent(ctx, guildID, parentID)
+}
+
+func (s RoomService) TriggerConfig(ctx context.Context, guildID string, channelID string) (domain.VoiceRoomConfig, bool, error) {
+	if s.Configs == nil {
+		return domain.VoiceRoomConfig{}, false, domain.ErrInvalidVoiceRoomConfig
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	if guildID == "" || channelID == "" {
+		return domain.VoiceRoomConfig{}, false, domain.ErrInvalidVoiceRoomConfig
+	}
+	config, err := s.Configs.GetVoiceRoomConfigByTrigger(ctx, guildID, channelID)
+	if err != nil {
+		if errors.Is(err, ports.ErrVoiceRoomConfigMissing) {
+			return domain.VoiceRoomConfig{}, false, nil
+		}
+		return domain.VoiceRoomConfig{}, false, err
+	}
+	config.GuildID = strings.TrimSpace(config.GuildID)
+	config.TriggerChannelID = strings.TrimSpace(config.TriggerChannelID)
+	config.ParentID = strings.TrimSpace(config.ParentID)
+	config.Name = strings.TrimSpace(config.Name)
+	return config, true, nil
+}
+
+func (s RoomService) TrackDynamicRoom(ctx context.Context, guildID string, channelID string, ownerID string, lockable bool) error {
+	if s.States == nil {
+		return domain.ErrInvalidVoiceRoomConfig
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	ownerID = strings.TrimSpace(ownerID)
+	if guildID == "" || channelID == "" || ownerID == "" {
+		return domain.ErrInvalidVoiceRoomConfig
+	}
+	if err := s.States.SaveVoiceRoomState(ctx, domain.VoiceRoomState{GuildID: guildID, ChannelID: channelID}); err != nil {
+		return err
+	}
+	if !lockable {
+		return ctx.Err()
+	}
+	if s.Locks == nil {
+		return domain.ErrInvalidVoiceRoomLock
+	}
+	err := s.Locks.SaveVoiceRoomLock(ctx, domain.VoiceRoomLock{
+		GuildID:   guildID,
+		ChannelID: channelID,
+		OwnerID:   ownerID,
+	})
+	if err != nil {
+		_ = s.States.DeleteVoiceRoomState(context.Background(), guildID, channelID)
+	}
+	return err
+}
+
+func (s RoomService) IsDynamicRoom(ctx context.Context, guildID string, channelID string) (bool, error) {
+	if s.States == nil {
+		return false, domain.ErrInvalidVoiceRoomConfig
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	if guildID == "" || channelID == "" {
+		return false, domain.ErrInvalidVoiceRoomConfig
+	}
+	if _, err := s.States.GetVoiceRoomState(ctx, guildID, channelID); err != nil {
+		if errors.Is(err, ports.ErrVoiceRoomStateMissing) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (s RoomService) DeleteDynamicRoomLock(ctx context.Context, guildID string, channelID string) error {
+	if s.Locks == nil {
+		return nil
+	}
+	err := s.Locks.DeleteVoiceRoomLock(ctx, guildID, channelID)
+	if errors.Is(err, ports.ErrVoiceRoomLockMissing) {
+		return nil
+	}
+	return err
+}
+
+func (s RoomService) DeleteDynamicRoomState(ctx context.Context, guildID string, channelID string) error {
+	if s.States == nil {
+		return domain.ErrInvalidVoiceRoomConfig
+	}
+	err := s.States.DeleteVoiceRoomState(ctx, guildID, channelID)
+	if errors.Is(err, ports.ErrVoiceRoomStateMissing) {
+		return nil
+	}
+	return err
 }
 
 func (s LockService) SetPassword(ctx context.Context, guildID string, channelID string, ownerID string, textChannelID string, password string) error {

@@ -16,8 +16,13 @@ type VoiceRoomLockDocument struct {
 	ChannelID    string   `bson:"channel_id" json:"channel_id"`
 	LockAnswer   *string  `bson:"lock_anser" json:"lock_anser"`
 	Owner        string   `bson:"owner" json:"owner"`
-	TextChannel  string   `bson:"text_channel" json:"text_channel"`
+	TextChannel  *string  `bson:"text_channel" json:"text_channel"`
 	AllowedUsers []string `bson:"ok_people" json:"ok_people"`
+}
+
+type VoiceRoomStateDocument struct {
+	Guild     string `bson:"guild" json:"guild"`
+	ChannelID string `bson:"channel_id" json:"channel_id"`
 }
 
 func VoiceRoomConfigDocumentFromDomain(config domain.VoiceRoomConfig) VoiceRoomConfigDocument {
@@ -48,12 +53,16 @@ func VoiceRoomLockDocumentFromDomain(lock domain.VoiceRoomLock) VoiceRoomLockDoc
 	if lock.Password != "" {
 		password = &lock.Password
 	}
+	var textChannel *string
+	if lock.TextChannelID != "" {
+		textChannel = &lock.TextChannelID
+	}
 	return VoiceRoomLockDocument{
 		Guild:        lock.GuildID,
 		ChannelID:    lock.ChannelID,
 		LockAnswer:   password,
 		Owner:        lock.OwnerID,
-		TextChannel:  lock.TextChannelID,
+		TextChannel:  textChannel,
 		AllowedUsers: append([]string(nil), lock.AllowedUserIDs...),
 	}
 }
@@ -63,12 +72,30 @@ func (d VoiceRoomLockDocument) ToDomain() domain.VoiceRoomLock {
 	if d.LockAnswer != nil {
 		password = *d.LockAnswer
 	}
+	textChannel := ""
+	if d.TextChannel != nil {
+		textChannel = *d.TextChannel
+	}
 	return domain.VoiceRoomLock{
 		GuildID:        d.Guild,
 		ChannelID:      d.ChannelID,
 		Password:       password,
 		OwnerID:        d.Owner,
-		TextChannelID:  d.TextChannel,
+		TextChannelID:  textChannel,
 		AllowedUserIDs: append([]string(nil), d.AllowedUsers...),
 	}.Normalize()
+}
+
+func VoiceRoomStateDocumentFromDomain(state domain.VoiceRoomState) VoiceRoomStateDocument {
+	return VoiceRoomStateDocument{
+		Guild:     state.GuildID,
+		ChannelID: state.ChannelID,
+	}
+}
+
+func (d VoiceRoomStateDocument) ToDomain() domain.VoiceRoomState {
+	return domain.VoiceRoomState{
+		GuildID:   d.Guild,
+		ChannelID: d.ChannelID,
+	}
 }

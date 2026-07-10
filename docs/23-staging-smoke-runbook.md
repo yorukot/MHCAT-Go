@@ -402,7 +402,7 @@ export MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true
 ```
 
-Set both together only in an isolated staging guild/database when testing `/語音包廂設置` and `/語音包廂刪除`. This path writes/deletes `voice_channels` config rows only; by itself it does not enable Voice State intent, dynamic room creation/deletion, `voice_channel_ids`, `/上鎖頻道`, or lock passwords.
+Set both together only in an isolated staging guild/database when testing `/語音包廂設置`, `/語音包廂刪除`, and dynamic voice-room creation. The slash commands write/delete `voice_channels` config rows. When gateway Voice State events are enabled, trigger joins create/move users into dynamic voice rooms, persist `voice_channel_ids`, seed nullable `lock_channels` rows when the config is lockable, and delete empty tracked rooms.
 
 Optional voice-room lock smoke flags:
 
@@ -413,7 +413,7 @@ export MHCAT_DISCORD_ENABLE_GATEWAY=true
 export MHCAT_DISCORD_VOICE_STATE_INTENT=true
 ```
 
-Set all four together only in an isolated staging guild/database when testing `/上鎖頻道` and existing passworded `lock_channels` rows. This path replaces an existing `lock_channels` row for the caller's current voice channel, sends the locked-room password prompt when an unauthorized user joins that channel, disconnects that user, DMs the legacy instructions, and routes the generated prompt button plus `<channel>anser` modal submit to append `ok_people` after a correct password. It does not create dynamic rooms, write `voice_channel_ids`, or edit permission overwrites.
+Set all four together only in an isolated staging guild/database when testing `/上鎖頻道` and existing passworded `lock_channels` rows. This path replaces an existing `lock_channels` row for the caller's current voice channel, sends the locked-room password prompt when an unauthorized user joins that channel, disconnects that user, DMs the legacy instructions, and routes the generated prompt button plus `<channel>anser` modal submit to append `ok_people` after a correct password.
 
 Optional join-role config smoke flags:
 
@@ -1405,7 +1405,9 @@ If voice-room config flags were enabled and command sync apply was reviewed:
 - verify the staging `voice_channels` row contains `guild`, `ticket_channel`, `limit`, `name`, `parent`, and `lock`;
 - run `/語音包廂刪除` for the same trigger channel and verify the legacy delete embed appears and the matching staging rows are removed;
 - optionally configure a second trigger under a disposable staging category, run `/語音包廂刪除` for the category, and verify only rows with that `parent` are removed;
-- verify config-only smoke caused no Voice State intent use, dynamic channel creation/deletion, `voice_channel_ids`, `lock_channel`, `/上鎖頻道`, or usage-counter write.
+- join the configured trigger as a disposable member and verify a dynamic voice room is created with the legacy `{name}` replacement, the member is moved into it, `voice_channel_ids` contains the created channel, and lockable configs seed a nullable `lock_channels` row plus owner DM;
+- leave the created room and verify the empty room is deleted, the matching `voice_channel_ids` row is removed, and the matching lock seed row is removed;
+- verify slash config smoke caused no `/上鎖頻道` command usage-counter write.
 
 If voice-room lock flags were enabled and command sync apply was reviewed:
 
@@ -1416,7 +1418,7 @@ If voice-room lock flags were enabled and command sync apply was reviewed:
 - click the generated prompt button, submit the correct password, and verify the user ID is added to `ok_people`;
 - run `/上鎖頻道` without `密碼` and verify the success embed shows `null` and `lock_anser` is null/empty in Mongo;
 - verify not-in-voice, missing lock row, and non-owner cases return the legacy red ephemeral errors;
-- verify no dynamic channel creation/deletion, `voice_channel_ids`, permission overwrites, or usage-counter write happened.
+- verify no usage-counter write happened.
 
 Verify:
 
@@ -1437,7 +1439,7 @@ Verify:
   - Exception: logging-config smoke writes the legacy-compatible `loggings` config only after the setup select is submitted.
   - Exception: delete-data smoke deletes selected disposable staging config rows only.
   - Exception: auto-notification config smoke writes/completes disposable setup `cron_sets` rows, sends a setup preview, and deletes selected rows and abandoned pending drafts only.
-  - Exception: voice-room config smoke writes/deletes legacy-compatible `voice_channels` rows only.
+  - Exception: voice-room config smoke writes/deletes legacy-compatible `voice_channels` rows and, with gateway Voice State events enabled, creates/moves/deletes disposable dynamic rooms plus `voice_channel_ids`/lock seed rows.
   - Exception: XP reset smoke deletes disposable staging `text_xps`/`voice_xps` rows only after an individual reset command or full-reset `^確認^` confirmation.
 
 ## 6. Record Result

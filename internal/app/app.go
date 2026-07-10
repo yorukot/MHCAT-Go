@@ -1171,6 +1171,22 @@ func voiceRoomLockRepositoryFromMongo(mongoClient MongoClient) (*mongorepositori
 	return repo, nil
 }
 
+func voiceRoomStateRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.VoiceRoomStateRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("voice-room state feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("voice-room state feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewVoiceRoomStateRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("voice-room state feature repository: %w", err)
+	}
+	return repo, nil
+}
+
 func joinRoleConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.JoinRoleConfigRepository, error) {
 	concrete, ok := mongoClient.(*mongoadapter.Client)
 	if !ok {

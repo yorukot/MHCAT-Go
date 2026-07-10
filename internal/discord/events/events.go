@@ -56,6 +56,7 @@ type Reaction struct {
 
 type Member struct {
 	UserID           string
+	Username         string
 	UserTag          string
 	RoleIDs          []string
 	JoinedAt         time.Time

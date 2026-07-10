@@ -188,7 +188,7 @@ func (c SideEffectClient) FindChannelByName(ctx context.Context, guildID string,
 		if channelType >= 0 && int(channel.Type) != channelType {
 			continue
 		}
-		return ports.ChannelRef{GuildID: channel.GuildID, ChannelID: channel.ID, Name: channel.Name, Type: int(channel.Type)}, ctx.Err()
+		return channelRefFromDiscord(channel), ctx.Err()
 	}
 	return ports.ChannelRef{}, ports.ErrChannelNotFound
 }
@@ -208,7 +208,7 @@ func (c SideEffectClient) FindChannelByID(ctx context.Context, guildID string, c
 	if channel == nil || channel.ID == "" || channel.GuildID != guildID {
 		return ports.ChannelRef{}, ports.ErrChannelNotFound
 	}
-	return ports.ChannelRef{GuildID: channel.GuildID, ChannelID: channel.ID, Name: channel.Name, Type: int(channel.Type)}, ctx.Err()
+	return channelRefFromDiscord(channel), ctx.Err()
 }
 
 func (c SideEffectClient) GuildStats(ctx context.Context, guildID string) (domain.StatsSnapshot, error) {
@@ -464,7 +464,7 @@ func (c SideEffectClient) CreateChannel(ctx context.Context, req ports.ChannelCr
 	if err != nil {
 		return ports.ChannelRef{}, fmt.Errorf("create discord channel: %w", err)
 	}
-	return ports.ChannelRef{GuildID: created.GuildID, ChannelID: created.ID, Name: created.Name, Type: int(created.Type)}, ctx.Err()
+	return channelRefFromDiscord(created), ctx.Err()
 }
 
 func (c SideEffectClient) DeleteChannel(ctx context.Context, channelID string) error {
@@ -473,9 +473,69 @@ func (c SideEffectClient) DeleteChannel(ctx context.Context, channelID string) e
 		return err
 	}
 	if _, err := session.ChannelDelete(channelID, dgo.WithContext(ctx)); err != nil {
+		if isDiscordNotFound(err) {
+			return ports.ErrChannelNotFound
+		}
 		return fmt.Errorf("delete discord channel: %w", err)
 	}
 	return ctx.Err()
+}
+
+func (c SideEffectClient) VoiceChannelMemberCount(ctx context.Context, guildID string, channelID string) (int, error) {
+	session, err := c.session()
+	if err != nil {
+		return 0, err
+	}
+	if session.State == nil {
+		return 0, errors.New("discord voice state cache is unavailable")
+	}
+	guild, err := session.State.Guild(guildID)
+	if err != nil || guild == nil {
+		channel, channelErr := session.Channel(channelID, dgo.WithContext(ctx))
+		if channelErr != nil {
+			if isDiscordNotFound(channelErr) {
+				return 0, ports.ErrChannelNotFound
+			}
+			return 0, fmt.Errorf("load discord voice channel for member count: %w", channelErr)
+		}
+		if channel == nil || channel.ID == "" || channel.GuildID != guildID {
+			return 0, ports.ErrChannelNotFound
+		}
+		return 0, errors.New("discord voice state cache is missing guild")
+	}
+	count := 0
+	for _, voice := range guild.VoiceStates {
+		if voice != nil && voice.ChannelID == channelID {
+			count++
+		}
+	}
+	return count, ctx.Err()
+}
+
+func channelRefFromDiscord(channel *dgo.Channel) ports.ChannelRef {
+	if channel == nil {
+		return ports.ChannelRef{}
+	}
+	overwrites := make([]ports.PermissionOverwrite, 0, len(channel.PermissionOverwrites))
+	for _, overwrite := range channel.PermissionOverwrites {
+		if overwrite == nil {
+			continue
+		}
+		overwrites = append(overwrites, ports.PermissionOverwrite{
+			ID:    overwrite.ID,
+			Type:  int(overwrite.Type),
+			Allow: overwrite.Allow,
+			Deny:  overwrite.Deny,
+		})
+	}
+	return ports.ChannelRef{
+		GuildID:              channel.GuildID,
+		ChannelID:            channel.ID,
+		ParentID:             channel.ParentID,
+		Name:                 channel.Name,
+		Type:                 int(channel.Type),
+		PermissionOverwrites: overwrites,
+	}
 }
 
 func (c SideEffectClient) AddRole(ctx context.Context, guildID string, userID string, roleID string) error {

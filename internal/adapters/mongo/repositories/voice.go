@@ -18,6 +18,7 @@ import (
 const (
 	VoiceRoomConfigCollectionName = "voice_channels"
 	VoiceRoomLockCollectionName   = "lock_channels"
+	VoiceRoomStateCollectionName  = "voice_channel_ids"
 )
 
 type VoiceRoomConfigRepository struct {
@@ -25,6 +26,10 @@ type VoiceRoomConfigRepository struct {
 }
 
 type VoiceRoomLockRepository struct {
+	collection *drivermongo.Collection
+}
+
+type VoiceRoomStateRepository struct {
 	collection *drivermongo.Collection
 }
 
@@ -56,6 +61,40 @@ func NewVoiceRoomLockRepositoryFromDatabase(database *drivermongo.Database) (*Vo
 	return NewVoiceRoomLockRepository(database.Collection(VoiceRoomLockCollectionName))
 }
 
+func NewVoiceRoomStateRepository(collection *drivermongo.Collection) (*VoiceRoomStateRepository, error) {
+	if collection == nil {
+		return nil, errors.New("mongo voice room state collection is required")
+	}
+	return &VoiceRoomStateRepository{collection: collection}, nil
+}
+
+func NewVoiceRoomStateRepositoryFromDatabase(database *drivermongo.Database) (*VoiceRoomStateRepository, error) {
+	if database == nil {
+		return nil, errors.New("mongo database is required")
+	}
+	return NewVoiceRoomStateRepository(database.Collection(VoiceRoomStateCollectionName))
+}
+
+func (r *VoiceRoomConfigRepository) GetVoiceRoomConfigByTrigger(ctx context.Context, guildID string, triggerChannelID string) (domain.VoiceRoomConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.VoiceRoomConfig{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	triggerChannelID = strings.TrimSpace(triggerChannelID)
+	if guildID == "" || triggerChannelID == "" {
+		return domain.VoiceRoomConfig{}, domain.ErrInvalidVoiceRoomConfig
+	}
+	var document documents.VoiceRoomConfigDocument
+	err := r.collection.FindOne(ctx, voiceRoomConfigFilter(guildID, triggerChannelID)).Decode(&document)
+	if err != nil {
+		if errors.Is(err, drivermongo.ErrNoDocuments) {
+			return domain.VoiceRoomConfig{}, ports.ErrVoiceRoomConfigMissing
+		}
+		return domain.VoiceRoomConfig{}, mhcatmongo.MapError(fmt.Errorf("get voice room config: %w", err))
+	}
+	return document.ToDomain(), ctx.Err()
+}
+
 func (r *VoiceRoomConfigRepository) SaveVoiceRoomConfig(ctx context.Context, config domain.VoiceRoomConfig) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -64,10 +103,7 @@ func (r *VoiceRoomConfigRepository) SaveVoiceRoomConfig(ctx context.Context, con
 		return err
 	}
 	document := documents.VoiceRoomConfigDocumentFromDomain(config)
-	filter := bson.D{
-		{Key: "guild", Value: document.Guild},
-		{Key: "ticket_channel", Value: document.TicketChannel},
-	}
+	filter := voiceRoomConfigFilter(document.Guild, document.TicketChannel)
 	update, err := voiceRoomConfigUpdate(document, false)
 	if err != nil {
 		return err
@@ -99,10 +135,7 @@ func (r *VoiceRoomConfigRepository) DeleteVoiceRoomConfigByTrigger(ctx context.C
 	if guildID == "" || triggerChannelID == "" {
 		return domain.ErrInvalidVoiceRoomConfig
 	}
-	result, err := r.collection.DeleteMany(ctx, bson.D{
-		{Key: "guild", Value: guildID},
-		{Key: "ticket_channel", Value: triggerChannelID},
-	})
+	result, err := r.collection.DeleteMany(ctx, voiceRoomConfigFilter(guildID, triggerChannelID))
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("delete voice room config by trigger: %w", err))
 	}
@@ -173,6 +206,25 @@ func (r *VoiceRoomLockRepository) SaveVoiceRoomLock(ctx context.Context, lock do
 	return ctx.Err()
 }
 
+func (r *VoiceRoomLockRepository) DeleteVoiceRoomLock(ctx context.Context, guildID string, channelID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	if guildID == "" || channelID == "" {
+		return domain.ErrInvalidVoiceRoomLock
+	}
+	result, err := r.collection.DeleteMany(ctx, voiceRoomLockFilter(guildID, channelID))
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("delete voice room lock: %w", err))
+	}
+	if result.DeletedCount == 0 {
+		return ports.ErrVoiceRoomLockMissing
+	}
+	return ctx.Err()
+}
+
 func (r *VoiceRoomLockRepository) AllowVoiceRoomLockUser(ctx context.Context, guildID string, channelID string, userID string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -197,6 +249,69 @@ func (r *VoiceRoomLockRepository) AllowVoiceRoomLockUser(ctx context.Context, gu
 	return ctx.Err()
 }
 
+func (r *VoiceRoomStateRepository) GetVoiceRoomState(ctx context.Context, guildID string, channelID string) (domain.VoiceRoomState, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.VoiceRoomState{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	if guildID == "" || channelID == "" {
+		return domain.VoiceRoomState{}, domain.ErrInvalidVoiceRoomConfig
+	}
+	var document documents.VoiceRoomStateDocument
+	err := r.collection.FindOne(ctx, voiceRoomStateFilter(guildID, channelID)).Decode(&document)
+	if err != nil {
+		if errors.Is(err, drivermongo.ErrNoDocuments) {
+			return domain.VoiceRoomState{}, ports.ErrVoiceRoomStateMissing
+		}
+		return domain.VoiceRoomState{}, mhcatmongo.MapError(fmt.Errorf("get voice room state: %w", err))
+	}
+	return document.ToDomain(), ctx.Err()
+}
+
+func (r *VoiceRoomStateRepository) SaveVoiceRoomState(ctx context.Context, state domain.VoiceRoomState) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	state.GuildID = strings.TrimSpace(state.GuildID)
+	state.ChannelID = strings.TrimSpace(state.ChannelID)
+	if err := state.Validate(); err != nil {
+		return err
+	}
+	document := documents.VoiceRoomStateDocumentFromDomain(state)
+	update, err := mhcatmongo.NewUpdate().
+		SetOnInsert("guild", document.Guild).
+		SetOnInsert("channel_id", document.ChannelID).
+		Build()
+	if err != nil {
+		return err
+	}
+	_, err = r.collection.UpdateOne(ctx, voiceRoomStateFilter(document.Guild, document.ChannelID), update, options.UpdateOne().SetUpsert(true))
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("save voice room state: %w", err))
+	}
+	return ctx.Err()
+}
+
+func (r *VoiceRoomStateRepository) DeleteVoiceRoomState(ctx context.Context, guildID string, channelID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	if guildID == "" || channelID == "" {
+		return domain.ErrInvalidVoiceRoomConfig
+	}
+	result, err := r.collection.DeleteMany(ctx, voiceRoomStateFilter(guildID, channelID))
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("delete voice room state: %w", err))
+	}
+	if result.DeletedCount == 0 {
+		return ports.ErrVoiceRoomStateMissing
+	}
+	return ctx.Err()
+}
+
 func voiceRoomConfigUpdate(document documents.VoiceRoomConfigDocument, upsert bool) (bson.D, error) {
 	builder := mhcatmongo.NewUpdate().
 		Set("limit", document.Limit).
@@ -210,7 +325,21 @@ func voiceRoomConfigUpdate(document documents.VoiceRoomConfigDocument, upsert bo
 	return builder.Build()
 }
 
+func voiceRoomConfigFilter(guildID string, triggerChannelID string) bson.D {
+	return bson.D{
+		{Key: "guild", Value: strings.TrimSpace(guildID)},
+		{Key: "ticket_channel", Value: strings.TrimSpace(triggerChannelID)},
+	}
+}
+
 func voiceRoomLockFilter(guildID string, channelID string) bson.D {
+	return bson.D{
+		{Key: "guild", Value: strings.TrimSpace(guildID)},
+		{Key: "channel_id", Value: strings.TrimSpace(channelID)},
+	}
+}
+
+func voiceRoomStateFilter(guildID string, channelID string) bson.D {
 	return bson.D{
 		{Key: "guild", Value: strings.TrimSpace(guildID)},
 		{Key: "channel_id", Value: strings.TrimSpace(channelID)},
@@ -219,3 +348,4 @@ func voiceRoomLockFilter(guildID string, channelID string) bson.D {
 
 var _ ports.VoiceRoomConfigRepository = (*VoiceRoomConfigRepository)(nil)
 var _ ports.VoiceRoomLockRepository = (*VoiceRoomLockRepository)(nil)
+var _ ports.VoiceRoomStateRepository = (*VoiceRoomStateRepository)(nil)

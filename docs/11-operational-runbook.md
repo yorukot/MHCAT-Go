@@ -605,14 +605,14 @@ MHCAT_FEATURE_XP_RANK_ENABLED=true
 
 Set both together only in an isolated staging database. This path reads `text_xps`/`voice_xps`, renders legacy-style `user-info.png` leaderboard pages with legacy rank buttons, and writes no Mongo data. It does not enable XP accrual, `/聊天經驗` profile cards, automatic reward roles, coin rewards, gateway intents, or usage-counter writes.
 
-Config-only `/語音包廂設置` and `/語音包廂刪除` are available only when both staging command sync and runtime flags are explicitly enabled:
+Voice-room `/語音包廂設置` and `/語音包廂刪除` are available only when both staging command sync and runtime flags are explicitly enabled:
 
 ```bash
 MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true
 MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true
 ```
 
-These commands write/delete only legacy-compatible `voice_channels` config rows and require Manage Messages. They do not enable Voice State intent, dynamic room creation/deletion, `voice_channel_ids`, lock password writes, or usage-counter writes.
+These commands write/delete legacy-compatible `voice_channels` config rows and require Manage Messages. When the app is also running the gateway with `MHCAT_DISCORD_VOICE_STATE_INTENT=true`, trigger joins create legacy-named dynamic voice rooms, copy parent permission overwrites plus owner management permissions, persist `voice_channel_ids`, seed nullable `lock_channels` rows for lockable rooms, move the joining member, and delete empty tracked dynamic rooms. Slash delete removes config rows only; it does not delete already-active dynamic rooms or write usage counters.
 
 Command-only `/上鎖頻道` is available only when staging command sync, runtime, gateway, and Voice State flags are explicitly enabled:
 
@@ -623,7 +623,7 @@ MHCAT_DISCORD_ENABLE_GATEWAY=true
 MHCAT_DISCORD_VOICE_STATE_INTENT=true
 ```
 
-This feature reads the actor's current voice channel from DiscordGo state for `/上鎖頻道`, verifies the actor owns the existing `lock_channels` row, and replaces that row with a nullable legacy `lock_anser` password and empty `ok_people`. For existing passworded lock rows, voice-state joins now send the legacy-style password prompt to `text_channel`, disconnect unauthorized users from the locked voice channel, and DM the legacy instructions. The generated prompt button opens the legacy `<channel>anser` modal, and modal submits compare the stored password and append the submitter to `ok_people`. Old orphaned `lock_start` buttons cannot recover the channel from legacy collector state and return a retry error. This does not create dynamic rooms, write `voice_channel_ids`, edit channel permission overwrites, or write usage counters.
+This feature reads the actor's current voice channel from DiscordGo state for `/上鎖頻道`, verifies the actor owns the existing `lock_channels` row, and replaces that row with a nullable legacy `lock_anser` password and empty `ok_people`. For existing passworded lock rows, voice-state joins now send the legacy-style password prompt to `text_channel`, disconnect unauthorized users from the locked voice channel, and DM the legacy instructions. The generated prompt button opens the legacy `<channel>anser` modal, and modal submits compare the stored password and append the submitter to `ok_people`. Old orphaned `lock_start` buttons cannot recover the channel from legacy collector state and return a retry error. This does not write usage counters.
 
 Config-only `/加入身份組設置` and `/加入身份組刪除` are available only when both staging command sync and runtime flags are explicitly enabled:
 

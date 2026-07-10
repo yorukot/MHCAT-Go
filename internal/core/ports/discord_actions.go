@@ -97,10 +97,12 @@ type ChannelCreateRequest struct {
 }
 
 type ChannelRef struct {
-	GuildID   string
-	ChannelID string
-	Name      string
-	Type      int
+	GuildID              string
+	ChannelID            string
+	ParentID             string
+	Name                 string
+	Type                 int
+	PermissionOverwrites []PermissionOverwrite
 }
 
 type AuditLogQuery struct {
@@ -142,6 +144,7 @@ type DiscordChannelPort interface {
 	FindChannelByName(ctx context.Context, guildID string, name string, channelType int) (ChannelRef, error)
 	CreateChannel(ctx context.Context, req ChannelCreateRequest) (ChannelRef, error)
 	DeleteChannel(ctx context.Context, channelID string) error
+	VoiceChannelMemberCount(ctx context.Context, guildID string, channelID string) (int, error)
 }
 
 type DiscordRolePort interface {

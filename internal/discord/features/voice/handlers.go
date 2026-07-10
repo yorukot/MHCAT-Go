@@ -16,17 +16,20 @@ import (
 )
 
 const (
-	permissionManageMessages = int64(8192)
-	voiceErrorColor          = 0xED4245
-	voiceSuccessColor        = 0x57F287
-	legacyVoiceEmoji         = "<:Voice:994844272790610011>"
-	legacyDoneEmoji          = "<a:green_tick:994529015652163614>"
-	legacyDeleteEmoji        = "<:trashbin:995991389043163257>"
-	discordChannelTypeVoice  = 2
-	voiceLockAnswerInputID   = "anser"
-	legacyUnlockEmoji        = "<:unlock:1017087850556174367>"
-	legacyLockEmoji          = "<:lock:1017077025397288980>"
-	legacyArrowPinkEmoji     = "<a:arrow_pink:996242460294512690>"
+	permissionManageMessages  = int64(8192)
+	voiceErrorColor           = 0xED4245
+	voiceSuccessColor         = 0x57F287
+	legacyVoiceEmoji          = "<:Voice:994844272790610011>"
+	legacyDoneEmoji           = "<a:green_tick:994529015652163614>"
+	legacyDeleteEmoji         = "<:trashbin:995991389043163257>"
+	discordChannelTypeVoice   = 2
+	permissionOverwriteMember = 1
+	permissionManageChannels  = 16
+	permissionManageRoles     = 268435456
+	voiceLockAnswerInputID    = "anser"
+	legacyUnlockEmoji         = "<:unlock:1017087850556174367>"
+	legacyLockEmoji           = "<:lock:1017077025397288980>"
+	legacyArrowPinkEmoji      = "<a:arrow_pink:996242460294512690>"
 )
 
 func (m Module) SetHandler() interactions.Handler {
@@ -206,6 +209,119 @@ func (m LockEventModule) VoiceStateHandler() events.Handler {
 	}
 }
 
+func (m RoomEventModule) VoiceStateHandler() events.Handler {
+	return func(ctx context.Context, event events.Event) error {
+		if event.Type != events.TypeVoiceState || event.VoiceState == nil {
+			return nil
+		}
+		voice := event.VoiceState
+		guildID := strings.TrimSpace(voice.GuildID)
+		if guildID == "" {
+			guildID = strings.TrimSpace(event.GuildID)
+		}
+		channelID := strings.TrimSpace(voice.ChannelID)
+		beforeChannelID := strings.TrimSpace(voice.BeforeChannel)
+		userID := strings.TrimSpace(voice.UserID)
+		if userID == "" {
+			userID = strings.TrimSpace(event.UserID)
+		}
+		username := strings.TrimSpace(event.UserTag)
+		isBot := event.IsBot
+		if event.Member != nil {
+			isBot = event.Member.IsBot
+			if event.Member.UserID != "" {
+				userID = strings.TrimSpace(event.Member.UserID)
+			}
+			if event.Member.Username != "" {
+				username = strings.TrimSpace(event.Member.Username)
+			} else if event.Member.UserTag != "" {
+				username = strings.TrimSpace(event.Member.UserTag)
+			}
+		}
+		if guildID == "" || channelID == beforeChannelID {
+			return nil
+		}
+		if channelID != "" && userID != "" && !isBot {
+			if err := m.createDynamicRoom(ctx, guildID, channelID, userID, username); err != nil {
+				return err
+			}
+		}
+		if beforeChannelID == "" {
+			return ctx.Err()
+		}
+		return m.cleanupDynamicRoom(ctx, guildID, beforeChannelID)
+	}
+}
+
+func (m RoomEventModule) createDynamicRoom(ctx context.Context, guildID string, triggerChannelID string, userID string, username string) error {
+	config, ok, err := m.service.TriggerConfig(ctx, guildID, triggerChannelID)
+	if err != nil || !ok {
+		return err
+	}
+	overwrites, err := m.dynamicRoomPermissionOverwrites(ctx, guildID, config.ParentID, userID)
+	if err != nil {
+		return err
+	}
+	created, err := m.channels.CreateChannel(ctx, ports.ChannelCreateRequest{
+		GuildID:              guildID,
+		ParentID:             config.ParentID,
+		Name:                 voiceRoomDynamicName(config.Name, username, userID),
+		Type:                 discordChannelTypeVoice,
+		UserLimit:            config.Limit,
+		PermissionOverwrites: overwrites,
+	})
+	if err != nil {
+		return err
+	}
+	if err := m.service.TrackDynamicRoom(ctx, guildID, created.ChannelID, userID, config.Lock); err != nil {
+		_ = m.channels.DeleteChannel(context.Background(), created.ChannelID)
+		return err
+	}
+	if err := m.members.MoveMember(ctx, guildID, userID, &created.ChannelID); err != nil {
+		_ = m.service.DeleteDynamicRoomLock(context.Background(), guildID, created.ChannelID)
+		_ = m.channels.DeleteChannel(context.Background(), created.ChannelID)
+		_ = m.service.DeleteDynamicRoomState(context.Background(), guildID, created.ChannelID)
+		return err
+	}
+	if config.Lock {
+		_, _ = m.direct.SendDirectMessage(ctx, userID, voiceRoomLockableOwnerMessage())
+	}
+	return ctx.Err()
+}
+
+func (m RoomEventModule) cleanupDynamicRoom(ctx context.Context, guildID string, channelID string) error {
+	tracked, err := m.service.IsDynamicRoom(ctx, guildID, channelID)
+	if err != nil || !tracked {
+		return err
+	}
+	memberCount, err := m.channels.VoiceChannelMemberCount(ctx, guildID, channelID)
+	if err != nil && !errors.Is(err, ports.ErrChannelNotFound) {
+		return err
+	}
+	if memberCount > 0 {
+		return ctx.Err()
+	}
+	if err := m.service.DeleteDynamicRoomLock(ctx, guildID, channelID); err != nil {
+		return err
+	}
+	if err := m.channels.DeleteChannel(ctx, channelID); err != nil && !errors.Is(err, ports.ErrChannelNotFound) {
+		return err
+	}
+	return m.service.DeleteDynamicRoomState(ctx, guildID, channelID)
+}
+
+func (m RoomEventModule) dynamicRoomPermissionOverwrites(ctx context.Context, guildID string, parentID string, userID string) ([]ports.PermissionOverwrite, error) {
+	overwrites := []ports.PermissionOverwrite{}
+	if strings.TrimSpace(parentID) != "" {
+		parent, err := m.channels.FindChannelByID(ctx, guildID, parentID)
+		if err != nil && !errors.Is(err, ports.ErrChannelNotFound) {
+			return nil, err
+		}
+		overwrites = append(overwrites, parent.PermissionOverwrites...)
+	}
+	return upsertOwnerOverwrite(overwrites, userID), nil
+}
+
 func voiceSetSuccessMessage() responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
@@ -361,6 +477,49 @@ func voiceLockDirectMessage(lock domain.VoiceRoomLock) ports.OutboundMessage {
 		}},
 		AllowedMentions: ports.AllowedMentions{},
 	}
+}
+
+func voiceRoomLockableOwnerMessage() ports.OutboundMessage {
+	return ports.OutboundMessage{
+		Embeds: []ports.OutboundEmbed{{
+			Title:       legacyLockEmoji + " | 你開啟了一個可上鎖的語音頻道!",
+			Description: "**你可以到你所在的語音頻道伺服器\n在該伺服器打指令的頻道打上**`/上鎖頻道 密碼:`\n**當然也可以不用上鎖\n如需解除上鎖只需打**`/上鎖頻道`\n**當頻道上鎖後對方將會被踢\n並且傳送密碼輸入給該名使用者\n對方輸入正確密碼後即可解鎖**",
+			Color:       voiceSuccessColor,
+		}},
+		AllowedMentions: ports.AllowedMentions{},
+	}
+}
+
+func voiceRoomDynamicName(template string, username string, userID string) string {
+	name := strings.TrimSpace(template)
+	replacement := strings.TrimSpace(username)
+	if replacement == "" {
+		replacement = strings.TrimSpace(userID)
+	}
+	if replacement == "" {
+		replacement = "user"
+	}
+	if name == "" {
+		return replacement
+	}
+	return strings.ReplaceAll(name, "{name}", replacement)
+}
+
+func upsertOwnerOverwrite(overwrites []ports.PermissionOverwrite, userID string) []ports.PermissionOverwrite {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return overwrites
+	}
+	allow := int64(permissionManageChannels | permissionManageRoles)
+	out := append([]ports.PermissionOverwrite(nil), overwrites...)
+	for index := range out {
+		if out[index].ID == userID && out[index].Type == permissionOverwriteMember {
+			out[index].Allow |= allow
+			out[index].Deny &^= allow
+			return out
+		}
+	}
+	return append(out, ports.PermissionOverwrite{ID: userID, Type: permissionOverwriteMember, Allow: allow})
 }
 
 func firstCommandOption(interaction interactions.Interaction, name string) interactions.CommandOptionValue {

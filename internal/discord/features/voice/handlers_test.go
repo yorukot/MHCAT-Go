@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
@@ -425,6 +426,153 @@ func TestLockEventHandlerSkipsAllowedBotAndUnchangedVoiceState(t *testing.T) {
 	if len(sideEffects.Sent) != 0 || len(sideEffects.MovedMembers) != 0 || len(sideEffects.DirectMessages) != 0 {
 		t.Fatalf("side effects should be empty: sent=%#v moved=%#v dm=%#v", sideEffects.Sent, sideEffects.MovedMembers, sideEffects.DirectMessages)
 	}
+}
+
+func TestRoomEventHandlerCreatesTracksMovesAndDMsLockableRoom(t *testing.T) {
+	configs := fakemongo.NewVoiceRoomConfigRepository()
+	configs.Configs["guild-1\x00trigger-1"] = domain.VoiceRoomConfig{
+		GuildID:          "guild-1",
+		TriggerChannelID: "trigger-1",
+		ParentID:         "parent-1",
+		Name:             "{name} 的包廂",
+		Limit:            7,
+		Lock:             true,
+	}
+	states := fakemongo.NewVoiceRoomStateRepository()
+	locks := fakemongo.NewVoiceRoomLockRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.Channels = append(sideEffects.Channels, portsChannel("guild-1", "parent-1", "", "parent", 4, []ports.PermissionOverwrite{
+		{ID: "guild-1", Type: 0, Deny: 1024},
+		{ID: "user-1", Type: permissionOverwriteMember, Deny: permissionManageChannels},
+	}))
+	module := NewRoomEventModule(configs, states, locks, sideEffects, sideEffects, sideEffects)
+	err := module.VoiceStateHandler()(context.Background(), events.Event{
+		Type:    events.TypeVoiceState,
+		GuildID: "guild-1",
+		Member:  &events.Member{UserID: "user-1", Username: "Yoru"},
+		VoiceState: &events.VoiceState{
+			GuildID:   "guild-1",
+			UserID:    "user-1",
+			ChannelID: "trigger-1",
+		},
+	})
+	if err != nil {
+		t.Fatalf("voice state handler: %v", err)
+	}
+	if len(sideEffects.Created) != 1 {
+		t.Fatalf("created channels = %#v", sideEffects.Created)
+	}
+	createdReq := sideEffects.Created[0]
+	if createdReq.GuildID != "guild-1" || createdReq.ParentID != "parent-1" || createdReq.Name != "Yoru 的包廂" || createdReq.Type != discordChannelTypeVoice || createdReq.UserLimit != 7 {
+		t.Fatalf("created request = %#v", createdReq)
+	}
+	if !hasOverwrite(createdReq.PermissionOverwrites, "guild-1", 0, 0, 1024) || !hasOverwrite(createdReq.PermissionOverwrites, "user-1", permissionOverwriteMember, permissionManageChannels|permissionManageRoles, 0) {
+		t.Fatalf("permission overwrites = %#v", createdReq.PermissionOverwrites)
+	}
+	ownerOverwrite, ok := findOverwrite(createdReq.PermissionOverwrites, "user-1", permissionOverwriteMember)
+	if !ok || ownerOverwrite.Deny&(permissionManageChannels|permissionManageRoles) != 0 {
+		t.Fatalf("owner overwrite = %#v ok=%t", ownerOverwrite, ok)
+	}
+	if _, ok := states.States["guild-1\x00created-channel-1"]; !ok || len(states.Saved) != 1 {
+		t.Fatalf("states=%#v saved=%#v", states.States, states.Saved)
+	}
+	lock := locks.Locks["guild-1\x00created-channel-1"]
+	if lock.OwnerID != "user-1" || lock.Password != "" || lock.TextChannelID != "" {
+		t.Fatalf("seed lock = %#v", lock)
+	}
+	if len(sideEffects.MovedMembers) != 1 || sideEffects.MovedMembers[0].ChannelID == nil || *sideEffects.MovedMembers[0].ChannelID != "created-channel-1" {
+		t.Fatalf("moved members = %#v", sideEffects.MovedMembers)
+	}
+	if len(sideEffects.DirectMessages) != 1 || !strings.Contains(sideEffects.DirectMessages[0].Message.Embeds[0].Title, "你開啟了一個可上鎖的語音頻道") {
+		t.Fatalf("direct messages = %#v", sideEffects.DirectMessages)
+	}
+}
+
+func TestRoomEventHandlerDeletesEmptyTrackedRoom(t *testing.T) {
+	configs := fakemongo.NewVoiceRoomConfigRepository()
+	states := fakemongo.NewVoiceRoomStateRepository()
+	states.States["guild-1\x00dynamic-1"] = domain.VoiceRoomState{GuildID: "guild-1", ChannelID: "dynamic-1"}
+	locks := fakemongo.NewVoiceRoomLockRepository()
+	locks.Locks["guild-1\x00dynamic-1"] = domain.VoiceRoomLock{GuildID: "guild-1", ChannelID: "dynamic-1", OwnerID: "owner-1"}
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.Channels = append(sideEffects.Channels, portsChannel("guild-1", "dynamic-1", "parent-1", "dynamic", discordChannelTypeVoice, nil))
+	sideEffects.VoiceMembers["guild-1/dynamic-1"] = 0
+	module := NewRoomEventModule(configs, states, locks, sideEffects, sideEffects, sideEffects)
+	err := module.VoiceStateHandler()(context.Background(), events.Event{
+		Type:    events.TypeVoiceState,
+		GuildID: "guild-1",
+		UserID:  "user-1",
+		VoiceState: &events.VoiceState{
+			GuildID:       "guild-1",
+			UserID:        "user-1",
+			BeforeChannel: "dynamic-1",
+		},
+	})
+	if err != nil {
+		t.Fatalf("voice state handler: %v", err)
+	}
+	if len(sideEffects.Deleted) != 1 || sideEffects.Deleted[0] != "dynamic-1" {
+		t.Fatalf("deleted channels = %#v", sideEffects.Deleted)
+	}
+	_, stateExists := states.States["guild-1\x00dynamic-1"]
+	_, lockExists := locks.Locks["guild-1\x00dynamic-1"]
+	if stateExists || lockExists {
+		t.Fatalf("states=%#v locks=%#v", states.States, locks.Locks)
+	}
+}
+
+func TestRoomEventHandlerKeepsOccupiedTrackedRoom(t *testing.T) {
+	states := fakemongo.NewVoiceRoomStateRepository()
+	states.States["guild-1\x00dynamic-1"] = domain.VoiceRoomState{GuildID: "guild-1", ChannelID: "dynamic-1"}
+	locks := fakemongo.NewVoiceRoomLockRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.VoiceMembers["guild-1/dynamic-1"] = 1
+	module := NewRoomEventModule(fakemongo.NewVoiceRoomConfigRepository(), states, locks, sideEffects, sideEffects, sideEffects)
+	err := module.VoiceStateHandler()(context.Background(), events.Event{
+		Type:    events.TypeVoiceState,
+		GuildID: "guild-1",
+		UserID:  "user-1",
+		VoiceState: &events.VoiceState{
+			GuildID:       "guild-1",
+			UserID:        "user-1",
+			BeforeChannel: "dynamic-1",
+		},
+	})
+	if err != nil {
+		t.Fatalf("voice state handler: %v", err)
+	}
+	if len(sideEffects.Deleted) != 0 || len(states.Deleted) != 0 {
+		t.Fatalf("deleted channels=%#v states=%#v", sideEffects.Deleted, states.Deleted)
+	}
+}
+
+func portsChannel(guildID string, channelID string, parentID string, name string, channelType int, overwrites []ports.PermissionOverwrite) ports.ChannelRef {
+	return ports.ChannelRef{
+		GuildID:              guildID,
+		ChannelID:            channelID,
+		ParentID:             parentID,
+		Name:                 name,
+		Type:                 channelType,
+		PermissionOverwrites: append([]ports.PermissionOverwrite(nil), overwrites...),
+	}
+}
+
+func hasOverwrite(overwrites []ports.PermissionOverwrite, id string, overwriteType int, allow int64, deny int64) bool {
+	for _, overwrite := range overwrites {
+		if overwrite.ID == id && overwrite.Type == overwriteType && overwrite.Allow&allow == allow && overwrite.Deny&deny == deny {
+			return true
+		}
+	}
+	return false
+}
+
+func findOverwrite(overwrites []ports.PermissionOverwrite, id string, overwriteType int) (ports.PermissionOverwrite, bool) {
+	for _, overwrite := range overwrites {
+		if overwrite.ID == id && overwrite.Type == overwriteType {
+			return overwrite, true
+		}
+	}
+	return ports.PermissionOverwrite{}, false
 }
 
 func voiceSetInteraction() interactions.Interaction {

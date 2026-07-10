@@ -26,6 +26,11 @@ type VoiceRoomLock struct {
 	AllowedUserIDs []string
 }
 
+type VoiceRoomState struct {
+	GuildID   string
+	ChannelID string
+}
+
 func (c VoiceRoomConfig) Validate() error {
 	if strings.TrimSpace(c.GuildID) == "" ||
 		strings.TrimSpace(c.TriggerChannelID) == "" ||
@@ -57,8 +62,15 @@ func (l VoiceRoomLock) Normalize() VoiceRoomLock {
 
 func (l VoiceRoomLock) Validate() error {
 	l = l.Normalize()
-	if l.GuildID == "" || l.ChannelID == "" || l.OwnerID == "" || l.TextChannelID == "" {
+	if l.GuildID == "" || l.ChannelID == "" || l.OwnerID == "" {
 		return ErrInvalidVoiceRoomLock
+	}
+	return nil
+}
+
+func (s VoiceRoomState) Validate() error {
+	if strings.TrimSpace(s.GuildID) == "" || strings.TrimSpace(s.ChannelID) == "" {
+		return ErrInvalidVoiceRoomConfig
 	}
 	return nil
 }

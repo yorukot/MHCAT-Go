@@ -834,6 +834,25 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		}
 		featurevoice.NewLockEventModule(repo, sideEffects, sideEffects, sideEffects).RegisterEventRoutes(dispatcher)
 	}
+	if cfg.FeatureVoiceRoomConfigEnabled {
+		configRepo, err := voiceRoomConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		stateRepo, err := voiceRoomStateRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		lockRepo, err := voiceRoomLockRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "voice-room dynamic event feature")
+		if err != nil {
+			return nil, err
+		}
+		featurevoice.NewRoomEventModule(configRepo, stateRepo, lockRepo, sideEffects, sideEffects, sideEffects).RegisterEventRoutes(dispatcher)
+	}
 	return dispatcher, nil
 }
 

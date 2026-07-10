@@ -26,6 +26,13 @@ type LockEventModule struct {
 	members  ports.DiscordMemberPort
 }
 
+type RoomEventModule struct {
+	service  coreservice.RoomService
+	channels ports.DiscordChannelPort
+	members  ports.DiscordMemberPort
+	direct   ports.DiscordDirectMessagePort
+}
+
 func NewModule(repo ports.VoiceRoomConfigRepository, usage ports.UsageTracker) Module {
 	return Module{
 		service: coreservice.NewConfigService(repo),
@@ -46,6 +53,15 @@ func NewLockEventModule(repo ports.VoiceRoomLockRepository, messages ports.Disco
 		messages: messages,
 		direct:   direct,
 		members:  members,
+	}
+}
+
+func NewRoomEventModule(configs ports.VoiceRoomConfigRepository, states ports.VoiceRoomStateRepository, locks ports.VoiceRoomLockRepository, channels ports.DiscordChannelPort, members ports.DiscordMemberPort, direct ports.DiscordDirectMessagePort) RoomEventModule {
+	return RoomEventModule{
+		service:  coreservice.NewRoomService(configs, states, locks),
+		channels: channels,
+		members:  members,
+		direct:   direct,
 	}
 }
 
@@ -95,6 +111,13 @@ func (m LockModule) RegisterRoutes(router *interactions.Router) error {
 
 func (m LockEventModule) RegisterEventRoutes(dispatcher *events.Dispatcher) {
 	if dispatcher == nil || m.service.Repository == nil || m.messages == nil || m.direct == nil || m.members == nil {
+		return
+	}
+	dispatcher.Register(events.TypeVoiceState, m.VoiceStateHandler())
+}
+
+func (m RoomEventModule) RegisterEventRoutes(dispatcher *events.Dispatcher) {
+	if dispatcher == nil || m.service.Configs == nil || m.service.States == nil || m.service.Locks == nil || m.channels == nil || m.members == nil || m.direct == nil {
 		return
 	}
 	dispatcher.Register(events.TypeVoiceState, m.VoiceStateHandler())

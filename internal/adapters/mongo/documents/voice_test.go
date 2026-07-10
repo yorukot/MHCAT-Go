@@ -41,7 +41,8 @@ func TestVoiceRoomLockDocumentRoundTripPreservesLegacyFields(t *testing.T) {
 		document.LockAnswer == nil ||
 		*document.LockAnswer != "secret" ||
 		document.Owner != "owner-1" ||
-		document.TextChannel != "text-1" ||
+		document.TextChannel == nil ||
+		*document.TextChannel != "text-1" ||
 		!reflect.DeepEqual(document.AllowedUsers, []string{"user-2", "user-3"}) {
 		t.Fatalf("document = %#v", document)
 	}
@@ -73,9 +74,45 @@ func TestVoiceRoomLockDocumentUsesNullForEmptyPassword(t *testing.T) {
 		ChannelID:   "voice-1",
 		LockAnswer:  nil,
 		Owner:       "owner-1",
-		TextChannel: "text-1",
+		TextChannel: ptr("text-1"),
 	}.ToDomain()
 	if got.Password != "" {
 		t.Fatalf("null lock_anser should map to empty password, got %#v", got)
 	}
+}
+
+func TestVoiceRoomLockDocumentUsesNullForEmptyTextChannel(t *testing.T) {
+	document := documents.VoiceRoomLockDocumentFromDomain(domain.VoiceRoomLock{
+		GuildID:   "guild-1",
+		ChannelID: "voice-1",
+		OwnerID:   "owner-1",
+	})
+	if document.TextChannel != nil {
+		t.Fatalf("empty text channel should use null, got %#v", document.TextChannel)
+	}
+	got := documents.VoiceRoomLockDocument{
+		Guild:       "guild-1",
+		ChannelID:   "voice-1",
+		LockAnswer:  nil,
+		Owner:       "owner-1",
+		TextChannel: nil,
+	}.ToDomain()
+	if got.TextChannelID != "" {
+		t.Fatalf("null text_channel should map to empty text channel, got %#v", got)
+	}
+}
+
+func TestVoiceRoomStateDocumentRoundTrip(t *testing.T) {
+	state := domain.VoiceRoomState{GuildID: "guild-1", ChannelID: "voice-1"}
+	document := documents.VoiceRoomStateDocumentFromDomain(state)
+	if document.Guild != "guild-1" || document.ChannelID != "voice-1" {
+		t.Fatalf("document = %#v", document)
+	}
+	if got := document.ToDomain(); got != state {
+		t.Fatalf("round trip = %#v", got)
+	}
+}
+
+func ptr(value string) *string {
+	return &value
 }

@@ -34,6 +34,7 @@ type SideEffects struct {
 	VoiceChannelCount int
 	RoleNames         map[string]string
 	RoleMemberCounts  map[string]int
+	VoiceMembers      map[string]int
 	MemberTagValues   map[string]string
 	AssignableRoles   map[string]bool
 	MissingRoles      map[string]bool
@@ -103,7 +104,7 @@ type BanAction struct {
 }
 
 func NewSideEffects() *SideEffects {
-	return &SideEffects{RoleNames: map[string]string{}, RoleMemberCounts: map[string]int{}, MemberTagValues: map[string]string{}, AssignableRoles: map[string]bool{}, MissingRoles: map[string]bool{}, ModerationAllowed: map[string]bool{}, nextChannel: 1, nextMessage: 1}
+	return &SideEffects{RoleNames: map[string]string{}, RoleMemberCounts: map[string]int{}, VoiceMembers: map[string]int{}, MemberTagValues: map[string]string{}, AssignableRoles: map[string]bool{}, MissingRoles: map[string]bool{}, ModerationAllowed: map[string]bool{}, nextChannel: 1, nextMessage: 1}
 }
 
 func (s *SideEffects) FindChannelByID(ctx context.Context, guildID string, channelID string) (ports.ChannelRef, error) {
@@ -293,10 +294,12 @@ func (s *SideEffects) CreateChannel(ctx context.Context, req ports.ChannelCreate
 		return ports.ChannelRef{}, errors.New("fake create channel requires guild and name")
 	}
 	ref := ports.ChannelRef{
-		GuildID:   req.GuildID,
-		ChannelID: fmt.Sprintf("created-channel-%d", s.nextChannel),
-		Name:      req.Name,
-		Type:      req.Type,
+		GuildID:              req.GuildID,
+		ChannelID:            fmt.Sprintf("created-channel-%d", s.nextChannel),
+		ParentID:             req.ParentID,
+		Name:                 req.Name,
+		Type:                 req.Type,
+		PermissionOverwrites: append([]ports.PermissionOverwrite(nil), req.PermissionOverwrites...),
 	}
 	s.nextChannel++
 	s.Created = append(s.Created, req)
@@ -318,6 +321,21 @@ func (s *SideEffects) DeleteChannel(ctx context.Context, channelID string) error
 		}
 	}
 	return nil
+}
+
+func (s *SideEffects) VoiceChannelMemberCount(ctx context.Context, guildID string, channelID string) (int, error) {
+	if err := s.ready(ctx); err != nil {
+		return 0, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.VoiceMembers == nil {
+		return 0, nil
+	}
+	if count, ok := s.VoiceMembers[guildID+"/"+channelID]; ok {
+		return count, nil
+	}
+	return s.VoiceMembers[channelID], nil
 }
 
 func (s *SideEffects) AddReaction(ctx context.Context, channelID string, messageID string, emoji string) error {
