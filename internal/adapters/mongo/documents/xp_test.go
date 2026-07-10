@@ -82,6 +82,30 @@ func TestXPRewardRoleDocumentReadsLegacyNumericLevels(t *testing.T) {
 	}
 }
 
+func TestXPProfileDocumentReadsLegacyMixedNumericFields(t *testing.T) {
+	for _, value := range []any{"12", int32(12), int64(12), float64(12)} {
+		t.Run(bsonTypeName(value), func(t *testing.T) {
+			encoded, err := bson.Marshal(bson.D{
+				{Key: "guild", Value: "guild-1"},
+				{Key: "member", Value: "user-1"},
+				{Key: "xp", Value: value},
+				{Key: "leavel", Value: value},
+				{Key: "leavejoin", Value: "leave"},
+			})
+			if err != nil {
+				t.Fatalf("marshal fixture: %v", err)
+			}
+			var document XPProfileDocument
+			if err := bson.Unmarshal(encoded, &document); err != nil {
+				t.Fatalf("unmarshal fixture: %v", err)
+			}
+			if got := document.ToDomain(); got.GuildID != "guild-1" || got.UserID != "user-1" || got.XP != 12 || got.Level != 12 || got.LeaveJoin != "leave" {
+				t.Fatalf("decoded profile = %#v", got)
+			}
+		})
+	}
+}
+
 func bsonTypeName(value any) string {
 	switch value.(type) {
 	case string:

@@ -698,7 +698,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_XP_ADMIN=true
 MHCAT_FEATURE_XP_ADMIN_ENABLED=true
 ```
 
-This command requires Kick Members and adjusts one selected member's text or voice XP profile. It writes legacy-compatible `text_xps`/`voice_xps` rows using string `xp` and misspelled string `leavel`, and voice-profile inserts set `leavejoin` to `leave`. Test only against disposable staging XP rows. It does not enable text/voice XP accrual, rank rendering, automatic reward-role assignment/removal, Message Content intent, Guild Messages intent, Voice State intent, or usage-counter writes.
+This command requires Kick Members and adjusts one selected member's text or voice XP profile. It writes legacy-compatible `text_xps`/`voice_xps` rows using string `xp` and misspelled string `leavel`, and voice-profile inserts set `leavejoin` to `leave`. Test only against disposable staging XP rows. It does not enable text/voice XP accrual, rank rendering, automatic reward-role assignment/removal, Message Content intent, Guild Messages intent, Voice State intent, or usage-counter writes. Follow the adjustment, payload, compatibility, and staging audit in `docs/69-xp-admin.md`.
 
 XP reset `/經驗值重製` is available only when staging command sync, runtime, gateway, Guild Messages, and Message Content flags are explicitly enabled:
 

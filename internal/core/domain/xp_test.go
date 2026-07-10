@@ -125,6 +125,35 @@ func TestTextXPRequiredForLevelPreservesLegacyOperationOrder(t *testing.T) {
 	}
 }
 
+func TestApplyXPAdjustmentPreservesLegacyBoundaryQuirks(t *testing.T) {
+	tests := []struct {
+		name      string
+		apply     func(XPProfile, int64) XPProfile
+		profile   XPProfile
+		delta     int64
+		wantLevel int64
+		wantXP    int64
+	}{
+		{name: "text exact first threshold", apply: ApplyTextXPAdjustment, profile: XPProfile{}, delta: 100, wantLevel: 0, wantXP: 100},
+		{name: "text crosses first threshold", apply: ApplyTextXPAdjustment, profile: XPProfile{}, delta: 101, wantLevel: 1, wantXP: 1},
+		{name: "text exact current threshold", apply: ApplyTextXPAdjustment, profile: XPProfile{Level: 1, XP: 20}, delta: 113, wantLevel: 1, wantXP: 113},
+		{name: "text crosses current threshold", apply: ApplyTextXPAdjustment, profile: XPProfile{Level: 1, XP: 20}, delta: 114, wantLevel: 2, wantXP: 1},
+		{name: "text crosses down a level", apply: ApplyTextXPAdjustment, profile: XPProfile{Level: 1, XP: 20}, delta: -21, wantLevel: 0, wantXP: 99},
+		{name: "text drops below level zero", apply: ApplyTextXPAdjustment, profile: XPProfile{}, delta: -1, wantLevel: -1, wantXP: 132},
+		{name: "voice multi-level increase", apply: ApplyVoiceXPAdjustment, profile: XPProfile{Level: 1, XP: 20}, delta: 500, wantLevel: 3, wantXP: 70},
+		{name: "voice large negative quirk", apply: ApplyVoiceXPAdjustment, profile: XPProfile{Level: 3, XP: 250}, delta: -1000, wantLevel: -2, wantXP: -750},
+		{name: "voice zero delta quirk", apply: ApplyVoiceXPAdjustment, profile: XPProfile{Level: 4, XP: 70}, delta: 0, wantLevel: 5, wantXP: 0},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.apply(tc.profile, tc.delta)
+			if got.Level != tc.wantLevel || got.XP != tc.wantXP {
+				t.Fatalf("adjustment = %#v, want level %d XP %d", got, tc.wantLevel, tc.wantXP)
+			}
+		})
+	}
+}
+
 func TestApplyTextXPMessageMatchesLegacyAccrualLevelBehavior(t *testing.T) {
 	got, leveled := ApplyTextXPMessage(XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 95, Level: 0}, 5)
 	if leveled || got.Level != 0 || got.XP != 100 {
