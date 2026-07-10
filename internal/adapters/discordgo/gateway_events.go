@@ -143,7 +143,7 @@ func eventFromMessageUpdate(update *dgo.MessageUpdate, bot *dgo.User) events.Eve
 	if update.BeforeUpdate != nil {
 		event.OldContent = update.BeforeUpdate.Content
 		event.HasOldContent = true
-		if event.UserID == "" && update.BeforeUpdate.Author != nil {
+		if update.BeforeUpdate.Author != nil {
 			event.UserID = update.BeforeUpdate.Author.ID
 			event.Username = update.BeforeUpdate.Author.Username
 			event.UserTag = userTag(update.BeforeUpdate.Author)

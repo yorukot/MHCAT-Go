@@ -49,10 +49,10 @@ func TestEventFromMessageMarksDefaultUserAvatar(t *testing.T) {
 
 func TestEventFromMessageUpdateIncludesCachedOldContent(t *testing.T) {
 	event := eventFromMessageUpdate(&dgo.MessageUpdate{
-		Message:      &dgo.Message{ID: "message-1", GuildID: "guild-1", ChannelID: "channel-1", Content: "new"},
-		BeforeUpdate: &dgo.Message{Content: "old", Author: &dgo.User{ID: "user-1", Username: "Yoru"}},
+		Message:      &dgo.Message{ID: "message-1", GuildID: "guild-1", ChannelID: "channel-1", Content: "new", Author: &dgo.User{ID: "wrong-user", Username: "Wrong", Bot: true}},
+		BeforeUpdate: &dgo.Message{Content: "old", Author: &dgo.User{ID: "user-1", Username: "Yoru", Avatar: "old-avatar"}},
 	}, nil)
-	if event.Type != events.TypeMessageUpdate || event.Content != "new" || event.OldContent != "old" || !event.HasOldContent || event.UserID != "user-1" || event.Username != "Yoru" {
+	if event.Type != events.TypeMessageUpdate || event.Content != "new" || event.OldContent != "old" || !event.HasOldContent || event.UserID != "user-1" || event.Username != "Yoru" || event.IsBot || event.AvatarIsDefault || !strings.Contains(event.AvatarURL, "old-avatar") {
 		t.Fatalf("event = %#v", event)
 	}
 }
