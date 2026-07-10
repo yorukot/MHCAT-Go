@@ -13,14 +13,14 @@ func TestReportScamURLSendsWhenURLIsNew(t *testing.T) {
 	sender := &fakeScamReportSender{}
 	service := NewReportService(catalog, sender)
 
-	report, err := service.Report(context.Background(), " https://bad.example/path ", " user-1 ")
+	report, err := service.Report(context.Background(), "ftp://bad.example/path", " user-1 ")
 	if err != nil {
 		t.Fatalf("report scam URL: %v", err)
 	}
-	if report.URL != "https://bad.example/path" || report.ReporterUserID != "user-1" {
+	if report.URL != "ftp://bad.example/path" || report.ReporterUserID != "user-1" {
 		t.Fatalf("report = %#v", report)
 	}
-	if catalog.Checked != "https://bad.example/path" {
+	if catalog.Checked != "ftp://bad.example/path" {
 		t.Fatalf("checked = %q", catalog.Checked)
 	}
 	if len(sender.Sent) != 1 || sender.Sent[0] != report {
@@ -38,6 +38,15 @@ func TestReportScamURLRejectsInvalidURL(t *testing.T) {
 	}
 	if len(sender.Sent) != 0 {
 		t.Fatalf("sent = %#v", sender.Sent)
+	}
+}
+
+func TestReportScamURLDoesNotTrimLegacyInput(t *testing.T) {
+	sender := &fakeScamReportSender{}
+	service := NewReportService(&fakeScamURLCatalog{}, sender)
+	_, err := service.Report(context.Background(), " https://bad.example ", "user-1")
+	if !errors.Is(err, domain.ErrInvalidScamURLReport) || len(sender.Sent) != 0 {
+		t.Fatalf("error=%v sent=%#v", err, sender.Sent)
 	}
 }
 

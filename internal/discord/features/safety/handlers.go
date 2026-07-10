@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -123,11 +122,11 @@ func (m Module) trackReport(ctx context.Context, interaction interactions.Intera
 
 func firstOption(interaction interactions.Interaction, names ...string) string {
 	for _, name := range names {
-		if value := strings.TrimSpace(interaction.Options[name]); value != "" {
+		if value, ok := interaction.Options[name]; ok {
 			return value
 		}
 		if option, ok := interaction.CommandOptions[name]; ok {
-			return strings.TrimSpace(option.String)
+			return option.String
 		}
 	}
 	return ""

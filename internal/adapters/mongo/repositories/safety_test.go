@@ -84,3 +84,11 @@ func TestScamURLContainsFilterEscapesUserInput(t *testing.T) {
 		t.Fatalf("regex = %#v", value)
 	}
 }
+
+func TestScamURLContainsFilterPreservesLegacyInputWhitespace(t *testing.T) {
+	filter := scamURLContainsFilter(" https://bad.example ")
+	web := documentValue(t, filter, "web").(bson.D)
+	if value := documentValue(t, web, "$regex"); value != ` https://bad\.example ` {
+		t.Fatalf("regex = %#v", value)
+	}
+}

@@ -26,7 +26,7 @@ func (s ReportService) Report(ctx context.Context, rawURL string, reporterUserID
 		return domain.ScamURLReport{}, domain.ErrInvalidScamURLReport
 	}
 	report := domain.ScamURLReport{
-		URL:            strings.TrimSpace(rawURL),
+		URL:            rawURL,
 		ReporterUserID: strings.TrimSpace(reporterUserID),
 	}
 	if err := report.Validate(); err != nil {

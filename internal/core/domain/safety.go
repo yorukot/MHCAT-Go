@@ -2,13 +2,19 @@ package domain
 
 import (
 	"errors"
-	"net/url"
+	"regexp"
 	"strings"
+	"unicode/utf16"
 )
 
 var ErrInvalidAntiScamConfig = errors.New("invalid anti-scam config")
 var ErrInvalidScamURLReport = errors.New("invalid scam URL report")
 var ErrScamURLAlreadyReported = errors.New("scam URL already reported")
+
+var (
+	legacyURLProtocolAndDomain = regexp.MustCompile(`^(?:[A-Za-z0-9_]+:)?//(\S+)$`)
+	legacyLocalhostDomain      = regexp.MustCompile(`^localhost[:?0-9]*(?:[^:?0-9].*)?$`)
+)
 
 type AntiScamConfig struct {
 	GuildID string
@@ -38,12 +44,26 @@ func (r ScamURLReport) Validate() error {
 }
 
 func LooksLikeURL(raw string) bool {
-	parsed, err := url.ParseRequestURI(strings.TrimSpace(raw))
-	if err != nil || parsed == nil {
+	match := legacyURLProtocolAndDomain.FindStringSubmatch(raw)
+	if len(match) != 2 || match[1] == "" {
 		return false
 	}
-	if parsed.Scheme == "" || parsed.Host == "" {
+	domain := match[1]
+	if strings.IndexFunc(domain, legacyURLWhitespace) >= 0 {
 		return false
 	}
-	return parsed.Scheme == "http" || parsed.Scheme == "https"
+	if legacyLocalhostDomain.MatchString(domain) {
+		return true
+	}
+	dot := strings.IndexByte(domain, '.')
+	return dot > 0 && len(utf16.Encode([]rune(domain[dot+1:]))) >= 2
+}
+
+func legacyURLWhitespace(character rune) bool {
+	switch character {
+	case '\t', '\n', '\v', '\f', '\r', ' ', '\u00a0', '\u1680', '\u2028', '\u2029', '\u202f', '\u205f', '\u3000', '\ufeff':
+		return true
+	default:
+		return character >= '\u2000' && character <= '\u200a'
+	}
 }

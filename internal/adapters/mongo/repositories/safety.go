@@ -117,7 +117,6 @@ func (r *ScamURLCatalogRepository) ContainsScamURL(ctx context.Context, rawURL s
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
-	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
 		return false, nil
 	}
@@ -162,7 +161,7 @@ func (r *ScamURLCatalogRepository) FindScamURLInContent(ctx context.Context, con
 }
 
 func scamURLContainsFilter(rawURL string) bson.D {
-	return bson.D{{Key: "web", Value: bson.D{{Key: "$regex", Value: regexp.QuoteMeta(strings.TrimSpace(rawURL))}}}}
+	return bson.D{{Key: "web", Value: bson.D{{Key: "$regex", Value: regexp.QuoteMeta(rawURL)}}}}
 }
 
 var _ ports.ScamURLCatalog = (*ScamURLCatalogRepository)(nil)
