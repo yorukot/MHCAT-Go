@@ -45,7 +45,7 @@ func (r *AntiScamConfigRepository) FindAntiScamConfig(ctx context.Context, guild
 	if guildID == "" {
 		return domain.AntiScamConfig{}, domain.ErrInvalidAntiScamConfig
 	}
-	var document documents.GoodWebConfigDocument
+	var document documents.GoodWebConfigReadDocument
 	if err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document); err != nil {
 		if mhcatmongo.ErrorIs(mhcatmongo.MapError(err), mhcatmongo.ErrorKindNotFound) {
 			return domain.AntiScamConfig{}, ports.ErrAntiScamConfigMissing
