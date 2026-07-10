@@ -3,19 +3,29 @@ package onboarding
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"encoding/base32"
+	"encoding/binary"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/jpeg"
-	"math/big"
+	"math"
+	mathrand "math/rand"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/onboarding"
+	xdraw "golang.org/x/image/draw"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/math/f64"
+	"golang.org/x/image/math/fixed"
 )
 
 const verificationChallengeTTL = 5 * time.Minute
@@ -108,7 +118,7 @@ func (s *verificationChallengeStore) pruneLocked() {
 
 func randomStateID() (string, error) {
 	var raw [10]byte
-	if _, err := rand.Read(raw[:]); err != nil {
+	if _, err := cryptorand.Read(raw[:]); err != nil {
 		return "", err
 	}
 	return strings.TrimRight(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(raw[:]), "="), nil
@@ -120,73 +130,211 @@ func (verificationCaptchaGenerator) Generate(ctx context.Context) (coreservice.V
 	if err := ctx.Err(); err != nil {
 		return coreservice.VerificationGeneratedChallenge{}, err
 	}
-	answer, err := randomDigits(4)
+	random, err := newVerificationCaptchaRandom()
 	if err != nil {
 		return coreservice.VerificationGeneratedChallenge{}, err
 	}
-	imageData, err := renderCaptchaJPEG(answer)
+	answer := randomVerificationAnswer(random)
+	imageData, err := renderCaptchaJPEG(answer, random)
 	if err != nil {
 		return coreservice.VerificationGeneratedChallenge{}, err
 	}
 	return coreservice.VerificationGeneratedChallenge{Answer: answer, ImageName: "captcha.jpeg", ImageData: imageData}, nil
 }
 
-func randomDigits(count int) (string, error) {
-	var builder strings.Builder
-	for i := 0; i < count; i++ {
-		value, err := rand.Int(rand.Reader, big.NewInt(10))
-		if err != nil {
-			return "", err
-		}
-		builder.WriteByte(byte('0' + value.Int64()))
+func newVerificationCaptchaRandom() (*mathrand.Rand, error) {
+	var seed [8]byte
+	if _, err := cryptorand.Read(seed[:]); err != nil {
+		return nil, err
 	}
-	return builder.String(), nil
+	return mathrand.New(mathrand.NewSource(int64(binary.LittleEndian.Uint64(seed[:])))), nil
 }
 
-func renderCaptchaJPEG(answer string) ([]byte, error) {
-	img := image.NewRGBA(image.Rect(0, 0, 180, 64))
-	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.RGBA{R: 245, G: 248, B: 255, A: 255}}, image.Point{}, draw.Src)
-	for index, digit := range answer {
-		drawSevenSegment(img, 18+index*38, 10, digit, color.RGBA{R: 45, G: 80, B: 180, A: 255})
+const verificationCaptchaAlphabet = "ABCDEFHIJLMNOPSTUVWXYZ"
+
+func randomVerificationAnswer(random *mathrand.Rand) string {
+	var answer [6]byte
+	for index := range answer {
+		answer[index] = verificationCaptchaAlphabet[random.Intn(len(verificationCaptchaAlphabet))]
 	}
+	return string(answer[:])
+}
+
+func renderCaptchaJPEG(answer string, random *mathrand.Rand) ([]byte, error) {
+	const width = 400
+	const height = 250
+	canvas := image.NewRGBA(image.Rect(0, 0, width, height))
+	draw.Draw(canvas, canvas.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
+
+	coords := [4][5]int{}
+	for i := range coords {
+		for j := range coords[i] {
+			coords[i][j] = int(math.Round(random.Float64()*80)) + j*80
+		}
+		if i%2 == 0 {
+			random.Shuffle(len(coords[i]), func(left int, right int) {
+				coords[i][left], coords[i][right] = coords[i][right], coords[i][left]
+			})
+		}
+	}
+	black := color.RGBA{A: 255}
+	for i := 0; i < 5; i++ {
+		drawCaptchaLine(canvas, coords[0][i], 0, coords[1][i], 400, 4, black)
+		drawCaptchaLine(canvas, 0, coords[2][i], 400, coords[3][i], 4, black)
+	}
+	for i := 0; i < 200; i++ {
+		x := int(math.Round(random.Float64()*360)) + 20
+		y := int(math.Round(random.Float64()*360)) + 20
+		radius := int(math.Round(random.Float64()*7)) + 1
+		drawCaptchaCircle(canvas, x, y, float64(radius), black)
+	}
+
+	drawCaptchaAnswer(canvas, answer, random)
+	for i := 0; i < 5000; i++ {
+		pointColor := color.RGBA{
+			R: uint8(random.Intn(256)),
+			G: uint8(random.Intn(256)),
+			B: uint8(random.Intn(256)),
+			A: 160,
+		}
+		drawCaptchaCircle(canvas, random.Intn(width+1), random.Intn(height+1), random.Float64()*2, pointColor)
+	}
+
 	var buffer bytes.Buffer
-	if err := jpeg.Encode(&buffer, img, &jpeg.Options{Quality: 88}); err != nil {
+	if err := jpeg.Encode(&buffer, canvas, &jpeg.Options{Quality: 75}); err != nil {
 		return nil, err
 	}
 	return buffer.Bytes(), nil
 }
 
-var sevenSegmentDigits = map[rune][7]bool{
-	'0': {true, true, true, true, true, true, false},
-	'1': {false, true, true, false, false, false, false},
-	'2': {true, true, false, true, true, false, true},
-	'3': {true, true, true, true, false, false, true},
-	'4': {false, true, true, false, false, true, true},
-	'5': {true, false, true, true, false, true, true},
-	'6': {true, false, true, true, true, true, true},
-	'7': {true, true, true, false, false, false, false},
-	'8': {true, true, true, true, true, true, true},
-	'9': {true, true, true, true, false, true, true},
+func drawCaptchaAnswer(canvas *image.RGBA, answer string, random *mathrand.Rand) {
+	layer := image.NewRGBA(image.Rect(0, 0, 400, 130))
+	face := verificationCaptchaFontFace(90)
+	if face != nil {
+		defer face.Close()
+		width := font.MeasureString(face, answer).Ceil()
+		baseline := face.Metrics().Ascent.Ceil()
+		drawer := &font.Drawer{
+			Dst:  layer,
+			Src:  image.NewUniform(color.Black),
+			Face: face,
+			Dot:  fixed.P((layer.Bounds().Dx()-width)/2, baseline),
+		}
+		drawer.DrawString(answer)
+		drawer.Dot.X += fixed.I(1)
+		drawer.DrawString(answer)
+	} else {
+		small := image.NewRGBA(image.Rect(0, 0, 48, 15))
+		drawer := &font.Drawer{Dst: small, Src: image.NewUniform(color.Black), Face: basicfont.Face7x13, Dot: fixed.P(3, 13)}
+		drawer.DrawString(answer)
+		xdraw.NearestNeighbor.Scale(layer, image.Rect(45, 10, 355, 105), small, small.Bounds(), draw.Over, nil)
+	}
+
+	centerX := int(math.Round(random.Float64()*100-50)) + 200
+	topY := 125 - int(math.Round(random.Float64()*62.5-31.25))
+	angle := random.Float64() - 0.5
+	cosine, sine := math.Cos(angle), math.Sin(angle)
+	sourcePivotX := 200.0
+	matrix := f64.Aff3{
+		cosine, -sine, float64(centerX) - cosine*sourcePivotX,
+		sine, cosine, float64(topY) - sine*sourcePivotX,
+	}
+	xdraw.CatmullRom.Transform(canvas, matrix, layer, layer.Bounds(), draw.Over, nil)
 }
 
-func drawSevenSegment(img *image.RGBA, x int, y int, digit rune, c color.Color) {
-	segments, ok := sevenSegmentDigits[digit]
-	if !ok {
+func drawCaptchaLine(canvas *image.RGBA, x0 int, y0 int, x1 int, y1 int, width int, lineColor color.RGBA) {
+	steps := max(absInt(x1-x0), absInt(y1-y0))
+	if steps == 0 {
+		drawCaptchaCircle(canvas, x0, y0, float64(width)/2, lineColor)
 		return
 	}
-	rects := []image.Rectangle{
-		image.Rect(x+4, y, x+28, y+5),
-		image.Rect(x+28, y+4, x+33, y+24),
-		image.Rect(x+28, y+28, x+33, y+48),
-		image.Rect(x+4, y+48, x+28, y+53),
-		image.Rect(x, y+28, x+5, y+48),
-		image.Rect(x, y+4, x+5, y+24),
-		image.Rect(x+4, y+24, x+28, y+29),
+	for step := 0; step <= steps; step++ {
+		x := x0 + (x1-x0)*step/steps
+		y := y0 + (y1-y0)*step/steps
+		drawCaptchaCircle(canvas, x, y, float64(width)/2, lineColor)
 	}
-	for index, enabled := range segments {
-		if enabled {
-			draw.Draw(img, rects[index], &image.Uniform{C: c}, image.Point{}, draw.Src)
+}
+
+func drawCaptchaCircle(canvas *image.RGBA, centerX int, centerY int, radius float64, circleColor color.RGBA) {
+	limit := int(math.Ceil(radius))
+	radiusSquared := radius * radius
+	for y := centerY - limit; y <= centerY+limit; y++ {
+		for x := centerX - limit; x <= centerX+limit; x++ {
+			dx, dy := float64(x-centerX), float64(y-centerY)
+			if dx*dx+dy*dy <= radiusSquared {
+				blendCaptchaPixel(canvas, x, y, circleColor)
+			}
 		}
+	}
+}
+
+func blendCaptchaPixel(canvas *image.RGBA, x int, y int, source color.RGBA) {
+	if !image.Pt(x, y).In(canvas.Bounds()) {
+		return
+	}
+	if source.A == 255 {
+		canvas.SetRGBA(x, y, source)
+		return
+	}
+	destination := canvas.RGBAAt(x, y)
+	alpha := uint32(source.A)
+	inverse := uint32(255 - source.A)
+	canvas.SetRGBA(x, y, color.RGBA{
+		R: uint8((uint32(source.R)*alpha + uint32(destination.R)*inverse) / 255),
+		G: uint8((uint32(source.G)*alpha + uint32(destination.G)*inverse) / 255),
+		B: uint8((uint32(source.B)*alpha + uint32(destination.B)*inverse) / 255),
+		A: 255,
+	})
+}
+
+func absInt(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
+}
+
+var verificationCaptchaFont struct {
+	once sync.Once
+	font *opentype.Font
+}
+
+func verificationCaptchaFontFace(size float64) font.Face {
+	verificationCaptchaFont.once.Do(func() {
+		for _, relative := range []string{
+			"node_modules/@haileybot/captcha-generator/assets/Swift.ttf",
+			"fonts/Comic-Sans-MS-copy-5-.ttf",
+			"fonts/TaipeiSansTCBeta-Regular.ttf",
+		} {
+			for _, path := range verificationAssetCandidates(relative) {
+				data, err := os.ReadFile(path)
+				if err != nil {
+					continue
+				}
+				parsed, err := opentype.Parse(data)
+				if err == nil {
+					verificationCaptchaFont.font = parsed
+					return
+				}
+			}
+		}
+	})
+	if verificationCaptchaFont.font == nil {
+		return nil
+	}
+	face, err := opentype.NewFace(verificationCaptchaFont.font, &opentype.FaceOptions{Size: size, DPI: 72, Hinting: font.HintingFull})
+	if err != nil {
+		return nil
+	}
+	return face
+}
+
+func verificationAssetCandidates(relative string) []string {
+	return []string{
+		relative,
+		filepath.Join("MHCAT", relative),
+		filepath.Join("..", "MHCAT", relative),
+		filepath.Join("..", "..", "..", "..", "..", "MHCAT", relative),
 	}
 }
 

@@ -1,0 +1,75 @@
+package onboarding
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"image/jpeg"
+	mathrand "math/rand"
+	"strings"
+	"testing"
+)
+
+func TestVerificationCaptchaGeneratorPreservesLegacyShape(t *testing.T) {
+	generated, err := (verificationCaptchaGenerator{}).Generate(context.Background())
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	if len(generated.Answer) != 6 {
+		t.Fatalf("answer = %q, want six letters", generated.Answer)
+	}
+	for _, letter := range generated.Answer {
+		if !strings.ContainsRune(verificationCaptchaAlphabet, letter) {
+			t.Fatalf("answer %q contains unsupported letter %q", generated.Answer, letter)
+		}
+	}
+	if generated.ImageName != "captcha.jpeg" {
+		t.Fatalf("image name = %q", generated.ImageName)
+	}
+	image, err := jpeg.Decode(bytes.NewReader(generated.ImageData))
+	if err != nil {
+		t.Fatalf("decode JPEG: %v", err)
+	}
+	if bounds := image.Bounds(); bounds.Dx() != 400 || bounds.Dy() != 250 {
+		t.Fatalf("image bounds = %v", bounds)
+	}
+	dark, nonWhite := 0, 0
+	for y := image.Bounds().Min.Y; y < image.Bounds().Max.Y; y++ {
+		for x := image.Bounds().Min.X; x < image.Bounds().Max.X; x++ {
+			red, green, blue, _ := image.At(x, y).RGBA()
+			if red+green+blue < 3*0x4000 {
+				dark++
+			}
+			if red < 0xf000 || green < 0xf000 || blue < 0xf000 {
+				nonWhite++
+			}
+		}
+	}
+	if dark < 1000 || nonWhite < 10000 {
+		t.Fatalf("captcha lacks legacy noise: dark=%d nonWhite=%d", dark, nonWhite)
+	}
+}
+
+func TestRandomVerificationAnswerUsesLegacyAlphabet(t *testing.T) {
+	random := mathrand.New(mathrand.NewSource(42))
+	for i := 0; i < 100; i++ {
+		answer := randomVerificationAnswer(random)
+		if len(answer) != 6 {
+			t.Fatalf("answer = %q", answer)
+		}
+		for _, letter := range answer {
+			if !strings.ContainsRune(verificationCaptchaAlphabet, letter) {
+				t.Fatalf("answer %q contains unsupported letter %q", answer, letter)
+			}
+		}
+	}
+}
+
+func TestVerificationCaptchaGeneratorHonorsCanceledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := (verificationCaptchaGenerator{}).Generate(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context canceled", err)
+	}
+}
