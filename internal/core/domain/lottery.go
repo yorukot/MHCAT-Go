@@ -74,7 +74,7 @@ func (l Lottery) IsExpired(now time.Time) bool {
 }
 
 func (l Lottery) AtCapacity() bool {
-	return l.MaxParticipants > 0 && len(l.Participants) >= l.MaxParticipants
+	return l.MaxParticipants != 0 && len(l.Participants) >= l.MaxParticipants
 }
 
 func (r LotteryJoinRequest) Normalized() LotteryJoinRequest {

@@ -118,7 +118,7 @@ func lotteryJoinFilter(request domain.LotteryJoinRequest) bson.D {
 		bson.E{Key: "$expr", Value: bson.D{{Key: "$and", Value: bson.A{
 			bson.D{{Key: "$gte", Value: bson.A{lotteryConvertLong("$date", int64(-1)), request.NowUnix}}},
 			bson.D{{Key: "$or", Value: bson.A{
-				bson.D{{Key: "$lte", Value: bson.A{maxParticipants, int64(0)}}},
+				bson.D{{Key: "$eq", Value: bson.A{maxParticipants, int64(0)}}},
 				bson.D{{Key: "$lt", Value: bson.A{lotteryArraySize("$member"), maxParticipants}}},
 			}}},
 		}}}},

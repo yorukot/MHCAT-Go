@@ -28,6 +28,12 @@ func TestLotteryLegacyStateHelpers(t *testing.T) {
 	if !lottery.IsExpired(time.Unix(201, 0)) {
 		t.Fatal("lottery should expire after its ending second")
 	}
+	if !(Lottery{MaxParticipants: -1}).AtCapacity() {
+		t.Fatal("legacy negative participant limit is immediately full")
+	}
+	if (Lottery{}).AtCapacity() {
+		t.Fatal("legacy null participant limit decodes as unlimited zero")
+	}
 }
 
 func TestLotteryJoinRequestValidation(t *testing.T) {

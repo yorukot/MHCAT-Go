@@ -24,10 +24,13 @@ func TestLotteryJoinFilterOwnsLegacyEntryGuards(t *testing.T) {
 		t.Fatalf("marshal filter: %v", err)
 	}
 	text := string(encoded)
-	for _, expected := range []string{`"guild":"guild-1"`, `"id":"id-1"`, `"end":{"$ne":true}`, `"member":{"$not":{"$elemMatch":{"id":"user-1"}}}`, `"$date"`, `"$maxNumber"`, `"$isArray":"$member"`} {
+	for _, expected := range []string{`"guild":"guild-1"`, `"id":"id-1"`, `"end":{"$ne":true}`, `"member":{"$not":{"$elemMatch":{"id":"user-1"}}}`, `"$date"`, `"$maxNumber"`, `"$eq"`, `"$isArray":"$member"`} {
 		if !strings.Contains(text, expected) {
 			t.Fatalf("filter missing %s: %s", expected, text)
 		}
+	}
+	if strings.Contains(text, `"$lte"`) {
+		t.Fatalf("negative participant limits must not be treated as unlimited: %s", text)
 	}
 }
 

@@ -68,6 +68,21 @@ func TestJoinPreservesLegacyDuplicateAndCapacityErrorPrecedence(t *testing.T) {
 	}
 }
 
+func TestJoinPreservesLegacyNegativeCapacity(t *testing.T) {
+	repo := fakemongo.NewLotteryRepository()
+	repo.Lotteries["guild-1:id-1"] = domain.Lottery{
+		GuildID:         "guild-1",
+		ID:              "id-1",
+		EndsAtUnix:      200,
+		MaxParticipants: -1,
+	}
+	service := NewService(repo)
+
+	if _, err := service.Join(context.Background(), domain.LotteryJoinRequest{GuildID: "guild-1", ID: "id-1", UserID: "user-1"}, nil, time.Unix(100, 0)); !errors.Is(err, ports.ErrLotteryFull) {
+		t.Fatalf("negative capacity error = %v", err)
+	}
+}
+
 func TestManagedLotteryUsesLegacyOwnerFallback(t *testing.T) {
 	repo := fakemongo.NewLotteryRepository()
 	service := NewService(repo)
