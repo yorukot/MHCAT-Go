@@ -65,23 +65,29 @@ func (r *TicketConfigRepository) SaveTicketConfig(ctx context.Context, config do
 		return err
 	}
 	document := documents.TicketConfigDocumentFromDomain(config)
-	update, err := mhcatmongo.NewUpdate().
-		Set("ticket_channel", document.TicketChannel).
-		Set("admin_id", document.AdminID).
-		Set("everyone_id", document.EveryoneID).
-		SetOnInsert("guild", document.Guild).
-		Build()
+	update, err := ticketConfigUpdate(document, false)
+	if err != nil {
+		return err
+	}
+	result, err := r.collection.UpdateMany(ctx, bson.D{{Key: "guild", Value: document.Guild}}, update)
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("save ticket config: %w", err))
+	}
+	if result.MatchedCount > 0 {
+		return ctx.Err()
+	}
+	upsert, err := ticketConfigUpdate(document, true)
 	if err != nil {
 		return err
 	}
 	_, err = r.collection.UpdateOne(
 		ctx,
 		bson.D{{Key: "guild", Value: document.Guild}},
-		update,
+		upsert,
 		options.UpdateOne().SetUpsert(true),
 	)
 	if err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("save ticket config: %w", err))
+		return mhcatmongo.MapError(fmt.Errorf("upsert ticket config: %w", err))
 	}
 	return ctx.Err()
 }
@@ -94,7 +100,7 @@ func (r *TicketConfigRepository) DeleteTicketConfig(ctx context.Context, guildID
 	if guildID == "" {
 		return domain.ErrInvalidTicketConfig
 	}
-	result, err := r.collection.DeleteOne(ctx, bson.D{{Key: "guild", Value: guildID}})
+	result, err := r.collection.DeleteMany(ctx, bson.D{{Key: "guild", Value: guildID}})
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("delete ticket config: %w", err))
 	}
@@ -102,4 +108,15 @@ func (r *TicketConfigRepository) DeleteTicketConfig(ctx context.Context, guildID
 		return ports.ErrTicketConfigNotFound
 	}
 	return ctx.Err()
+}
+
+func ticketConfigUpdate(document documents.TicketConfigDocument, upsert bool) (bson.D, error) {
+	builder := mhcatmongo.NewUpdate().
+		Set("ticket_channel", document.TicketChannel).
+		Set("admin_id", document.AdminID).
+		Set("everyone_id", document.EveryoneID)
+	if upsert {
+		builder.SetOnInsert("guild", document.Guild)
+	}
+	return builder.Build()
 }
