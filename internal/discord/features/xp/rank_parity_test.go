@@ -1,10 +1,12 @@
 package xp
 
 import (
+	"bytes"
 	"context"
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/xp"
@@ -158,6 +160,47 @@ func TestParseLegacyXPRankPageRequestBoundsPages(t *testing.T) {
 		if _, _, _, err := parseLegacyXPRankPageRequest(customID); err == nil {
 			t.Fatalf("parseLegacyXPRankPageRequest(%q) unexpectedly succeeded", customID)
 		}
+	}
+}
+
+func TestLegacyRankCanvasNumberLayout(t *testing.T) {
+	if got := legacyRankNumber(0, 0); got != 1 {
+		t.Fatalf("first rank = %d, want 1", got)
+	}
+	if got := legacyRankNumber(12, 9); got != 130 {
+		t.Fatalf("last rank = %d, want 130", got)
+	}
+	for page, want := range map[int]int{0: 40, 99: 40, 100: 30, 999: 30, 1000: 25} {
+		if got := legacyRankNumberFontSize(page); got != want {
+			t.Fatalf("legacyRankNumberFontSize(%d) = %d, want %d", page, got, want)
+		}
+	}
+	if x, row := legacyRankSlotPosition(4); x != 0 || row != 4 {
+		t.Fatalf("left slot = (%d, %d)", x, row)
+	}
+	if x, row := legacyRankSlotPosition(5); x != 484 || row != 0 {
+		t.Fatalf("right slot = (%d, %d)", x, row)
+	}
+}
+
+func TestRenderRankPNGIncludesSlotsOnEmptyPages(t *testing.T) {
+	view := rankCanvasView{
+		GuildName:      "Guild",
+		GuildCreatedAt: time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC),
+		ViewerRankText: "沒有資料!",
+		Title:          "聊天經驗排行榜",
+	}
+	first, err := renderRankPNG(view)
+	if err != nil {
+		t.Fatalf("render first page: %v", err)
+	}
+	view.Page = 1
+	second, err := renderRankPNG(view)
+	if err != nil {
+		t.Fatalf("render second page: %v", err)
+	}
+	if bytes.Equal(first, second) {
+		t.Fatal("empty rank pages rendered identically")
 	}
 }
 

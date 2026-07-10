@@ -30,6 +30,7 @@ type rankCanvasView struct {
 	GuildCreatedAt time.Time
 	ViewerRankText string
 	Title          string
+	Page           int
 	Entries        []rankCanvasEntry
 }
 
@@ -78,7 +79,7 @@ func drawGeneratedRankBackground(canvas *image.RGBA) {
 
 func drawRankHeader(canvas *image.RGBA, view rankCanvasView) {
 	fillRankRect(canvas, image.Rect(33, 10, 103, 80), color.RGBA{R: 88, G: 101, B: 242, A: 255})
-	drawRankText(canvas, 45, 55, "M", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 3)
+	drawRankText(canvas, 45, 55, "M", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 30)
 	guildName := truncateLegacyRankText(view.GuildName)
 	if guildName == "" {
 		guildName = "MHCAT"
@@ -87,43 +88,68 @@ func drawRankHeader(canvas *image.RGBA, view rankCanvasView) {
 	if createdAt.IsZero() {
 		createdAt = time.Unix(0, 0).UTC()
 	}
-	drawRankText(canvas, 115, 50, guildName, color.RGBA{R: 211, G: 211, B: 211, A: 255}, 3)
-	drawRankText(canvas, 118, 74, view.Title, color.RGBA{R: 168, G: 168, B: 168, A: 255}, 2)
-	drawRankText(canvas, 710, 70, view.ViewerRankText, color.RGBA{R: 230, G: 235, B: 255, A: 255}, 3)
-	drawRankText(canvas, 790, 70, createdAt.Format("2006/01/02"), color.RGBA{R: 230, G: 235, B: 255, A: 255}, 2)
+	headerColor := color.RGBA{R: 211, G: 211, B: 211, A: 255}
+	drawRankText(canvas, 115, 50, guildName, headerColor, 37)
+	drawRankText(canvas, 118, 74, view.Title, color.RGBA{R: 168, G: 168, B: 168, A: 255}, 20)
+	drawRankCenteredText(canvas, 710, 70, view.ViewerRankText, headerColor, 30)
+	drawRankText(canvas, 790, 70, createdAt.Format("2006/01/02"), headerColor, 30)
 }
 
 func drawRankRows(canvas *image.RGBA, view rankCanvasView) {
+	white := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	rankSize := legacyRankNumberFontSize(view.Page)
+	for slot := 0; slot < coreservice.RankPageSize; slot++ {
+		xOffset, row := legacyRankSlotPosition(slot)
+		drawRankCenteredText(canvas, 73+xOffset, 146+row*74, strconv.Itoa(legacyRankNumber(view.Page, slot)), white, rankSize)
+	}
 	for i, entry := range view.Entries {
-		xOffset := 0
-		row := i
-		if i >= 5 {
-			xOffset = 484
-			row = i - 5
-		}
-		rankY := 146 + row*74
+		xOffset, row := legacyRankSlotPosition(i)
 		nameY := 131 + row*74
 		xpY := 153 + row*74
-		rankScale := 4
-		if entry.Rank > 99 && entry.Rank < 1000 {
-			rankScale = 3
-		}
-		if entry.Rank > 999 {
-			rankScale = 2
-		}
-		drawRankText(canvas, 55+xOffset, rankY, strconv.Itoa(entry.Rank), color.RGBA{R: 255, G: 255, B: 255, A: 255}, rankScale)
-		drawRankText(canvas, 121+xOffset, nameY, truncateLegacyRankText(entry.DisplayName), color.RGBA{R: 255, G: 255, B: 255, A: 255}, 2)
-		drawRankText(canvas, 137+xOffset, xpY, coreservice.LegacyRankAmount(entry.TotalXP), color.RGBA{R: 226, G: 230, B: 240, A: 255}, 2)
+		drawRankText(canvas, 121+xOffset, nameY, truncateLegacyRankText(entry.DisplayName), white, 25)
+		drawRankText(canvas, 137+xOffset, xpY, coreservice.LegacyRankAmount(entry.TotalXP), white, 15)
 	}
+}
+
+func legacyRankSlotPosition(slot int) (int, int) {
+	if slot >= coreservice.RankPageSize/2 {
+		return 484, slot - coreservice.RankPageSize/2
+	}
+	return 0, slot
+}
+
+func legacyRankNumber(page int, slot int) int {
+	return page*coreservice.RankPageSize + slot + 1
+}
+
+func legacyRankNumberFontSize(page int) int {
+	if page > 99 && page < 1000 {
+		return 30
+	}
+	if page > 999 {
+		return 25
+	}
+	return 40
 }
 
 func fillRankRect(img *image.RGBA, rect image.Rectangle, c color.Color) {
 	draw.Draw(img, rect, &image.Uniform{C: c}, image.Point{}, draw.Src)
 }
 
-func drawRankText(img *image.RGBA, x, y int, text string, c color.RGBA, scale int) {
-	if face := rankFontFace(float64(scale) * 10); face != nil {
+func drawRankText(img *image.RGBA, x, y int, text string, c color.RGBA, size int) {
+	drawRankAlignedText(img, x, y, text, c, size, false)
+}
+
+func drawRankCenteredText(img *image.RGBA, x, y int, text string, c color.RGBA, size int) {
+	drawRankAlignedText(img, x, y, text, c, size, true)
+}
+
+func drawRankAlignedText(img *image.RGBA, x, y int, text string, c color.RGBA, size int, centered bool) {
+	if face := rankFontFace(float64(size)); face != nil {
 		defer face.Close()
+		if centered {
+			x -= font.MeasureString(face, text).Ceil() / 2
+		}
 		drawer := &font.Drawer{
 			Dst:  img,
 			Src:  image.NewUniform(c),
@@ -133,11 +159,26 @@ func drawRankText(img *image.RGBA, x, y int, text string, c color.RGBA, scale in
 		drawer.DrawString(text)
 		return
 	}
+	scale := max(1, (size+5)/10)
+	if centered {
+		x -= rankFallbackTextWidth(text, scale) / 2
+	}
 	cursor := x
 	for _, r := range text {
-		drawRankRune(img, cursor, y, r, c, scale)
+		drawRankRune(img, cursor, y-7*scale, r, c, scale)
 		cursor += 6*scale + scale
 	}
+}
+
+func rankFallbackTextWidth(text string, scale int) int {
+	count := 0
+	for range text {
+		count++
+	}
+	if count == 0 {
+		return 0
+	}
+	return (count*7 - 2) * scale
 }
 
 var rankFont struct {

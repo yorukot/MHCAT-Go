@@ -155,6 +155,7 @@ func (m RankModule) rankMessage(ctx context.Context, interaction interactions.In
 		GuildCreatedAt: guild.CreatedAt,
 		ViewerRankText: viewerRankText,
 		Title:          rankCanvasTitle(kind),
+		Page:           result.Page,
 		Entries:        canvasEntries,
 	})
 	if err != nil {
