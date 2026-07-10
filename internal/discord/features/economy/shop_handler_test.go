@@ -115,6 +115,39 @@ func TestShopDetailAndQuantityUseLegacyRandomColors(t *testing.T) {
 	}
 }
 
+func TestShopComponentsRejectDifferentRequester(t *testing.T) {
+	module := NewShopModule(fakemongo.NewEconomyRepository(), nil, nil, nil, nil, nil, nil)
+	tests := []struct {
+		name     string
+		customID string
+		handler  interactions.Handler
+	}{
+		{name: "item", customID: "1001", handler: module.ShopItemHandler()},
+		{name: "purchase", customID: "1001ghp", handler: module.ShopItemHandler()},
+		{name: "quantity", customID: "1ghp_number", handler: module.ShopQuantityHandler()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			interaction := fakediscord.ComponentInteractionFromID(tt.customID)
+			interaction.Actor.UserID = "user-2"
+			interaction.OriginalInteractionUserID = "user-1"
+			responder := fakediscord.NewResponder()
+
+			if err := tt.handler(context.Background(), interaction, responder); err != nil {
+				t.Fatalf("handle component: %v", err)
+			}
+			if len(responder.Replies) != 1 || !responder.Replies[0].Ephemeral || len(responder.Updates) != 0 {
+				t.Fatalf("response = replies %#v updates %#v", responder.Replies, responder.Updates)
+			}
+			embed := responder.Replies[0].Embeds[0]
+			if embed.Title != "<a:error:980086028113182730> | 你不是查詢者無法使用!" || embed.Color != shopUnauthorizedColor {
+				t.Fatalf("unauthorized embed = %#v", embed)
+			}
+		})
+	}
+}
+
 func TestShopPurchaseFlowMutatesCoinsInventoryRoleAndCode(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 20, Description: "role reward", Code: "CODE", AutoDelete: true, RoleID: "role-1", Count: 1})

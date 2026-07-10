@@ -74,26 +74,27 @@ func (r Route) String() string {
 }
 
 type Interaction struct {
-	ID              string
-	Type            Type
-	CommandName     string
-	SubcommandGroup string
-	Subcommand      string
-	Options         map[string]string
-	CommandOptions  map[string]CommandOptionValue
-	CustomID        string
-	Values          []string
-	ComponentKey    ComponentKey
-	ModalKey        ModalKey
-	RouteKey        RouteKey
-	ModalFields     []customid.ModalField
-	CreatedAt       time.Time
-	ChannelID       string
-	ChannelName     string
-	MessageID       string
-	Locale          string
-	GuildLocale     string
-	Actor           Actor
+	ID                        string
+	Type                      Type
+	CommandName               string
+	SubcommandGroup           string
+	Subcommand                string
+	Options                   map[string]string
+	CommandOptions            map[string]CommandOptionValue
+	CustomID                  string
+	Values                    []string
+	ComponentKey              ComponentKey
+	ModalKey                  ModalKey
+	RouteKey                  RouteKey
+	ModalFields               []customid.ModalField
+	CreatedAt                 time.Time
+	ChannelID                 string
+	ChannelName               string
+	MessageID                 string
+	OriginalInteractionUserID string
+	Locale                    string
+	GuildLocale               string
+	Actor                     Actor
 }
 
 func (i Interaction) Route() Route {

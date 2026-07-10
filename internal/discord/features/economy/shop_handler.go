@@ -27,6 +27,7 @@ const (
 	shopOptionCount         = "商品數量"
 	shopOptionID            = "商品id"
 	shopErrorColor          = 0xED4245
+	shopUnauthorizedColor   = 0xEA0000
 	shopSuccessColor        = 0x53FF53
 	shopManageMessagesBit   = int64(8192)
 	shopErrorEmoji          = "<a:Discord_AnimatedNo:1015989839809757295>"
@@ -158,6 +159,9 @@ func (m Module) handleShopList(ctx context.Context, interaction interactions.Int
 
 func (m Module) ShopItemHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if !shopInteractionOwnedByActor(interaction) {
+			return responder.Reply(ctx, shopUnauthorizedMessage())
+		}
 		raw := strings.TrimSpace(interaction.CustomID)
 		if strings.HasSuffix(raw, "ghp") {
 			commodityID, ok := shopCommodityIDFromCustomID(strings.TrimSuffix(raw, "ghp"))
@@ -190,6 +194,9 @@ func (m Module) ShopItemHandler() interactions.Handler {
 
 func (m Module) ShopQuantityHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if !shopInteractionOwnedByActor(interaction) {
+			return responder.Reply(ctx, shopUnauthorizedMessage())
+		}
 		raw := strings.TrimSpace(interaction.CustomID)
 		if strings.HasPrefix(raw, "confirmghp_number") {
 			commodityID, ok := shopCommodityIDFromCustomID(strings.TrimPrefix(raw, "confirmghp_number"))
@@ -490,6 +497,22 @@ func shopEphemeralContentError(content string) responses.Message {
 	return responses.Message{
 		Content:         content,
 		Ephemeral:       true,
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func shopInteractionOwnedByActor(interaction interactions.Interaction) bool {
+	ownerID := strings.TrimSpace(interaction.OriginalInteractionUserID)
+	return ownerID == "" || ownerID == strings.TrimSpace(interaction.Actor.UserID)
+}
+
+func shopUnauthorizedMessage() responses.Message {
+	return responses.Message{
+		Ephemeral: true,
+		Embeds: []responses.Embed{{
+			Title: "<a:error:980086028113182730> | 你不是查詢者無法使用!",
+			Color: shopUnauthorizedColor,
+		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
 }

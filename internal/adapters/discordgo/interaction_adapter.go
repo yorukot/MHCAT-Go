@@ -50,15 +50,16 @@ func InteractionFromDiscord(event *dgo.InteractionCreate) (interactions.Interact
 			return interactions.Interaction{}, err
 		}
 		return interactions.Interaction{
-			ID:          event.ID,
-			Type:        interactions.TypeComponent,
-			CustomID:    input.CustomID,
-			Values:      input.Values,
-			ChannelID:   event.ChannelID,
-			MessageID:   interactionMessageID(event.Interaction),
-			Locale:      string(event.Locale),
-			GuildLocale: guildLocale(event.Interaction),
-			Actor:       actor,
+			ID:                        event.ID,
+			Type:                      interactions.TypeComponent,
+			CustomID:                  input.CustomID,
+			Values:                    input.Values,
+			ChannelID:                 event.ChannelID,
+			MessageID:                 interactionMessageID(event.Interaction),
+			OriginalInteractionUserID: originalInteractionUserID(event.Interaction),
+			Locale:                    string(event.Locale),
+			GuildLocale:               guildLocale(event.Interaction),
+			Actor:                     actor,
 		}, nil
 	case dgo.InteractionModalSubmit:
 		data := event.ModalSubmitData()
@@ -184,6 +185,19 @@ func interactionMessageID(interaction *dgo.Interaction) string {
 		return ""
 	}
 	return interaction.Message.ID
+}
+
+func originalInteractionUserID(interaction *dgo.Interaction) string {
+	if interaction == nil || interaction.Message == nil {
+		return ""
+	}
+	if metadata := interaction.Message.InteractionMetadata; metadata != nil && metadata.User != nil {
+		return metadata.User.ID
+	}
+	if legacy := interaction.Message.Interaction; legacy != nil && legacy.User != nil {
+		return legacy.User.ID
+	}
+	return ""
 }
 
 func userTag(user *dgo.User) string {

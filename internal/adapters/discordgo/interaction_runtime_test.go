@@ -128,14 +128,19 @@ func TestRuntimeInteractionComponent(t *testing.T) {
 			ComponentType: dgo.SelectMenuComponent,
 			Values:        []string{"overview"},
 		},
-		Message: &dgo.Message{ID: "panel-message"},
-		Member:  &dgo.Member{User: &dgo.User{ID: "user-1"}, Permissions: 8192},
+		Message: &dgo.Message{
+			ID: "panel-message",
+			InteractionMetadata: &dgo.MessageInteractionMetadata{
+				User: &dgo.User{ID: "requester-1"},
+			},
+		},
+		Member: &dgo.Member{User: &dgo.User{ID: "user-1"}, Permissions: 8192},
 	}
 	interaction, _, err := session.RuntimeInteraction(&dgo.InteractionCreate{Interaction: event})
 	if err != nil {
 		t.Fatalf("runtime interaction: %v", err)
 	}
-	if interaction.CustomID != "mhcat:v1:help:category:overview" || len(interaction.Values) != 1 || interaction.MessageID != "panel-message" || interaction.Actor.PermissionBits != 8192 {
+	if interaction.CustomID != "mhcat:v1:help:category:overview" || len(interaction.Values) != 1 || interaction.MessageID != "panel-message" || interaction.OriginalInteractionUserID != "requester-1" || interaction.Actor.PermissionBits != 8192 {
 		t.Fatalf("interaction = %#v", interaction)
 	}
 	parsed, err := customid.ParseComponent(interaction.CustomID)
