@@ -62,6 +62,44 @@ func TestJoinMessageDocumentMissingEnableDefaultsEnabled(t *testing.T) {
 	}
 }
 
+func TestJoinMessageDocumentDecodesLegacyEnableShapes(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		enable      any
+		include     bool
+		wantEnabled bool
+	}{
+		{name: "missing", wantEnabled: true},
+		{name: "null", enable: nil, include: true, wantEnabled: true},
+		{name: "false", enable: false, include: true},
+		{name: "true", enable: true, include: true, wantEnabled: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := bson.D{
+				{Key: "guild", Value: "guild"},
+				{Key: "channel", Value: "channel"},
+				{Key: "message_content", Value: "   "},
+				{Key: "color", Value: "Green"},
+			}
+			if tc.include {
+				raw = append(raw, bson.E{Key: "enable", Value: tc.enable})
+			}
+			encoded, err := bson.Marshal(raw)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			var document JoinMessageDocument
+			if err := bson.Unmarshal(encoded, &document); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			config := document.ToDomain()
+			if config.Enabled != tc.wantEnabled || config.MessageContent != "   " || config.Color != "Green" {
+				t.Fatalf("config = %#v", config)
+			}
+		})
+	}
+}
+
 func TestLeaveMessageDocumentRoundTrip(t *testing.T) {
 	doc := LeaveMessageDocumentFromDomain(domain.LeaveMessageConfig{
 		GuildID:        "guild",
@@ -83,6 +121,26 @@ func TestLeaveMessageDocumentNullFieldsDecodeEmpty(t *testing.T) {
 	back := LeaveMessageDocument{Guild: "guild", Channel: "channel"}.ToDomain()
 	if back.MessageContent != "" || back.Title != "" || back.Color != "" {
 		t.Fatalf("domain = %#v", back)
+	}
+}
+
+func TestLeaveMessageDocumentDecodesNullableLegacyFields(t *testing.T) {
+	encoded, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: "guild"},
+		{Key: "channel", Value: "channel"},
+		{Key: "message_content", Value: "   "},
+		{Key: "title", Value: nil},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document LeaveMessageDocument
+	if err := bson.Unmarshal(encoded, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	config := document.ToDomain()
+	if config.MessageContent != "   " || config.Title != "" || config.Color != "" || config.ChannelID != "channel" {
+		t.Fatalf("config = %#v", config)
 	}
 }
 
