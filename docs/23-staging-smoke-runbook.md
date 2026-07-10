@@ -347,7 +347,7 @@ export MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
 export MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 ```
 
-Use only an isolated staging database with disposable `text_xps`, `coins`, `gift_changes`, `text_xp_channels`, and `chat_roles` rows. This event-only path has no command-sync flag and updates text XP/level on guild messages, sends configured/default level-up announcements when a `text_xp_channels` row exists, applies configured `chat_roles` reward-role changes, and grants legacy XP coin rewards from `gift_changes.xp_multiple`.
+Use only an isolated staging database with disposable `text_xps`, `coins`, `gift_changes`, `text_xp_channels`, and `chat_roles` rows. This event-only path has no command-sync flag and updates text XP/level on guild messages, sends configured/default level-up announcements or legacy fallback errors when a `text_xp_channels` row exists, applies configured `chat_roles` reward-role changes, and grants legacy XP coin rewards from `gift_changes.xp_multiple` only after the configured announcement path succeeds.
 
 Optional voice-XP config smoke flags:
 

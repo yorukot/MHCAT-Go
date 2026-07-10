@@ -833,7 +833,11 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		if err != nil {
 			return nil, err
 		}
-		featurexp.NewTextEventModule(repo, configRepo, sideEffects).WithRewardRoles(rewardRoleRepo, sideEffects).WithCoinRewards(economyRepo).RegisterEventRoutes(dispatcher)
+		featurexp.NewTextEventModule(repo, configRepo, sideEffects).
+			WithAnnouncementFallbacks(sideEffects, sideEffects).
+			WithRewardRoles(rewardRoleRepo, sideEffects).
+			WithCoinRewards(economyRepo).
+			RegisterEventRoutes(dispatcher)
 	}
 	if cfg.FeatureRoleSelectionEnabled {
 		repo, err := roleSelectionRepositoryFromMongo(mongoClient)

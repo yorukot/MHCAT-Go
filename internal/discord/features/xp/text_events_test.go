@@ -2,6 +2,7 @@ package xp
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -185,7 +186,9 @@ func TestTextXPEventAppliesCoinRewardOnLevelUp(t *testing.T) {
 	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}
 	economy := fakemongo.NewEconomyRepository()
 	economy.PutConfig(domain.EconomyConfig{GuildID: "guild-1", XPMultiple: 2.5})
-	module := NewTextEventModule(repo, nil, nil).WithCoinRewards(economy)
+	configs := fakemongo.NewTextXPConfigRepository()
+	configs.Configs["guild-1"] = domain.TextXPConfig{GuildID: "guild-1", ChannelID: "level-channel"}
+	module := NewTextEventModule(repo, configs, fakediscord.NewSideEffects()).WithCoinRewards(economy)
 	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
 
 	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
@@ -203,7 +206,9 @@ func TestTextXPEventIncrementsExistingCoinBalanceOnLevelUp(t *testing.T) {
 	economy := fakemongo.NewEconomyRepository()
 	economy.PutConfig(domain.EconomyConfig{GuildID: "guild-1", XPMultiple: 3})
 	economy.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 10, Today: 4})
-	module := NewTextEventModule(repo, nil, nil).WithCoinRewards(economy)
+	configs := fakemongo.NewTextXPConfigRepository()
+	configs.Configs["guild-1"] = domain.TextXPConfig{GuildID: "guild-1", ChannelID: "level-channel"}
+	module := NewTextEventModule(repo, configs, fakediscord.NewSideEffects()).WithCoinRewards(economy)
 	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
 
 	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
@@ -230,6 +235,74 @@ func TestTextXPEventDoesNotApplyCoinRewardWithoutLevelUp(t *testing.T) {
 	}
 }
 
+func TestTextXPEventDoesNotApplyCoinRewardWithoutAnnouncementConfig(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}
+	economy := fakemongo.NewEconomyRepository()
+	economy.PutConfig(domain.EconomyConfig{GuildID: "guild-1", XPMultiple: 3})
+	module := NewTextEventModule(repo, fakemongo.NewTextXPConfigRepository(), fakediscord.NewSideEffects()).WithCoinRewards(economy)
+	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
+
+	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
+		t.Fatalf("message create: %v", err)
+	}
+	if len(economy.Balances) != 0 {
+		t.Fatalf("balances = %#v", economy.Balances)
+	}
+}
+
+func TestTextXPEventSendsMissingAnnouncementChannelFallback(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}
+	configs := fakemongo.NewTextXPConfigRepository()
+	configs.Configs["guild-1"] = domain.TextXPConfig{GuildID: "guild-1", ChannelID: "missing-channel"}
+	economy := fakemongo.NewEconomyRepository()
+	economy.PutConfig(domain.EconomyConfig{GuildID: "guild-1", XPMultiple: 3})
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewTextEventModule(repo, configs, sideEffects).WithAnnouncementFallbacks(sideEffects, sideEffects).WithCoinRewards(economy)
+	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
+
+	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
+		t.Fatalf("message create: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].ChannelID != "channel-1" {
+		t.Fatalf("sent messages = %#v", sideEffects.Sent)
+	}
+	if got := sideEffects.Sent[0].Message.Embeds[0].Title; got != "<a:error:980086028113182730> | 群組的升等頻道被刪除了，請重新設定升等消息!" {
+		t.Fatalf("fallback title = %q", got)
+	}
+	if len(economy.Balances) != 0 {
+		t.Fatalf("balances = %#v", economy.Balances)
+	}
+}
+
+func TestTextXPEventDMsUserWhenAnnouncementSendFails(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}
+	configs := fakemongo.NewTextXPConfigRepository()
+	configs.Configs["guild-1"] = domain.TextXPConfig{GuildID: "guild-1", ChannelID: "level-channel"}
+	economy := fakemongo.NewEconomyRepository()
+	economy.PutConfig(domain.EconomyConfig{GuildID: "guild-1", XPMultiple: 3})
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.Channels = []ports.ChannelRef{{GuildID: "guild-1", ChannelID: "level-channel", Name: "等級頻道"}}
+	messages := failingTextXPMessagePort{err: errors.New("send failed")}
+	module := NewTextEventModule(repo, configs, messages).WithAnnouncementFallbacks(sideEffects, sideEffects).WithCoinRewards(economy)
+	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
+
+	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
+		t.Fatalf("message create: %v", err)
+	}
+	if len(sideEffects.DirectMessages) != 1 || sideEffects.DirectMessages[0].UserID != "user-1" {
+		t.Fatalf("direct messages = %#v", sideEffects.DirectMessages)
+	}
+	if got := sideEffects.DirectMessages[0].Message.Content; got != "你升級了，但是我沒有權限在等級頻道發送消息!" {
+		t.Fatalf("direct message = %q", got)
+	}
+	if len(economy.Balances) != 0 {
+		t.Fatalf("balances = %#v", economy.Balances)
+	}
+}
+
 func textXPEvent(content string) events.Event {
 	return events.Event{
 		Type:      events.TypeMessageCreate,
@@ -242,4 +315,20 @@ func textXPEvent(content string) events.Event {
 
 func fixedTextEventMultiplier(value int64) func() int64 {
 	return func() int64 { return value }
+}
+
+type failingTextXPMessagePort struct {
+	err error
+}
+
+func (p failingTextXPMessagePort) SendMessage(ctx context.Context, channelID string, msg ports.OutboundMessage) (ports.MessageRef, error) {
+	return ports.MessageRef{}, p.err
+}
+
+func (p failingTextXPMessagePort) EditMessage(ctx context.Context, ref ports.MessageRef, msg ports.OutboundMessage) error {
+	return p.err
+}
+
+func (p failingTextXPMessagePort) DeleteMessage(ctx context.Context, ref ports.MessageRef) error {
+	return p.err
 }

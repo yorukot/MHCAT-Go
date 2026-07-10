@@ -57,6 +57,8 @@ type TextEventModule struct {
 	service     coreservice.TextAccrualService
 	configs     ports.TextXPConfigReader
 	messages    ports.DiscordMessagePort
+	channels    ports.DiscordChannelPort
+	direct      ports.DiscordDirectMessagePort
 	rewardRoles coreservice.TextRewardRoleService
 	coinRewards coreservice.TextCoinRewardService
 }
@@ -136,6 +138,12 @@ func NewTextEventModule(repo ports.TextXPAccrualRepository, configs ports.TextXP
 
 func (m TextEventModule) WithRewardRoles(repo ports.TextXPRewardRoleRepository, roles ports.DiscordRolePort) TextEventModule {
 	m.rewardRoles = coreservice.TextRewardRoleService{Repository: repo, RolePort: roles}
+	return m
+}
+
+func (m TextEventModule) WithAnnouncementFallbacks(channels ports.DiscordChannelPort, direct ports.DiscordDirectMessagePort) TextEventModule {
+	m.channels = channels
+	m.direct = direct
 	return m
 }
 
