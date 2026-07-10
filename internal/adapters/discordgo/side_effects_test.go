@@ -108,6 +108,40 @@ func TestGuildStatsUsesLegacyGuildCaches(t *testing.T) {
 	}
 }
 
+func TestRoleStatsUsesLegacyGuildMemberCache(t *testing.T) {
+	state := dgo.NewState()
+	if err := state.GuildAdd(&dgo.Guild{
+		ID: "guild-1",
+		Roles: []*dgo.Role{
+			{ID: "guild-1", Name: "@everyone"},
+			{ID: "role-1", Name: "VIP"},
+		},
+		Members: []*dgo.Member{
+			{User: &dgo.User{ID: "user-1"}, Roles: []string{"role-1"}},
+			{User: &dgo.User{ID: "user-2"}},
+			{User: &dgo.User{ID: "user-3"}, Roles: []string{"role-1"}},
+		},
+	}); err != nil {
+		t.Fatalf("seed guild state: %v", err)
+	}
+	client := SideEffectClient{Session: &Session{session: &dgo.Session{State: state}}}
+
+	role, err := client.RoleStats(context.Background(), "guild-1", "role-1")
+	if err != nil {
+		t.Fatalf("role stats: %v", err)
+	}
+	if role.RoleID != "role-1" || role.RoleName != "VIP" || role.MemberCount != 2 {
+		t.Fatalf("role stats = %#v", role)
+	}
+	everyone, err := client.RoleStats(context.Background(), "guild-1", "guild-1")
+	if err != nil {
+		t.Fatalf("everyone stats: %v", err)
+	}
+	if everyone.RoleName != "@everyone" || everyone.MemberCount != 3 {
+		t.Fatalf("everyone stats = %#v", everyone)
+	}
+}
+
 func TestAuditLogEntriesFromDiscordIncludesActorIdentity(t *testing.T) {
 	action := dgo.AuditLogActionChannelUpdate
 	entries := auditLogEntriesFromDiscord(&dgo.GuildAuditLog{

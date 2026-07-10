@@ -266,44 +266,26 @@ func (c SideEffectClient) RoleStats(ctx context.Context, guildID string, roleID 
 	if err != nil {
 		return domain.StatsRoleSnapshot{}, err
 	}
-	roles, err := session.GuildRoles(guildID, dgo.WithContext(ctx))
+	guild, err := stateGuild(session, guildID)
 	if err != nil {
-		return domain.StatsRoleSnapshot{}, fmt.Errorf("list discord guild roles: %w", err)
+		return domain.StatsRoleSnapshot{}, fmt.Errorf("load cached discord guild for role stats: %w", err)
 	}
 	roleName := ""
-	for _, role := range roles {
+	roleFound := false
+	for _, role := range guild.Roles {
 		if role != nil && role.ID == roleID {
 			roleName = role.Name
+			roleFound = true
 			break
 		}
 	}
-	if roleName == "" {
+	if !roleFound {
 		return domain.StatsRoleSnapshot{}, ports.ErrDiscordRoleMissing
 	}
-	after := ""
 	count := 0
-	for {
-		members, err := session.GuildMembers(guildID, after, 1000, dgo.WithContext(ctx))
-		if err != nil {
-			return domain.StatsRoleSnapshot{}, fmt.Errorf("list discord guild members for role stats: %w", err)
-		}
-		if len(members) == 0 {
-			break
-		}
-		for _, member := range members {
-			if member == nil || member.User == nil {
-				continue
-			}
-			after = member.User.ID
-			if memberHasRole(member.Roles, roleID) {
-				count++
-			}
-		}
-		if len(members) < 1000 {
-			break
-		}
-		if err := ctx.Err(); err != nil {
-			return domain.StatsRoleSnapshot{}, err
+	for _, member := range guild.Members {
+		if member != nil && (roleID == guild.ID || memberHasRole(member.Roles, roleID)) {
+			count++
 		}
 	}
 	return domain.StatsRoleSnapshot{RoleID: roleID, RoleName: roleName, MemberCount: count}, ctx.Err()
