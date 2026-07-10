@@ -82,7 +82,6 @@ func (s PrizeDeleteService) Delete(ctx context.Context, guildID string, prizeNam
 		return domain.GachaPrize{}, err
 	}
 	guildID = strings.TrimSpace(guildID)
-	prizeName = strings.TrimSpace(prizeName)
 	if guildID == "" || prizeName == "" || s.Repository == nil {
 		return domain.GachaPrize{}, domain.ErrInvalidGachaQuery
 	}
@@ -94,7 +93,6 @@ func (s PrizeCreateService) Create(ctx context.Context, prize domain.GachaPrizeC
 		return err
 	}
 	prize.GuildID = strings.TrimSpace(prize.GuildID)
-	prize.Name = strings.TrimSpace(prize.Name)
 	if prize.GuildID == "" || prize.Name == "" || prize.Count <= 0 || s.Repository == nil {
 		return domain.ErrInvalidGachaPrize
 	}
@@ -113,7 +111,6 @@ func (s PrizeEditService) Edit(ctx context.Context, edit domain.GachaPrizeEdit) 
 		return domain.GachaPrizeConfig{}, err
 	}
 	edit.GuildID = strings.TrimSpace(edit.GuildID)
-	edit.Name = strings.TrimSpace(edit.Name)
 	if edit.GuildID == "" || edit.Name == "" || edit.Count <= 0 || s.Repository == nil {
 		return domain.GachaPrizeConfig{}, domain.ErrInvalidGachaPrize
 	}

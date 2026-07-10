@@ -389,6 +389,26 @@ func TestPrizeDeleteRequiresManageMessages(t *testing.T) {
 	}
 }
 
+func TestPrizeDeleteMatchesAndDisplaysExactLegacyName(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	repo.Prizes["guild-1"] = []domain.GachaPrize{
+		{GuildID: "guild-1", Name: "大獎", Count: 1},
+		{GuildID: "guild-1", Name: " 大獎 ", Count: 1},
+	}
+	module := NewDeleteModule(repo, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.PrizeDeleteHandler()(context.Background(), gachaPrizeDeleteInteraction(" 大獎 "), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(repo.Prizes["guild-1"]) != 1 || repo.Prizes["guild-1"][0].Name != "大獎" {
+		t.Fatalf("remaining prizes = %#v", repo.Prizes["guild-1"])
+	}
+	if responder.Edits[0].Embeds[0].Description != "獎品名: 大獎 " {
+		t.Fatalf("description = %q", responder.Edits[0].Embeds[0].Description)
+	}
+}
+
 func TestPrizeCreateStoresPrizeAndRendersLegacySuccess(t *testing.T) {
 	repo := fakemongo.NewGachaRepository()
 	usage := &fakeusage.Tracker{}
@@ -465,6 +485,25 @@ func TestPrizeCreateDefaultsOptionalLegacyValues(t *testing.T) {
 	}
 	fields := responder.Edits[0].Embeds[0].Fields
 	if fields[2].Value != "該獎品無代碼" || fields[3].Value != "1個" || fields[4].Value != "true" || fields[5].Value != "0個" {
+		t.Fatalf("fields = %#v", fields)
+	}
+}
+
+func TestPrizeCreatePreservesLegacyTextWhitespace(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	module := NewCreateModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	interaction := gachaPrizeCreateInteraction(" 大獎 ")
+	interaction.Options[gachaPrizeCodeOption] = " code-1 "
+
+	if err := module.PrizeCreateHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(repo.PrizeConfigs["guild-1"]) != 1 || repo.PrizeConfigs["guild-1"][0].Name != " 大獎 " || repo.PrizeConfigs["guild-1"][0].Code != " code-1 " {
+		t.Fatalf("saved prize = %#v", repo.PrizeConfigs["guild-1"])
+	}
+	fields := responder.Edits[0].Embeds[0].Fields
+	if fields[0].Value != " 大獎 " || fields[2].Value != " code-1 " {
 		t.Fatalf("fields = %#v", fields)
 	}
 }
@@ -631,6 +670,33 @@ func TestPrizeEditDefaultsUIAndPreservesLegacyFalseyFields(t *testing.T) {
 	saved := repo.PrizeConfigs["guild-1"][0]
 	if saved.Code != "old-code" || saved.Chance != 10 || saved.AutoDelete || saved.Count != 1 || saved.GiveCoin != 5 {
 		t.Fatalf("saved = %#v", saved)
+	}
+}
+
+func TestPrizeEditMatchesAndPreservesExactLegacyText(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	repo.Prizes["guild-1"] = []domain.GachaPrize{
+		{GuildID: "guild-1", Name: "大獎", Chance: 10, Count: 2},
+		{GuildID: "guild-1", Name: " 大獎 ", Chance: 10, Count: 2},
+	}
+	repo.PrizeConfigs["guild-1"] = []domain.GachaPrizeConfig{
+		{GuildID: "guild-1", Name: "大獎", Chance: 10, Count: 2},
+		{GuildID: "guild-1", Name: " 大獎 ", Chance: 10, Count: 2},
+	}
+	module := NewEditModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	interaction := gachaPrizeEditInteraction(" 大獎 ")
+	interaction.Options[gachaPrizeCodeOption] = " code-1 "
+
+	if err := module.PrizeEditHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if repo.PrizeConfigs["guild-1"][0].Name != "大獎" || repo.PrizeConfigs["guild-1"][0].Code != "" || repo.PrizeConfigs["guild-1"][1].Name != " 大獎 " || repo.PrizeConfigs["guild-1"][1].Code != " code-1 " {
+		t.Fatalf("saved prizes = %#v", repo.PrizeConfigs["guild-1"])
+	}
+	fields := responder.Edits[0].Embeds[0].Fields
+	if fields[0].Value != " 大獎 " || fields[2].Value != " code-1 " {
+		t.Fatalf("fields = %#v", fields)
 	}
 }
 

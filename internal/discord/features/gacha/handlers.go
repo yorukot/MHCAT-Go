@@ -456,7 +456,7 @@ func gachaPrizeDeleteSuccessMessage(prize domain.GachaPrize) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title:       legacyDoneEmoji + "成功刪除!",
-			Description: "獎品名:" + strings.TrimSpace(prize.Name),
+			Description: "獎品名:" + prize.Name,
 			Color:       gachaPrizeDeleteSuccessColor,
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
@@ -464,7 +464,7 @@ func gachaPrizeDeleteSuccessMessage(prize domain.GachaPrize) responses.Message {
 }
 
 func gachaPrizeCreateSuccessMessage(prize domain.GachaPrizeConfig) responses.Message {
-	code := strings.TrimSpace(prize.Code)
+	code := prize.Code
 	if code == "" {
 		code = "該獎品無代碼"
 	}
@@ -487,7 +487,7 @@ func gachaPrizeCreateSuccessMessage(prize domain.GachaPrizeConfig) responses.Mes
 }
 
 func gachaPrizeEditSuccessMessage(prize domain.GachaPrizeConfig, chanceText string) responses.Message {
-	code := strings.TrimSpace(prize.Code)
+	code := prize.Code
 	if code == "" {
 		code = "該獎品無代碼"
 	}
@@ -514,11 +514,11 @@ func gachaPrizeEditSuccessMessage(prize domain.GachaPrizeConfig, chanceText stri
 
 func gachaStringOption(interaction interactions.Interaction, names ...string) string {
 	for _, name := range names {
-		if value := strings.TrimSpace(interaction.Options[name]); value != "" {
+		if value, ok := interaction.Options[name]; ok {
 			return value
 		}
 		if option, ok := interaction.CommandOptions[name]; ok {
-			return strings.TrimSpace(option.String)
+			return option.String
 		}
 	}
 	return ""

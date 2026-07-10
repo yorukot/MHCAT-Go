@@ -62,14 +62,14 @@ func TestGiftDocumentToConfigPreservesEditableLegacyFields(t *testing.T) {
 func TestGiftWriteDocumentFromDomainPreservesLegacyBSONFields(t *testing.T) {
 	document := GiftWriteDocumentFromDomain(domain.GachaPrizeConfig{
 		GuildID:    "guild-1",
-		Name:       "大獎",
-		Code:       "code-1",
+		Name:       " 大獎 ",
+		Code:       " code-1 ",
 		Chance:     12.5,
 		AutoDelete: false,
 		Count:      3,
 		GiveCoin:   7,
 	})
-	if document.Guild != "guild-1" || document.GiftName != "大獎" || document.GiftCode == nil || *document.GiftCode != "code-1" {
+	if document.Guild != "guild-1" || document.GiftName != " 大獎 " || document.GiftCode == nil || *document.GiftCode != " code-1 " {
 		t.Fatalf("document identity = %#v", document)
 	}
 	if document.GiftChance != 12.5 || document.AutoDelete || document.GiftCount != 3 || document.GiveCoin != 7 {

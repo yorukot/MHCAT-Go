@@ -92,7 +92,6 @@ func (r *GachaRepository) DeleteGachaPrize(ctx context.Context, guildID string, 
 		return domain.GachaPrize{}, err
 	}
 	guildID = strings.TrimSpace(guildID)
-	prizeName = strings.TrimSpace(prizeName)
 	if guildID == "" || prizeName == "" {
 		return domain.GachaPrize{}, domain.ErrInvalidGachaQuery
 	}
@@ -127,7 +126,6 @@ func (r *GachaRepository) CreateGachaPrize(ctx context.Context, prize domain.Gac
 		return err
 	}
 	prize.GuildID = strings.TrimSpace(prize.GuildID)
-	prize.Name = strings.TrimSpace(prize.Name)
 	if prize.GuildID == "" || prize.Name == "" || prize.Count <= 0 {
 		return domain.ErrInvalidGachaPrize
 	}
@@ -154,7 +152,6 @@ func (r *GachaRepository) EditGachaPrize(ctx context.Context, edit domain.GachaP
 		return domain.GachaPrizeConfig{}, err
 	}
 	edit.GuildID = strings.TrimSpace(edit.GuildID)
-	edit.Name = strings.TrimSpace(edit.Name)
 	if edit.GuildID == "" || edit.Name == "" || edit.Count <= 0 {
 		return domain.GachaPrizeConfig{}, domain.ErrInvalidGachaPrize
 	}
