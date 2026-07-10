@@ -9,7 +9,7 @@ Status: Phase 1.5 Gate B input. Legacy evidence: `MHCAT/index.js` enables Guilds
 | `Guilds` | Slash commands, guild/channel/role metadata, Ready/GuildCreate, most interaction features | No | None | Bot cannot operate core guild interactions | Enabled in dev and prod |
 | `GuildMembers` | Welcome/leave messages, join roles, account-age checks, member remove logging, some role/member fetch paths; slash `/驗證` uses interaction member data plus REST role/nickname side effects and does not require member-event handling by itself | Partially | Use interaction member data and REST fetch-on-demand for command paths; keep intent for join/leave/account-age event features | Join/leave automation, account-age policy, and member remove logging stop working | Disabled by default; enable with `ENABLE_GUILD_MEMBERS_INTENT=true` for parity event features |
 | `GuildMessages` | Text XP, chatbot, anti-scam, announcement message listeners, XP reset `^確認^` confirmation, legacy prefix/restart message, message logging | Partially | Convert operator commands to slash; use interactions/components/modals for new flows; keep only for message-event features | Text XP, chatbot, anti-scam, XP reset confirmation, and message logging stop working | Disabled by default; enable when message-event features are enabled |
-| `GuildMessageReactions` | Reaction roles and reaction logging | Partially | Prefer buttons/selects for new role assignment; keep for legacy reaction-role parity | Reaction role add/remove and reaction logs stop working | Disabled by default; enable with reaction-role/logging feature flags |
+| `GuildMessageReactions` | Legacy reaction roles | Partially | Prefer buttons/selects for new features; keep the intent only for the parity-audited role-selection ownership slice | Reaction role add/remove stops; setup/button commands are intentionally not split onto a separate gate | Disabled by default; `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true` requires `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true` |
 | `GuildVoiceStates` | Voice XP, dynamic voice rooms, voice lock, voice join/leave state | No for those features | None; REST cannot replace voice state events | Voice XP and dynamic voice channels stop working | Disabled by default; enable with `ENABLE_VOICE_STATE_INTENT=true` for voice features |
 | `MessageContent` | Legacy restart text, prefix handler, text XP content checks, chatbot prompts, anti-scam URL scanning, announcement/chat listeners, XP reset `^確認^` confirmation, some message logging | Yes for restart/prefix; no for content-driven features unless redesigned | Replace restart with owner-only slash command or out-of-band process restart; convert admin flows to slash/modal/component; content features require explicit opt-in or redesign | Content-based XP/chatbot/anti-scam/logging and XP reset confirmation stop working or lose detail | Disabled in dev and prod by default; enable only with `ENABLE_MESSAGE_CONTENT_INTENT=true` and documented feature flags |
 
@@ -116,6 +116,19 @@ Intent dependency: no Guild Members gateway intent by itself; uses interaction m
 Account-age kick: `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true` is a separate member-join policy and requires `MHCAT_DISCORD_ENABLE_GATEWAY=true` plus `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`. It remains disabled by default and must be staged in an isolated guild because it can DM/kick members and stop later member-add handlers.
 Default: disabled
 ```
+
+Current approved reaction-role exception:
+
+```txt
+Role-selection runtime: MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true
+Required flags: MHCAT_DISCORD_ENABLE_GATEWAY=true, MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true
+Guild Members intent: not required; buttons use interaction member roles and REST writes
+Known limitation: a reaction remove first observed after restart has best-effort bot identity when the member is absent from state
+Ownership: setup commands, modal/buttons, and reaction events stay under this one gate
+Default: disabled
+```
+
+See the [role-selection parity contract](73-role-selection.md) before staging or production ownership changes.
 
 ## Config Requirements
 

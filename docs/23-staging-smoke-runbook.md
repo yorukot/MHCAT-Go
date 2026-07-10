@@ -652,7 +652,7 @@ export MHCAT_DISCORD_ENABLE_GATEWAY=true
 export MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true
 ```
 
-Set all four together only in an isolated staging guild/database when testing `/選取身分組-表情符號`, `/選取身分組刪除-表情符號`, and `/選取身分組-按鈕`. The single role-selection runtime flag owns setup commands, modal/buttons, and reaction events together; do not split ownership or run the corresponding Node paths concurrently. This path writes `message_reactions` and `btns`, adds reactions to staging messages, and changes roles on reaction/button use. Use roles below the bot's highest role.
+Set all four together only in an isolated staging guild/database when testing `/選取身分組-表情符號`, `/選取身分組刪除-表情符號`, and `/選取身分組-按鈕`. The single role-selection runtime flag owns setup commands, modal/buttons, and reaction events together; do not split ownership or run the corresponding Node paths concurrently. This path writes `message_reactions` and `btns`, adds reactions to staging messages, and changes roles on reaction/button use. Use roles below the bot's highest role and follow the canonical [role-selection staging checklist](73-role-selection.md#staging-smoke).
 
 Optional leave-message delivery smoke flags:
 
@@ -1553,6 +1553,8 @@ If account-age member gate smoke was explicitly enabled:
 - verify join-role/welcome side effects do not run after the account-age kick.
 
 If role-selection flags were enabled and command sync apply was reviewed:
+
+The canonical checklist, including duplicate/type audit, custom-emoji deletion, stale buttons, REST failures, and usage verification, is in the [role-selection parity contract](73-role-selection.md#staging-smoke). The minimum shared smoke remains:
 
 - run `/選取身分組-表情符號` against a disposable staging message with a staging role below the bot's highest role;
 - verify the bot adds the configured reaction to the target message;
