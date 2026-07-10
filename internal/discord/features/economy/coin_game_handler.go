@@ -28,6 +28,8 @@ const (
 	coinGameInviteTTL      = 30 * time.Second
 	coinGameKnowledgeTTL   = 21 * time.Second
 	coinGameBlackjackTTL   = 31 * time.Second
+	coinGameKnowledgeStart = 500 * time.Millisecond
+	coinGameResultDelay    = 5 * time.Second
 	coinGameTimeoutRetry   = 100 * time.Millisecond
 )
 
@@ -40,9 +42,17 @@ type knowledgeQuestion struct {
 
 type coinGameSessionState string
 
+type coinGameSessionPhase string
+
 const (
 	coinGameSessionPending coinGameSessionState = "pending"
 	coinGameSessionActive  coinGameSessionState = "active"
+
+	coinGamePhaseHigherLowerDrawing coinGameSessionPhase = "higher_lower_drawing"
+	coinGamePhaseKnowledgeStarting  coinGameSessionPhase = "knowledge_starting"
+	coinGamePhaseKnowledgeQuestion  coinGameSessionPhase = "knowledge_question"
+	coinGamePhaseKnowledgeReveal    coinGameSessionPhase = "knowledge_reveal"
+	coinGamePhaseBlackjackTurn      coinGameSessionPhase = "blackjack_turn"
 )
 
 type coinGameSession struct {
@@ -57,27 +67,31 @@ type coinGameSession struct {
 	Kind           domain.CoinGameKind
 	Wager          int64
 	State          coinGameSessionState
+	Phase          coinGameSessionPhase
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 
-	Deck              []int
-	DealerCards       []int
-	ChallengerCards   []int
-	OpponentCards     []int
-	BlackjackTurn     string
-	ChallengerHit     *bool
-	OpponentHit       *bool
-	KnowledgeRound    int
-	KnowledgeQuestion knowledgeQuestion
-	KnowledgeAnswers  []string
-	QuestionStartedAt time.Time
-	TurnStartedAt     time.Time
-	TurnDeadline      time.Time
-	TurnGeneration    uint64
-	ChallengerChoice  string
-	OpponentChoice    string
-	ChallengerScore   int64
-	OpponentScore     int64
+	HigherLowerChallenger int
+	HigherLowerOpponent   int
+	Deck                  []int
+	DealerCards           []int
+	ChallengerCards       []int
+	OpponentCards         []int
+	BlackjackTurn         string
+	ChallengerHit         *bool
+	OpponentHit           *bool
+	KnowledgeRound        int
+	KnowledgeQuestion     knowledgeQuestion
+	KnowledgeAnswers      []string
+	QuestionStartedAt     time.Time
+	QuestionShownAt       time.Time
+	TurnStartedAt         time.Time
+	TurnDeadline          time.Time
+	TurnGeneration        uint64
+	ChallengerChoice      string
+	OpponentChoice        string
+	ChallengerScore       int64
+	OpponentScore         int64
 }
 
 func (m Module) CoinGameHandler() interactions.Handler {
@@ -226,59 +240,41 @@ func (m Module) acceptCoinGame(ctx context.Context, interaction interactions.Int
 }
 
 func (m Module) startHigherLower(ctx context.Context, responder responses.Responder, session coinGameSession, claim *coinGameSessionClaim) error {
-	challengerNumber := m.coinGameRandomInt(101)
-	opponentNumber := m.coinGameRandomInt(101)
-	challengerReturn := int64(0)
-	opponentReturn := int64(0)
-	result := ""
-	switch {
-	case challengerNumber < opponentNumber:
-		opponentReturn = session.Wager * 2
-		result = fmt.Sprintf("**裁判結果為:\n<@%s>輸了\n<@%s>取得賭注的**`2`**倍(共**`%d`**)**", session.ChallengerID, session.OpponentID, opponentReturn)
-	case challengerNumber == opponentNumber:
-		challengerReturn = session.Wager
-		opponentReturn = session.Wager
-		result = "**裁判結果為:\n平手，不加不減**"
-	default:
-		challengerReturn = session.Wager * 2
-		result = fmt.Sprintf("**裁判結果為:\n<@%s>輸了\n<@%s>取得賭注的**`2`**倍(共**`%d`**)**", session.OpponentID, session.ChallengerID, challengerReturn)
+	session.HigherLowerChallenger = m.coinGameRandomInt(101)
+	session.HigherLowerOpponent = m.coinGameRandomInt(101)
+	now := m.clockNow()
+	session.Phase = coinGamePhaseHigherLowerDrawing
+	session.TurnStartedAt = now
+	session.TurnDeadline = now.Add(coinGameResultDelay)
+	session.TurnGeneration++
+	claim.Commit(session)
+	m.scheduleCoinGameTimeout(session)
+	if err := responder.UpdateMessage(ctx, higherLowerDrawingMessage()); err != nil {
+		return err
 	}
-	if _, err := m.game.Settle(ctx, domain.CoinGameSettlementCommand{
-		GuildID:          session.GuildID,
-		ChallengerID:     session.ChallengerID,
-		OpponentID:       session.OpponentID,
-		ChallengerReturn: challengerReturn,
-		OpponentReturn:   opponentReturn,
-	}); err != nil {
-		claim.Abandon()
-		m.logCoinGameError(ctx, "coin game higher/lower settlement failed", session, err)
-		return responder.UpdateMessage(ctx, coinGameErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
-	}
-	claim.Delete()
-	return responder.UpdateMessage(ctx, responses.Message{
-		Embeds: []responses.Embed{{
-			Title: "<:numberblocks:1044894385340416031> 比大小結果",
-			Description: fmt.Sprintf("<@%s>的數字: %d\n<@%s>的數字: %d\n<:referee:1007236839524024340> %s\n",
-				session.ChallengerID, challengerNumber, session.OpponentID, opponentNumber, result),
-			Color: m.colorValue(),
-		}},
-		AllowedMentions: &responses.AllowedMentions{},
-	})
+	return responder.FollowUp(ctx, coinGameAcceptedTextMessage())
 }
 
 func (m Module) startKnowledge(ctx context.Context, responder responses.Responder, session coinGameSession, claim *coinGameSessionClaim) error {
-	if err := m.nextKnowledgeQuestion(&session); err != nil {
+	if err := m.selectKnowledgeQuestion(&session); err != nil {
 		claim.Abandon()
 		m.logCoinGameError(ctx, "coin game knowledge question load failed", session, err)
 		return responder.UpdateMessage(ctx, coinGameErrorMessage("很抱歉，題庫載入失敗，請重試!"))
 	}
+	now := m.clockNow()
+	session.Phase = coinGamePhaseKnowledgeStarting
+	session.QuestionStartedAt = now
+	session.QuestionShownAt = time.Time{}
+	session.TurnStartedAt = now
+	session.TurnDeadline = now.Add(coinGameKnowledgeStart)
+	session.TurnGeneration++
 	claim.Commit(session)
 	m.scheduleCoinGameTimeout(session)
-	return responder.UpdateMessage(ctx, knowledgeQuestionMessage(session, m.colorValue()))
+	return responder.Reply(ctx, knowledgeAcceptedMessage())
 }
 
 func (m Module) handleKnowledgeAnswer(ctx context.Context, interaction interactions.Interaction, responder responses.Responder, session coinGameSession, claim *coinGameSessionClaim) error {
-	if session.State != coinGameSessionActive {
+	if session.Kind != domain.CoinGameKindKnowledge || session.State != coinGameSessionActive || session.Phase != coinGamePhaseKnowledgeQuestion {
 		return responder.Reply(ctx, coinGameEphemeralError("很抱歉，這場遊戲還沒開始!"))
 	}
 	answer := strings.TrimSpace(interaction.CustomID)
@@ -306,46 +302,22 @@ func (m Module) handleKnowledgeAnswer(ctx context.Context, interaction interacti
 		return responder.Reply(ctx, reply)
 	}
 	session.KnowledgeRound++
-	if session.KnowledgeRound >= 5 {
-		return m.finishKnowledge(ctx, responder, session, reply, claim)
-	}
-	if err := m.nextKnowledgeQuestion(&session); err != nil {
-		claim.Abandon()
-		m.cancelCoinGameTimeout(session.ID)
-		m.logCoinGameError(ctx, "coin game knowledge question load failed", session, err)
-		return responder.UpdateMessage(ctx, coinGameErrorMessage("很抱歉，題庫載入失敗，請重試!"))
-	}
+	now := m.clockNow()
+	session.Phase = coinGamePhaseKnowledgeReveal
+	session.QuestionStartedAt = now
+	session.QuestionShownAt = time.Time{}
+	session.TurnStartedAt = now
+	session.TurnDeadline = now.Add(coinGameResultDelay)
+	session.TurnGeneration++
 	claim.Commit(session)
 	m.scheduleCoinGameTimeout(session)
-	if err := responder.UpdateMessage(ctx, knowledgeQuestionMessage(session, m.colorValue())); err != nil {
+	if err := responder.UpdateMessage(ctx, knowledgeRevealMessage(session, answer == session.KnowledgeQuestion.Answer, m.colorValue())); err != nil {
 		return err
 	}
 	return responder.FollowUp(ctx, reply)
 }
 
-func (m Module) finishKnowledge(ctx context.Context, responder responses.Responder, session coinGameSession, reply responses.Message, claim *coinGameSessionClaim) error {
-	challengerReturn, opponentReturn := coinGameCompareReturns(session.Wager, session.ChallengerScore, session.OpponentScore)
-	if _, err := m.game.Settle(ctx, domain.CoinGameSettlementCommand{
-		GuildID:          session.GuildID,
-		ChallengerID:     session.ChallengerID,
-		OpponentID:       session.OpponentID,
-		ChallengerReturn: challengerReturn,
-		OpponentReturn:   opponentReturn,
-	}); err != nil {
-		claim.Abandon()
-		m.cancelCoinGameTimeout(session.ID)
-		m.logCoinGameError(ctx, "coin game knowledge settlement failed", session, err)
-		return responder.UpdateMessage(ctx, coinGameErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
-	}
-	claim.Delete()
-	m.cancelCoinGameTimeout(session.ID)
-	if err := responder.UpdateMessage(ctx, knowledgeFinalMessage(session, m.colorValue())); err != nil {
-		return err
-	}
-	return responder.FollowUp(ctx, reply)
-}
-
-func (m Module) nextKnowledgeQuestion(session *coinGameSession) error {
+func (m Module) selectKnowledgeQuestion(session *coinGameSession) error {
 	questions, err := legacyKnowledgeQuestions()
 	if err != nil || len(questions) == 0 {
 		return err
@@ -358,11 +330,6 @@ func (m Module) nextKnowledgeQuestion(session *coinGameSession) error {
 	}
 	session.KnowledgeQuestion = question
 	session.KnowledgeAnswers = answers
-	now := m.clockNow()
-	session.QuestionStartedAt = now
-	session.TurnStartedAt = now
-	session.TurnDeadline = now.Add(coinGameKnowledgeTTL)
-	session.TurnGeneration++
 	session.ChallengerChoice = ""
 	session.OpponentChoice = ""
 	return nil
@@ -387,11 +354,14 @@ func (m Module) startBlackjack(ctx context.Context, responder responses.Responde
 	m.beginBlackjackTurn(&session, session.ChallengerID)
 	claim.Commit(session)
 	m.scheduleCoinGameTimeout(session)
-	return responder.UpdateMessage(ctx, blackjackTurnMessage(session, true, m.colorValue()))
+	if err := responder.UpdateMessage(ctx, blackjackTurnMessage(session, true, m.colorValue())); err != nil {
+		return err
+	}
+	return responder.FollowUp(ctx, coinGameAcceptedTextMessage())
 }
 
 func (m Module) showBlackjackCards(ctx context.Context, interaction interactions.Interaction, responder responses.Responder, session coinGameSession) error {
-	if session.Kind != domain.CoinGameKindBlackjack || session.State != coinGameSessionActive {
+	if session.Kind != domain.CoinGameKindBlackjack || session.State != coinGameSessionActive || session.Phase != coinGamePhaseBlackjackTurn {
 		return responder.Reply(ctx, coinGameEphemeralError("很抱歉，這場遊戲還沒開始!"))
 	}
 	cards := session.OpponentCards
@@ -410,7 +380,7 @@ func (m Module) showBlackjackCards(ctx context.Context, interaction interactions
 }
 
 func (m Module) handleBlackjackAction(ctx context.Context, interaction interactions.Interaction, responder responses.Responder, session coinGameSession, claim *coinGameSessionClaim) error {
-	if session.Kind != domain.CoinGameKindBlackjack || session.State != coinGameSessionActive {
+	if session.Kind != domain.CoinGameKindBlackjack || session.State != coinGameSessionActive || session.Phase != coinGamePhaseBlackjackTurn {
 		return responder.Reply(ctx, coinGameEphemeralError("很抱歉，這場遊戲還沒開始!"))
 	}
 	challengerAction := interaction.CustomID == "main_get_card" || interaction.CustomID == "main_no_card"
@@ -481,6 +451,7 @@ func (m Module) finishBlackjack(ctx context.Context, responder responses.Respond
 
 func (m Module) beginBlackjackTurn(session *coinGameSession, userID string) {
 	now := m.clockNow()
+	session.Phase = coinGamePhaseBlackjackTurn
 	session.BlackjackTurn = userID
 	session.TurnStartedAt = now
 	session.TurnDeadline = now.Add(coinGameBlackjackTTL)
@@ -515,6 +486,86 @@ func (m Module) handleCoinGameTimeout(ctx context.Context, sessionID string, gen
 		return
 	}
 	session := claim.Session()
+	switch session.Phase {
+	case coinGamePhaseHigherLowerDrawing:
+		m.finishHigherLower(ctx, session, claim)
+	case coinGamePhaseKnowledgeStarting, coinGamePhaseKnowledgeReveal:
+		m.advanceKnowledgeGame(ctx, session, claim)
+	case coinGamePhaseKnowledgeQuestion, coinGamePhaseBlackjackTurn:
+		m.finishCoinGameTimeout(ctx, session, claim)
+	default:
+		claim.Abandon()
+		m.cancelCoinGameTimeout(session.ID)
+		m.logCoinGameError(ctx, "coin game scheduled event has invalid phase", session, fmt.Errorf("phase %q", session.Phase))
+	}
+}
+
+func (m Module) finishHigherLower(ctx context.Context, session coinGameSession, claim *coinGameSessionClaim) {
+	challengerReturn, opponentReturn := coinGameCompareReturns(session.Wager, int64(session.HigherLowerChallenger), int64(session.HigherLowerOpponent))
+	if _, err := m.game.Settle(ctx, domain.CoinGameSettlementCommand{
+		GuildID:          session.GuildID,
+		ChallengerID:     session.ChallengerID,
+		OpponentID:       session.OpponentID,
+		ChallengerReturn: challengerReturn,
+		OpponentReturn:   opponentReturn,
+	}); err != nil {
+		claim.Abandon()
+		m.cancelCoinGameTimeout(session.ID)
+		m.logCoinGameError(ctx, "coin game higher/lower settlement failed", session, err)
+		m.editCoinGameMessage(ctx, session, coinGameErrorMessage("很抱歉，出現了未知的錯誤，請重試!"), "coin game higher/lower error message edit failed")
+		return
+	}
+	claim.Delete()
+	m.cancelCoinGameTimeout(session.ID)
+	m.editCoinGameMessage(ctx, session, higherLowerFinalMessage(session, challengerReturn, opponentReturn, m.colorValue()), "coin game higher/lower result message edit failed")
+}
+
+func (m Module) advanceKnowledgeGame(ctx context.Context, session coinGameSession, claim *coinGameSessionClaim) {
+	if session.Phase == coinGamePhaseKnowledgeReveal && session.KnowledgeRound >= 5 {
+		m.finishKnowledge(ctx, session, claim)
+		return
+	}
+	if session.Phase == coinGamePhaseKnowledgeReveal {
+		if err := m.selectKnowledgeQuestion(&session); err != nil {
+			claim.Abandon()
+			m.cancelCoinGameTimeout(session.ID)
+			m.logCoinGameError(ctx, "coin game knowledge question load failed", session, err)
+			m.editCoinGameMessage(ctx, session, coinGameErrorMessage("很抱歉，題庫載入失敗，請重試!"), "coin game knowledge load error message edit failed")
+			return
+		}
+	}
+	now := m.clockNow()
+	session.Phase = coinGamePhaseKnowledgeQuestion
+	session.QuestionShownAt = now
+	session.TurnStartedAt = session.QuestionStartedAt
+	session.TurnDeadline = session.QuestionStartedAt.Add(coinGameKnowledgeTTL)
+	session.TurnGeneration++
+	claim.Commit(session)
+	m.scheduleCoinGameTimeout(session)
+	m.editCoinGameMessage(ctx, session, knowledgeQuestionMessage(session, m.colorValue()), "coin game knowledge question message edit failed")
+}
+
+func (m Module) finishKnowledge(ctx context.Context, session coinGameSession, claim *coinGameSessionClaim) {
+	challengerReturn, opponentReturn := coinGameCompareReturns(session.Wager, session.ChallengerScore, session.OpponentScore)
+	if _, err := m.game.Settle(ctx, domain.CoinGameSettlementCommand{
+		GuildID:          session.GuildID,
+		ChallengerID:     session.ChallengerID,
+		OpponentID:       session.OpponentID,
+		ChallengerReturn: challengerReturn,
+		OpponentReturn:   opponentReturn,
+	}); err != nil {
+		claim.Abandon()
+		m.cancelCoinGameTimeout(session.ID)
+		m.logCoinGameError(ctx, "coin game knowledge settlement failed", session, err)
+		m.editCoinGameMessage(ctx, session, coinGameErrorMessage("很抱歉，出現了未知的錯誤，請重試!"), "coin game knowledge error message edit failed")
+		return
+	}
+	claim.Delete()
+	m.cancelCoinGameTimeout(session.ID)
+	m.editCoinGameMessage(ctx, session, knowledgeFinalMessage(session, m.colorValue()), "coin game knowledge result message edit failed")
+}
+
+func (m Module) finishCoinGameTimeout(ctx context.Context, session coinGameSession, claim *coinGameSessionClaim) {
 	challengerReturn, opponentReturn := coinGameTimeoutReturns(session)
 	if _, err := m.game.Settle(ctx, domain.CoinGameSettlementCommand{
 		GuildID:          session.GuildID,
@@ -530,12 +581,84 @@ func (m Module) handleCoinGameTimeout(ctx context.Context, sessionID string, gen
 	}
 	claim.Delete()
 	m.cancelCoinGameTimeout(session.ID)
+	m.editCoinGameOutbound(ctx, session, coinGameTimeoutOutbound(session), "coin game timeout message edit failed")
+}
+
+func (m Module) editCoinGameMessage(ctx context.Context, session coinGameSession, message responses.Message, logMessage string) {
+	m.editCoinGameOutbound(ctx, session, coinGameOutboundMessage(message), logMessage)
+}
+
+func (m Module) editCoinGameOutbound(ctx context.Context, session coinGameSession, message ports.OutboundMessage, logMessage string) {
 	if m.messages == nil || session.ChannelID == "" || session.MessageID == "" {
 		return
 	}
-	if err := m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: session.ChannelID, MessageID: session.MessageID}, coinGameTimeoutOutbound(session)); err != nil {
-		m.logCoinGameError(ctx, "coin game timeout message edit failed", session, err)
+	if err := m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: session.ChannelID, MessageID: session.MessageID}, message); err != nil {
+		m.logCoinGameError(ctx, logMessage, session, err)
 	}
+}
+
+func coinGameOutboundMessage(message responses.Message) ports.OutboundMessage {
+	out := ports.OutboundMessage{Content: message.Content}
+	if message.AllowedMentions != nil {
+		out.AllowedMentions = ports.AllowedMentions{
+			ParseEveryone: message.AllowedMentions.ParseEveryone,
+			ParseUsers:    message.AllowedMentions.ParseUsers,
+			ParseRoles:    message.AllowedMentions.ParseRoles,
+			UserIDs:       append([]string(nil), message.AllowedMentions.UserIDs...),
+			RoleIDs:       append([]string(nil), message.AllowedMentions.RoleIDs...),
+			RepliedUser:   message.AllowedMentions.RepliedUser,
+		}
+	}
+	for _, embed := range message.Embeds {
+		converted := ports.OutboundEmbed{
+			Title:       embed.Title,
+			Description: embed.Description,
+			Color:       embed.Color,
+			Timestamp:   embed.Timestamp,
+		}
+		if embed.Author != nil {
+			converted.AuthorName = embed.Author.Name
+			converted.AuthorIconURL = embed.Author.IconURL
+			converted.AuthorURL = embed.Author.URL
+		}
+		if embed.Footer != nil {
+			converted.FooterText = embed.Footer.Text
+			converted.FooterIconURL = embed.Footer.IconURL
+		}
+		if embed.Thumbnail != nil {
+			converted.ThumbnailURL = embed.Thumbnail.URL
+		}
+		if embed.Image != nil {
+			converted.ImageURL = embed.Image.URL
+		}
+		for _, field := range embed.Fields {
+			converted.Fields = append(converted.Fields, ports.OutboundEmbedField{Name: field.Name, Value: field.Value, Inline: field.Inline})
+		}
+		out.Embeds = append(out.Embeds, converted)
+	}
+	for _, row := range message.Components {
+		convertedRow := ports.OutboundComponentRow{}
+		for _, component := range row.Components {
+			converted := ports.OutboundComponent{
+				Type:        string(component.Type),
+				CustomID:    component.CustomID,
+				Label:       component.Label,
+				Style:       string(component.Style),
+				Emoji:       component.Emoji,
+				Placeholder: component.Placeholder,
+				MinValues:   component.MinValues,
+				MaxValues:   component.MaxValues,
+			}
+			for _, option := range component.Options {
+				converted.Options = append(converted.Options, ports.OutboundSelectOption{
+					Label: option.Label, Value: option.Value, Description: option.Description, Emoji: option.Emoji, Default: option.Default,
+				})
+			}
+			convertedRow.Components = append(convertedRow.Components, converted)
+		}
+		out.Components = append(out.Components, convertedRow)
+	}
+	return out
 }
 
 func (m Module) logCoinGameError(ctx context.Context, message string, session coinGameSession, err error) {
@@ -727,6 +850,51 @@ func coinGameEphemeralText(content string) responses.Message {
 	return responses.Message{Content: content, Ephemeral: true, AllowedMentions: &responses.AllowedMentions{}}
 }
 
+func coinGameAcceptedTextMessage() responses.Message {
+	return responses.Message{
+		Content:         "<a:green_tick:994529015652163614> | 成功接受!!",
+		Ephemeral:       true,
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func knowledgeAcceptedMessage() responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<a:green_tick:994529015652163614> | 你成功接受了邀請!",
+			Color: coinGameSuccessColor,
+		}},
+		Ephemeral:       true,
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func higherLowerDrawingMessage() responses.Message {
+	return responses.Message{
+		Content:         "<:gashapon:997374176526610472> | **正在為您隨機抽取數字...**\nhttps://cdn.discordapp.com/attachments/991337796960784424/1044634932116463616/1_5qKsAmlzBKZFGBvyivhBog.gif",
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func higherLowerFinalMessage(session coinGameSession, challengerReturn int64, opponentReturn int64, color int) responses.Message {
+	result := "**裁判結果為:\n平手，不加不減**"
+	switch {
+	case session.HigherLowerChallenger < session.HigherLowerOpponent:
+		result = fmt.Sprintf("**裁判結果為:\n<@%s>輸了\n<@%s>取得賭注的**`2`**倍(共**`%d`**)**", session.ChallengerID, session.OpponentID, opponentReturn)
+	case session.HigherLowerChallenger > session.HigherLowerOpponent:
+		result = fmt.Sprintf("**裁判結果為:\n<@%s>輸了\n<@%s>取得賭注的**`2`**倍(共**`%d`**)**", session.OpponentID, session.ChallengerID, challengerReturn)
+	}
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<:numberblocks:1044894385340416031> 比大小結果",
+			Description: fmt.Sprintf("<@%s>的數字: %d\n<@%s>的數字: %d\n<:referee:1007236839524024340> %s\n",
+				session.ChallengerID, session.HigherLowerChallenger, session.OpponentID, session.HigherLowerOpponent, result),
+			Color: color,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
 func knowledgeQuestionMessage(session coinGameSession, color int) responses.Message {
 	var builder strings.Builder
 	if session.KnowledgeRound > 0 || session.ChallengerScore > 0 || session.OpponentScore > 0 {
@@ -737,20 +905,53 @@ func knowledgeQuestionMessage(session coinGameSession, color int) responses.Mess
 	for i, answer := range session.KnowledgeAnswers {
 		fmt.Fprintf(&builder, "%s %s\n", emojis[i], answer)
 	}
-	displayDeadline := session.QuestionStartedAt.Add(15 * time.Second).Unix()
+	shownAt := session.QuestionShownAt
+	if shownAt.IsZero() {
+		shownAt = session.QuestionStartedAt
+	}
+	displayDeadline := legacyRoundedUnix(shownAt.Add(15 * time.Second))
 	fmt.Fprintf(&builder, "\n<a:warn:1000814885506129990> 請於<t:%d:R>選擇，超過時間則視為棄賽**", displayDeadline)
 	buttons := make([]responses.Component, 0, len(session.KnowledgeAnswers))
 	for i, answer := range session.KnowledgeAnswers {
 		buttons = append(buttons, responses.Component{Type: responses.ComponentTypeButton, CustomID: answer, Emoji: emojis[i], Style: responses.ButtonStylePrimary})
 	}
+	title := "<:startbutton1:1005838813274325022> 遊戲已開始"
+	if session.KnowledgeRound > 0 {
+		title = "<:idea:1007312008179351624> 知識王"
+	}
 	return responses.Message{
-		Content: "<:idea:1007312008179351624> **| 知識王**",
 		Embeds: []responses.Embed{{
-			Title:       "<:startbutton1:1005838813274325022> 遊戲已開始",
+			Title:       title,
 			Description: builder.String(),
 			Color:       color,
 		}},
 		Components:      []responses.ComponentRow{{Components: buttons}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func knowledgeRevealMessage(session coinGameSession, lastAnswerCorrect bool, color int) responses.Message {
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "**<@%s> 選擇了:%s\n<:speedometer:1007522466995912734> 目前得分:**`%d`**\n", session.ChallengerID, session.ChallengerChoice, session.ChallengerScore)
+	fmt.Fprintf(&builder, "<@%s> 選擇了:%s\n<:speedometer:1007522466995912734> 目前得分:**`%d`**\n", session.OpponentID, session.OpponentChoice, session.OpponentScore)
+	fmt.Fprintf(&builder, "<:technology:1007522316839829514> 正確答案:%s\n類型:**`%s`**\n<:q_:1007244629923598377> 題目:\n%s\n\n", session.KnowledgeQuestion.Answer, session.KnowledgeQuestion.Type, session.KnowledgeQuestion.Question)
+	for index, answer := range session.KnowledgeAnswers {
+		marker := "<a:Discord_AnimatedNo:1015989839809757295>"
+		if answer == session.KnowledgeQuestion.Answer {
+			marker = "<a:green_tick:994529015652163614>"
+		} else if lastAnswerCorrect && index%2 == 0 {
+			marker = "<a:error:980086028113182730>"
+		}
+		fmt.Fprintf(&builder, "%s | %s\n", marker, answer)
+	}
+	fmt.Fprintf(&builder, "\n<a:warn:1000814885506129990> 先別離開!還剩下**`%d`**題**", 5-session.KnowledgeRound)
+	return responses.Message{
+		Content: "<:idea:1007312008179351624> **| 知識王**",
+		Embeds: []responses.Embed{{
+			Title:       "<:idea:1007312008179351624> 知識王",
+			Description: builder.String(),
+			Color:       color,
+		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
 }
@@ -790,6 +991,7 @@ func knowledgeFinalMessage(session coinGameSession, color int) responses.Message
 		gain = fmt.Sprintf("\n取得:`%d`", session.Wager*2)
 	}
 	return responses.Message{
+		Content: "<:idea:1007312008179351624> **| 知識王**",
 		Embeds: []responses.Embed{{
 			Title: fmt.Sprintf("<a:green_tick:994529015652163614> **| 遊戲已結束**"),
 			Description: fmt.Sprintf("**\n<:businesscreditscore:1007236532421275688> 開始進行結算!\n<:speedometer:1007522466995912734> <@%s>得分:**`%d`**\n<:speedometer:1007522466995912734> <@%s>得分:**`%d`**\n\n**<:referee:1007236839524024340>裁判結果:\n%s%s",
@@ -807,7 +1009,7 @@ func blackjackTurnMessage(session coinGameSession, challengerTurn bool, color in
 		target = session.OpponentID
 		components = blackjackUserRows(false)
 	}
-	displayDeadline := session.TurnStartedAt.Add(30 * time.Second).Unix()
+	displayDeadline := legacyRoundedUnix(session.TurnStartedAt.Add(30 * time.Second))
 	return responses.Message{
 		Content: fmt.Sprintf("這回合是<@%s>的，另一位只能查看牌組喔!", target),
 		Embeds: []responses.Embed{{
@@ -975,6 +1177,14 @@ func blackjackNumberEmoji(card int) string {
 
 func boolPtr(value bool) *bool {
 	return &value
+}
+
+func legacyRoundedUnix(value time.Time) int64 {
+	seconds := value.Unix()
+	if value.Nanosecond() >= int(500*time.Millisecond) {
+		seconds++
+	}
+	return seconds
 }
 
 var (

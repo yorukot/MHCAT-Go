@@ -3,6 +3,7 @@ package economy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strings"
@@ -17,11 +18,11 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
 
-func TestCoinGameHigherLowerAcceptSettlesPot(t *testing.T) {
-	repo := fakemongo.NewEconomyRepository()
-	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 50})
-	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-2", Coins: 50})
-	module := NewCoinGameModule(repo, nil, nil, shopFixedClock{now: time.Unix(100, 0)})
+func TestCoinGameHigherLowerAcceptShowsDrawBeforeDelayedSettlement(t *testing.T) {
+	repo := coinGameTestRepository()
+	clock := &coinGameTestClock{now: time.Unix(100, 0)}
+	messages := fakediscord.NewSideEffects()
+	module, scheduler := newCoinGameLifecycleTestModule(t, repo, messages, clock)
 	module.gameRandInt = fixedCoinGameRandom(90, 10)
 	module.color = func() int { return 0x123456 }
 
@@ -44,6 +45,29 @@ func TestCoinGameHigherLowerAcceptSettlesPot(t *testing.T) {
 	if err := module.CoinGameComponentHandler()(context.Background(), accept, responder); err != nil {
 		t.Fatalf("accept game: %v", err)
 	}
+	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Content, "正在為您隨機抽取數字") || len(responder.Updates[0].Embeds) != 0 || len(responder.Updates[0].Components) != 0 {
+		t.Fatalf("drawing update = %#v", responder.Updates)
+	}
+	if len(responder.Follow) != 1 || !responder.Follow[0].Ephemeral || !strings.Contains(responder.Follow[0].Content, "成功接受") {
+		t.Fatalf("accept feedback = %#v", responder.Follow)
+	}
+	session, ok := module.gameSessions.GetForComponent("guild-1", "user-1", "channel-1", "message-1")
+	if !ok || session.Phase != coinGamePhaseHigherLowerDrawing || session.HigherLowerChallenger != 90 || session.HigherLowerOpponent != 10 {
+		t.Fatalf("drawing session = %#v ok=%v", session, ok)
+	}
+	entry, ok := scheduler.Only()
+	if !ok || entry.deadline != time.Unix(105, 0) || entry.generation != session.TurnGeneration {
+		t.Fatalf("drawing schedule = %#v ok=%v", entry, ok)
+	}
+	assertCoinGameBalances(t, repo, 40, 40)
+	if len(messages.Edited) != 0 {
+		t.Fatalf("result rendered before delay: %#v", messages.Edited)
+	}
+
+	clock.Advance(coinGameResultDelay)
+	if !scheduler.TriggerOnly() {
+		t.Fatal("higher/lower result was not scheduled")
+	}
 	challenger, err := repo.GetCoinBalance(context.Background(), "guild-1", "user-1")
 	if err != nil {
 		t.Fatalf("get challenger balance: %v", err)
@@ -55,8 +79,11 @@ func TestCoinGameHigherLowerAcceptSettlesPot(t *testing.T) {
 	if challenger.Coins != 60 || opponent.Coins != 40 {
 		t.Fatalf("balances challenger=%#v opponent=%#v", challenger, opponent)
 	}
-	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Embeds[0].Title, "比大小結果") {
-		t.Fatalf("accept update = %#v", responder.Updates)
+	if len(messages.Edited) != 1 || len(messages.Edited[0].Message.Embeds) != 1 || !strings.Contains(messages.Edited[0].Message.Embeds[0].Title, "比大小結果") || messages.Edited[0].Message.Content != "" {
+		t.Fatalf("delayed result = %#v", messages.Edited)
+	}
+	if _, ok := module.gameSessions.GetForComponent("guild-1", "user-1", "channel-1", "message-1"); ok {
+		t.Fatal("higher/lower session remained after settlement")
 	}
 }
 
@@ -130,11 +157,9 @@ func TestCoinGameInviteExpiresAtLegacyDeadline(t *testing.T) {
 }
 
 func TestCoinGameInviteCanBeAcceptedBeforeLegacyDeadline(t *testing.T) {
-	repo := fakemongo.NewEconomyRepository()
-	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 50})
-	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-2", Coins: 50})
+	repo := coinGameTestRepository()
 	clock := &coinGameTestClock{now: time.Unix(100, 0)}
-	module := NewCoinGameModule(repo, nil, nil, clock)
+	module, scheduler := newCoinGameLifecycleTestModule(t, repo, fakediscord.NewSideEffects(), clock)
 	module.gameRandInt = fixedCoinGameRandom(90, 10)
 
 	if err := module.CoinGameHandler()(context.Background(), coinGameSlash(domain.CoinGameKindHigherLower, "10"), fakediscord.NewResponder()); err != nil {
@@ -148,8 +173,86 @@ func TestCoinGameInviteCanBeAcceptedBeforeLegacyDeadline(t *testing.T) {
 	if err := module.CoinGameComponentHandler()(context.Background(), accept, responder); err != nil {
 		t.Fatalf("accept game: %v", err)
 	}
-	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Embeds[0].Title, "比大小結果") {
+	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Content, "正在為您隨機抽取數字") || len(responder.Follow) != 1 || scheduler.Len() != 1 {
 		t.Fatalf("accept update = %#v", responder.Updates)
+	}
+	assertCoinGameBalances(t, repo, 40, 40)
+}
+
+func TestCoinGameKnowledgeAcceptanceStartsAfterLegacyDelay(t *testing.T) {
+	repo := coinGameTestRepository()
+	clock := &coinGameTestClock{now: time.Unix(100, 0)}
+	messages := fakediscord.NewSideEffects()
+	module, scheduler := newCoinGameLifecycleTestModule(t, repo, messages, clock)
+
+	start := coinGameSlash(domain.CoinGameKindKnowledge, "10")
+	start.ChannelID = "channel-1"
+	if err := module.CoinGameHandler()(context.Background(), start, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("start knowledge game: %v", err)
+	}
+	responder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent("yesssss", "user-2", "Opponent"), responder); err != nil {
+		t.Fatalf("accept knowledge game: %v", err)
+	}
+	if len(responder.Replies) != 1 || !responder.Replies[0].Ephemeral || !strings.Contains(responder.Replies[0].Embeds[0].Title, "你成功接受了邀請") || len(responder.Updates) != 0 {
+		t.Fatalf("knowledge accept response = replies %#v updates %#v", responder.Replies, responder.Updates)
+	}
+	session, ok := module.gameSessions.GetForComponent("guild-1", "user-1", "channel-1", "message-1")
+	if !ok || session.Phase != coinGamePhaseKnowledgeStarting || session.KnowledgeQuestion.Question == "" || session.TurnDeadline != time.Unix(100, int64(coinGameKnowledgeStart)) {
+		t.Fatalf("starting knowledge session = %#v ok=%v", session, ok)
+	}
+	entry, ok := scheduler.Only()
+	if !ok || entry.deadline != session.TurnDeadline || entry.generation != session.TurnGeneration {
+		t.Fatalf("knowledge start schedule = %#v ok=%v", entry, ok)
+	}
+	if len(messages.Edited) != 0 {
+		t.Fatalf("knowledge question rendered before delay: %#v", messages.Edited)
+	}
+
+	clock.Advance(coinGameKnowledgeStart)
+	if !scheduler.TriggerOnly() {
+		t.Fatal("knowledge start transition was not scheduled")
+	}
+	if len(messages.Edited) != 1 || len(messages.Edited[0].Message.Components) != 1 || len(messages.Edited[0].Message.Components[0].Components) != 4 {
+		t.Fatalf("initial knowledge question = %#v", messages.Edited)
+	}
+	message := messages.Edited[0].Message
+	if !strings.Contains(message.Embeds[0].Title, "遊戲已開始") || !strings.Contains(message.Embeds[0].Description, "<t:116:R>") {
+		t.Fatalf("initial knowledge UI = %#v", message)
+	}
+	session = currentCoinGameSession(t, module, session)
+	if session.Phase != coinGamePhaseKnowledgeQuestion || session.QuestionShownAt != time.Unix(100, int64(coinGameKnowledgeStart)) || session.TurnDeadline != time.Unix(121, 0) {
+		t.Fatalf("active knowledge session = %#v", session)
+	}
+	entry, ok = scheduler.Only()
+	if !ok || entry.deadline != time.Unix(121, 0) || entry.generation != session.TurnGeneration {
+		t.Fatalf("knowledge timeout schedule = %#v ok=%v", entry, ok)
+	}
+}
+
+func TestCoinGameBlackjackAcceptanceFeedbackMatchesLegacy(t *testing.T) {
+	repo := coinGameTestRepository()
+	clock := &coinGameTestClock{now: time.Unix(100, 0)}
+	module, scheduler := newCoinGameLifecycleTestModule(t, repo, fakediscord.NewSideEffects(), clock)
+
+	start := coinGameSlash(domain.CoinGameKindBlackjack, "10")
+	start.ChannelID = "channel-1"
+	if err := module.CoinGameHandler()(context.Background(), start, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("start blackjack game: %v", err)
+	}
+	responder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent("yesssss", "user-2", "Opponent"), responder); err != nil {
+		t.Fatalf("accept blackjack game: %v", err)
+	}
+	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Embeds[0].Title, "遊戲已開始") {
+		t.Fatalf("blackjack start update = %#v", responder.Updates)
+	}
+	if len(responder.Follow) != 1 || !responder.Follow[0].Ephemeral || !strings.Contains(responder.Follow[0].Content, "成功接受") {
+		t.Fatalf("blackjack accept feedback = %#v", responder.Follow)
+	}
+	session, ok := module.gameSessions.GetForComponent("guild-1", "user-1", "channel-1", "message-1")
+	if !ok || session.Phase != coinGamePhaseBlackjackTurn || session.TurnDeadline != time.Unix(131, 0) || scheduler.Len() != 1 {
+		t.Fatalf("blackjack session = %#v ok=%v timers=%d", session, ok, scheduler.Len())
 	}
 }
 
@@ -158,7 +261,7 @@ func TestCoinGameKnowledgeTimeoutUsesLegacyTickAndPaysOnlyResponder(t *testing.T
 	clock := &coinGameTestClock{now: time.Unix(100, 0)}
 	messages := fakediscord.NewSideEffects()
 	module, scheduler := newCoinGameLifecycleTestModule(t, repo, messages, clock)
-	session := acceptCoinGameForTest(t, module, domain.CoinGameKindKnowledge)
+	session := startKnowledgeQuestionForTest(t, module, scheduler, clock)
 	if currentCoinGameSession(t, module, session).KnowledgeQuestion.Question == "" {
 		t.Fatal("knowledge question was not initialized")
 	}
@@ -166,7 +269,7 @@ func TestCoinGameKnowledgeTimeoutUsesLegacyTickAndPaysOnlyResponder(t *testing.T
 	if session.TurnDeadline != time.Unix(121, 0) {
 		t.Fatalf("knowledge deadline = %v", session.TurnDeadline)
 	}
-	if message := knowledgeQuestionMessage(session, 0); !strings.Contains(message.Embeds[0].Description, "<t:115:R>") {
+	if message := knowledgeQuestionMessage(session, 0); !strings.Contains(message.Embeds[0].Description, "<t:116:R>") {
 		t.Fatalf("knowledge deadline message = %q", message.Embeds[0].Description)
 	}
 
@@ -179,7 +282,7 @@ func TestCoinGameKnowledgeTimeoutUsesLegacyTickAndPaysOnlyResponder(t *testing.T
 		t.Fatal("knowledge timer was not scheduled")
 	}
 	assertCoinGameBalances(t, repo, 40, 40)
-	if len(messages.Edited) != 0 {
+	if len(messages.Edited) != 1 {
 		t.Fatalf("timeout fired before strict legacy tick: %#v", messages.Edited)
 	}
 
@@ -188,10 +291,10 @@ func TestCoinGameKnowledgeTimeoutUsesLegacyTickAndPaysOnlyResponder(t *testing.T
 		t.Fatal("knowledge timeout retry was not scheduled")
 	}
 	assertCoinGameBalances(t, repo, 60, 40)
-	if len(messages.Edited) != 1 {
+	if len(messages.Edited) != 2 {
 		t.Fatalf("timeout edits = %#v", messages.Edited)
 	}
-	edit := messages.Edited[0]
+	edit := messages.Edited[1]
 	if edit.Ref != (ports.MessageRef{ChannelID: "channel-1", MessageID: "message-1"}) {
 		t.Fatalf("timeout ref = %#v", edit.Ref)
 	}
@@ -205,18 +308,143 @@ func TestCoinGameKnowledgeTimeoutBurnsPotWhenNeitherPlayerAnswers(t *testing.T) 
 	clock := &coinGameTestClock{now: time.Unix(100, 0)}
 	messages := fakediscord.NewSideEffects()
 	module, scheduler := newCoinGameLifecycleTestModule(t, repo, messages, clock)
-	acceptCoinGameForTest(t, module, domain.CoinGameKindKnowledge)
-	clock.Advance(coinGameKnowledgeTTL)
+	session := startKnowledgeQuestionForTest(t, module, scheduler, clock)
+	clock.Advance(session.TurnDeadline.Sub(clock.Now()))
 	if !scheduler.TriggerOnly() {
 		t.Fatal("knowledge timer was not scheduled")
 	}
 	assertCoinGameBalances(t, repo, 40, 40)
-	if len(messages.Edited) != 1 {
+	if len(messages.Edited) != 2 {
 		t.Fatalf("timeout edits = %#v", messages.Edited)
 	}
-	title := messages.Edited[0].Message.Embeds[0].Title
+	title := messages.Edited[1].Message.Embeds[0].Title
 	if !strings.Contains(title, "Opponent User") {
 		t.Fatalf("timeout title = %q", title)
+	}
+}
+
+func TestCoinGameKnowledgeRevealWaitsFiveSecondsAndCarriesCountdown(t *testing.T) {
+	repo := coinGameTestRepository()
+	clock := &coinGameTestClock{now: time.Unix(100, 0)}
+	messages := fakediscord.NewSideEffects()
+	module, scheduler := newCoinGameLifecycleTestModule(t, repo, messages, clock)
+	session := startKnowledgeQuestionForTest(t, module, scheduler, clock)
+	firstResponder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent(session.KnowledgeQuestion.Answer, "user-1", "User"), firstResponder); err != nil {
+		t.Fatalf("challenger answer: %v", err)
+	}
+	if len(firstResponder.Replies) != 1 || !strings.Contains(firstResponder.Replies[0].Embeds[0].Description, "`1000`分") {
+		t.Fatalf("challenger answer response = %#v", firstResponder.Replies)
+	}
+	clock.Advance(2 * time.Second)
+	wrongAnswer := knowledgeWrongAnswer(session)
+	secondResponder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent(wrongAnswer, "user-2", "Opponent"), secondResponder); err != nil {
+		t.Fatalf("opponent answer: %v", err)
+	}
+	if len(secondResponder.Updates) != 1 || len(secondResponder.Follow) != 1 || !secondResponder.Follow[0].Ephemeral {
+		t.Fatalf("second answer responses = updates %#v follow %#v", secondResponder.Updates, secondResponder.Follow)
+	}
+	reveal := secondResponder.Updates[0]
+	if len(reveal.Components) != 0 || len(reveal.Embeds) != 1 {
+		t.Fatalf("knowledge reveal components = %#v", reveal)
+	}
+	description := reveal.Embeds[0].Description
+	for _, want := range []string{session.KnowledgeQuestion.Answer, wrongAnswer, "正確答案", "目前得分", "還剩下**`4`**題", "<a:green_tick:994529015652163614>", "<a:Discord_AnimatedNo:1015989839809757295>"} {
+		if !strings.Contains(description, want) {
+			t.Fatalf("knowledge reveal missing %q: %q", want, description)
+		}
+	}
+	session = currentCoinGameSession(t, module, session)
+	if session.Phase != coinGamePhaseKnowledgeReveal || session.KnowledgeRound != 1 || session.QuestionStartedAt != time.Unix(102, int64(coinGameKnowledgeStart)) || session.TurnDeadline != time.Unix(107, int64(coinGameKnowledgeStart)) {
+		t.Fatalf("knowledge reveal session = %#v", session)
+	}
+	transition, ok := scheduler.Only()
+	if !ok || transition.deadline != session.TurnDeadline || transition.generation != session.TurnGeneration {
+		t.Fatalf("knowledge reveal schedule = %#v ok=%v", transition, ok)
+	}
+	assertCoinGameBalances(t, repo, 40, 40)
+	if len(messages.Edited) != 1 {
+		t.Fatalf("next question rendered before reveal delay: %#v", messages.Edited)
+	}
+
+	staleResponder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent(session.KnowledgeQuestion.Answer, "user-1", "User"), staleResponder); err != nil {
+		t.Fatalf("stale reveal answer: %v", err)
+	}
+	if len(staleResponder.Replies) != 1 || !strings.Contains(staleResponder.Replies[0].Embeds[0].Title, "還沒開始") {
+		t.Fatalf("stale reveal response = %#v", staleResponder.Replies)
+	}
+
+	clock.Advance(coinGameResultDelay)
+	if !scheduler.TriggerOnly() {
+		t.Fatal("next knowledge question was not scheduled")
+	}
+	if len(messages.Edited) != 2 {
+		t.Fatalf("next knowledge question edits = %#v", messages.Edited)
+	}
+	next := messages.Edited[1].Message
+	if len(next.Components) != 1 || len(next.Components[0].Components) != 4 || !strings.Contains(next.Embeds[0].Title, "知識王") || strings.Contains(next.Embeds[0].Title, "遊戲已開始") || !strings.Contains(next.Embeds[0].Description, "<t:123:R>") {
+		t.Fatalf("next knowledge question = %#v", next)
+	}
+	session = currentCoinGameSession(t, module, session)
+	if session.Phase != coinGamePhaseKnowledgeQuestion || session.KnowledgeQuestion.Question == "" || session.QuestionShownAt != time.Unix(107, int64(coinGameKnowledgeStart)) || session.TurnDeadline != time.Unix(123, int64(coinGameKnowledgeStart)) {
+		t.Fatalf("next knowledge session = %#v", session)
+	}
+	if points := module.knowledgePoints(session); points != 750 {
+		t.Fatalf("next-question starting points = %d, want 750", points)
+	}
+
+	transition.handler(context.Background())
+	if len(messages.Edited) != 2 || scheduler.Len() != 1 {
+		t.Fatalf("stale transition changed lifecycle: edits=%#v timers=%d", messages.Edited, scheduler.Len())
+	}
+}
+
+func TestCoinGameKnowledgeFinalSettlementWaitsForFifthReveal(t *testing.T) {
+	repo := coinGameTestRepository()
+	clock := &coinGameTestClock{now: time.Unix(100, 0)}
+	messages := fakediscord.NewSideEffects()
+	module, scheduler := newCoinGameLifecycleTestModule(t, repo, messages, clock)
+	session := startKnowledgeQuestionForTest(t, module, scheduler, clock)
+
+	for round := 1; round <= 5; round++ {
+		session = currentCoinGameSession(t, module, session)
+		answer := session.KnowledgeQuestion.Answer
+		if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent(answer, "user-1", "User"), fakediscord.NewResponder()); err != nil {
+			t.Fatalf("round %d challenger answer: %v", round, err)
+		}
+		responder := fakediscord.NewResponder()
+		if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent(answer, "user-2", "Opponent"), responder); err != nil {
+			t.Fatalf("round %d opponent answer: %v", round, err)
+		}
+		if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Embeds[0].Description, fmt.Sprintf("還剩下**`%d`**題", 5-round)) {
+			t.Fatalf("round %d reveal = %#v", round, responder.Updates)
+		}
+		if !strings.Contains(responder.Updates[0].Embeds[0].Description, "<a:error:980086028113182730>") {
+			t.Fatalf("round %d correct-answer reveal lost legacy marker alternation: %q", round, responder.Updates[0].Embeds[0].Description)
+		}
+		session = currentCoinGameSession(t, module, session)
+		if session.Phase != coinGamePhaseKnowledgeReveal || session.KnowledgeRound != round {
+			t.Fatalf("round %d reveal session = %#v", round, session)
+		}
+		assertCoinGameBalances(t, repo, 40, 40)
+		clock.Advance(coinGameResultDelay)
+		if !scheduler.TriggerOnly() {
+			t.Fatalf("round %d transition was not scheduled", round)
+		}
+		if round < 5 {
+			session = currentCoinGameSession(t, module, session)
+			continue
+		}
+	}
+
+	assertCoinGameBalances(t, repo, 50, 50)
+	if _, ok := module.gameSessions.GetForComponent("guild-1", "user-1", "channel-1", "message-1"); ok {
+		t.Fatal("knowledge session remained after final settlement")
+	}
+	if scheduler.Len() != 0 || len(messages.Edited) != 6 || !strings.Contains(messages.Edited[5].Message.Embeds[0].Title, "遊戲已結束") || len(messages.Edited[5].Message.Components) != 0 {
+		t.Fatalf("final knowledge lifecycle timers=%d edits=%#v", scheduler.Len(), messages.Edited)
 	}
 }
 
@@ -307,19 +535,44 @@ func TestCoinGameTerminalActionExcludesConcurrentTimeoutSettlement(t *testing.T)
 	}
 }
 
+func TestCoinGameHigherLowerDelayedSettlementFailureFailsClosed(t *testing.T) {
+	base := coinGameTestRepository()
+	repository := &blockingCoinGameRepository{next: base, settleErr: errors.New("settlement failed")}
+	clock := &coinGameTestClock{now: time.Unix(100, 0)}
+	messages := fakediscord.NewSideEffects()
+	module, scheduler := newCoinGameLifecycleTestModule(t, repository, messages, clock)
+	module.gameRandInt = fixedCoinGameRandom(90, 10)
+	acceptCoinGameForTest(t, module, domain.CoinGameKindHigherLower)
+	clock.Advance(coinGameResultDelay)
+	if !scheduler.TriggerOnly() {
+		t.Fatal("higher/lower result was not scheduled")
+	}
+	assertCoinGameBalances(t, base, 40, 40)
+	if repository.SettleCalls() != 1 || scheduler.Len() != 0 || len(messages.Edited) != 1 || !strings.Contains(messages.Edited[0].Message.Embeds[0].Title, "未知的錯誤") {
+		t.Fatalf("failed delayed settlement calls=%d timers=%d edits=%#v", repository.SettleCalls(), scheduler.Len(), messages.Edited)
+	}
+	responder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent("yesssss", "user-2", "Opponent"), responder); err != nil {
+		t.Fatalf("component after failed delayed settlement: %v", err)
+	}
+	if len(responder.Replies) != 1 || !strings.Contains(responder.Replies[0].Embeds[0].Title, "找不到這場遊戲") {
+		t.Fatalf("fail-closed reply = %#v", responder.Replies)
+	}
+}
+
 func TestCoinGameTimeoutSettlementFailureFailsClosed(t *testing.T) {
 	base := coinGameTestRepository()
 	repository := &blockingCoinGameRepository{next: base, settleErr: errors.New("settlement failed")}
 	clock := &coinGameTestClock{now: time.Unix(100, 0)}
 	messages := fakediscord.NewSideEffects()
 	module, scheduler := newCoinGameLifecycleTestModule(t, repository, messages, clock)
-	acceptCoinGameForTest(t, module, domain.CoinGameKindKnowledge)
-	clock.Advance(coinGameKnowledgeTTL)
+	session := startKnowledgeQuestionForTest(t, module, scheduler, clock)
+	clock.Advance(session.TurnDeadline.Sub(clock.Now()))
 	if !scheduler.TriggerOnly() {
 		t.Fatal("knowledge timer was not scheduled")
 	}
 	assertCoinGameBalances(t, base, 40, 40)
-	if len(messages.Edited) != 0 || scheduler.Len() != 0 || repository.SettleCalls() != 1 {
+	if len(messages.Edited) != 1 || scheduler.Len() != 0 || repository.SettleCalls() != 1 {
 		t.Fatalf("failure state edits=%#v timers=%d settlements=%d", messages.Edited, scheduler.Len(), repository.SettleCalls())
 	}
 	responder := fakediscord.NewResponder()
@@ -458,6 +711,18 @@ func (s *manualCoinGameTimeoutScheduler) TriggerOnly() bool {
 	return true
 }
 
+func (s *manualCoinGameTimeoutScheduler) Only() (manualCoinGameTimeout, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.entries) != 1 {
+		return manualCoinGameTimeout{}, false
+	}
+	for _, entry := range s.entries {
+		return entry, true
+	}
+	return manualCoinGameTimeout{}, false
+}
+
 func (s *manualCoinGameTimeoutScheduler) Len() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -497,16 +762,23 @@ func acceptCoinGameForTest(t *testing.T, module Module, kind domain.CoinGameKind
 		t.Fatalf("accept %s game: %v", kind, err)
 	}
 	session, ok := module.gameSessions.GetForComponent("guild-1", "user-1", "channel-1", "message-1")
-	if kind == domain.CoinGameKindHigherLower {
-		if ok {
-			t.Fatal("higher/lower session should settle immediately")
-		}
-		return coinGameSession{}
-	}
 	if !ok {
 		t.Fatalf("accepted %s session missing", kind)
 	}
 	return session
+}
+
+func startKnowledgeQuestionForTest(t *testing.T, module Module, scheduler *manualCoinGameTimeoutScheduler, clock *coinGameTestClock) coinGameSession {
+	t.Helper()
+	session := acceptCoinGameForTest(t, module, domain.CoinGameKindKnowledge)
+	if session.Phase != coinGamePhaseKnowledgeStarting {
+		t.Fatalf("accepted knowledge phase = %q", session.Phase)
+	}
+	clock.Advance(coinGameKnowledgeStart)
+	if !scheduler.TriggerOnly() {
+		t.Fatal("knowledge start transition was not scheduled")
+	}
+	return currentCoinGameSession(t, module, session)
 }
 
 func currentCoinGameSession(t *testing.T, module Module, previous coinGameSession) coinGameSession {
@@ -524,6 +796,15 @@ func coinGameComponent(customID string, userID string, username string) interact
 	interaction.ChannelID = "channel-1"
 	interaction.MessageID = "message-1"
 	return interaction
+}
+
+func knowledgeWrongAnswer(session coinGameSession) string {
+	for _, answer := range session.KnowledgeAnswers {
+		if answer != session.KnowledgeQuestion.Answer {
+			return answer
+		}
+	}
+	return "wrong answer"
 }
 
 func assertCoinGameBalances(t *testing.T, repository *fakemongo.EconomyRepository, challenger int64, opponent int64) {

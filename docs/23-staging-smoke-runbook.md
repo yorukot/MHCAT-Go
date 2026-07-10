@@ -139,7 +139,7 @@ export MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME=true
 ```
 
-Set both together only in an isolated staging database when testing `/代幣遊戲`. This path writes two-player `coins` wagers transactionally and uses process-local component session state, so use disposable balances on a transaction-capable replica set or sharded cluster only. Verify knowledge and blackjack timeout payouts, removed components, and graceful shutdown as described in `docs/67-economy-game-lifecycle.md`. A failed settlement must not leave one player's balance changed; do not manually retry an unknown commit result.
+Set both together only in an isolated staging database when testing `/代幣遊戲`. This path writes two-player `coins` wagers transactionally and uses process-local component/transition session state, so use disposable balances on a transaction-capable replica set or sharded cluster only. Verify the knowledge acceptance/start/reveal timing, carried countdown, higher/lower draw delay, knowledge/blackjack timeout payouts, removed components, and graceful shutdown as described in `docs/67-economy-game-lifecycle.md`. A failed settlement must not leave one player's balance changed; do not manually retry an unknown commit result.
 
 Optional economy shop smoke flags:
 
@@ -824,7 +824,7 @@ For economy game staging smoke, expected additionally:
 - preflight reports `economy-game-runtime-safety status=warn` for the manual topology/ownership/restart review;
 - plan includes managed `代幣遊戲`;
 - plan still performs no create/update/delete during dry-run;
-- live smoke uses transaction-capable Mongo and verifies both knowledge and blackjack timeout forfeits remove components and settle once.
+- live smoke uses transaction-capable Mongo, verifies the 500-millisecond knowledge start and five-second reveal/draw states, and verifies both knowledge and blackjack timeout forfeits remove components and settle once.
 
 For economy shop staging smoke, expected additionally:
 
