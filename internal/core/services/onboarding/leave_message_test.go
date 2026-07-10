@@ -48,13 +48,29 @@ func TestLeaveMessageServiceSave(t *testing.T) {
 		GuildID:        " guild ",
 		MessageContent: "bye",
 		Title:          "bye title",
-		Color:          " #df1f2f ",
+		Color:          "#df1f2f",
 	})
 	if err != nil {
 		t.Fatalf("save: %v", err)
 	}
 	if repo.saved.GuildID != "guild" || repo.saved.Color != "#df1f2f" {
 		t.Fatalf("saved = %#v", repo.saved)
+	}
+}
+
+func TestLeaveMessageServiceRejectsPaddedColor(t *testing.T) {
+	repo := &fakeLeaveMessageRepo{prepared: domain.LeaveMessageConfig{GuildID: "guild", ChannelID: "channel"}}
+	service := LeaveMessageService{Repository: repo}
+	for _, color := range []string{" #df1f2f ", " Random "} {
+		err := service.Save(context.Background(), domain.LeaveMessageConfig{
+			GuildID:        "guild",
+			MessageContent: "bye",
+			Title:          "bye title",
+			Color:          color,
+		})
+		if err == nil {
+			t.Fatalf("expected padded color %q to fail", color)
+		}
 	}
 }
 

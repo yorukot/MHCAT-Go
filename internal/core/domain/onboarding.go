@@ -126,7 +126,7 @@ func (c LeaveMessageConfig) ValidateContent() error {
 	if c.MessageContent == "" || c.Title == "" || strings.TrimSpace(c.Color) == "" {
 		return ErrInvalidLeaveMessageConfig
 	}
-	if !ValidLegacyColor(c.Color) && strings.TrimSpace(c.Color) != "Random" {
+	if !ValidLegacyColor(c.Color) && c.Color != "Random" {
 		return ErrInvalidLeaveMessageConfig
 	}
 	return nil

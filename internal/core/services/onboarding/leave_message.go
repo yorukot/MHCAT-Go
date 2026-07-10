@@ -40,7 +40,6 @@ func (s LeaveMessageService) Save(ctx context.Context, config domain.LeaveMessag
 		return domain.ErrInvalidLeaveMessageConfig
 	}
 	config.GuildID = strings.TrimSpace(config.GuildID)
-	config.Color = strings.TrimSpace(config.Color)
 	if err := config.ValidateContent(); err != nil {
 		return err
 	}

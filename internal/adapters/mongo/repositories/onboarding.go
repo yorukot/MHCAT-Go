@@ -291,7 +291,6 @@ func (r *LeaveMessageConfigRepository) SaveLeaveMessageContent(ctx context.Conte
 		return err
 	}
 	config.GuildID = strings.TrimSpace(config.GuildID)
-	config.Color = strings.TrimSpace(config.Color)
 	if err := config.ValidateContent(); err != nil {
 		return err
 	}
