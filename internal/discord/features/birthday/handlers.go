@@ -213,7 +213,7 @@ func (m Module) handleList(ctx context.Context, interaction interactions.Interac
 	if len(profiles) == 0 {
 		return responder.EditOriginal(ctx, birthdayErrorMessage("還沒有任何人有進行生日設置喔!", birthdayDateAddDocsPath))
 	}
-	if err := responder.EditOriginal(ctx, listMessage(profiles)); err != nil {
+	if err := responder.EditOriginal(ctx, listMessage(profiles, m.legacyColor())); err != nil {
 		return err
 	}
 	return m.track(ctx, interaction)
@@ -325,7 +325,7 @@ func allowAdminSuccessMessage(allow bool) responses.Message {
 	}
 }
 
-func listMessage(profiles []domain.BirthdayProfile) responses.Message {
+func listMessage(profiles []domain.BirthdayProfile, color int) responses.Message {
 	fileLines := make([]string, 0, len(profiles))
 	mentionLines := make([]string, 0, len(profiles))
 	for _, profile := range profiles {
@@ -344,7 +344,7 @@ func listMessage(profiles []domain.BirthdayProfile) responses.Message {
 		Embeds: []responses.Embed{{
 			Title:       "🎂 生日列表",
 			Description: description,
-			Color:       birthdaySuccessColor,
+			Color:       color,
 		}},
 		Files: []responses.File{{
 			Name:        "discord.txt",

@@ -358,6 +358,7 @@ func TestHandlerListProfilesRendersLegacyAttachment(t *testing.T) {
 		"guild-1/user-2": {GuildID: "guild-1", UserID: "user-2", BirthdayYear: &year, BirthdayMonth: &month, BirthdayDay: &day},
 	}}
 	module := NewModule(repo, nil)
+	module.color = func() int { return 0x123456 }
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(BirthdayCommandName, subcommandList, map[string]string{})
 
@@ -368,7 +369,7 @@ func TestHandlerListProfilesRendersLegacyAttachment(t *testing.T) {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 	edit := responder.Edits[0]
-	if edit.Embeds[0].Title != "🎂 生日列表" || !strings.Contains(edit.Embeds[0].Description, "<@user-2>  | 生日日期(YYYY/MM/DD):2002/3/4") {
+	if edit.Embeds[0].Title != "🎂 生日列表" || edit.Embeds[0].Color != 0x123456 || !strings.Contains(edit.Embeds[0].Description, "<@user-2>  | 生日日期(YYYY/MM/DD):2002/3/4") {
 		t.Fatalf("embed = %#v", edit.Embeds[0])
 	}
 	if edit.Files[0].Name != "discord.txt" || !strings.Contains(string(edit.Files[0].Data), "找不到使用者!(user-2)  | 生日日期(YYYY/MM/DD):2002/3/4") {
