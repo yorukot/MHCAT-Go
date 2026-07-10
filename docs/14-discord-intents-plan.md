@@ -28,6 +28,8 @@ Features that truly require Message Content if preserved as-is:
 - Legacy announcement/chat message handlers. The Go bound announcement relay is implemented only when `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true` and requires `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`.
 - XP reset full-server confirmation. The Go `/經驗值重製` slice is implemented only when `MHCAT_FEATURE_XP_RESET_ENABLED=true` and requires `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`.
 
+Logging config itself requires no gateway intent. Its message, channel, and voice event families are independently gated; message logging needs Guild Messages and Message Content, channel logging needs Gateway channel updates, and voice logging needs Voice State intent. Do not overlap any enabled Go event family with Node `events/LoggingSystem.js`; see the [logging parity contract](48-logging-config.md).
+
 Features that should not keep Message Content:
 
 - Restart-by-message: replace with owner-only slash command or out-of-band deployment restart.

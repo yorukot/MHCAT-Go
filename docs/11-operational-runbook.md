@@ -506,7 +506,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true
 MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true
 ```
 
-This command writes the legacy-compatible `loggings` config fields and requires Manage Messages. It updates all duplicate rows for the guild and only upserts when no row exists. It does not create indexes, emit logs, require Message Content intent, or enable audit-log event processing.
+The command remains publicly discoverable and checks Manage Messages at runtime. It preserves the exact public red/yellow embeds, one-to-four select options, bot footer avatar format, invoking-user ownership, and absolute ten-minute deadline. New versioned IDs retain channel/user/deadline state; orphaned `loggin_create` components return a safe rerun error. Reads accept Mongoose-compatible String/Boolean scalar values, while successful selection writes a typed `channel_id` and four Booleans to every duplicate guild row, upserting only when none exists. Config maintenance does not create indexes, emit logs, require Message Content intent, or activate any event family. See the [logging parity contract](48-logging-config.md).
 
 Logging message update/delete events are available only when the event runtime flag and gateway message intents are explicitly enabled:
 
@@ -517,7 +517,7 @@ MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
 MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 ```
 
-This runtime reads existing `loggings` rows and emits only message edit/delete embeds when `message_update` or `message_delete` is selected for a staging log channel. It uses cached old/deleted message payloads, suppresses mentions in sent embeds, and performs best-effort audit-log attribution for delete events. It does not enable `/set-log-channel` by itself, create indexes, or emit channel/voice logs.
+This independent runtime reads existing `loggings` rows and emits only message edit/delete embeds when `message_update` or `message_delete` is selected. It requires cached old/deleted payloads, treats the cached pre-edit author as authoritative, preserves exact code-block/attachment/avatar/footer formatting, and suppresses mention parsing. Delete attribution queries action `72` with limit `1` and uses the executor only on an exact author-target and source-channel match; otherwise it displays the original author. It does not enable `/set-log-channel`, create indexes, or emit channel/voice logs.
 
 Logging channel topic/permission update events are available only when the event runtime flag and Gateway are explicitly enabled:
 
@@ -526,7 +526,7 @@ MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED=true
 MHCAT_DISCORD_ENABLE_GATEWAY=true
 ```
 
-This runtime reads existing `loggings` rows and emits only channel topic and permission-overwrite update embeds when `channel_update` is selected for a staging log channel. It uses cached old channel data and best-effort audit-log actor attribution, and suppresses mentions in sent embeds. It does not enable `/set-log-channel` by itself, create indexes, or emit message/voice logs.
+This independent runtime reads existing `loggings` rows and emits only channel topic and permission-overwrite updates when `channel_update` is selected. It requires the cached old channel, renders a null topic as literal `null`, gives a topic change precedence over permission changes, and uses the first action-`11` audit entry without target filtering. Permission diffs preserve the legacy 41-label and default/allow/deny order while matching overwrites by ID and formatting role/user mentions from overwrite type. Sent embeds suppress mention parsing. It does not enable `/set-log-channel`, create indexes, or emit message/voice logs.
 
 Logging voice join/leave events are available only when the event runtime flag, Gateway, and Voice State intent are explicitly enabled:
 
@@ -536,7 +536,9 @@ MHCAT_DISCORD_ENABLE_GATEWAY=true
 MHCAT_DISCORD_VOICE_STATE_INTENT=true
 ```
 
-This runtime reads existing `loggings` rows and emits only voice join/leave embeds when `member_voice_update` is selected for a staging log channel. It uses cached member and channel data, suppresses mentions, and intentionally emits nothing for channel-to-channel moves or mute/deafen-only updates to match the legacy handler. It does not enable `/set-log-channel` by itself, create indexes, or emit message/channel logs.
+This independent runtime reads existing `loggings` rows and emits only voice join/leave embeds when `member_voice_update` is selected. Join uses the new-state member/channel; leave uses the old-state member/channel. Human and bot joins/leaves are logged, while direct channel moves and mute/deafen-only updates emit nothing. It uses cached member/channel names and suppresses mention parsing. It does not enable `/set-log-channel`, create indexes, or emit message/channel logs.
+
+Before enabling any Go logging event family, stop every Node process that loads `events/LoggingSystem.js` for the same bot/guilds. There is no event-owner lease, so overlap produces duplicate logs and competing audit attribution. Everything after the unterminated comment at legacy `LoggingSystem.js:364` is inactive and outside the parity surface. Slash usage is written once by global middleware only when usage tracking is enabled; selects and gateway events never write usage counters. Use the [logging parity contract](48-logging-config.md) for exact smoke and rollback steps.
 
 Read-only `/扭蛋獎池查詢` is available only when both staging command sync and runtime flags are explicitly enabled:
 

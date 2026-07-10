@@ -301,7 +301,7 @@ export MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true
 ```
 
-Set both together only when testing `/set-log-channel`. This path writes the legacy-compatible `loggings` config row for the staging guild. It does not enable logging event emitters by itself.
+Set both together only when testing `/set-log-channel`. The command remains publicly discoverable, enforces Manage Messages at runtime, and uses the exact owner-scoped ten-minute legacy UI. It writes typed legacy-compatible `loggings` values and does not enable logging events. Use the [logging parity contract](48-logging-config.md) for exact payload, scalar, ownership, and rollback checks.
 
 Optional logging message-event smoke flags:
 
@@ -312,7 +312,7 @@ export MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
 export MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 ```
 
-Set these only when the staging guild has a disposable `loggings` row pointing to a staging-only log channel with `message_update` and/or `message_delete` enabled. This emits message edit/delete log embeds from cached gateway message data; it does not enable channel or voice logging.
+Set these only when the staging guild has a disposable `loggings` row pointing to a staging-only log channel with `message_update` and/or `message_delete` enabled. This emits message edit/delete embeds from cached gateway data and applies the legacy exact-target-plus-channel delete-audit rule; it does not enable channel or voice logging.
 
 Optional logging channel-event smoke flags:
 
@@ -321,7 +321,7 @@ export MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED=true
 export MHCAT_DISCORD_ENABLE_GATEWAY=true
 ```
 
-Set these only when the staging guild has a disposable `loggings` row pointing to a staging-only log channel with `channel_update` enabled. This emits channel topic/permission log embeds from cached gateway channel data; it does not enable message or voice logging.
+Set these only when the staging guild has a disposable `loggings` row pointing to a staging-only log channel with `channel_update` enabled. This emits topic/permission embeds from cached old channel data, including literal null topics and first-entry action-11 attribution; it does not enable message or voice logging.
 
 Optional logging voice-event smoke flags:
 
@@ -331,7 +331,9 @@ export MHCAT_DISCORD_ENABLE_GATEWAY=true
 export MHCAT_DISCORD_VOICE_STATE_INTENT=true
 ```
 
-Set these only when the staging guild has a disposable `loggings` row pointing to a staging-only log channel with `member_voice_update` enabled. This emits legacy-style voice join/leave embeds from cached gateway member/channel data; it does not enable message/channel logging and intentionally ignores moves and mute/deafen-only updates.
+Set these only when the staging guild has a disposable `loggings` row pointing to a staging-only log channel with `member_voice_update` enabled. This emits legacy-style voice join/leave embeds from cached gateway member/channel data, including bot members; it does not enable message/channel logging and intentionally ignores moves and mute/deafen-only updates.
+
+Before enabling any logging event flag, stop all Node owners that load `events/LoggingSystem.js` for the same bot/guilds. Go and Node have no logging lease and must never consume these events concurrently.
 
 Optional gacha prize-list smoke flags:
 
@@ -700,10 +702,10 @@ Do not paste real values into committed docs.
 - If `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true`, confirm Gateway and scheduler leases are enabled, the lease owner is unique, the Node `handler/cron.js` owner is stopped, and every active staging `cron_sets` target/payload is safe to send.
 - If `MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED=true`, confirm the daily-reset write/Gateway/lease gates are enabled, lease TTL exceeds reset plus lease timeout, Node `handler/cron.js` is stopped, owners are unique, and every staging `coins`/`gift_changes`/`work_sets`/`work_users` row is disposable.
 - If `MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED=true`, confirm the payout write/Gateway/lease gates are enabled, CLI and worker lease names match, lease TTL exceeds payout plus lease timeout, Node `handler/gift.js` is stopped, owners are unique, duplicate/marker audits are clean, and every due staging `coins`/`work_users` row is disposable.
-- If `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`, confirm `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true` and the selected log channel is staging-only.
-- If `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, and `loggings.channel_id` points to a staging-only log channel.
-- If `MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `loggings.channel_id` points to a staging-only log channel.
-- If `MHCAT_FEATURE_LOGGING_VOICE_EVENTS_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_VOICE_STATE_INTENT=true`, and `loggings.channel_id` points to a staging-only log channel.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`, confirm `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true`, the selected channel/database are staging-only, and testing includes public discoverability plus runtime Manage Messages denial.
+- If `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED=true`, confirm Gateway, Guild Messages, and Message Content are enabled; `loggings.channel_id` resolves to a staging-only target under Mongoose scalar coercion; cached source messages are disposable; and Node `LoggingSystem.js` ownership is stopped.
+- If `MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED=true`, confirm Gateway is enabled; `loggings.channel_id` resolves to a staging-only target; topic/overwrite/audit fixtures are disposable; and Node `LoggingSystem.js` ownership is stopped.
+- If `MHCAT_FEATURE_LOGGING_VOICE_EVENTS_ENABLED=true`, confirm Gateway and Voice State intent are enabled; `loggings.channel_id` resolves to a staging-only target; human/bot test members and voice channels are safe; and Node `LoggingSystem.js` ownership is stopped.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true` and the staging database has safe gacha fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW=true`, confirm `MHCAT_FEATURE_GACHA_DRAW_ENABLED=true`, the staging database has isolated `coins`/`gifts`/`gift_changes` fixtures, and DMs/notification-channel sends are acceptable for the test account.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_CREATE_ENABLED=true` and the staging database has only disposable `gifts` fixtures for the target prize name.
@@ -1587,33 +1589,39 @@ If work command flags were enabled and command sync apply was reviewed:
 
 If logging-config flags were enabled and command sync apply was reviewed:
 
-- `/set-log-channel channel:<staging log channel>`;
-- verify the legacy yellow setup embed and log-type select appear;
-- choose one or more staging log types;
-- verify `loggings.channel_id`, `message_update`, `message_delete`, `channel_update`, and `member_voice_update` reflect the selection in the staging database;
-- verify no log event is emitted by this config slice unless `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED=true`, `MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED=true`, or `MHCAT_FEATURE_LOGGING_VOICE_EVENTS_ENABLED=true` is also enabled.
+- verify a member without Manage Messages can discover `/set-log-channel` but receives the exact public red runtime denial;
+- as a manager, run `/set-log-channel channel:<staging log channel>` and verify the exact yellow title/text/footer, four option labels/descriptions/values, placeholder, and one-to-four bounds;
+- have another member press the menu and verify the owner error, then verify the invoking user cannot save at or after the original ten-minute deadline;
+- choose multiple values twice and verify selected text updates while every menu option remains visually non-default;
+- verify typed `loggings.channel_id`, `message_update`, `message_delete`, `channel_update`, and `member_voice_update` values replace all duplicate guild rows and no index appears;
+- on a disposable copied row, seed numeric `channel_id` plus string/numeric toggle scalars and verify Mongoose-compatible reads, then restore typed values with the command;
+- verify an orphaned static `loggin_create` component asks for a rerun and cannot save an unknown channel;
+- verify config/select activity emits no event and adds no usage write beyond the one initial slash attempt when usage tracking is enabled.
 
 If logging message-event flags were enabled:
 
 - ensure the staging `loggings` row has `channel_id` pointing to the staging log channel and enables `message_update` and/or `message_delete`;
-- send then edit a staging message and verify the log channel receives the legacy-style `訊息編輯` embed with old/new content and no mention ping;
-- delete a staging message that was visible to the bot cache and verify the log channel receives the legacy-style `訊息刪除` embed with message content and best-effort deleter attribution;
+- send then edit a cached human message and verify `訊息編輯` uses the pre-edit author, exact color/field/code-block spacing, new attachment values in raw order, PNG/default author avatar, WebP/GIF bot footer, and no mention ping;
+- verify unchanged content, a bot-authored message, and an update without cached old content emit nothing;
+- delete a cached message with an action-72 audit entry whose target and channel both match; verify the matching executor is shown;
+- repeat with either audit target or channel mismatched and verify the displayed deleter falls back to the message author;
 - verify no channel or voice log event is emitted.
 
 If logging channel-event flags were enabled:
 
 - ensure the staging `loggings` row has `channel_id` pointing to the staging log channel and enables `channel_update`;
-- edit a disposable staging text-channel topic and verify the log channel receives the legacy-style `頻道主題更新` embed with old/new topic text and no mention ping;
-- edit a disposable staging channel permission overwrite and verify the log channel receives the legacy-style `頻道權限更新` embed with role/user mention text and no mention ping;
+- edit a disposable topic to/from API null and verify `頻道主題更新` renders literal `null`, uses the first action-11 audit executor without target filtering, and sends no ping;
+- change topic and permissions in one event where possible and verify the topic branch takes precedence;
+- edit disposable role and user overwrites and verify `頻道權限更新` uses overwrite-type mention syntax plus the exact legacy permission/default/allow/deny ordering;
 - verify no message or voice log event is emitted.
 
 If logging voice-event flags were enabled:
 
 - ensure the staging `loggings` row has `channel_id` pointing to the staging log channel and enables `member_voice_update`;
-- join a disposable staging voice channel and verify the log channel receives the legacy-style `使用者加入語音頻道` embed with the user, channel mention, cached channel name, and no mention ping;
-- leave that channel and verify the log channel receives the legacy-style `使用者退出語音頻道` embed;
+- join as a human and bot and verify `使用者加入語音頻道` uses the new-state member/channel, cached name, exact avatar/footer, and no mention ping;
+- leave and verify `使用者退出語音頻道` uses the old-state member/channel;
 - move directly between two staging voice channels and change mute/deafen state, verifying neither action emits a voice logging embed, matching legacy behavior;
-- verify no message or channel log event is emitted.
+- verify no message or channel log event and no usage-counter write is emitted.
 
 If XP reward-role config flags were enabled and command sync apply was reviewed:
 
