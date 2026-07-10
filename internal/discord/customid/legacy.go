@@ -22,7 +22,7 @@ var (
 	legacyRankAltRe      = regexp.MustCompile(`^\[([0-9]{17,20})\](text_rank|voice_rank|coin_rank) \{([0-9]+)\}$`)
 	legacyLeaveRoleRe    = regexp.MustCompile(`^([0-9]+)(text_leave_role|voice_leave_role)$`)
 	legacyVerificationRe = regexp.MustCompile(`^[A-Za-z0-9]{1,16}verification$`)
-	legacyPollRe         = regexp.MustCompile(`^poll_[^\x00-\x1F:]{1,80}$`)
+	legacyPollRe         = regexp.MustCompile(`^poll_[^\x00-\x1F]{1,80}$`)
 	legacyRoleButtonRe   = regexp.MustCompile(`^[0-9]{13,32}(\.[0-9]{1,32})?(e[+-]?[0-9]+)?(add|delete)$`)
 	legacyRoleAddModalRe = regexp.MustCompile(`^roleaddcontent[0-9]{13,32}(\.[0-9]{1,32})?(e[+-]?[0-9]+)?$`)
 	legacyLotteryRe      = regexp.MustCompile(`^[0-9]{13,20}lotter(search|restart|stop)?$`)

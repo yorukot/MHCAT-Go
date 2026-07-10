@@ -96,6 +96,16 @@ func TestLegacyPollChoiceAllowsLegacyEightyCharacters(t *testing.T) {
 	}
 }
 
+func TestLegacyPollChoiceAllowsColon(t *testing.T) {
+	parsed, err := customid.ParseComponent("poll_A:B")
+	if err != nil {
+		t.Fatalf("parse poll choice with colon: %v", err)
+	}
+	if parsed.Feature != "poll" || parsed.Action != "vote" || !parsed.Legacy {
+		t.Fatalf("parsed = %#v", parsed)
+	}
+}
+
 func TestLegacyKnowledgeAnswerRoutesKnownUnicodeAndASCIIAnswers(t *testing.T) {
 	for _, raw := range []string{"亞洲", "RAV4"} {
 		parsed, err := customid.ParseComponent(raw)
