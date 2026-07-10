@@ -203,11 +203,13 @@ func eventFromChannelUpdate(update *dgo.ChannelUpdate, bot *dgo.User) events.Eve
 		channelUpdate.ChannelID = update.Channel.ID
 		channelUpdate.GuildID = update.Channel.GuildID
 		channelUpdate.NewTopic = update.Channel.Topic
+		channelUpdate.NewTopicNull = update.Channel.Topic == ""
 		channelUpdate.NewPermissionOverwrites = permissionOverwritesFromDiscord(update.Channel.PermissionOverwrites)
 	}
 	if update != nil && update.BeforeUpdate != nil {
 		channelUpdate.HasOldChannel = true
 		channelUpdate.OldTopic = update.BeforeUpdate.Topic
+		channelUpdate.OldTopicNull = update.BeforeUpdate.Topic == ""
 		channelUpdate.OldPermissionOverwrites = permissionOverwritesFromDiscord(update.BeforeUpdate.PermissionOverwrites)
 		if event.ID == "" {
 			event.ID = update.BeforeUpdate.ID

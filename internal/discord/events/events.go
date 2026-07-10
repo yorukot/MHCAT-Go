@@ -103,6 +103,8 @@ type ChannelUpdate struct {
 	OldTopic                string
 	NewTopic                string
 	HasOldChannel           bool
+	OldTopicNull            bool
+	NewTopicNull            bool
 	OldPermissionOverwrites []PermissionOverwrite
 	NewPermissionOverwrites []PermissionOverwrite
 }

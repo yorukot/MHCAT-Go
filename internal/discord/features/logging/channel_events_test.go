@@ -60,6 +60,36 @@ func TestChannelTopicLoggingSendsLegacyEmbed(t *testing.T) {
 	}
 }
 
+func TestChannelTopicLoggingRendersLegacyNullValue(t *testing.T) {
+	repo := &fakemongo.LoggingConfigRepository{Configs: map[string]domain.LoggingConfig{
+		"guild-1": {GuildID: "guild-1", ChannelID: "log-channel", ChannelUpdate: true},
+	}}
+	discord := fakediscord.NewSideEffects()
+	discord.AuditEntries = []ports.AuditLogEntry{{UserID: "moderator-1", Username: "Mio", Action: loggingChannelUpdateAuditAction}}
+	module := NewChannelEventModule(repo, discord, discord)
+
+	err := module.ChannelUpdateHandler()(context.Background(), events.Event{
+		Type:      events.TypeChannelUpdate,
+		GuildID:   "guild-1",
+		ChannelID: "channel-1",
+		ChannelUpdate: &events.ChannelUpdate{
+			HasOldChannel: true,
+			OldTopicNull:  true,
+			NewTopic:      "null",
+		},
+	})
+	if err != nil {
+		t.Fatalf("channel topic log: %v", err)
+	}
+	if len(discord.Sent) != 1 {
+		t.Fatalf("sent = %#v", discord.Sent)
+	}
+	fields := discord.Sent[0].Message.Embeds[0].Fields
+	if len(fields) != 2 || fields[0].Value != "```null ```" || fields[1].Value != "```null ```" {
+		t.Fatalf("fields = %#v", fields)
+	}
+}
+
 func TestChannelTopicLoggingUsesFirstAuditEntryWithoutTargetFiltering(t *testing.T) {
 	repo := &fakemongo.LoggingConfigRepository{Configs: map[string]domain.LoggingConfig{
 		"guild-1": {GuildID: "guild-1", ChannelID: "log-channel", ChannelUpdate: true},

@@ -140,7 +140,7 @@ func (m Module) ChannelUpdateHandler() events.Handler {
 		if !config.ChannelUpdate || strings.TrimSpace(config.ChannelID) == "" {
 			return nil
 		}
-		if channel.OldTopic != channel.NewTopic {
+		if channel.OldTopic != channel.NewTopic || channel.OldTopicNull != channel.NewTopicNull {
 			actor := m.channelUpdateActor(ctx, event)
 			_, err = m.messages.SendMessage(ctx, config.ChannelID, ports.OutboundMessage{
 				Embeds: []ports.OutboundEmbed{{
@@ -149,8 +149,8 @@ func (m Module) ChannelUpdateHandler() events.Handler {
 					Color:         0xFF8040,
 					Description:   "**<:chat:1085254765342109697> 頻道主題編輯者: <@" + actor.UserID + "> | <:Channel:994524759289233438> 頻道: <#" + event.ChannelID + ">**",
 					Fields: []ports.OutboundEmbedField{
-						{Name: "**<:book:1084846007545778217> 舊主題**", Value: loggingCodeBlock(channel.OldTopic)},
-						{Name: "**<:new:1084846011366785135> 新主題:**", Value: loggingCodeBlock(channel.NewTopic)},
+						{Name: "**<:book:1084846007545778217> 舊主題**", Value: loggingCodeBlock(loggingTopicText(channel.OldTopic, channel.OldTopicNull))},
+						{Name: "**<:new:1084846011366785135> 新主題:**", Value: loggingCodeBlock(loggingTopicText(channel.NewTopic, channel.NewTopicNull))},
 					},
 					FooterText:    loggingFooterText,
 					FooterIconURL: event.BotAvatarURL,
@@ -188,6 +188,13 @@ func (m Module) ChannelUpdateHandler() events.Handler {
 		}
 		return nil
 	}
+}
+
+func loggingTopicText(topic string, isNull bool) string {
+	if isNull {
+		return "null"
+	}
+	return topic
 }
 
 func (m Module) channelUpdateActor(ctx context.Context, event events.Event) ports.AuditLogEntry {

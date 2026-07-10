@@ -104,6 +104,16 @@ func TestEventFromChannelUpdateIncludesCachedBeforePayload(t *testing.T) {
 	}
 }
 
+func TestEventFromChannelUpdateRetainsTopicNullState(t *testing.T) {
+	event := eventFromChannelUpdate(&dgo.ChannelUpdate{
+		Channel:      &dgo.Channel{ID: "channel-1", GuildID: "guild-1", Topic: "null"},
+		BeforeUpdate: &dgo.Channel{ID: "channel-1", GuildID: "guild-1"},
+	}, nil)
+	if event.ChannelUpdate == nil || !event.ChannelUpdate.OldTopicNull || event.ChannelUpdate.NewTopicNull || event.ChannelUpdate.NewTopic != "null" {
+		t.Fatalf("event = %#v", event)
+	}
+}
+
 func TestEventFromReaction(t *testing.T) {
 	event := eventFromReaction(events.TypeReactionAdd, &dgo.MessageReaction{
 		UserID:    "user-1",
