@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"math"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -46,5 +47,32 @@ func TestAutoChatPaidRequestValidationRejectsInvalidValues(t *testing.T) {
 		if _, err := (&AutoChatPaidRepository{}).QueuePaidAutoChat(context.Background(), request); err == nil {
 			t.Fatalf("request %#v should fail", request)
 		}
+	}
+}
+
+func TestLegacyAutoChatTimingPreservesJavaScriptBoundaries(t *testing.T) {
+	const now = int64(1_700_000_000_000)
+	for _, test := range []struct {
+		name      string
+		previous  any
+		wantBusy  bool
+		wantReset bool
+	}{
+		{name: "under busy boundary", previous: float64(now) - 9_999.5, wantBusy: true},
+		{name: "at busy boundary", previous: now - 10_000},
+		{name: "at reset boundary", previous: now - 40_000},
+		{name: "over reset boundary", previous: float64(now) - 40_000.5, wantReset: true},
+		{name: "numeric string", previous: "1699999990001", wantBusy: true},
+		{name: "null resets", previous: nil, wantReset: true},
+		{name: "positive infinity stays busy", previous: math.Inf(1), wantBusy: true},
+		{name: "nan preserves conversation", previous: math.NaN()},
+		{name: "malformed preserves conversation", previous: bson.D{{Key: "invalid", Value: 1}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			busy, reset := legacyAutoChatTiming(now, rawValue(t, test.previous))
+			if busy != test.wantBusy || reset != test.wantReset {
+				t.Fatalf("timing = busy %v reset %v; want busy %v reset %v", busy, reset, test.wantBusy, test.wantReset)
+			}
+		})
 	}
 }

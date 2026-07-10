@@ -1,7 +1,9 @@
 package documents
 
 import (
+	"math"
 	"testing"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -33,7 +35,7 @@ func TestAutoChatPaidDocumentDecodesLegacyNullableConversationIDs(t *testing.T) 
 }
 
 func TestLegacyExactInt64RejectsMalformedValues(t *testing.T) {
-	for _, value := range []any{"1700000000123", 1.5, true} {
+	for _, value := range []any{"not-a-number", 1.5, math.NaN(), bson.D{{Key: "invalid", Value: 1}}} {
 		typeValue, encoded, err := bson.MarshalValue(value)
 		if err != nil {
 			t.Fatalf("marshal %T: %v", value, err)
@@ -42,8 +44,37 @@ func TestLegacyExactInt64RejectsMalformedValues(t *testing.T) {
 			t.Fatalf("value %v parsed as %d", value, parsed)
 		}
 	}
-	if parsed, ok := LegacyExactInt64(bson.RawValue{Type: bson.TypeNull}); ok {
-		t.Fatalf("null parsed as %d", parsed)
+	if parsed, ok := LegacyExactInt64(bson.RawValue{}); ok {
+		t.Fatalf("missing value parsed as %d", parsed)
+	}
+}
+
+func TestLegacyExactInt64UsesMongooseNumberCoercion(t *testing.T) {
+	decimal, err := bson.ParseDecimal128("1700000000123")
+	if err != nil {
+		t.Fatalf("parse decimal: %v", err)
+	}
+	for _, test := range []struct {
+		name  string
+		value any
+		want  int64
+	}{
+		{name: "numeric string", value: "1700000000123", want: 1_700_000_000_123},
+		{name: "hex string", value: "0x10", want: 16},
+		{name: "true", value: true, want: 1},
+		{name: "false", value: false, want: 0},
+		{name: "date", value: time.UnixMilli(1_700_000_000_123), want: 1_700_000_000_123},
+		{name: "decimal", value: decimal, want: 1_700_000_000_123},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			value := rawBSONValue(t, test.value)
+			if got, ok := LegacyExactInt64(value); !ok || got != test.want {
+				t.Fatalf("LegacyExactInt64(%#v) = %d, %v; want %d", test.value, got, ok, test.want)
+			}
+		})
+	}
+	if got, ok := LegacyExactInt64(bson.RawValue{Type: bson.TypeNull}); !ok || got != 0 {
+		t.Fatalf("null = %d, %v; want 0, true", got, ok)
 	}
 }
 

@@ -187,16 +187,21 @@ func (r *AutoChatPaidRepository) resolvePaidHandoff(ctx context.Context, guildID
 		return autoChatPaidHandoffTarget{ID: newAutoChatPaidID(guildID)}, nil
 	}
 	target := autoChatPaidHandoffTarget{ID: rows[0].ID, Exists: true}
-	previousTime, ok := documents.LegacyExactInt64(rows[0].Time)
-	if !ok {
-		return target, nil
-	}
-	age := requestTimeMilli - previousTime
-	if age < legacyAutoChatBusyMillis {
+	busy, reset := legacyAutoChatTiming(requestTimeMilli, rows[0].Time)
+	if busy {
 		return autoChatPaidHandoffTarget{}, ports.ErrAutoChatPaidBusy
 	}
-	target.ConversationReset = age > legacyAutoChatResetMillis
+	target.ConversationReset = reset
 	return target, nil
+}
+
+func legacyAutoChatTiming(requestTimeMilli int64, previous bson.RawValue) (busy bool, reset bool) {
+	previousTime, ok := documents.LegacyMongooseNumber(previous)
+	if !ok {
+		return false, false
+	}
+	age := float64(requestTimeMilli) - previousTime
+	return age < float64(legacyAutoChatBusyMillis), age > float64(legacyAutoChatResetMillis)
 }
 
 func (r *AutoChatPaidRepository) writePaidHandoff(ctx context.Context, target autoChatPaidHandoffTarget, request domain.AutoChatPaidRequest) error {

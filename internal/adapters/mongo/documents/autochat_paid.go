@@ -4,6 +4,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -109,19 +110,85 @@ func legacyJavaScriptNumberString(value float64) string {
 }
 
 func LegacyExactInt64(value bson.RawValue) (int64, bool) {
-	switch value.Type {
-	case bson.TypeInt32:
-		return int64(value.Int32()), true
-	case bson.TypeInt64:
-		return value.Int64(), true
-	case bson.TypeDouble:
-		parsed := value.Double()
-		const int64Limit = float64(uint64(1) << 63)
-		if math.IsNaN(parsed) || math.IsInf(parsed, 0) || math.Trunc(parsed) != parsed || parsed < -int64Limit || parsed >= int64Limit {
-			return 0, false
-		}
-		return int64(parsed), true
-	default:
+	parsed, ok := LegacyMongooseNumber(value)
+	const int64Limit = float64(uint64(1) << 63)
+	if !ok || math.IsInf(parsed, 0) || math.Trunc(parsed) != parsed || parsed < -int64Limit || parsed >= int64Limit {
 		return 0, false
 	}
+	return int64(parsed), true
+}
+
+func LegacyMongooseNumber(value bson.RawValue) (float64, bool) {
+	switch value.Type {
+	case 0, bson.TypeUndefined:
+		return 0, false
+	case bson.TypeNull:
+		return 0, true
+	}
+	if text, ok := value.StringValueOK(); ok {
+		return legacyJavaScriptNumericString(text)
+	}
+	if text, ok := value.SymbolOK(); ok {
+		return legacyJavaScriptNumericString(text)
+	}
+	if parsed, ok := value.BooleanOK(); ok {
+		if parsed {
+			return 1, true
+		}
+		return 0, true
+	}
+	if parsed, ok := value.AsFloat64OK(); ok {
+		if math.IsNaN(parsed) {
+			return 0, false
+		}
+		return parsed, true
+	}
+	if parsed, ok := value.DateTimeOK(); ok {
+		return float64(parsed), true
+	}
+	if parsed, ok := value.Decimal128OK(); ok {
+		return legacyJavaScriptNumericString(parsed.String())
+	}
+	if timestamp, increment, ok := value.TimestampOK(); ok {
+		return float64(uint64(timestamp)<<32 | uint64(increment)), true
+	}
+	if parsed, ok := value.ObjectIDOK(); ok {
+		return legacyJavaScriptNumericString(parsed.Hex())
+	}
+	return 0, false
+}
+
+func legacyJavaScriptNumericString(value string) (float64, bool) {
+	value = strings.TrimFunc(value, func(r rune) bool {
+		return unicode.IsSpace(r) || r == '\ufeff'
+	})
+	if value == "" {
+		return 0, true
+	}
+	switch value {
+	case "Infinity", "+Infinity":
+		return math.Inf(1), true
+	case "-Infinity":
+		return math.Inf(-1), true
+	}
+	if len(value) > 2 && value[0] == '0' {
+		base := 0
+		switch value[1] {
+		case 'x', 'X':
+			base = 16
+		case 'b', 'B':
+			base = 2
+		case 'o', 'O':
+			base = 8
+		}
+		if base != 0 {
+			parsed, err := strconv.ParseUint(value[2:], base, 64)
+			return float64(parsed), err == nil
+		}
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil || math.IsNaN(parsed) || math.IsInf(parsed, 0) {
+		return 0, false
+	}
+	return parsed, true
 }
