@@ -218,7 +218,7 @@ func (w *DeliveryWorker) reconcile(ctx context.Context) error {
 			w.logger.WarnContext(ctx, "skip duplicate auto-notification delivery", "guild_id", schedule.GuildID, "schedule_id", schedule.ID)
 			continue
 		}
-		desired[key] = desiredSchedule{guildID: schedule.GuildID, id: schedule.ID, spec: schedule.Cron}
+		desired[key] = desiredSchedule{guildID: schedule.GuildID, id: schedule.ID, spec: NormalizeLegacyAutoNotificationCron(schedule.Cron)}
 	}
 	for key, current := range w.entries {
 		next, exists := desired[key]

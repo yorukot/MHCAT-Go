@@ -15,6 +15,8 @@ func TestValidateDirectCron(t *testing.T) {
 		{name: "thirty minute step", value: "*/30 * * * *", want: directCronValid},
 		{name: "weekday seven", value: "0 9 * * 7", want: directCronValid},
 		{name: "weekday one through seven", value: "0 9 * * 1-7", want: directCronValid},
+		{name: "weekday range through seven", value: "0 9 * * 5-7", want: directCronValid},
+		{name: "weekday stepped range through seven", value: "0 9 * * 5-7/2", want: directCronValid},
 		{name: "every minute", value: "* * * * *", want: directCronTooFrequent},
 		{name: "five minute step", value: "*/5 * * * *", want: directCronTooFrequent},
 		{name: "cancel starts wizard", value: "cancel", want: directCronInvalid},

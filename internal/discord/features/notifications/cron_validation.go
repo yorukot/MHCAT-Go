@@ -1,10 +1,10 @@
 package notifications
 
 import (
-	"strings"
 	"time"
 
 	robfigcron "github.com/robfig/cron/v3"
+	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/notifications"
 )
 
 type directCronValidation uint8
@@ -20,7 +20,7 @@ var autoNotificationCronParser = robfigcron.NewParser(
 )
 
 func validateDirectCron(value string, now time.Time) directCronValidation {
-	value = normalizeSundaySeven(value)
+	value = coreservice.NormalizeLegacyAutoNotificationCron(value)
 	schedule, err := autoNotificationCronParser.Parse(value)
 	if err != nil {
 		return directCronInvalid
@@ -37,23 +37,4 @@ func validateDirectCron(value string, now time.Time) directCronValidation {
 		return directCronTooFrequent
 	}
 	return directCronValid
-}
-
-func normalizeSundaySeven(value string) string {
-	fields := strings.Fields(value)
-	if len(fields) != 5 {
-		return value
-	}
-	if fields[4] == "1-7" {
-		fields[4] = "*"
-		return strings.Join(fields, " ")
-	}
-	parts := strings.Split(fields[4], ",")
-	for index, part := range parts {
-		if part == "7" {
-			parts[index] = "0"
-		}
-	}
-	fields[4] = strings.Join(parts, ",")
-	return strings.Join(fields, " ")
 }

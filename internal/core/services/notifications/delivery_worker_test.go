@@ -179,6 +179,32 @@ func TestDeliveryWorkerReconcilesCronChangesAndInvalidRows(t *testing.T) {
 	}
 }
 
+func TestDeliveryWorkerSchedulesLegacySundaySeven(t *testing.T) {
+	now := time.Now().UTC()
+	repo := newDeliveryRepository(deliveryFixture("0 9 * * 5-7"))
+	scheduler := newFakeDeliveryScheduler()
+	worker, err := newDeliveryWorker(
+		DeliveryService{Repository: repo, Messages: fakediscord.NewSideEffects()},
+		fakemongo.NewSchedulerLeaseStore(),
+		scheduler,
+		"worker-a",
+		2*time.Minute,
+		time.Second,
+		time.Hour,
+		func() time.Time { return now },
+		discardNotificationLogger(),
+	)
+	if err != nil {
+		t.Fatalf("new worker: %v", err)
+	}
+	if err := worker.runCycle(context.Background()); err != nil {
+		t.Fatalf("run cycle: %v", err)
+	}
+	if scheduler.count() != 1 || scheduler.onlySpec() != "0 9 * * 0,5,6" {
+		t.Fatalf("entries=%d spec=%q", scheduler.count(), scheduler.onlySpec())
+	}
+}
+
 func TestDeliveryWorkerConstructorRejectsIncompleteOwnership(t *testing.T) {
 	_, err := newDeliveryWorker(DeliveryService{}, nil, nil, "", 0, 0, 0, nil, nil)
 	if !errors.Is(err, domain.ErrInvalidAutoNotificationSchedule) {
