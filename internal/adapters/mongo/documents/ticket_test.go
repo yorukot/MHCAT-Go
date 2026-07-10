@@ -23,7 +23,7 @@ func TestTicketConfigDocumentLegacyFixtureDecodes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal fixture bson: %v", err)
 	}
-	var document TicketConfigDocument
+	var document TicketConfigReadDocument
 	if err := bson.Unmarshal(bsonPayload, &document); err != nil {
 		t.Fatalf("decode bson fixture: %v", err)
 	}
@@ -54,12 +54,56 @@ func TestTicketConfigDocumentMissingFieldsDecodeSafe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal partial bson: %v", err)
 	}
-	var document TicketConfigDocument
+	var document TicketConfigReadDocument
 	if err := bson.Unmarshal(payload, &document); err != nil {
 		t.Fatalf("decode partial bson: %v", err)
 	}
 	config := document.ToDomain()
 	if config.GuildID != "guild-1" || config.CategoryID != "" || config.AdminRoleID != "" || config.EveryoneRoleID != "" {
 		t.Fatalf("partial config = %#v", config)
+	}
+}
+
+func TestTicketConfigReadDocumentUsesMongooseStringCoercion(t *testing.T) {
+	everyoneID := bson.NewObjectID()
+	payload, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: int64(123)},
+		{Key: "ticket_channel", Value: true},
+		{Key: "admin_id", Value: 42.5},
+		{Key: "everyone_id", Value: everyoneID},
+	})
+	if err != nil {
+		t.Fatalf("marshal mixed ticket config: %v", err)
+	}
+	var document TicketConfigReadDocument
+	if err := bson.Unmarshal(payload, &document); err != nil {
+		t.Fatalf("decode mixed ticket config: %v", err)
+	}
+	got := document.ToDomain()
+	want := domain.TicketConfig{
+		GuildID:        "123",
+		CategoryID:     "true",
+		AdminRoleID:    "42.5",
+		EveryoneRoleID: everyoneID.Hex(),
+	}
+	if got != want {
+		t.Fatalf("mixed ticket config = %#v, want %#v", got, want)
+	}
+}
+
+func TestTicketConfigReadDocumentRejectsNonMongooseStringShapes(t *testing.T) {
+	payload, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: bson.A{"guild-1"}},
+		{Key: "ticket_channel", Value: bson.D{{Key: "id", Value: "category-1"}}},
+	})
+	if err != nil {
+		t.Fatalf("marshal malformed ticket config: %v", err)
+	}
+	var document TicketConfigReadDocument
+	if err := bson.Unmarshal(payload, &document); err != nil {
+		t.Fatalf("decode malformed ticket config: %v", err)
+	}
+	if got := document.ToDomain(); got != (domain.TicketConfig{}) {
+		t.Fatalf("malformed ticket config = %#v, want empty", got)
 	}
 }

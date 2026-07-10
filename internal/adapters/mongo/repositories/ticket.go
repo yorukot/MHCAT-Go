@@ -43,14 +43,18 @@ func (r *TicketConfigRepository) GetTicketConfig(ctx context.Context, guildID st
 	if guildID == "" {
 		return domain.TicketConfig{}, domain.ErrInvalidTicketConfig
 	}
-	var document documents.TicketConfigDocument
+	var document documents.TicketConfigReadDocument
 	if err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document); err != nil {
 		if mhcatmongo.ErrorIs(mhcatmongo.MapError(err), mhcatmongo.ErrorKindNotFound) {
 			return domain.TicketConfig{}, ports.ErrTicketConfigNotFound
 		}
 		return domain.TicketConfig{}, mhcatmongo.MapError(fmt.Errorf("get ticket config: %w", err))
 	}
-	return document.ToDomain(), ctx.Err()
+	config := document.ToDomain()
+	if config.GuildID == "" {
+		config.GuildID = guildID
+	}
+	return config, ctx.Err()
 }
 
 func (r *TicketConfigRepository) SaveTicketConfig(ctx context.Context, config domain.TicketConfig) error {
