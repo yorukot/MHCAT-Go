@@ -15,6 +15,8 @@ var ErrInvalidCoinRankQuery = errors.New("invalid coin rank query")
 var ErrInvalidCoinResetCommand = errors.New("invalid coin reset command")
 var ErrInvalidEconomyProfileQuery = errors.New("invalid economy profile query")
 var ErrInvalidRockPaperScissorsCommand = errors.New("invalid rock paper scissors command")
+var ErrInvalidShopItem = errors.New("invalid shop item")
+var ErrInvalidShopPurchase = errors.New("invalid shop purchase")
 
 type CoinAdminOperation string
 type RockPaperScissorsChoice string
@@ -161,6 +163,33 @@ type RockPaperScissorsResult struct {
 	ComputerChoice  RockPaperScissorsChoice
 }
 
+type ShopItem struct {
+	GuildID     string
+	CommodityID int64
+	Name        string
+	NeedCoins   int64
+	Description string
+	Code        string
+	AutoDelete  bool
+	RoleID      string
+	Count       int64
+}
+
+type ShopPurchaseCommand struct {
+	GuildID     string
+	UserID      string
+	CommodityID int64
+	Quantity    int64
+}
+
+type ShopPurchaseResult struct {
+	Item            ShopItem
+	Quantity        int64
+	TotalCost       int64
+	PreviousBalance int64
+	Balance         CoinBalance
+}
+
 func (c CoinAdminCommand) Normalize() CoinAdminCommand {
 	return CoinAdminCommand{
 		GuildID:   strings.TrimSpace(c.GuildID),
@@ -257,6 +286,45 @@ func ResolveRockPaperScissors(command RockPaperScissorsCommand) (RockPaperScisso
 		return RockPaperScissorsOutcomeWin, command.Wager, nil
 	}
 	return RockPaperScissorsOutcomeLoss, -command.Wager, nil
+}
+
+func (i ShopItem) Normalize() ShopItem {
+	return ShopItem{
+		GuildID:     strings.TrimSpace(i.GuildID),
+		CommodityID: i.CommodityID,
+		Name:        strings.TrimSpace(i.Name),
+		NeedCoins:   i.NeedCoins,
+		Description: strings.TrimSpace(i.Description),
+		Code:        strings.TrimSpace(i.Code),
+		AutoDelete:  i.AutoDelete,
+		RoleID:      strings.TrimSpace(i.RoleID),
+		Count:       i.Count,
+	}
+}
+
+func (i ShopItem) Validate() error {
+	i = i.Normalize()
+	if i.GuildID == "" || i.CommodityID <= 0 || i.Name == "" || i.Description == "" || i.NeedCoins <= 0 || i.Count <= 0 {
+		return ErrInvalidShopItem
+	}
+	return nil
+}
+
+func (c ShopPurchaseCommand) Normalize() ShopPurchaseCommand {
+	return ShopPurchaseCommand{
+		GuildID:     strings.TrimSpace(c.GuildID),
+		UserID:      strings.TrimSpace(c.UserID),
+		CommodityID: c.CommodityID,
+		Quantity:    c.Quantity,
+	}
+}
+
+func (c ShopPurchaseCommand) Validate() error {
+	c = c.Normalize()
+	if c.GuildID == "" || c.UserID == "" || c.CommodityID <= 0 || c.Quantity <= 0 {
+		return ErrInvalidShopPurchase
+	}
+	return nil
 }
 
 func rockPaperScissorsPlayerWins(player RockPaperScissorsChoice, computer RockPaperScissorsChoice) bool {

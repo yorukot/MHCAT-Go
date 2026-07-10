@@ -105,6 +105,7 @@ func CurrentGoDefinitions() []commands.Definition {
 	definitions = append(definitions, featureeconomy.CoinRankDefinitions()...)
 	definitions = append(definitions, featureeconomy.CoinResetDefinitions()...)
 	definitions = append(definitions, featureeconomy.RockPaperScissorsDefinitions()...)
+	definitions = append(definitions, featureeconomy.ShopDefinitions()...)
 	definitions = append(definitions, featureeconomy.ProfileDefinitions()...)
 	definitions = append(definitions, featurework.Definitions()...)
 	definitions = append(definitions, featuremoderation.Definitions()...)

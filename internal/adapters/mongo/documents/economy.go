@@ -31,6 +31,18 @@ type SignListDocument struct {
 	Date   map[string]map[string][]string `bson:"date" json:"date"`
 }
 
+type ShopItemDocument struct {
+	Guild                string        `bson:"guild" json:"guild"`
+	CommodityID          bson.RawValue `bson:"commodity_id" json:"commodity_id"`
+	Name                 string        `bson:"name" json:"name"`
+	NeedCoin             bson.RawValue `bson:"need_coin" json:"need_coin"`
+	CommodityDescription string        `bson:"commodity_description" json:"commodity_description"`
+	Code                 *string       `bson:"code" json:"code"`
+	AutoDelete           bool          `bson:"auto_delete" json:"auto_delete"`
+	Role                 *string       `bson:"role" json:"role"`
+	CommodityCount       bson.RawValue `bson:"commodity_count" json:"commodity_count"`
+}
+
 func (d CoinDocument) ToDomain() domain.CoinBalance {
 	return domain.CoinBalance{
 		GuildID: d.Guild,
@@ -88,6 +100,51 @@ func SignListDocumentFromDomain(calendar domain.SignCalendar) SignListDocument {
 		Guild:  calendar.GuildID,
 		Member: calendar.UserID,
 		Date:   date,
+	}
+}
+
+func (d ShopItemDocument) ToDomain() domain.ShopItem {
+	code := ""
+	if d.Code != nil {
+		code = *d.Code
+	}
+	roleID := ""
+	if d.Role != nil {
+		roleID = *d.Role
+	}
+	return domain.ShopItem{
+		GuildID:     d.Guild,
+		CommodityID: legacyInt64(d.CommodityID),
+		Name:        d.Name,
+		NeedCoins:   legacyInt64(d.NeedCoin),
+		Description: d.CommodityDescription,
+		Code:        code,
+		AutoDelete:  d.AutoDelete,
+		RoleID:      roleID,
+		Count:       legacyInt64(d.CommodityCount),
+	}
+}
+
+func ShopItemWriteDocumentFromDomain(item domain.ShopItem) bson.D {
+	item = item.Normalize()
+	var code any
+	if item.Code != "" {
+		code = item.Code
+	}
+	var role any
+	if item.RoleID != "" {
+		role = item.RoleID
+	}
+	return bson.D{
+		{Key: "guild", Value: item.GuildID},
+		{Key: "commodity_id", Value: item.CommodityID},
+		{Key: "name", Value: item.Name},
+		{Key: "need_coin", Value: item.NeedCoins},
+		{Key: "commodity_description", Value: item.Description},
+		{Key: "code", Value: code},
+		{Key: "auto_delete", Value: item.AutoDelete},
+		{Key: "role", Value: role},
+		{Key: "commodity_count", Value: item.Count},
 	}
 }
 

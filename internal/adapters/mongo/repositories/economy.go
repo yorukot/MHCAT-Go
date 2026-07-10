@@ -20,15 +20,17 @@ const (
 	CoinCollectionName       = "coins"
 	GiftChangeCollectionName = "gift_changes"
 	SignListCollectionName   = "sign_lists"
+	ShopItemCollectionName   = "ghps"
 )
 
 type EconomyRepository struct {
 	coins       *drivermongo.Collection
 	giftChanges *drivermongo.Collection
 	signLists   *drivermongo.Collection
+	shopItems   *drivermongo.Collection
 }
 
-func NewEconomyRepository(coins *drivermongo.Collection, giftChanges *drivermongo.Collection, signLists *drivermongo.Collection) (*EconomyRepository, error) {
+func NewEconomyRepository(coins *drivermongo.Collection, giftChanges *drivermongo.Collection, signLists *drivermongo.Collection, shopItems ...*drivermongo.Collection) (*EconomyRepository, error) {
 	if coins == nil {
 		return nil, fmt.Errorf("coins collection is required")
 	}
@@ -38,14 +40,18 @@ func NewEconomyRepository(coins *drivermongo.Collection, giftChanges *drivermong
 	if signLists == nil {
 		return nil, fmt.Errorf("sign_lists collection is required")
 	}
-	return &EconomyRepository{coins: coins, giftChanges: giftChanges, signLists: signLists}, nil
+	repo := &EconomyRepository{coins: coins, giftChanges: giftChanges, signLists: signLists}
+	if len(shopItems) > 0 {
+		repo.shopItems = shopItems[0]
+	}
+	return repo, nil
 }
 
 func NewEconomyRepositoryFromDatabase(database *drivermongo.Database) (*EconomyRepository, error) {
 	if database == nil {
 		return nil, fmt.Errorf("mongo database is required")
 	}
-	return NewEconomyRepository(database.Collection(CoinCollectionName), database.Collection(GiftChangeCollectionName), database.Collection(SignListCollectionName))
+	return NewEconomyRepository(database.Collection(CoinCollectionName), database.Collection(GiftChangeCollectionName), database.Collection(SignListCollectionName), database.Collection(ShopItemCollectionName))
 }
 
 func (r *EconomyRepository) GetCoinBalance(ctx context.Context, guildID string, userID string) (domain.CoinBalance, error) {
@@ -483,4 +489,165 @@ func (r *EconomyRepository) addSignCalendarDay(ctx context.Context, command doma
 		return mhcatmongo.MapError(fmt.Errorf("update sign calendar: %w", err))
 	}
 	return ctx.Err()
+}
+
+func (r *EconomyRepository) ListShopItems(ctx context.Context, guildID string) ([]domain.ShopItem, error) {
+	if err := r.shopReady(ctx); err != nil {
+		return nil, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return nil, domain.ErrInvalidShopItem
+	}
+	cursor, err := r.shopItems.Find(ctx, bson.D{{Key: "guild", Value: guildID}})
+	if err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("list shop items: %w", err))
+	}
+	defer cursor.Close(ctx)
+	items := []domain.ShopItem{}
+	for cursor.Next(ctx) {
+		var document documents.ShopItemDocument
+		if err := cursor.Decode(&document); err != nil {
+			return nil, mhcatmongo.MapError(fmt.Errorf("decode shop item: %w", err))
+		}
+		items = append(items, document.ToDomain())
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("iterate shop items: %w", err))
+	}
+	return items, ctx.Err()
+}
+
+func (r *EconomyRepository) GetShopItem(ctx context.Context, guildID string, commodityID int64) (domain.ShopItem, error) {
+	if err := r.shopReady(ctx); err != nil {
+		return domain.ShopItem{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" || commodityID <= 0 {
+		return domain.ShopItem{}, domain.ErrInvalidShopItem
+	}
+	var document documents.ShopItemDocument
+	err := r.shopItems.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "commodity_id", Value: commodityID}}).Decode(&document)
+	if err != nil {
+		if err == drivermongo.ErrNoDocuments {
+			return domain.ShopItem{}, ports.ErrShopItemMissing
+		}
+		return domain.ShopItem{}, mhcatmongo.MapError(fmt.Errorf("get shop item: %w", err))
+	}
+	return document.ToDomain(), ctx.Err()
+}
+
+func (r *EconomyRepository) CreateShopItem(ctx context.Context, item domain.ShopItem) (domain.ShopItem, error) {
+	if err := r.shopReady(ctx); err != nil {
+		return domain.ShopItem{}, err
+	}
+	item = item.Normalize()
+	if err := item.Validate(); err != nil {
+		return domain.ShopItem{}, err
+	}
+	filter := bson.D{{Key: "guild", Value: item.GuildID}, {Key: "commodity_id", Value: item.CommodityID}}
+	err := r.shopItems.FindOne(ctx, filter).Err()
+	if err == nil {
+		return domain.ShopItem{}, ports.ErrShopItemExists
+	}
+	if err != drivermongo.ErrNoDocuments {
+		return domain.ShopItem{}, mhcatmongo.MapError(fmt.Errorf("find shop item before create: %w", err))
+	}
+	if _, err := r.shopItems.InsertOne(ctx, documents.ShopItemWriteDocumentFromDomain(item)); err != nil {
+		mapped := mhcatmongo.MapError(fmt.Errorf("create shop item: %w", err))
+		if mhcatmongo.ErrorIs(mapped, mhcatmongo.ErrorKindConflict) {
+			return domain.ShopItem{}, ports.ErrShopItemExists
+		}
+		return domain.ShopItem{}, mapped
+	}
+	return item, ctx.Err()
+}
+
+func (r *EconomyRepository) DeleteShopItem(ctx context.Context, guildID string, commodityID int64) (domain.ShopItem, error) {
+	if err := r.shopReady(ctx); err != nil {
+		return domain.ShopItem{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" || commodityID <= 0 {
+		return domain.ShopItem{}, domain.ErrInvalidShopItem
+	}
+	var document documents.ShopItemDocument
+	err := r.shopItems.FindOneAndDelete(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "commodity_id", Value: commodityID}}).Decode(&document)
+	if err != nil {
+		if err == drivermongo.ErrNoDocuments {
+			return domain.ShopItem{}, ports.ErrShopItemMissing
+		}
+		return domain.ShopItem{}, mhcatmongo.MapError(fmt.Errorf("delete shop item: %w", err))
+	}
+	return document.ToDomain(), ctx.Err()
+}
+
+func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain.ShopPurchaseCommand) (domain.ShopPurchaseResult, error) {
+	if err := r.shopReady(ctx); err != nil {
+		return domain.ShopPurchaseResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.ShopPurchaseResult{}, err
+	}
+	item, err := r.GetShopItem(ctx, command.GuildID, command.CommodityID)
+	if err != nil {
+		return domain.ShopPurchaseResult{}, err
+	}
+	if command.Quantity > item.Count {
+		return domain.ShopPurchaseResult{}, ports.ErrShopQuantityInvalid
+	}
+	if item.RoleID != "" && command.Quantity > 1 {
+		return domain.ShopPurchaseResult{}, ports.ErrShopQuantityInvalid
+	}
+	balance, err := r.GetCoinBalance(ctx, command.GuildID, command.UserID)
+	if err != nil {
+		if errors.Is(err, ports.ErrCoinBalanceNotFound) {
+			return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
+		}
+		return domain.ShopPurchaseResult{}, err
+	}
+	totalCost := item.NeedCoins * command.Quantity
+	if balance.Coins < totalCost {
+		return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
+	}
+	if item.AutoDelete {
+		if item.Count == command.Quantity {
+			if _, err := r.shopItems.DeleteOne(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "commodity_id", Value: command.CommodityID}}); err != nil {
+				return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("delete purchased shop item: %w", err))
+			}
+		} else {
+			nextCount := item.Count - command.Quantity
+			if _, err := r.shopItems.UpdateOne(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "commodity_id", Value: command.CommodityID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "commodity_count", Value: nextCount}}}}); err != nil {
+				return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("decrement shop item count: %w", err))
+			}
+		}
+	}
+	nextBalance := balance.Coins - totalCost
+	result, err := r.coins.UpdateMany(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "member", Value: command.UserID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: nextBalance}}}})
+	if err != nil {
+		return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("subtract shop purchase coins: %w", err))
+	}
+	if result.MatchedCount == 0 {
+		return domain.ShopPurchaseResult{}, ports.ErrCoinBalanceNotFound
+	}
+	previous := balance.Coins
+	balance.Coins = nextBalance
+	return domain.ShopPurchaseResult{
+		Item:            item,
+		Quantity:        command.Quantity,
+		TotalCost:       totalCost,
+		PreviousBalance: previous,
+		Balance:         balance,
+	}, ctx.Err()
+}
+
+func (r *EconomyRepository) shopReady(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if r.shopItems == nil {
+		return fmt.Errorf("shop items collection is required")
+	}
+	return nil
 }

@@ -13,6 +13,11 @@ var (
 	ErrAlreadySignedIn      = errors.New("already signed in")
 	ErrCoinLimitExceeded    = errors.New("coin limit exceeded")
 	ErrCoinNegativeBalance  = errors.New("coin balance would be negative")
+	ErrShopItemMissing      = errors.New("shop item not found")
+	ErrShopItemExists       = errors.New("shop item already exists")
+	ErrShopItemLimit        = errors.New("shop item limit exceeded")
+	ErrShopInsufficientCoin = errors.New("shop purchase has insufficient coins")
+	ErrShopQuantityInvalid  = errors.New("shop purchase quantity is invalid")
 )
 
 type EconomyQueryRepository interface {
@@ -59,4 +64,12 @@ type EconomyCoinResetRepository interface {
 
 type EconomyRockPaperScissorsRepository interface {
 	ApplyRockPaperScissors(ctx context.Context, command domain.RockPaperScissorsCommand) (domain.RockPaperScissorsResult, error)
+}
+
+type EconomyShopRepository interface {
+	ListShopItems(ctx context.Context, guildID string) ([]domain.ShopItem, error)
+	GetShopItem(ctx context.Context, guildID string, commodityID int64) (domain.ShopItem, error)
+	CreateShopItem(ctx context.Context, item domain.ShopItem) (domain.ShopItem, error)
+	DeleteShopItem(ctx context.Context, guildID string, commodityID int64) (domain.ShopItem, error)
+	PurchaseShopItem(ctx context.Context, command domain.ShopPurchaseCommand) (domain.ShopPurchaseResult, error)
 }

@@ -76,6 +76,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeEconomyRPS {
 		t.Fatal("include economy RPS must default false")
 	}
+	if cfg.IncludeEconomyShop {
+		t.Fatal("include economy shop must default false")
+	}
 	if cfg.IncludeEconomyProfile {
 		t.Fatal("include economy profile must default false")
 	}
@@ -1929,6 +1932,48 @@ func TestCommandSyncIncludeEconomyRPSStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeEconomyRPS {
 		t.Fatal("expected include economy RPS to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeEconomyShopRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":            "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":             "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include economy shop without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeEconomyShopRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":            "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                "global",
+		"MHCAT_STAGING_MODE":                      "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include economy shop with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeEconomyShopStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":            "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":             "guild",
+		"MHCAT_STAGING_MODE":                      "true",
+		"MHCAT_STAGING_GUILD_ID":                  "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeEconomyShop {
+		t.Fatal("expected include economy shop to be enabled explicitly")
 	}
 }
 

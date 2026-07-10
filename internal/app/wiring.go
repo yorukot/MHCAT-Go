@@ -55,6 +55,10 @@ type RuntimeOptions struct {
 	EconomyCoinResetMessagePort   ports.DiscordMessagePort
 	EconomyCoinResetGuildInfo     ports.DiscordInfoProvider
 	EconomyRPSRepository          ports.EconomyRockPaperScissorsRepository
+	EconomyShopRepository         ports.EconomyShopRepository
+	EconomyShopDirectMessage      ports.DiscordDirectMessagePort
+	EconomyShopRolePort           ports.DiscordRolePort
+	EconomyShopRoleInspector      ports.DiscordRoleInspector
 	EconomyProfileRepository      ports.EconomyProfileRepository
 	WorkInterfaceRepository       ports.WorkInterfaceRepository
 	WorkStartRepository           ports.WorkStartRepository
@@ -189,6 +193,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.EconomyRPSRepository != nil {
 		definitions = append(definitions, featureeconomy.RockPaperScissorsDefinitions()...)
+	}
+	if opts.EconomyShopRepository != nil {
+		definitions = append(definitions, featureeconomy.ShopDefinitions()...)
 	}
 	if opts.EconomyProfileRepository != nil {
 		definitions = append(definitions, featureeconomy.ProfileDefinitions()...)
@@ -398,6 +405,20 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.EconomyRPSRepository != nil {
 		rpsModule := featureeconomy.NewRockPaperScissorsModule(opts.EconomyRPSRepository, concreteDiscord, opts.UsageTracker)
 		if err := rpsModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.EconomyShopRepository != nil {
+		shopModule := featureeconomy.NewShopModule(
+			opts.EconomyShopRepository,
+			concreteDiscord,
+			opts.EconomyShopRoleInspector,
+			opts.EconomyShopRolePort,
+			opts.EconomyShopDirectMessage,
+			opts.UsageTracker,
+			clockOrSystem(opts.Clock),
+		)
+		if err := shopModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

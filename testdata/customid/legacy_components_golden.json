@@ -96,6 +96,14 @@
     "notes": "events/voice_create.js:53"
   },
   {
+    "name": "shop raw item",
+    "kind": "component",
+    "raw": "1710000000000",
+    "want": { "feature": "shop", "action": "item", "version": "legacy", "legacy": true },
+    "confidence": "medium",
+    "notes": "slashCommands/代幣系統/ghp_shop.js:245"
+  },
+  {
     "name": "shop quantity",
     "kind": "component",
     "raw": "1ghp_number",

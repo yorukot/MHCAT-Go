@@ -409,6 +409,32 @@ func TestBuildRuntimeRoutesEconomyRPSWithoutPublishingOtherEconomyCommands(t *te
 	}
 }
 
+func TestBuildRuntimeRoutesEconomyShopWithoutPublishingOtherEconomyCommands(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 50, Description: "role reward", Count: 1})
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                validTestConfig(),
+		EconomyShopRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with economy shop repo: %v", err)
+	}
+	for _, commandName := range []string{"代幣查詢", "簽到", "coin-related-settings", "代幣增加", "代幣排行榜", "剪刀石頭布", "my-profile"} {
+		responder := fakediscord.NewResponder()
+		if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction(commandName), responder); err == nil {
+			t.Fatalf("%s route should not be available with shop repository alone", commandName)
+		}
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("代幣商店", "商品查詢", nil)
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch economy shop: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Fields[0].Value, "**商品id:**`1001`") {
+		t.Fatalf("shop response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesEconomyProfileWithoutPublishingOtherEconomyCommands(t *testing.T) {
 	repo := fakemongo.NewEconomyProfileRepository()
 	userID := "123456789012345678"

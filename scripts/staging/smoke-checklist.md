@@ -26,6 +26,7 @@
 - For economy sign-in smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true` with `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`.
 - For economy coin-rank smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true` with `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`.
 - For economy RPS smoke, use only disposable staging `coins` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true` with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`.
+- For economy shop smoke, use only disposable staging `ghps`/`coins` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP=true` with `MHCAT_FEATURE_ECONOMY_SHOP_ENABLED=true`; use roles below the bot's highest role.
 - For economy profile smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE=true` with `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true`.
 - For economy coin-admin smoke, use only disposable staging `coins` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true` with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`.
 - For economy coin-reset smoke, use only disposable staging `coins` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true` with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`; test with the staging guild owner.

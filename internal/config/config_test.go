@@ -135,6 +135,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureEconomyRPSEnabled {
 		t.Fatal("economy RPS feature must be disabled by default")
 	}
+	if cfg.FeatureEconomyShopEnabled {
+		t.Fatal("economy shop feature must be disabled by default")
+	}
 	if cfg.FeatureEconomyProfileEnabled {
 		t.Fatal("economy profile feature must be disabled by default")
 	}
@@ -1212,6 +1215,21 @@ func TestFeatureEconomyRPSConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureEconomyRPSEnabled {
 		t.Fatal("expected economy RPS feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureEconomyShopConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                "token",
+		"MHCAT_MONGODB_URI":                  "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":             "mhcat",
+		"MHCAT_FEATURE_ECONOMY_SHOP_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureEconomyShopEnabled {
+		t.Fatal("expected economy shop feature to be enabled explicitly")
 	}
 }
 

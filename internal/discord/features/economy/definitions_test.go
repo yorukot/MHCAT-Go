@@ -74,6 +74,45 @@ func TestCoinResetDefinitionMatchesLegacyCommand(t *testing.T) {
 	}
 }
 
+func TestShopDefinitionMatchesLegacyCommand(t *testing.T) {
+	definition := ShopDefinition()
+	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}, []commands.Definition{definition})
+	if err := commands.ValidateRegistry(registry); err != nil {
+		t.Fatalf("validate registry: %v", err)
+	}
+	if definition.Name != ShopCommandName || definition.Description != "使用你所賺到的代幣買一些特別的東西吧!" {
+		t.Fatalf("shop definition = %#v", definition)
+	}
+	if len(definition.Options) != 3 {
+		t.Fatalf("shop options = %#v", definition.Options)
+	}
+	add := definition.Options[0]
+	if add.Type != commands.OptionTypeSubCommand || add.Name != "商品增加" || len(add.Options) != 7 {
+		t.Fatalf("add subcommand = %#v", add)
+	}
+	if add.Options[0].Name != "商品名" || add.Options[0].Type != commands.OptionTypeString || !add.Options[0].Required {
+		t.Fatalf("name option = %#v", add.Options[0])
+	}
+	if add.Options[1].Name != "商品所需代幣" || add.Options[1].Type != commands.OptionTypeInteger || !add.Options[1].Required {
+		t.Fatalf("price option = %#v", add.Options[1])
+	}
+	if add.Options[4].Name != "序號" || add.Options[4].Required {
+		t.Fatalf("code option = %#v", add.Options[4])
+	}
+	if add.Options[5].Name != "商品是否為身分組" || add.Options[5].Type != commands.OptionTypeRole {
+		t.Fatalf("role option = %#v", add.Options[5])
+	}
+	if definition.Options[1].Name != "商品刪除" || definition.Options[1].Options[0].Name != "商品id" {
+		t.Fatalf("delete subcommand = %#v", definition.Options[1])
+	}
+	if definition.Options[2].Name != "商品查詢" {
+		t.Fatalf("list subcommand = %#v", definition.Options[2])
+	}
+	if !commands.IsManagedForScope(definition, commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}) {
+		t.Fatal("shop command should be marked managed for guild-scoped staging sync")
+	}
+}
+
 func TestProfileDefinitionMatchesLegacyCommand(t *testing.T) {
 	definition := ProfileDefinition()
 	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}, []commands.Definition{definition})

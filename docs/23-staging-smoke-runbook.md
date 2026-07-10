@@ -93,6 +93,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true
 
 Set both together only in an isolated staging database when testing `/剪刀石頭布`. This path writes existing `coins` rows, so use disposable balances only.
 
+Optional economy shop smoke flags:
+
+```bash
+export MHCAT_FEATURE_ECONOMY_SHOP_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP=true
+```
+
+Set both together only in an isolated staging database when testing `/代幣商店`. This path writes `ghps`, subtracts `coins`, can add roles, and can DM prize codes, so use disposable shop and balance rows only.
+
 Optional economy profile smoke flags:
 
 ```bash
@@ -513,6 +522,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, the tester is the staging guild owner, and the staging database has only disposable `coins` rows for the reset target.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`, confirm `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`, the database is isolated staging data, and all target `coins` rows are disposable.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP=true`, confirm `MHCAT_FEATURE_ECONOMY_SHOP_ENABLED=true`, the database is isolated staging data, all target `ghps`/`coins` rows are disposable, and test roles are below the bot's highest role.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE=true`, confirm `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`, confirm `MHCAT_FEATURE_WORK_ENABLED=true` and that the test accepts the partial work command surface.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=true`, confirm `MHCAT_FEATURE_WARNINGS_ENABLED=true` and the staging guild has safe warning-history fixtures.
@@ -641,6 +651,13 @@ For economy RPS staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`;
 - `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`;
 - plan includes managed `剪刀石頭布`;
+- plan still performs no create/update/delete during dry-run.
+
+For economy shop staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP=true`;
+- `MHCAT_FEATURE_ECONOMY_SHOP_ENABLED=true`;
+- plan includes managed `代幣商店`;
 - plan still performs no create/update/delete during dry-run.
 
 For economy profile staging smoke, expected additionally:

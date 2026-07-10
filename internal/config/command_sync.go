@@ -26,6 +26,7 @@ const (
 	DefaultCommandSyncIncludeEconomyCoinRank        = false
 	DefaultCommandSyncIncludeEconomyCoinReset       = false
 	DefaultCommandSyncIncludeEconomyRPS             = false
+	DefaultCommandSyncIncludeEconomyShop            = false
 	DefaultCommandSyncIncludeEconomyProfile         = false
 	DefaultCommandSyncIncludeWork                   = false
 	DefaultCommandSyncIncludeWarnings               = false
@@ -96,6 +97,7 @@ type CommandSyncConfig struct {
 	IncludeEconomyCoinRank        bool
 	IncludeEconomyCoinReset       bool
 	IncludeEconomyRPS             bool
+	IncludeEconomyShop            bool
 	IncludeEconomyProfile         bool
 	IncludeWork                   bool
 	IncludeWarnings               bool
@@ -181,6 +183,7 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		IncludeEconomyCoinRank:        DefaultCommandSyncIncludeEconomyCoinRank,
 		IncludeEconomyCoinReset:       DefaultCommandSyncIncludeEconomyCoinReset,
 		IncludeEconomyRPS:             DefaultCommandSyncIncludeEconomyRPS,
+		IncludeEconomyShop:            DefaultCommandSyncIncludeEconomyShop,
 		IncludeEconomyProfile:         DefaultCommandSyncIncludeEconomyProfile,
 		IncludeWork:                   DefaultCommandSyncIncludeWork,
 		IncludeWarnings:               DefaultCommandSyncIncludeWarnings,
@@ -266,6 +269,9 @@ func LoadCommandSyncRawWithLookup(lookup LookupFunc) (CommandSyncConfig, error) 
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeEconomyRPS, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS", DefaultCommandSyncIncludeEconomyRPS); err != nil {
+		return CommandSyncConfig{}, err
+	}
+	if cfg.IncludeEconomyShop, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP", DefaultCommandSyncIncludeEconomyShop); err != nil {
 		return CommandSyncConfig{}, err
 	}
 	if cfg.IncludeEconomyProfile, err = getBool(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE", DefaultCommandSyncIncludeEconomyProfile); err != nil {
@@ -517,6 +523,14 @@ func ValidateCommandSync(cfg CommandSyncConfig) error {
 		}
 		if cfg.Scope != CommandSyncScopeGuild {
 			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS requires guild scope", ErrInvalidCommandSyncConfig)
+		}
+	}
+	if cfg.IncludeEconomyShop {
+		if !cfg.Staging.Mode {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP requires MHCAT_STAGING_MODE=true", ErrInvalidCommandSyncConfig)
+		}
+		if cfg.Scope != CommandSyncScopeGuild {
+			return fmt.Errorf("%w: MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP requires guild scope", ErrInvalidCommandSyncConfig)
 		}
 	}
 	if cfg.IncludeEconomyProfile {

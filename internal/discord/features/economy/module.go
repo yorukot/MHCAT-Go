@@ -3,6 +3,7 @@ package economy
 import (
 	"crypto/rand"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -22,12 +23,17 @@ type Module struct {
 	coinReset     coreeconomy.CoinResetService
 	coinRank      coreeconomy.CoinRankService
 	rps           coreeconomy.RockPaperScissorsService
+	shop          coreeconomy.ShopService
 	profile       coreeconomy.ProfileService
 	discord       ports.DiscordInfoProvider
 	messages      ports.DiscordMessagePort
+	direct        ports.DiscordDirectMessagePort
+	roles         ports.DiscordRolePort
+	roleInspector ports.DiscordRoleInspector
 	usage         ports.UsageTracker
 	clock         ports.Clock
 	confirmations *coinResetConfirmationStore
+	shopSessions  *shopSessionStore
 	color         func() int
 	rpsChoice     func() domain.RockPaperScissorsChoice
 	defs          []commands.Definition
@@ -148,6 +154,26 @@ func NewRockPaperScissorsModule(repo ports.EconomyRockPaperScissorsRepository, d
 	}
 }
 
+func NewShopModule(repo ports.EconomyShopRepository, discordInfo ports.DiscordInfoProvider, roleInspector ports.DiscordRoleInspector, roles ports.DiscordRolePort, direct ports.DiscordDirectMessagePort, usage ports.UsageTracker, clock ports.Clock) Module {
+	if clock == nil {
+		clock = ports.SystemClock{}
+	}
+	return Module{
+		shop:          coreeconomy.ShopService{Repository: repo},
+		discord:       discordInfo,
+		roleInspector: roleInspector,
+		roles:         roles,
+		direct:        direct,
+		usage:         usage,
+		clock:         clock,
+		shopSessions:  newShopSessionStore(),
+		color:         legacyRandomColor,
+		rpsChoice:     legacyRandomRockPaperScissorsChoice,
+		defs:          ShopDefinitions(),
+		feature:       "economy-shop",
+	}
+}
+
 func NewProfileModule(repo ports.EconomyProfileRepository, discordInfo ports.DiscordInfoProvider, clock ports.Clock, usage ports.UsageTracker) Module {
 	return Module{
 		profile:   coreeconomy.ProfileService{Repository: repo},
@@ -219,6 +245,20 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 			return err
 		}
 	}
+	if m.shop.Repository != nil {
+		if err := router.RegisterSlash(ShopCommandName, m.ShopHandler()); err != nil {
+			return err
+		}
+		if err := router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: "legacy", Feature: "shop", Action: "item", Legacy: true}, m.ShopItemHandler()); err != nil {
+			return err
+		}
+		if err := router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: "legacy", Feature: "shop", Action: "detail", Legacy: true}, m.ShopItemHandler()); err != nil {
+			return err
+		}
+		if err := router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: "legacy", Feature: "shop", Action: "quantity", Legacy: true}, m.ShopQuantityHandler()); err != nil {
+			return err
+		}
+	}
 	if m.profile.Repository != nil {
 		if err := router.RegisterSlash(ProfileCommandName, m.ProfileHandler()); err != nil {
 			return err
@@ -228,6 +268,80 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 		}
 	}
 	return nil
+}
+
+type shopSession struct {
+	GuildID     string
+	UserID      string
+	MessageID   string
+	CommodityID int64
+	Quantity    string
+}
+
+type shopSessionStore struct {
+	mu       sync.Mutex
+	sessions map[shopSessionKey]shopSession
+}
+
+type shopSessionKey struct {
+	GuildID     string
+	UserID      string
+	MessageID   string
+	CommodityID int64
+}
+
+func newShopSessionStore() *shopSessionStore {
+	return &shopSessionStore{sessions: map[shopSessionKey]shopSession{}}
+}
+
+func (s *shopSessionStore) Put(session shopSession) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sessions[session.key()] = session
+}
+
+func (s *shopSessionStore) Get(guildID string, userID string, messageID string, commodityID int64) (shopSession, bool) {
+	if s == nil {
+		return shopSession{}, false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	session, ok := s.sessions[shopSessionKey{GuildID: guildID, UserID: userID, MessageID: messageID, CommodityID: commodityID}]
+	return session, ok
+}
+
+func (s *shopSessionStore) GetByMessage(guildID string, userID string, messageID string) (shopSession, bool) {
+	if s == nil {
+		return shopSession{}, false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for key, session := range s.sessions {
+		if key.GuildID == guildID && key.UserID == userID && key.MessageID == messageID {
+			return session, true
+		}
+	}
+	return shopSession{}, false
+}
+
+func (s *shopSessionStore) Update(session shopSession) {
+	s.Put(session)
+}
+
+func (s *shopSessionStore) Delete(session shopSession) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.sessions, session.key())
+}
+
+func (s shopSession) key() shopSessionKey {
+	return shopSessionKey{GuildID: s.GuildID, UserID: s.UserID, MessageID: s.MessageID, CommodityID: s.CommodityID}
 }
 
 func (m Module) RegisterEventRoutes(dispatcher *events.Dispatcher) {

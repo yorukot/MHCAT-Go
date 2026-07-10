@@ -206,6 +206,9 @@ func defaultCommandRegistry(cfg config.CommandSyncConfig, scope commands.Scope) 
 	if cfg.IncludeEconomyRPS {
 		definitions = append(definitions, featureeconomy.RockPaperScissorsDefinitions()...)
 	}
+	if cfg.IncludeEconomyShop {
+		definitions = append(definitions, featureeconomy.ShopDefinitions()...)
+	}
 	if cfg.IncludeEconomyProfile {
 		definitions = append(definitions, featureeconomy.ProfileDefinitions()...)
 	}
@@ -369,6 +372,9 @@ func expectedStagingCommands(cfg config.CommandSyncConfig) []string {
 	}
 	if cfg.IncludeEconomyRPS {
 		expected = append(expected, featureeconomy.RockPaperScissorsCommandName)
+	}
+	if cfg.IncludeEconomyShop {
+		expected = append(expected, featureeconomy.ShopCommandName)
 	}
 	if cfg.IncludeEconomyProfile {
 		expected = append(expected, featureeconomy.ProfileCommandName)

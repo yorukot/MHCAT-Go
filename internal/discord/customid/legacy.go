@@ -28,6 +28,7 @@ var (
 	legacyLotteryRe      = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}(search|restart|stop)?$`)
 	legacyShopItemRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)
 	legacyShopDetailRe   = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}ghp$`)
+	legacyShopRawItemRe  = regexp.MustCompile(`^[0-9]{10,16}$`)
 	legacyShopNumberRe   = regexp.MustCompile(`^([0-9]|back|confirm)ghp_number[A-Za-z0-9_-]*$`)
 )
 
@@ -113,6 +114,9 @@ func ParseLegacyComponent(raw string) (ID, error) {
 	}
 	if legacyShopDetailRe.MatchString(raw) && !strings.HasSuffix(raw, "ghp_number") {
 		return legacyComponent("shop", "detail", raw), nil
+	}
+	if legacyShopRawItemRe.MatchString(raw) {
+		return legacyComponent("shop", "item", raw), nil
 	}
 	if routeLottery(raw) {
 		switch {

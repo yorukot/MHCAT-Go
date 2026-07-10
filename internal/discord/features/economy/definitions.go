@@ -10,6 +10,7 @@ const (
 	CoinAdminCommandName         = "代幣增加"
 	CoinResetCommandName         = "代幣重製"
 	CoinRankCommandName          = "代幣排行榜"
+	ShopCommandName              = "代幣商店"
 	ProfileCommandName           = "my-profile"
 	RockPaperScissorsCommandName = "剪刀石頭布"
 	SignInCommandName            = "簽到"
@@ -46,6 +47,10 @@ func CoinRankDefinitions() []commands.Definition {
 
 func RockPaperScissorsDefinitions() []commands.Definition {
 	return []commands.Definition{RockPaperScissorsDefinition()}
+}
+
+func ShopDefinitions() []commands.Definition {
+	return []commands.Definition{ShopDefinition()}
 }
 
 func ProfileDefinitions() []commands.Definition {
@@ -103,6 +108,84 @@ func RockPaperScissorsDefinition() commands.Definition {
 					{Name: string(domain.RockPaperScissorsChoiceRock), Value: string(domain.RockPaperScissorsChoiceRock)},
 					{Name: string(domain.RockPaperScissorsChoicePaper), Value: string(domain.RockPaperScissorsChoicePaper)},
 				},
+			},
+		},
+	}
+}
+
+func ShopDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        ShopCommandName,
+		Description: "使用你所賺到的代幣買一些特別的東西吧!",
+		Ownership:   commands.ManagedOwnership("economy-shop", commands.ScopeGuild),
+		Options: []commands.Option{
+			{
+				Type:        commands.OptionTypeSubCommand,
+				Name:        "商品增加",
+				Description: "增加代幣商店裡的商品!",
+				Options: []commands.Option{
+					{
+						Type:        commands.OptionTypeString,
+						Name:        "商品名",
+						Description: "輸入這個商品的名稱!",
+						Required:    true,
+					},
+					{
+						Type:        commands.OptionTypeInteger,
+						Name:        "商品所需代幣",
+						Description: "輸入這個商品需要多少代幣才能購買!",
+						Required:    true,
+					},
+					{
+						Type:        commands.OptionTypeString,
+						Name:        "商品描述",
+						Description: "輸入這個商品的描述!",
+						Required:    true,
+					},
+					{
+						Type:        commands.OptionTypeBoolean,
+						Name:        "是否要在購買後自動刪除",
+						Description: "這個商品是否要在當玩家購買後自動刪除!(如填寫false連商品數量都不會減少)",
+						Required:    true,
+					},
+					{
+						Type:        commands.OptionTypeString,
+						Name:        "序號",
+						Description: "這個商品的序號:ex:steam序號",
+						Required:    false,
+					},
+					{
+						Type:        commands.OptionTypeRole,
+						Name:        "商品是否為身分組",
+						Description: "輸入這個商品是不是身分組!(如果是請填寫你要的身分組，不是請忽略)",
+						Required:    false,
+					},
+					{
+						Type:        commands.OptionTypeInteger,
+						Name:        "商品數量",
+						Description: "這個商品有幾個!",
+						Required:    false,
+					},
+				},
+			},
+			{
+				Type:        commands.OptionTypeSubCommand,
+				Name:        "商品刪除",
+				Description: "刪除某個商品(使用商品id)",
+				Options: []commands.Option{
+					{
+						Type:        commands.OptionTypeInteger,
+						Name:        "商品id",
+						Description: "要刪除的商品的id!",
+						Required:    true,
+					},
+				},
+			},
+			{
+				Type:        commands.OptionTypeSubCommand,
+				Name:        "商品查詢",
+				Description: "查詢所有商品id及商品資訊",
 			},
 		},
 	}

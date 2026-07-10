@@ -102,6 +102,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		economyCoinResetRuntimeReadiness(lookup),
 		economyRPSCommandSync(lookup),
 		economyRPSRuntimePairing(lookup),
+		economyShopCommandSync(lookup),
+		economyShopRuntimePairing(lookup),
 		economyProfileCommandSync(lookup),
 		economyProfileRuntimePairing(lookup),
 		workCommandSync(lookup),
@@ -595,6 +597,38 @@ func economyRPSRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "economy-rps-runtime-pairing", Status: statusWarn, Message: "economy RPS runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "economy-rps-runtime-pairing", Status: statusSkipped, Message: "economy RPS runtime and command sync include are disabled"}
+}
+
+func economyShopCommandSync(lookup lookupFunc) checkResult {
+	includeShop, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP")
+	if err != nil {
+		return checkResult{Name: "economy-shop-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeShop {
+		return checkResult{Name: "economy-shop-command-sync", Status: statusPass, Message: "economy shop command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "economy-shop-command-sync", Status: statusSkipped, Message: "economy shop command sync include is disabled"}
+}
+
+func economyShopRuntimePairing(lookup lookupFunc) checkResult {
+	includeShop, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP")
+	if err != nil {
+		return checkResult{Name: "economy-shop-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	shopEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ECONOMY_SHOP_ENABLED")
+	if err != nil {
+		return checkResult{Name: "economy-shop-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeShop && !shopEnabled {
+		return checkResult{Name: "economy-shop-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP=true requires MHCAT_FEATURE_ECONOMY_SHOP_ENABLED=true in the staging runtime"}
+	}
+	if includeShop && shopEnabled {
+		return checkResult{Name: "economy-shop-runtime-pairing", Status: statusPass, Message: "economy shop command sync and runtime feature flag are paired"}
+	}
+	if shopEnabled {
+		return checkResult{Name: "economy-shop-runtime-pairing", Status: statusWarn, Message: "economy shop runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "economy-shop-runtime-pairing", Status: statusSkipped, Message: "economy shop runtime and command sync include are disabled"}
 }
 
 func economyProfileCommandSync(lookup lookupFunc) checkResult {

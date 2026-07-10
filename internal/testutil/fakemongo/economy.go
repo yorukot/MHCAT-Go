@@ -2,6 +2,7 @@ package fakemongo
 
 import (
 	"context"
+	"strconv"
 	"sync"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -12,6 +13,8 @@ type EconomyRepository struct {
 	mu             sync.Mutex
 	Balances       map[string]domain.CoinBalance
 	balanceOrder   []string
+	ShopItems      map[string]domain.ShopItem
+	shopItemOrder  []string
 	Configs        map[string]domain.EconomyConfig
 	Calendars      map[string]domain.SignCalendar
 	SignInResult   *domain.SignInResult
@@ -24,6 +27,7 @@ type EconomyRepository struct {
 func NewEconomyRepository() *EconomyRepository {
 	return &EconomyRepository{
 		Balances:  map[string]domain.CoinBalance{},
+		ShopItems: map[string]domain.ShopItem{},
 		Configs:   map[string]domain.EconomyConfig{},
 		Calendars: map[string]domain.SignCalendar{},
 	}
@@ -63,6 +67,16 @@ func (r *EconomyRepository) PutBalance(balance domain.CoinBalance) {
 		r.balanceOrder = append(r.balanceOrder, key)
 	}
 	r.Balances[key] = balance
+}
+
+func (r *EconomyRepository) PutShopItem(item domain.ShopItem) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	key := economyShopItemKey(item.GuildID, item.CommodityID)
+	if _, ok := r.ShopItems[key]; !ok {
+		r.shopItemOrder = append(r.shopItemOrder, key)
+	}
+	r.ShopItems[key] = item
 }
 
 func (r *EconomyRepository) PutConfig(config domain.EconomyConfig) {
@@ -268,6 +282,129 @@ func (r *EconomyRepository) PutSignInResult(result domain.SignInResult) {
 	r.SignInResult = &copied
 }
 
+func (r *EconomyRepository) ListShopItems(ctx context.Context, guildID string) ([]domain.ShopItem, error) {
+	if err := r.ready(ctx); err != nil {
+		return nil, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	items := []domain.ShopItem{}
+	for _, key := range r.shopItemOrder {
+		item := r.ShopItems[key]
+		if item.GuildID == guildID {
+			items = append(items, item)
+		}
+	}
+	return items, nil
+}
+
+func (r *EconomyRepository) GetShopItem(ctx context.Context, guildID string, commodityID int64) (domain.ShopItem, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.ShopItem{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	item, ok := r.ShopItems[economyShopItemKey(guildID, commodityID)]
+	if !ok {
+		return domain.ShopItem{}, ports.ErrShopItemMissing
+	}
+	return item, nil
+}
+
+func (r *EconomyRepository) CreateShopItem(ctx context.Context, item domain.ShopItem) (domain.ShopItem, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.ShopItem{}, err
+	}
+	item = item.Normalize()
+	if err := item.Validate(); err != nil {
+		return domain.ShopItem{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	key := economyShopItemKey(item.GuildID, item.CommodityID)
+	if _, ok := r.ShopItems[key]; ok {
+		return domain.ShopItem{}, ports.ErrShopItemExists
+	}
+	r.ShopItems[key] = item
+	r.shopItemOrder = append(r.shopItemOrder, key)
+	return item, nil
+}
+
+func (r *EconomyRepository) DeleteShopItem(ctx context.Context, guildID string, commodityID int64) (domain.ShopItem, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.ShopItem{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	key := economyShopItemKey(guildID, commodityID)
+	item, ok := r.ShopItems[key]
+	if !ok {
+		return domain.ShopItem{}, ports.ErrShopItemMissing
+	}
+	delete(r.ShopItems, key)
+	for index, candidate := range r.shopItemOrder {
+		if candidate == key {
+			r.shopItemOrder = append(r.shopItemOrder[:index], r.shopItemOrder[index+1:]...)
+			break
+		}
+	}
+	return item, nil
+}
+
+func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain.ShopPurchaseCommand) (domain.ShopPurchaseResult, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.ShopPurchaseResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.ShopPurchaseResult{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	itemKey := economyShopItemKey(command.GuildID, command.CommodityID)
+	item, ok := r.ShopItems[itemKey]
+	if !ok {
+		return domain.ShopPurchaseResult{}, ports.ErrShopItemMissing
+	}
+	if command.Quantity > item.Count || (item.RoleID != "" && command.Quantity > 1) {
+		return domain.ShopPurchaseResult{}, ports.ErrShopQuantityInvalid
+	}
+	balanceKey := economyBalanceKey(command.GuildID, command.UserID)
+	balance, ok := r.Balances[balanceKey]
+	if !ok {
+		return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
+	}
+	totalCost := item.NeedCoins * command.Quantity
+	if balance.Coins < totalCost {
+		return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
+	}
+	purchased := item
+	if item.AutoDelete {
+		if item.Count == command.Quantity {
+			delete(r.ShopItems, itemKey)
+			for index, candidate := range r.shopItemOrder {
+				if candidate == itemKey {
+					r.shopItemOrder = append(r.shopItemOrder[:index], r.shopItemOrder[index+1:]...)
+					break
+				}
+			}
+		} else {
+			item.Count -= command.Quantity
+			r.ShopItems[itemKey] = item
+		}
+	}
+	previous := balance.Coins
+	balance.Coins -= totalCost
+	r.Balances[balanceKey] = balance
+	return domain.ShopPurchaseResult{
+		Item:            purchased,
+		Quantity:        command.Quantity,
+		TotalCost:       totalCost,
+		PreviousBalance: previous,
+		Balance:         balance,
+	}, nil
+}
+
 func (r *EconomyRepository) ready(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -279,6 +416,10 @@ func economyBalanceKey(guildID string, userID string) string {
 	return guildID + "\x00" + userID
 }
 
+func economyShopItemKey(guildID string, commodityID int64) string {
+	return guildID + "\x00" + strconv.FormatInt(commodityID, 10)
+}
+
 var _ ports.EconomyRepository = (*EconomyRepository)(nil)
 var _ ports.EconomySignInRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyCoinRankRepository = (*EconomyRepository)(nil)
@@ -286,6 +427,7 @@ var _ ports.EconomySettingsRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyCoinAdminRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyCoinResetRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyRockPaperScissorsRepository = (*EconomyRepository)(nil)
+var _ ports.EconomyShopRepository = (*EconomyRepository)(nil)
 
 func cloneSignCalendar(calendar domain.SignCalendar) domain.SignCalendar {
 	cloned := domain.SignCalendar{

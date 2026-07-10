@@ -61,6 +61,10 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS:-false}" = "true" ] && [ "${MHCAT
   echo "refusing apply: economy RPS command apply requires MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true for staging runtime parity" >&2
   exit 1
 fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_SHOP_ENABLED:-false}" != "true" ]; then
+  echo "refusing apply: economy shop command apply requires MHCAT_FEATURE_ECONOMY_SHOP_ENABLED=true for staging runtime parity" >&2
+  exit 1
+fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE:-false}" = "true" ] && [ "${MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED:-false}" != "true" ]; then
   echo "refusing apply: economy profile command apply requires MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true for staging runtime parity" >&2
   exit 1
@@ -319,6 +323,11 @@ if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS:-false}" = "true" ]; then
   echo "staging command sync apply: including economy RPS command" >&2
 else
   echo "staging command sync apply: economy RPS command is excluded" >&2
+fi
+if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP:-false}" = "true" ]; then
+  echo "staging command sync apply: including economy shop command" >&2
+else
+  echo "staging command sync apply: economy shop command is excluded" >&2
 fi
 if [ "${MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE:-false}" = "true" ]; then
   echo "staging command sync apply: including economy profile command" >&2
