@@ -96,6 +96,58 @@ func TestCoinGameRejectsOpponentWithoutEnoughCoins(t *testing.T) {
 	}
 }
 
+func TestCoinGameInviteExpiresAtLegacyDeadline(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 50})
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-2", Coins: 50})
+	clock := &coinGameTestClock{now: time.Unix(100, 0)}
+	module := NewCoinGameModule(repo, nil, nil, clock)
+
+	if err := module.CoinGameHandler()(context.Background(), coinGameSlash(domain.CoinGameKindHigherLower, "10"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("start game: %v", err)
+	}
+	clock.now = clock.now.Add(coinGameInviteTTL)
+	accept := fakediscord.ComponentInteractionFromID("yesssss")
+	accept.Actor = interactions.Actor{UserID: "user-2", Username: "Opponent", GuildID: "guild-1"}
+	accept.MessageID = "message-1"
+	responder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), accept, responder); err != nil {
+		t.Fatalf("accept expired game: %v", err)
+	}
+	if len(responder.Replies) != 1 || !strings.Contains(responder.Replies[0].Embeds[0].Title, "找不到這場遊戲") {
+		t.Fatalf("expired reply = %#v", responder.Replies)
+	}
+	challenger, _ := repo.GetCoinBalance(context.Background(), "guild-1", "user-1")
+	opponent, _ := repo.GetCoinBalance(context.Background(), "guild-1", "user-2")
+	if challenger.Coins != 50 || opponent.Coins != 50 {
+		t.Fatalf("expired invite mutated balances challenger=%#v opponent=%#v", challenger, opponent)
+	}
+}
+
+func TestCoinGameInviteCanBeAcceptedBeforeLegacyDeadline(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 50})
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-2", Coins: 50})
+	clock := &coinGameTestClock{now: time.Unix(100, 0)}
+	module := NewCoinGameModule(repo, nil, nil, clock)
+	module.gameRandInt = fixedCoinGameRandom(90, 10)
+
+	if err := module.CoinGameHandler()(context.Background(), coinGameSlash(domain.CoinGameKindHigherLower, "10"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("start game: %v", err)
+	}
+	clock.now = clock.now.Add(coinGameInviteTTL - time.Nanosecond)
+	accept := fakediscord.ComponentInteractionFromID("yesssss")
+	accept.Actor = interactions.Actor{UserID: "user-2", Username: "Opponent", GuildID: "guild-1"}
+	accept.MessageID = "message-1"
+	responder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), accept, responder); err != nil {
+		t.Fatalf("accept game: %v", err)
+	}
+	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Embeds[0].Title, "比大小結果") {
+		t.Fatalf("accept update = %#v", responder.Updates)
+	}
+}
+
 func coinGameSlash(kind domain.CoinGameKind, wager string) interactions.Interaction {
 	return fakediscord.SlashInteractionWithOptions(CoinGameCommandName, string(kind), map[string]string{
 		coinGameOptionOpponent: "user-2",
@@ -116,4 +168,12 @@ func fixedCoinGameRandom(values ...int) func(int) int {
 		}
 		return value % max
 	}
+}
+
+type coinGameTestClock struct {
+	now time.Time
+}
+
+func (c *coinGameTestClock) Now() time.Time {
+	return c.now
 }

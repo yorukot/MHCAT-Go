@@ -25,6 +25,7 @@ const (
 	coinGameOptionWager    = "賭注"
 	coinGameErrorColor     = 0xED4245
 	coinGameSuccessColor   = 0x53FF53
+	coinGameInviteTTL      = 30 * time.Second
 	coinGameSessionTTL     = 30 * time.Minute
 )
 
@@ -156,6 +157,12 @@ func (s *coinGameSessionStore) GetForComponent(guildID string, actorID string, m
 func (s *coinGameSessionStore) pruneLocked() {
 	now := s.clock.Now()
 	for id, session := range s.sessions {
+		if session.State == coinGameSessionPending {
+			if !session.CreatedAt.IsZero() && !now.Before(session.CreatedAt.Add(coinGameInviteTTL)) {
+				delete(s.sessions, id)
+			}
+			continue
+		}
 		if !session.UpdatedAt.IsZero() && now.Sub(session.UpdatedAt) > coinGameSessionTTL {
 			delete(s.sessions, id)
 		}
@@ -186,10 +193,10 @@ func (m Module) CoinGameHandler() interactions.Handler {
 			Wager:          command.Wager,
 			State:          coinGameSessionPending,
 		}
-		session = m.gameSessions.Put(session)
 		if err := responder.FollowUp(ctx, coinGameInviteMessage(session)); err != nil {
 			return err
 		}
+		m.gameSessions.Put(session)
 		return m.trackCommand(ctx, interaction, CoinGameCommandName)
 	}
 }
