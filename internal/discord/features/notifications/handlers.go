@@ -108,8 +108,11 @@ func (m Module) SetupModalHandler() interactions.Handler {
 			return responder.EditOriginal(ctx, autoNotificationErrorMessage("你都沒輸入你要發送甚麼，我要怎麼發送啦!"))
 		}
 		cron := strings.TrimSpace(fields[fieldCron])
-		if !validDirectCron(cron) {
-			return responder.EditOriginal(ctx, autoNotificationErrorMessage("目前請輸入完整 cron 表達式，簡易設定流程會在後續切片補上"))
+		switch validateDirectCron(cron, m.now()) {
+		case directCronTooFrequent:
+			return responder.EditOriginal(ctx, autoNotificationErrorMessage("傳送訊息的間隔必須大於15分鐘!"))
+		case directCronInvalid:
+			return m.startSimplifiedWizard(ctx, interaction, responder, message)
 		}
 		id := strings.TrimSpace(interaction.CustomID)
 		if err := m.service.CompleteSetup(ctx, domain.AutoNotificationSetup{
@@ -280,34 +283,6 @@ func autoNotificationModalFields(fields []customid.ModalField) map[string]string
 		values[field.CustomID] = strings.TrimSpace(field.Value)
 	}
 	return values
-}
-
-func validDirectCron(value string) bool {
-	fields := strings.Fields(value)
-	if len(fields) != 5 {
-		return false
-	}
-	for _, field := range fields {
-		if field == "" {
-			return false
-		}
-		for _, char := range field {
-			if (char >= '0' && char <= '9') || char == '*' || char == '/' || char == ',' || char == '-' {
-				continue
-			}
-			return false
-		}
-	}
-	if fields[0] == "*" {
-		return false
-	}
-	if strings.HasPrefix(fields[0], "*/") {
-		step, err := strconv.Atoi(strings.TrimPrefix(fields[0], "*/"))
-		if err != nil || step < 15 {
-			return false
-		}
-	}
-	return true
 }
 
 func (m Module) track(ctx context.Context, interaction interactions.Interaction, commandName string) error {

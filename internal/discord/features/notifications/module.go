@@ -3,6 +3,7 @@ package notifications
 import (
 	"crypto/rand"
 	"math/big"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/notifications"
@@ -12,19 +13,23 @@ import (
 )
 
 type Module struct {
-	service  coreservice.ScheduleService
-	discord  ports.DiscordInfoProvider
-	messages ports.DiscordMessagePort
-	usage    ports.UsageTracker
-	color    func() int
+	service        coreservice.ScheduleService
+	discord        ports.DiscordInfoProvider
+	messages       ports.DiscordMessagePort
+	usage          ports.UsageTracker
+	clock          ports.Clock
+	pendingWizards *autoNotificationWizardStateStore
+	color          func() int
 }
 
 func NewModule(repo ports.AutoNotificationScheduleRepository, discord ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
 	return Module{
-		service: coreservice.NewScheduleService(repo),
-		discord: discord,
-		usage:   usage,
-		color:   legacyRandomColor,
+		service:        coreservice.NewScheduleService(repo),
+		discord:        discord,
+		usage:          usage,
+		clock:          ports.SystemClock{},
+		pendingWizards: newAutoNotificationWizardStateStore(),
+		color:          legacyRandomColor,
 	}
 }
 
@@ -60,7 +65,23 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 	if err := router.RegisterSlash(AutoNotificationDeleteCommandName, m.DeleteHandler()); err != nil {
 		return err
 	}
-	return router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeModal, Version: customid.LegacyVersion, Feature: "cron", Action: "submit", Legacy: true}, m.SetupModalHandler())
+	if err := router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeModal, Version: customid.LegacyVersion, Feature: "cron", Action: "submit", Legacy: true}, m.SetupModalHandler()); err != nil {
+		return err
+	}
+	if err := router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: customid.VersionV1, Feature: "cron", Action: "week"}, m.WeekSelectHandler()); err != nil {
+		return err
+	}
+	if err := router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: customid.VersionV1, Feature: "cron", Action: "hour"}, m.HourSelectHandler()); err != nil {
+		return err
+	}
+	return router.RegisterRoute(interactions.RouteKey{Kind: interactions.TypeComponent, Version: customid.VersionV1, Feature: "cron", Action: "minute"}, m.MinuteSelectHandler())
+}
+
+func (m Module) now() time.Time {
+	if m.clock == nil {
+		return time.Now()
+	}
+	return m.clock.Now()
 }
 
 func legacyRandomColor() int {

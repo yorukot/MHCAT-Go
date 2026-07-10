@@ -217,7 +217,7 @@ export MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true
 ```
 
-Set both together only when testing `automatic-notification`, `/自動通知列表`, and `/自動通知刪除`. This path writes pending `cron_sets` setup rows, completes direct cron modal submits, sends setup previews, reads/deletes `cron_sets` rows, and may clean abandoned setup drafts whose `cron` is null or missing. It does not enable the simplified cron select-menu flow, Message Content intent, recurring scheduler ownership, or recurring notification sends.
+Set both together only when testing `automatic-notification`, `/自動通知列表`, and `/自動通知刪除`. This path writes pending `cron_sets` setup rows, completes direct cron or owner-scoped weekday/hour/minute wizard submissions, sends setup previews, reads/deletes `cron_sets` rows, and may clean abandoned setup drafts whose `cron` is null or missing. It does not enable Message Content intent, recurring scheduler ownership, or recurring notification sends.
 
 Optional logging-config smoke flags:
 
@@ -1330,13 +1330,15 @@ If auto-notification config flags were enabled and command sync apply was review
 - run `/automatic-notification channel:<test channel>` and submit the legacy modal with a safe direct cron such as `*/30 * * * *`;
 - verify the completion message includes the generated id and a setup preview message appears in the interaction channel;
 - verify the staging `cron_sets` row contains `guild`, `channel`, `id`, `cron`, and rollback-compatible `message`;
+- repeat setup with `cancel` or `取消`, verify the legacy-style weekday/hour/minute selects and five-minute deadline, then complete selections and verify the expected `<minutes> <hours> * * <weekdays>` cron value;
+- verify a different user cannot advance that wizard and an expired wizard returns the safe ephemeral retry error;
 - create or confirm a safe staging `cron_sets` active row with `guild`, `id`, `cron`, and `channel`;
 - optionally create a disposable staging draft row with null or missing `cron`;
 - run `/自動通知列表` and verify the legacy list embed includes active rows and does not render pending drafts;
 - verify the pending draft row was cleaned from staging data;
 - run `/自動通知刪除 id:<active id>` and verify the legacy green delete embed appears;
 - run `/自動通知刪除 id:<missing id>` and verify the legacy red missing-id tutorial embed appears;
-- verify no simplified cron select-menu flow, recurring scheduler job, recurring channel send, index creation, or Message Content intent was involved.
+- verify no recurring scheduler job, recurring channel send, index creation, or Message Content intent was involved.
 
 If announcement relay was explicitly enabled:
 
