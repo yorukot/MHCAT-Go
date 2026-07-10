@@ -21,16 +21,17 @@ import (
 var legacyTopicJSON []byte
 
 const (
-	coinGameOptionOpponent = "跟誰玩"
-	coinGameOptionWager    = "賭注"
-	coinGameErrorColor     = 0xED4245
-	coinGameSuccessColor   = 0x53FF53
-	coinGameInviteTTL      = 30 * time.Second
-	coinGameKnowledgeTTL   = 21 * time.Second
-	coinGameBlackjackTTL   = 31 * time.Second
-	coinGameKnowledgeStart = 500 * time.Millisecond
-	coinGameResultDelay    = 5 * time.Second
-	coinGameTimeoutRetry   = 100 * time.Millisecond
+	coinGameOptionOpponent  = "跟誰玩"
+	coinGameOptionWager     = "賭注"
+	coinGameErrorColor      = 0xEA0000
+	coinGameSlashErrorColor = 0xFF0000
+	coinGameSuccessColor    = 0x53FF53
+	coinGameInviteTTL       = 30 * time.Second
+	coinGameKnowledgeTTL    = 21 * time.Second
+	coinGameBlackjackTTL    = 31 * time.Second
+	coinGameKnowledgeStart  = 500 * time.Millisecond
+	coinGameResultDelay     = 5 * time.Second
+	coinGameTimeoutRetry    = 100 * time.Millisecond
 )
 
 type knowledgeQuestion struct {
@@ -66,6 +67,7 @@ type coinGameSession struct {
 	OpponentName   string
 	Kind           domain.CoinGameKind
 	Wager          int64
+	InviteColor    int
 	State          coinGameSessionState
 	Phase          coinGameSessionPhase
 	CreatedAt      time.Time
@@ -101,10 +103,10 @@ func (m Module) CoinGameHandler() interactions.Handler {
 		}
 		command, ok := m.coinGameCommandFromInteraction(interaction)
 		if !ok {
-			return responder.EditOriginal(ctx, coinGameErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+			return responder.EditOriginal(ctx, coinGameSlashErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 		}
 		if command.Wager < 0 {
-			return responder.EditOriginal(ctx, coinGameErrorMessage("賭注必須大於-1"))
+			return responder.EditOriginal(ctx, coinGameSlashErrorMessage("賭注必須大於-1"))
 		}
 		if _, err := m.game.CheckBalances(ctx, command); err != nil {
 			return responder.EditOriginal(ctx, coinGameBalanceErrorMessage(err))
@@ -117,6 +119,7 @@ func (m Module) CoinGameHandler() interactions.Handler {
 			OpponentID:     command.OpponentID,
 			Kind:           command.Kind,
 			Wager:          command.Wager,
+			InviteColor:    m.colorValue(),
 			State:          coinGameSessionPending,
 		}
 		if err := responder.FollowUp(ctx, coinGameInviteMessage(session)); err != nil {
@@ -131,9 +134,9 @@ func (m Module) CoinGameComponentHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
 		switch interaction.CustomID {
 		case "teach21point":
-			return responder.Reply(ctx, coinGameEphemeralText("21點比誰的牌點數較大但不超過21點。"))
+			return responder.Reply(ctx, blackjackTutorialMessage(m.colorValue()))
 		case "thansize":
-			return responder.Reply(ctx, coinGameEphemeralText("比大小會為雙方各抽一個0到100的數字，數字較大者獲勝。"))
+			return responder.Reply(ctx, higherLowerTutorialMessage(m.colorValue()))
 		}
 		if interaction.CustomID == "lookmenumber" {
 			session, ok := m.gameSessions.GetForComponent(interaction.Actor.GuildID, interaction.Actor.UserID, interaction.ChannelID, interaction.MessageID)
@@ -283,7 +286,9 @@ func (m Module) handleKnowledgeAnswer(ctx context.Context, interaction interacti
 	}
 	isChallenger := interaction.Actor.UserID == session.ChallengerID
 	if isChallenger && session.ChallengerChoice != "" || !isChallenger && session.OpponentChoice != "" {
-		return responder.Reply(ctx, coinGameEphemeralError("你已經選取過了!!!"))
+		message := coinGameErrorMessage("你已經選取過了!!!")
+		message.Ephemeral = true
+		return responder.Reply(ctx, message)
 	}
 	points := int64(0)
 	if answer == session.KnowledgeQuestion.Answer {
@@ -371,7 +376,7 @@ func (m Module) showBlackjackCards(ctx context.Context, interaction interactions
 	return responder.Reply(ctx, responses.Message{
 		Embeds: []responses.Embed{{
 			Title:       fmt.Sprintf("共:`%d`點", blackjackSum(cards)),
-			Description: blackjackCards(cards),
+			Description: blackjackCardsWithSeparator(cards, ", "),
 			Color:       m.colorValue(),
 		}},
 		Ephemeral:       true,
@@ -408,7 +413,7 @@ func (m Module) handleBlackjackAction(ctx context.Context, interaction interacti
 		if err := responder.UpdateMessage(ctx, blackjackTurnMessage(session, false, m.colorValue())); err != nil {
 			return err
 		}
-		return responder.FollowUp(ctx, blackjackActionReply(hit, drawn, "略過"))
+		return responder.FollowUp(ctx, blackjackActionReply(hit, drawn, "略過", m.colorValue()))
 	}
 	session.OpponentHit = boolPtr(hit)
 	if hit {
@@ -416,7 +421,7 @@ func (m Module) handleBlackjackAction(ctx context.Context, interaction interacti
 		session.OpponentCards = append(session.OpponentCards, drawn)
 	}
 	if blackjackShouldFinish(session) {
-		return m.finishBlackjack(ctx, responder, session, blackjackActionReply(hit, drawn, "不抽獎"), claim)
+		return m.finishBlackjack(ctx, responder, session, blackjackActionReply(hit, drawn, "不抽獎", m.colorValue()), claim)
 	}
 	m.beginBlackjackTurn(&session, session.ChallengerID)
 	claim.Commit(session)
@@ -424,7 +429,7 @@ func (m Module) handleBlackjackAction(ctx context.Context, interaction interacti
 	if err := responder.UpdateMessage(ctx, blackjackTurnMessage(session, true, m.colorValue())); err != nil {
 		return err
 	}
-	return responder.FollowUp(ctx, blackjackActionReply(hit, drawn, "不抽獎"))
+	return responder.FollowUp(ctx, blackjackActionReply(hit, drawn, "不抽獎", m.colorValue()))
 }
 
 func (m Module) finishBlackjack(ctx context.Context, responder responses.Responder, session coinGameSession, reply responses.Message, claim *coinGameSessionClaim) error {
@@ -695,7 +700,7 @@ func coinGameTimeoutOutbound(session coinGameSession) ports.OutboundMessage {
 	content := "<:idea:1007312008179351624> **| 知識王**"
 	title := knowledgeTimeoutTitle(session)
 	if session.Kind == domain.CoinGameKindBlackjack {
-		content = fmt.Sprintf("這回合是<@%s>的，另一位只能查看牌組喔!", session.BlackjackTurn)
+		content = blackjackTurnContent(session)
 		title = blackjackTimeoutTitle(session)
 	}
 	return ports.OutboundMessage{
@@ -780,7 +785,7 @@ func coinGameInviteMessage(session coinGameSession) responses.Message {
 			Title:       coinGameTitle(session.Kind),
 			Description: fmt.Sprintf("<@%s>**邀請<@%s>玩%s\n將會消耗你**`%d`**進行賭注\n是否願意?\n<a:warn:1000814885506129990> 一但同意如中途放棄則視為敗北**", session.ChallengerID, session.OpponentID, session.Kind, session.Wager),
 			Footer:      &responses.EmbedFooter{Text: "請於30秒內回覆，如無回復則視為拒絕"},
-			Color:       0,
+			Color:       session.InviteColor,
 		}},
 		Components:      coinGameInviteRows(session.Kind, false),
 		AllowedMentions: &responses.AllowedMentions{UserIDs: []string{session.OpponentID}},
@@ -788,9 +793,9 @@ func coinGameInviteMessage(session coinGameSession) responses.Message {
 }
 
 func coinGameDisableInviteMessage(session coinGameSession) responses.Message {
-	msg := coinGameInviteMessage(session)
-	msg.Components = coinGameInviteRows(session.Kind, true)
-	return msg
+	message := coinGameInviteMessage(session)
+	message.Components = coinGameInviteRows(session.Kind, true)
+	return message
 }
 
 func coinGameInviteRows(kind domain.CoinGameKind, disabled bool) []responses.ComponentRow {
@@ -799,10 +804,10 @@ func coinGameInviteRows(kind domain.CoinGameKind, disabled bool) []responses.Com
 		{Type: responses.ComponentTypeButton, CustomID: "nooooo", Label: "點我拒絕遊玩", Emoji: "<a:YuiHeadShake:1005480366167040021>", Style: responses.ButtonStyleDanger, Disabled: disabled},
 	}
 	if kind == domain.CoinGameKindBlackjack {
-		components = append(components, responses.Component{Type: responses.ComponentTypeButton, CustomID: "teach21point", Label: "甚麼是21點", Emoji: "<:question:997374195229003776>", Style: responses.ButtonStyleSecondary, Disabled: disabled})
+		components = append(components, responses.Component{Type: responses.ComponentTypeButton, CustomID: "teach21point", Label: "甚麼是21點", Emoji: "<:question:997374195229003776>", Style: responses.ButtonStyleSecondary})
 	}
 	if kind == domain.CoinGameKindHigherLower {
-		components = append(components, responses.Component{Type: responses.ComponentTypeButton, CustomID: "thansize", Label: "甚麼是比大小", Emoji: "<:question:997374195229003776>", Style: responses.ButtonStyleSecondary, Disabled: disabled})
+		components = append(components, responses.Component{Type: responses.ComponentTypeButton, CustomID: "thansize", Label: "甚麼是比大小", Emoji: "<:question:997374195229003776>", Style: responses.ButtonStyleSecondary})
 	}
 	return []responses.ComponentRow{{Components: components}}
 }
@@ -818,15 +823,45 @@ func coinGameTitle(kind domain.CoinGameKind) string {
 	}
 }
 
+func blackjackTutorialMessage(color int) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       "<:creativeteaching:986060052949524600> 以下是21點介紹",
+			Description: "\n**這邊的倍數是一個人的賭注等於1所以兩個人就會是2**\n```fix\n1.機器人是莊\n2.機器人自己發一張排給自己\n3.給遊玩的兩個人各兩張牌\n4.在發一張給自己\n5.問兩個人要不要加牌，直到兩個都選擇不加或沒牌了\n6.把莊家加超過13\n7.莊如果大於21點，兩個人各獲得原本賭注的1.5倍\n8.如果莊家沒爆，兩個人比\n9.如果其中一個玩家爆，另一個拿走2倍賭注，爆的那個拿走0倍\n10.如果兩個都爆等於平局，不加不減\n11.如果其中兩人都沒報，比大小，贏的人拿走全部賭注\n```\n**不會的話，玩玩看就知道ㄌ**",
+			Color:       color,
+		}},
+		Ephemeral:       true,
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func higherLowerTutorialMessage(color int) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       "<:creativeteaching:986060052949524600> 以下為比大小介紹",
+			Description: "\n**這邊的倍數是一個人的賭注等於1所以兩個人就會是2**\n```fix\n1.同意遊玩\n2.由機器人抽取兩位的數字(1-100)\n3.比大小\n4.大的拿走所有賭注\n```\n**不會的話，玩玩看就知道ㄌ**",
+			Color:       color,
+		}},
+		Ephemeral:       true,
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
 func coinGameBalanceErrorMessage(err error) responses.Message {
 	switch {
 	case errors.Is(err, ports.ErrCoinGameOpponent):
-		return coinGameErrorMessage("對方沒有這麼多代幣可以玩喔!!")
+		return coinGameSlashErrorMessage("對方沒有這麼多代幣可以玩喔!!")
 	case errors.Is(err, ports.ErrCoinGameChallenger):
-		return coinGameErrorMessage("你沒有這麼多代幣可以玩喔!!")
+		return coinGameSlashErrorMessage("你沒有這麼多代幣可以玩喔!!")
 	default:
-		return coinGameErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+		return coinGameSlashErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
 	}
+}
+
+func coinGameSlashErrorMessage(content string) responses.Message {
+	message := coinGameErrorMessage(content)
+	message.Embeds[0].Color = coinGameSlashErrorColor
+	return message
 }
 
 func coinGameErrorMessage(content string) responses.Message {
@@ -844,10 +879,6 @@ func coinGameEphemeralError(content string) responses.Message {
 	msg.Embeds[0].Title = "<a:Discord_AnimatedNo:1015989839809757295> | " + content
 	msg.Ephemeral = true
 	return msg
-}
-
-func coinGameEphemeralText(content string) responses.Message {
-	return responses.Message{Content: content, Ephemeral: true, AllowedMentions: &responses.AllowedMentions{}}
 }
 
 func coinGameAcceptedTextMessage() responses.Message {
@@ -1005,21 +1036,42 @@ func knowledgeFinalMessage(session coinGameSession, color int) responses.Message
 func blackjackTurnMessage(session coinGameSession, challengerTurn bool, color int) responses.Message {
 	target := session.ChallengerID
 	components := blackjackMainRows(false)
+	previousID := session.OpponentID
+	previousHit := session.OpponentHit
 	if !challengerTurn {
 		target = session.OpponentID
 		components = blackjackUserRows(false)
+		previousID = session.ChallengerID
+		previousHit = session.ChallengerHit
 	}
 	displayDeadline := legacyRoundedUnix(session.TurnStartedAt.Add(30 * time.Second))
+	content := fmt.Sprintf("這回合是<@%s>的，另一位只能查看牌組喔!", target)
+	title := "<:startbutton1:1005838813274325022> 遊戲已開始"
+	description := fmt.Sprintf("\n**已為各位各發一張牌\n請選擇要抽牌還是不抽\n<a:warn:1000814885506129990>請於<t:%d:R>選擇，超過時間則視為棄賽(你的賭注會全輸)**", displayDeadline)
+	if previousHit != nil {
+		action := "略過"
+		if *previousHit {
+			action = "抽牌"
+		}
+		content = fmt.Sprintf("<a:arrow_pink:996242460294512690> | **這回合是<@%s>的，另一位只能查看牌組喔!**", target)
+		title = "<:startbutton1:1005838813274325022> 21點小遊戲"
+		description = fmt.Sprintf("<@%s>**選擇了:**`%s\n`**請選擇要抽牌還是不抽\n<a:warn:1000814885506129990>請於<t:%d:R>選擇，超過時間則視為棄賽(你的賭注會全輸)**", previousID, action, displayDeadline)
+	}
 	return responses.Message{
-		Content: fmt.Sprintf("這回合是<@%s>的，另一位只能查看牌組喔!", target),
+		Content: content,
 		Embeds: []responses.Embed{{
-			Title:       "<:startbutton1:1005838813274325022> 遊戲已開始",
-			Description: fmt.Sprintf("\n**已為各位各發一張牌\n請選擇要抽牌還是不抽\n<a:warn:1000814885506129990>請於<t:%d:R>選擇，超過時間則視為棄賽(你的賭注會全輸)**", displayDeadline),
+			Title:       title,
+			Description: description,
 			Color:       color,
 		}},
 		Components:      components,
 		AllowedMentions: &responses.AllowedMentions{},
 	}
+}
+
+func blackjackTurnContent(session coinGameSession) string {
+	challengerTurn := session.BlackjackTurn == session.ChallengerID
+	return blackjackTurnMessage(session, challengerTurn, 0).Content
 }
 
 func blackjackMainRows(disabled bool) []responses.ComponentRow {
@@ -1038,13 +1090,13 @@ func blackjackUserRows(disabled bool) []responses.ComponentRow {
 	}}}
 }
 
-func blackjackActionReply(hit bool, card int, standText string) responses.Message {
+func blackjackActionReply(hit bool, card int, standText string, color int) responses.Message {
 	title := fmt.Sprintf("<a:green_tick:994529015652163614> | 你選擇了%s", standText)
 	if hit {
 		title = fmt.Sprintf("<a:green_tick:994529015652163614> | 你抽到了: %s", blackjackNumberEmoji(card))
 	}
 	return responses.Message{
-		Embeds:          []responses.Embed{{Title: title, Color: coinGameSuccessColor}},
+		Embeds:          []responses.Embed{{Title: title, Color: color}},
 		Ephemeral:       true,
 		AllowedMentions: &responses.AllowedMentions{},
 	}
@@ -1143,11 +1195,15 @@ func blackjackSum(cards []int) int {
 }
 
 func blackjackCards(cards []int) string {
+	return blackjackCardsWithSeparator(cards, ",")
+}
+
+func blackjackCardsWithSeparator(cards []int, separator string) string {
 	values := make([]string, 0, len(cards))
 	for _, card := range cards {
 		values = append(values, blackjackNumberEmoji(card))
 	}
-	return strings.Join(values, ",")
+	return strings.Join(values, separator)
 }
 
 func blackjackNumberEmoji(card int) string {

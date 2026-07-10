@@ -113,6 +113,85 @@ func TestCoinGameChallengerAcceptDoesNotDebitPlayers(t *testing.T) {
 	}
 }
 
+func TestCoinGameInviteAndTutorialUIMatchesLegacy(t *testing.T) {
+	for _, test := range []struct {
+		kind             domain.CoinGameKind
+		tutorialID       string
+		tutorialTitle    string
+		tutorialSnippets []string
+		componentCount   int
+	}{
+		{kind: domain.CoinGameKindKnowledge, componentCount: 2},
+		{
+			kind:             domain.CoinGameKindBlackjack,
+			tutorialID:       "teach21point",
+			tutorialTitle:    "<:creativeteaching:986060052949524600> 以下是21點介紹",
+			tutorialSnippets: []string{"機器人自己發一張排給自己", "給遊玩的兩個人各兩張牌", "莊如果大於21點", "不會的話，玩玩看就知道ㄌ"},
+			componentCount:   3,
+		},
+		{
+			kind:             domain.CoinGameKindHigherLower,
+			tutorialID:       "thansize",
+			tutorialTitle:    "<:creativeteaching:986060052949524600> 以下為比大小介紹",
+			tutorialSnippets: []string{"由機器人抽取兩位的數字(1-100)", "大的拿走所有賭注", "不會的話，玩玩看就知道ㄌ"},
+			componentCount:   3,
+		},
+	} {
+		t.Run(string(test.kind), func(t *testing.T) {
+			repo := coinGameTestRepository()
+			clock := &coinGameTestClock{now: time.Unix(100, 0)}
+			module, _ := newCoinGameLifecycleTestModule(t, repo, fakediscord.NewSideEffects(), clock)
+			start := coinGameSlash(test.kind, "10")
+			start.ChannelID = "channel-1"
+			responder := fakediscord.NewResponder()
+			if err := module.CoinGameHandler()(context.Background(), start, responder); err != nil {
+				t.Fatalf("start %s game: %v", test.kind, err)
+			}
+			if len(responder.Follow) != 1 || len(responder.Follow[0].Embeds) != 1 || responder.Follow[0].Embeds[0].Color != 0x123456 {
+				t.Fatalf("%s invite = %#v", test.kind, responder.Follow)
+			}
+			invite := responder.Follow[0]
+			components := invite.Components[0].Components
+			if len(components) != test.componentCount {
+				t.Fatalf("%s invite components = %#v", test.kind, components)
+			}
+			if test.tutorialID != "" {
+				tutorialResponder := fakediscord.NewResponder()
+				if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent(test.tutorialID, "user-2", "Opponent"), tutorialResponder); err != nil {
+					t.Fatalf("%s tutorial: %v", test.kind, err)
+				}
+				if len(tutorialResponder.Replies) != 1 || !tutorialResponder.Replies[0].Ephemeral || len(tutorialResponder.Replies[0].Embeds) != 1 {
+					t.Fatalf("%s tutorial response = %#v", test.kind, tutorialResponder.Replies)
+				}
+				embed := tutorialResponder.Replies[0].Embeds[0]
+				if embed.Title != test.tutorialTitle || embed.Color != 0x123456 {
+					t.Fatalf("%s tutorial embed = %#v", test.kind, embed)
+				}
+				for _, snippet := range test.tutorialSnippets {
+					if !strings.Contains(embed.Description, snippet) {
+						t.Fatalf("%s tutorial missing %q: %q", test.kind, snippet, embed.Description)
+					}
+				}
+			}
+
+			rejectResponder := fakediscord.NewResponder()
+			if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent("nooooo", "user-2", "Opponent"), rejectResponder); err != nil {
+				t.Fatalf("reject %s game: %v", test.kind, err)
+			}
+			if len(rejectResponder.Updates) != 1 || rejectResponder.Updates[0].Content != invite.Content || len(rejectResponder.Updates[0].Embeds) != 1 || rejectResponder.Updates[0].Embeds[0].Title != invite.Embeds[0].Title || rejectResponder.Updates[0].Embeds[0].Description != invite.Embeds[0].Description || rejectResponder.Updates[0].Embeds[0].Color != invite.Embeds[0].Color {
+				t.Fatalf("%s reject update replaced invite = %#v", test.kind, rejectResponder.Updates)
+			}
+			disabled := rejectResponder.Updates[0].Components[0].Components
+			if !disabled[0].Disabled || !disabled[1].Disabled {
+				t.Fatalf("%s accept/reject buttons remained enabled: %#v", test.kind, disabled)
+			}
+			if len(disabled) == 3 && disabled[2].Disabled {
+				t.Fatalf("%s tutorial button was disabled after rejection: %#v", test.kind, disabled[2])
+			}
+		})
+	}
+}
+
 func TestCoinGameRejectsOpponentWithoutEnoughCoins(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 50})
@@ -123,7 +202,7 @@ func TestCoinGameRejectsOpponentWithoutEnoughCoins(t *testing.T) {
 	if err := module.CoinGameHandler()(context.Background(), coinGameSlash(domain.CoinGameKindHigherLower, "10"), responder); err != nil {
 		t.Fatalf("start game: %v", err)
 	}
-	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "對方沒有這麼多代幣") {
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "對方沒有這麼多代幣") || responder.Edits[0].Embeds[0].Color != 0xFF0000 {
 		t.Fatalf("insufficient response = %#v", responder.Edits)
 	}
 }
@@ -253,6 +332,84 @@ func TestCoinGameBlackjackAcceptanceFeedbackMatchesLegacy(t *testing.T) {
 	session, ok := module.gameSessions.GetForComponent("guild-1", "user-1", "channel-1", "message-1")
 	if !ok || session.Phase != coinGamePhaseBlackjackTurn || session.TurnDeadline != time.Unix(131, 0) || scheduler.Len() != 1 {
 		t.Fatalf("blackjack session = %#v ok=%v timers=%d", session, ok, scheduler.Len())
+	}
+}
+
+func TestCoinGameBlackjackPostActionUIMatchesLegacy(t *testing.T) {
+	repo := coinGameTestRepository()
+	clock := &coinGameTestClock{now: time.Unix(100, 0)}
+	module, scheduler := newCoinGameLifecycleTestModule(t, repo, fakediscord.NewSideEffects(), clock)
+	session := acceptCoinGameForTest(t, module, domain.CoinGameKindBlackjack)
+
+	challengerResponder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent("main_no_card", "user-1", "User"), challengerResponder); err != nil {
+		t.Fatalf("challenger stand: %v", err)
+	}
+	if len(challengerResponder.Updates) != 1 || len(challengerResponder.Follow) != 1 {
+		t.Fatalf("challenger action responses = updates %#v follow %#v", challengerResponder.Updates, challengerResponder.Follow)
+	}
+	challengerUpdate := challengerResponder.Updates[0]
+	if challengerUpdate.Content != "<a:arrow_pink:996242460294512690> | **這回合是<@user-2>的，另一位只能查看牌組喔!**" || challengerUpdate.Embeds[0].Title != "<:startbutton1:1005838813274325022> 21點小遊戲" {
+		t.Fatalf("challenger action update = %#v", challengerUpdate)
+	}
+	if !strings.Contains(challengerUpdate.Embeds[0].Description, "<@user-1>**選擇了:**`略過\n`**") || strings.Contains(challengerUpdate.Embeds[0].Description, "已為各位各發一張牌") || challengerUpdate.Components[0].Components[0].CustomID != "user_no_card" {
+		t.Fatalf("challenger action description/components = %#v", challengerUpdate)
+	}
+	if challengerResponder.Follow[0].Embeds[0].Title != "<a:green_tick:994529015652163614> | 你選擇了略過" || challengerResponder.Follow[0].Embeds[0].Color != 0x123456 {
+		t.Fatalf("challenger action feedback = %#v", challengerResponder.Follow[0])
+	}
+	session = currentCoinGameSession(t, module, session)
+	if timeout := coinGameTimeoutOutbound(session); timeout.Content != challengerUpdate.Content {
+		t.Fatalf("opponent-turn timeout content = %q want %q", timeout.Content, challengerUpdate.Content)
+	}
+
+	opponentResponder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent("user_get_card", "user-2", "Opponent"), opponentResponder); err != nil {
+		t.Fatalf("opponent hit: %v", err)
+	}
+	if len(opponentResponder.Updates) != 1 || len(opponentResponder.Follow) != 1 {
+		t.Fatalf("opponent action responses = updates %#v follow %#v", opponentResponder.Updates, opponentResponder.Follow)
+	}
+	opponentUpdate := opponentResponder.Updates[0]
+	if opponentUpdate.Content != "<a:arrow_pink:996242460294512690> | **這回合是<@user-1>的，另一位只能查看牌組喔!**" || !strings.Contains(opponentUpdate.Embeds[0].Description, "<@user-2>**選擇了:**`抽牌\n`**") || opponentUpdate.Components[0].Components[0].CustomID != "main_no_card" {
+		t.Fatalf("opponent action update = %#v", opponentUpdate)
+	}
+	if !strings.Contains(opponentResponder.Follow[0].Embeds[0].Title, "你抽到了:") || opponentResponder.Follow[0].Embeds[0].Color != 0x123456 {
+		t.Fatalf("opponent action feedback = %#v", opponentResponder.Follow[0])
+	}
+	session = currentCoinGameSession(t, module, session)
+	if timeout := coinGameTimeoutOutbound(session); timeout.Content != opponentUpdate.Content {
+		t.Fatalf("challenger-turn timeout content = %q want %q", timeout.Content, opponentUpdate.Content)
+	}
+
+	cardResponder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent("lookmenumber", "user-2", "Opponent"), cardResponder); err != nil {
+		t.Fatalf("show opponent cards: %v", err)
+	}
+	if len(cardResponder.Replies) != 1 || !strings.Contains(cardResponder.Replies[0].Embeds[0].Description, ", ") || cardResponder.Replies[0].Embeds[0].Color != 0x123456 {
+		t.Fatalf("private card list = %#v", cardResponder.Replies)
+	}
+	if scheduler.Len() != 1 {
+		t.Fatalf("blackjack action timer count = %d", scheduler.Len())
+	}
+}
+
+func TestCoinGameKnowledgeDuplicateAnswerUsesLegacyErrorUI(t *testing.T) {
+	repo := coinGameTestRepository()
+	clock := &coinGameTestClock{now: time.Unix(100, 0)}
+	module, scheduler := newCoinGameLifecycleTestModule(t, repo, fakediscord.NewSideEffects(), clock)
+	session := startKnowledgeQuestionForTest(t, module, scheduler, clock)
+	answer := session.KnowledgeQuestion.Answer
+	if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent(answer, "user-1", "User"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("first knowledge answer: %v", err)
+	}
+
+	responder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), coinGameComponent(answer, "user-1", "User"), responder); err != nil {
+		t.Fatalf("duplicate knowledge answer: %v", err)
+	}
+	if len(responder.Replies) != 1 || !responder.Replies[0].Ephemeral || responder.Replies[0].Embeds[0].Title != "<a:error:980086028113182730> | 你已經選取過了!!!" || responder.Replies[0].Embeds[0].Color != 0xEA0000 {
+		t.Fatalf("duplicate answer response = %#v", responder.Replies)
 	}
 }
 

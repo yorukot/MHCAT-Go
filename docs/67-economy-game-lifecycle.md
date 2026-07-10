@@ -10,7 +10,7 @@ Status: transactional wagers, legacy transition UI/timing, and active-game timeo
 
 ## Implemented Behavior
 
-All three subcommands preserve the legacy invite, component IDs, acceptance feedback, and two-player wager model:
+All three subcommands preserve the legacy random-color invite, component IDs, acceptance feedback, and two-player wager model. A rejected invite disables only accept/reject; the blackjack and higher/lower tutorial buttons remain available and render their full legacy private embeds.
 
 - `比大小` removes the invite components, displays the legacy random-draw text/GIF for five seconds, and only then settles and displays both numbers.
 - `知識王` sends the legacy ephemeral acceptance embed and displays the first question after 500 milliseconds.
@@ -18,6 +18,7 @@ All three subcommands preserve the legacy invite, component IDs, acceptance feed
 - `知識王` resets its per-question countdown to `20` when the reveal starts. The countdown continues during the five-second reveal, so a newly displayed later-round question begins at about `750` available points and has about 15 visible seconds remaining. The legacy interval still times out on the strict `time < 0` tick, 21 seconds after that reveal-time reset.
 - `21點` starts each turn at `0`; the legacy interval times out on the strict `time > 30` tick, 31 seconds after turn start.
 - `21點` sends the legacy ephemeral `成功接受!!` feedback while updating the accepted invite to the first turn.
+- Later blackjack turns show the pink-arrow turn banner, previous player's `抽牌`/`略過` choice, legacy private action feedback colors, and the correct player-specific button row. Private card views retain the legacy comma-space formatting.
 - Knowledge question UI retains the legacy relative timestamp 15 seconds after the question is displayed.
 - Blackjack turn UI retains the legacy relative timestamp 30 seconds after turn start.
 
@@ -61,9 +62,10 @@ Use a transaction-capable replica set or sharded Mongo deployment. Keep both fla
 7. Confirm the next knowledge question appears after the reveal with about 15 seconds and `750` maximum points remaining.
 8. Let neither knowledge player answer and confirm both wagers remain deducted and components disappear.
 9. Repeat with one player answering and confirm only that player receives `2 * wager`.
-10. In `21點`, confirm the private acceptance response, then let each player's turn expire separately and confirm the other player receives `2 * wager`.
-11. Press a terminal action close to the deadline and confirm only one settlement occurs.
-12. Gracefully stop the bot during a pending transition or active game and confirm shutdown completes without a late Discord edit.
+10. Reject blackjack and higher/lower invites and confirm accept/reject are disabled while the tutorial button still opens the full private legacy guide.
+11. In `21點`, confirm the private acceptance response and pink-arrow action history on both turns, then let each player's turn expire separately and confirm the other player receives `2 * wager`.
+12. Press a terminal action close to the deadline and confirm only one settlement occurs.
+13. Gracefully stop the bot during a pending transition or active game and confirm shutdown completes without a late Discord edit.
 
 ## Rollback
 
