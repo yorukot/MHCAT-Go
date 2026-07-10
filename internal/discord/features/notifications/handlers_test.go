@@ -153,7 +153,7 @@ func TestSetupModalStartsLegacySimplifiedCronWizard(t *testing.T) {
 	repo := fakemongo.NewAutoNotificationScheduleRepository()
 	repo.Schedules["guild-1"] = []domain.AutoNotificationSchedule{{GuildID: "guild-1", ID: "1700000000000", ChannelID: "target-channel", Pending: true}}
 	module := NewModule(repo, nil, nil)
-	module.clock = &autoNotificationTestClock{now: time.Unix(1_700_000_000, 0)}
+	module.clock = &autoNotificationTestClock{now: time.Unix(1_700_000_000, 600*time.Millisecond.Nanoseconds())}
 	module.color = func() int { return 0x123456 }
 	responder := fakediscord.NewResponder()
 	interaction := autoNotificationModal("1700000000000", "cancel", "hello", "", "", "")
@@ -170,7 +170,7 @@ func TestSetupModalStartsLegacySimplifiedCronWizard(t *testing.T) {
 	if len(message.Embeds) != 1 || message.Embeds[0].Title != "<:dailytasks:1022041880394989669> 設定corn" || message.Embeds[0].Color != 0x123456 {
 		t.Fatalf("message = %#v", message)
 	}
-	if !strings.Contains(message.Embeds[0].Description, "<:7days:1022059380725784626>") || !strings.Contains(message.Embeds[0].Description, "<t:1700000300:R>") {
+	if !strings.Contains(message.Embeds[0].Description, "<:7days:1022059380725784626>") || !strings.Contains(message.Embeds[0].Description, "<t:1700000301:R>") {
 		t.Fatalf("description = %q", message.Embeds[0].Description)
 	}
 	if message.Embeds[0].Footer == nil || message.Embeds[0].Footer.Text != "有問題都可以前往支援伺服器詢問" || message.Embeds[0].Footer.IconURL != "https://example.test/user.png" {

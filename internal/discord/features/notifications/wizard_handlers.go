@@ -168,7 +168,7 @@ func autoNotificationWizardSelectMessage(customID string, prompt string, placeho
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title:       "<:dailytasks:1022041880394989669> 設定corn",
-			Description: prompt + "\n**<a:warn:1000814885506129990> 你必須在<t:" + strconv.FormatInt(expiresAt.Unix(), 10) + ":R>選取完畢(超過時間將會無法選取)**",
+			Description: prompt + "\n**<a:warn:1000814885506129990> 你必須在<t:" + legacyAutoNotificationExpiryTimestamp(expiresAt) + ":R>選取完畢(超過時間將會無法選取)**",
 			Color:       color,
 			Footer: &responses.EmbedFooter{
 				Text:    "有問題都可以前往支援伺服器詢問",
@@ -185,6 +185,10 @@ func autoNotificationWizardSelectMessage(customID string, prompt string, placeho
 		}}}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
+}
+
+func legacyAutoNotificationExpiryTimestamp(expiresAt time.Time) string {
+	return strconv.FormatInt(expiresAt.Add(500*time.Millisecond).Unix(), 10)
 }
 
 func (m Module) autoNotificationWizardCompleteMessage(id string) responses.Message {
