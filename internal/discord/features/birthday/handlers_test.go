@@ -129,6 +129,38 @@ func TestHandlerAddInvalidYearUsesLegacyError(t *testing.T) {
 	}
 }
 
+func TestHandlerAddPreservesExplicitZeroYear(t *testing.T) {
+	repo := birthdayAddRepo(true)
+	module := birthdayAddModule(repo, nil)
+	start := fakediscord.NewResponder()
+	interaction := birthdayAddSlash()
+	interaction.Options[optionBirthdayYear] = "0"
+
+	if err := module.Handler()(context.Background(), interaction, start); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	hourResponder := fakediscord.NewResponder()
+	hourInteraction := fakediscord.ComponentInteractionFromID(start.Edits[0].Components[0].Components[0].CustomID)
+	hourInteraction.Values = []string{"8"}
+	if err := module.HourSelectHandler()(context.Background(), hourInteraction, hourResponder); err != nil {
+		t.Fatalf("hour handler: %v", err)
+	}
+	minuteResponder := fakediscord.NewResponder()
+	minuteInteraction := fakediscord.ComponentInteractionFromID(hourResponder.Updates[0].Components[0].Components[0].CustomID)
+	minuteInteraction.Values = []string{"30"}
+	if err := module.MinuteSelectHandler()(context.Background(), minuteInteraction, minuteResponder); err != nil {
+		t.Fatalf("minute handler: %v", err)
+	}
+
+	saved := repo.Profiles["guild-1/user-1"]
+	if saved.BirthdayYear == nil || *saved.BirthdayYear != 0 {
+		t.Fatalf("saved = %#v", saved)
+	}
+	if len(minuteResponder.Updates) != 1 || !strings.Contains(minuteResponder.Updates[0].Embeds[0].Description, "`0/7/9`") {
+		t.Fatalf("updates = %#v", minuteResponder.Updates)
+	}
+}
+
 func TestHandlerAddRendersLegacyHourSelect(t *testing.T) {
 	usage := &fakeusage.Tracker{}
 	module := birthdayAddModule(birthdayAddRepo(true), usage)

@@ -107,7 +107,7 @@ func ValidateBirthdayAddRequest(request BirthdayAddRequest) error {
 }
 
 func ValidateBirthdayDate(year *int, month int, day int, currentYear int) error {
-	if year != nil && (*year < 1900 || (currentYear > 0 && *year > currentYear)) {
+	if year != nil && *year != 0 && (*year < 1900 || (currentYear > 0 && *year > currentYear)) {
 		return ErrInvalidBirthdayYear
 	}
 	switch {

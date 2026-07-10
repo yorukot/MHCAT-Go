@@ -49,6 +49,10 @@ func TestValidateBirthdayDatePreservesLegacyBounds(t *testing.T) {
 	if err := ValidateBirthdayDate(&year, 2, 29, 2026); err != nil {
 		t.Fatalf("validate date: %v", err)
 	}
+	zeroYear := 0
+	if err := ValidateBirthdayDate(&zeroYear, 2, 29, 2026); err != nil {
+		t.Fatalf("legacy treats explicit year zero as unset during validation: %v", err)
+	}
 	for _, tc := range []struct {
 		name  string
 		year  *int
