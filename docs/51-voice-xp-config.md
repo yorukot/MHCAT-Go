@@ -21,7 +21,7 @@ Status: implemented behind explicit runtime and command-sync gates.
 
 This slice is announcement-config only. It does not enable voice-state XP accrual, rank cards, automatic reward-role assignment/removal, coin rewards, or Voice State intent. Voice reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
 
-Voice XP session tracking is implemented separately behind `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`, with `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`. That event slice mirrors the legacy join/leave session flag by upserting missing `voice_xps` rows with `xp:"0"`, `leavel:"0"`, and `leavejoin:"join"`/`"leave"`, but it does not start the legacy periodic XP interval.
+Voice XP session tracking is implemented separately behind `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`, with `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`. That event slice mirrors the legacy join/leave session flag by upserting missing `voice_xps` rows with `xp:"0"`, `leavel:"0"`, and `leavejoin:"join"`/`"leave"`, but it does not start the legacy periodic XP interval. The core voice-XP tick service now preserves the legacy `+5 XP` tick and `xp:"5"` on level-up behavior for a joined profile; a runtime interval/reconciliation loop is still pending.
 
 ## Legacy UI/UX Preserved
 
@@ -55,10 +55,11 @@ Voice XP session tracking is implemented separately behind `MHCAT_FEATURE_VOICE_
 - `message` preserves user-provided spacing and is written as a legacy-compatible nullable value.
 - No indexes are created by the app. A future unique `voice_xp_channels.guild` index still requires duplicate audit first.
 - Color validation accepts common legacy color-code values and safe CSS color names. Broader `validate-color` parity can be expanded if staging finds a documented accepted value that Go rejects.
+- Voice XP tick math matches the legacy interval: joined users gain `5` XP per tick, level up when `xp + 5` exceeds `level * (level / 2) * 100 + 100`, and keep `xp:"5"` after that level-up.
 
 ## Not Implemented
 
-- periodic `events/voice_xp.js` XP accrual ticks, level announcements, coin rewards, and reward-role changes.
+- runtime periodic `events/voice_xp.js` interval ownership/reconciliation, level announcements, coin rewards, and reward-role changes.
 - `/語音排行榜`, rank image rendering, rank buttons, and the old XP profile card lookup behind `/語音經驗`; the current `/語音經驗` command is implemented separately as a disabled replacement response only.
 - automatic voice reward-role assignment/removal; the config command is tracked separately from XP accrual.
 - XP-to-coin rewards.

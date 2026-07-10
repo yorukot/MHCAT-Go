@@ -124,6 +124,20 @@ func ApplyTextXPMessage(profile XPProfile, gained int64) (XPProfile, bool) {
 	return profile, false
 }
 
+func ApplyVoiceXPTick(profile XPProfile, gained int64) (XPProfile, bool) {
+	profile = profile.Normalize()
+	if gained < 0 {
+		gained = 0
+	}
+	if profile.XP+gained > voiceXPRequiredForLevel(profile.Level) {
+		profile.Level++
+		profile.XP = gained
+		return profile, true
+	}
+	profile.XP += gained
+	return profile, false
+}
+
 func LegacyTextXPCoinReward(level int64, xpMultiple float64) int64 {
 	return int64(float64(level) * xpMultiple)
 }
