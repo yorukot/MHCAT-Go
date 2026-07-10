@@ -78,6 +78,9 @@ func (m Module) RerollHandler() interactions.Handler {
 		if err != nil {
 			return responder.EditOriginal(ctx, lotteryManageErrorMessage(err, false))
 		}
+		if lottery.WinnerCount <= 0 {
+			return nil
+		}
 		message, err := m.lotteryWinnerMessage(lottery, guild.BotDisplayColor)
 		if err != nil || m.messages == nil || lottery.ChannelID == "" {
 			return responder.EditOriginal(ctx, lotteryComponentErrorMessage("很抱歉，出現了錯誤!"))

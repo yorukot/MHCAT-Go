@@ -2,6 +2,7 @@ package lottery
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -194,6 +195,33 @@ func TestLotteryRerollPreservesLegacyEmptyParticipantMessage(t *testing.T) {
 	}
 	if !repo.Lotteries["guild-1:"+lotteryTestID].Ended || len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Content, "成功重抽") {
 		t.Fatalf("lottery=%#v edits=%#v", repo.Lotteries["guild-1:"+lotteryTestID], responder.Edits)
+	}
+}
+
+func TestLotteryRerollPreservesLegacyNonPositiveWinnerNoOp(t *testing.T) {
+	for _, winnerCount := range []int{0, -1} {
+		t.Run(strconv.Itoa(winnerCount), func(t *testing.T) {
+			repo := fakemongo.NewLotteryRepository()
+			repo.Lotteries["guild-1:"+lotteryTestID] = domain.Lottery{
+				GuildID:      "guild-1",
+				ID:           lotteryTestID,
+				OwnerID:      "user-1",
+				WinnerCount:  winnerCount,
+				ChannelID:    "channel-1",
+				Participants: []domain.LotteryParticipant{{UserID: "user-1"}},
+			}
+			messages := fakediscord.NewSideEffects()
+			module := NewComponentModule(repo, &fakebotinfo.DiscordInfoProvider{}, nil, messages, lotteryFixedClock{})
+			interaction := fakediscord.ComponentInteractionFromID(lotteryTestID + "restart")
+			responder := fakediscord.NewResponder()
+
+			if err := module.RerollHandler()(context.Background(), interaction, responder); err != nil {
+				t.Fatalf("reroll: %v", err)
+			}
+			if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral || len(responder.Edits) != 0 || len(messages.Sent) != 0 || repo.Lotteries["guild-1:"+lotteryTestID].Ended {
+				t.Fatalf("defers=%#v edits=%#v sent=%#v lottery=%#v", responder.Defers, responder.Edits, messages.Sent, repo.Lotteries["guild-1:"+lotteryTestID])
+			}
+		})
 	}
 }
 
