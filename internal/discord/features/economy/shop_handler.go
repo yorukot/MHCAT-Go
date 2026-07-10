@@ -174,7 +174,7 @@ func (m Module) ShopItemHandler() interactions.Handler {
 				MessageID:   interaction.MessageID,
 				CommodityID: commodityID,
 			})
-			return responder.UpdateMessage(ctx, shopQuantityMessage(item, ""))
+			return responder.UpdateMessage(ctx, shopQuantityMessage(item, "", m.color()))
 		}
 		commodityID, ok := shopCommodityIDFromCustomID(raw)
 		if !ok {
@@ -184,7 +184,7 @@ func (m Module) ShopItemHandler() interactions.Handler {
 		if err != nil {
 			return responder.UpdateMessage(ctx, shopDetailError(err))
 		}
-		return responder.UpdateMessage(ctx, shopDetailMessage(item))
+		return responder.UpdateMessage(ctx, shopDetailMessage(item, m.color()))
 	}
 }
 
@@ -212,7 +212,7 @@ func (m Module) ShopQuantityHandler() interactions.Handler {
 				session.Quantity = session.Quantity[:len(session.Quantity)-1]
 			}
 			m.shopSessions.Update(session)
-			return responder.UpdateMessage(ctx, shopQuantityMessage(item, session.Quantity))
+			return responder.UpdateMessage(ctx, shopQuantityMessage(item, session.Quantity, m.color()))
 		case strings.HasSuffix(raw, "ghp_number") && len(raw) > len("ghp_number"):
 			digit := strings.TrimSuffix(raw, "ghp_number")
 			if len(digit) != 1 || digit[0] < '0' || digit[0] > '9' {
@@ -228,7 +228,7 @@ func (m Module) ShopQuantityHandler() interactions.Handler {
 			}
 			session.Quantity = next
 			m.shopSessions.Update(session)
-			return responder.UpdateMessage(ctx, shopQuantityMessage(item, session.Quantity))
+			return responder.UpdateMessage(ctx, shopQuantityMessage(item, session.Quantity, m.color()))
 		default:
 			return responder.UpdateMessage(ctx, shopUpdateErrorMessage(shopGenericErrorContent, shopPurchaseDocsPath))
 		}
@@ -377,12 +377,12 @@ func shopListMessage(items []domain.ShopItem, guildName string, userTag string, 
 	}
 }
 
-func shopDetailMessage(item domain.ShopItem) responses.Message {
+func shopDetailMessage(item domain.ShopItem, color int) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title:       fmt.Sprintf("<:creativeteaching:986060052949524600> 以下是%s的詳細資料", item.Name),
 			Description: shopItemDetailDescription(item),
-			Color:       shopSuccessColor,
+			Color:       color,
 		}},
 		Components: []responses.ComponentRow{{
 			Components: []responses.Component{{
@@ -397,7 +397,7 @@ func shopDetailMessage(item domain.ShopItem) responses.Message {
 	}
 }
 
-func shopQuantityMessage(item domain.ShopItem, quantity string) responses.Message {
+func shopQuantityMessage(item domain.ShopItem, quantity string, color int) responses.Message {
 	description := shopItemDetailDescription(item) + "目前選擇數量:"
 	if quantity != "" {
 		description += fmt.Sprintf("`%s`", quantity)
@@ -406,7 +406,7 @@ func shopQuantityMessage(item domain.ShopItem, quantity string) responses.Messag
 		Embeds: []responses.Embed{{
 			Title:       "<:choose:1007244640958808088> 請選擇購買數量!",
 			Description: description,
-			Color:       shopSuccessColor,
+			Color:       color,
 		}},
 		Components:      shopQuantityRows(item.CommodityID),
 		AllowedMentions: &responses.AllowedMentions{},

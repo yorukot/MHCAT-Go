@@ -72,6 +72,49 @@ func TestShopListRendersLegacyFieldsAndButtons(t *testing.T) {
 	}
 }
 
+func TestShopDetailAndQuantityUseLegacyRandomColors(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 50, Description: "role reward", Count: 2})
+	module := NewShopModule(repo, nil, nil, nil, nil, nil, nil)
+	colors := []int{0x123456, 0x654321, 0xABCDEF}
+	colorIndex := 0
+	module.color = func() int {
+		color := colors[colorIndex]
+		colorIndex++
+		return color
+	}
+
+	detail := fakediscord.ComponentInteractionFromID("1001")
+	detail.MessageID = "message-1"
+	detailResponder := fakediscord.NewResponder()
+	if err := module.ShopItemHandler()(context.Background(), detail, detailResponder); err != nil {
+		t.Fatalf("show detail: %v", err)
+	}
+	if got := detailResponder.Updates[0].Embeds[0].Color; got != colors[0] {
+		t.Fatalf("detail color = %#x, want %#x", got, colors[0])
+	}
+
+	start := fakediscord.ComponentInteractionFromID("1001ghp")
+	start.MessageID = "message-1"
+	startResponder := fakediscord.NewResponder()
+	if err := module.ShopItemHandler()(context.Background(), start, startResponder); err != nil {
+		t.Fatalf("start purchase: %v", err)
+	}
+	if got := startResponder.Updates[0].Embeds[0].Color; got != colors[1] {
+		t.Fatalf("initial quantity color = %#x, want %#x", got, colors[1])
+	}
+
+	digit := fakediscord.ComponentInteractionFromID("1ghp_number")
+	digit.MessageID = "message-1"
+	digitResponder := fakediscord.NewResponder()
+	if err := module.ShopQuantityHandler()(context.Background(), digit, digitResponder); err != nil {
+		t.Fatalf("enter quantity: %v", err)
+	}
+	if got := digitResponder.Updates[0].Embeds[0].Color; got != colors[2] {
+		t.Fatalf("updated quantity color = %#x, want %#x", got, colors[2])
+	}
+}
+
 func TestShopPurchaseFlowMutatesCoinsInventoryRoleAndCode(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 20, Description: "role reward", Code: "CODE", AutoDelete: true, RoleID: "role-1", Count: 1})
