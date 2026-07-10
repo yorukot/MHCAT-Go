@@ -432,6 +432,72 @@ func TestShopPurchaseAllMultiStockLeavesLegacyZeroCountItem(t *testing.T) {
 	}
 }
 
+func TestShopMissingRoleItemAllowsMultipleWithoutRoleSideEffect(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "Old role", NeedCoins: 20, Description: "reward", AutoDelete: true, RoleID: "role-1", Count: 2})
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 100})
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.MissingRoles["guild-1/role-1"] = true
+	module := NewShopModule(repo, nil, sideEffects, sideEffects, sideEffects, nil, nil)
+	showShopDetail(t, &module, 1001, "message-1")
+
+	start := fakediscord.ComponentInteractionFromID("1001ghp")
+	start.MessageID = "message-1"
+	if err := module.ShopItemHandler()(context.Background(), start, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("start purchase: %v", err)
+	}
+	digit := fakediscord.ComponentInteractionFromID("2ghp_number")
+	digit.MessageID = "message-1"
+	digitResponder := fakediscord.NewResponder()
+	if err := module.ShopQuantityHandler()(context.Background(), digit, digitResponder); err != nil {
+		t.Fatalf("digit: %v", err)
+	}
+	if len(digitResponder.Updates) != 1 || len(digitResponder.Replies) != 0 {
+		t.Fatalf("quantity response = updates %#v replies %#v", digitResponder.Updates, digitResponder.Replies)
+	}
+	confirm := fakediscord.ComponentInteractionFromID("confirmghp_number1001")
+	confirm.MessageID = "message-1"
+	if err := module.ShopQuantityHandler()(context.Background(), confirm, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+	if len(sideEffects.AddedRoles) != 0 {
+		t.Fatalf("missing role was added: %#v", sideEffects.AddedRoles)
+	}
+	balance, err := repo.GetCoinBalance(context.Background(), "guild-1", "user-1")
+	if err != nil || balance.Coins != 60 {
+		t.Fatalf("balance = %#v, err = %v", balance, err)
+	}
+}
+
+func TestShopExistingRoleItemRejectsMultiple(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "Role", NeedCoins: 20, Description: "reward", RoleID: "role-1", Count: 2})
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 100})
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.AssignableRoles["guild-1/role-1"] = true
+	module := NewShopModule(repo, nil, sideEffects, sideEffects, sideEffects, nil, nil)
+	showShopDetail(t, &module, 1001, "message-1")
+
+	start := fakediscord.ComponentInteractionFromID("1001ghp")
+	start.MessageID = "message-1"
+	if err := module.ShopItemHandler()(context.Background(), start, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("start purchase: %v", err)
+	}
+	digit := fakediscord.ComponentInteractionFromID("2ghp_number")
+	digit.MessageID = "message-1"
+	responder := fakediscord.NewResponder()
+	if err := module.ShopQuantityHandler()(context.Background(), digit, responder); err != nil {
+		t.Fatalf("digit: %v", err)
+	}
+	if len(responder.Replies) != 1 || !responder.Replies[0].Ephemeral || !strings.Contains(responder.Replies[0].Content, "身分組商品") {
+		t.Fatalf("quantity response = %#v", responder.Replies)
+	}
+	balance, err := repo.GetCoinBalance(context.Background(), "guild-1", "user-1")
+	if err != nil || balance.Coins != 100 {
+		t.Fatalf("balance = %#v, err = %v", balance, err)
+	}
+}
+
 func TestShopPurchaseInsufficientCoinsUsesLegacyError(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 20, Description: "role reward", AutoDelete: true, Count: 1})

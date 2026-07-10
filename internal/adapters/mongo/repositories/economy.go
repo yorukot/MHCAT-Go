@@ -790,9 +790,6 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	if command.Quantity > item.Count {
 		return domain.ShopPurchaseResult{}, ports.ErrShopQuantityInvalid
 	}
-	if item.RoleID != "" && command.Quantity > 1 {
-		return domain.ShopPurchaseResult{}, ports.ErrShopQuantityInvalid
-	}
 	balance, err := r.GetCoinBalance(ctx, command.GuildID, command.UserID)
 	if err != nil {
 		if errors.Is(err, ports.ErrCoinBalanceNotFound) {

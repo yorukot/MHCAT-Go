@@ -253,7 +253,7 @@ func (m Module) ShopQuantityHandler() interactions.Handler {
 			if quantity > item.Count {
 				return responder.Reply(ctx, shopEphemeralContentError(":x: | 你輸入的數量不可超過商品數量!"))
 			}
-			if item.RoleID != "" && quantity > 1 {
+			if quantity > 1 && m.shopRoleExists(ctx, interaction.Actor.GuildID, item.RoleID) {
 				return responder.Reply(ctx, shopEphemeralContentError(":x: | 此商品為身分組商品，只能夠買一樣!"))
 			}
 			session.Quantity = next
@@ -304,6 +304,17 @@ func (m Module) canAssignShopRole(ctx context.Context, guildID string, roleID st
 	return m.roleInspector.CanAssignRole(ctx, guildID, roleID)
 }
 
+func (m Module) shopRoleExists(ctx context.Context, guildID string, roleID string) bool {
+	if strings.TrimSpace(roleID) == "" {
+		return false
+	}
+	if m.roleInspector == nil {
+		return true
+	}
+	_, err := m.roleInspector.CanAssignRole(ctx, guildID, roleID)
+	return !errors.Is(err, ports.ErrDiscordRoleMissing)
+}
+
 func (m Module) nextShopCommodityID() int64 {
 	clock := m.clock
 	if clock == nil {
@@ -340,7 +351,7 @@ func (m Module) shopGuildName(ctx context.Context, guildID string) string {
 }
 
 func (m Module) sendShopPurchaseSideEffects(ctx context.Context, interaction interactions.Interaction, result domain.ShopPurchaseResult) {
-	if result.Item.RoleID != "" && m.roles != nil {
+	if m.roles != nil && m.shopRoleExists(ctx, interaction.Actor.GuildID, result.Item.RoleID) {
 		_ = m.roles.AddRole(ctx, interaction.Actor.GuildID, interaction.Actor.UserID, result.Item.RoleID)
 	}
 	if result.Item.Code != "" && m.direct != nil {
