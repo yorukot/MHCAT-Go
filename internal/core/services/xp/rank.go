@@ -69,6 +69,7 @@ func (s RankService) Query(ctx context.Context, query RankQuery) (RankPage, erro
 	if err != nil {
 		return RankPage{}, err
 	}
+	viewer, viewerHasProfile := legacyRankViewerProfile(profiles, query.ViewerID)
 	// Legacy builds the sortable array from the Mongo result in reverse order.
 	for left, right := 0, len(profiles)-1; left < right; left, right = left+1, right-1 {
 		profiles[left], profiles[right] = profiles[right], profiles[left]
@@ -96,7 +97,7 @@ func (s RankService) Query(ctx context.Context, query RankQuery) (RankPage, erro
 			})
 		}
 	}
-	viewerRank, viewerHasProfile := legacyRankForViewer(profiles, query.ViewerID)
+	viewerRank := legacyRankForViewer(profiles, viewer, viewerHasProfile)
 	return RankPage{
 		GuildID:          query.GuildID,
 		ViewerID:         query.ViewerID,
@@ -122,18 +123,18 @@ func validRankKind(kind RankKind) bool {
 	return kind == RankKindText || kind == RankKindVoice
 }
 
-func legacyRankForViewer(profiles []domain.XPProfile, viewerID string) (int, bool) {
-	var viewer domain.XPProfile
-	found := false
+func legacyRankViewerProfile(profiles []domain.XPProfile, viewerID string) (domain.XPProfile, bool) {
 	for _, profile := range profiles {
 		if profile.UserID == viewerID {
-			viewer = profile
-			found = true
-			break
+			return profile, true
 		}
 	}
+	return domain.XPProfile{}, false
+}
+
+func legacyRankForViewer(profiles []domain.XPProfile, viewer domain.XPProfile, found bool) int {
 	if !found {
-		return 0, false
+		return 0
 	}
 	viewerTotal := legacyRankViewerTotal(viewer)
 	rank := 0
@@ -142,7 +143,7 @@ func legacyRankForViewer(profiles []domain.XPProfile, viewerID string) (int, boo
 			rank++
 		}
 	}
-	return rank, true
+	return rank
 }
 
 func legacyRankSortTotal(profile domain.XPProfile) int64 {

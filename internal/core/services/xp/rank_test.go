@@ -116,6 +116,25 @@ func TestRankServiceKeepsHugeOutOfRangePageEmpty(t *testing.T) {
 	}
 }
 
+func TestRankServiceUsesFirstSourceProfileForDuplicateViewerRank(t *testing.T) {
+	repo := orderedRankRepository{text: []domain.XPProfile{
+		{GuildID: "guild", UserID: "viewer", Level: 1, XP: 0},
+		{GuildID: "guild", UserID: "other", Level: 2, XP: 0},
+		{GuildID: "guild", UserID: "viewer", Level: 5, XP: 0},
+	}}
+	page, err := (RankService{Repository: repo}).Query(context.Background(), RankQuery{
+		GuildID:  "guild",
+		ViewerID: "viewer",
+		Kind:     RankKindText,
+	})
+	if err != nil {
+		t.Fatalf("rank query: %v", err)
+	}
+	if !page.ViewerHasProfile || page.ViewerRank != 3 {
+		t.Fatalf("viewer rank = %d has=%v, want first-source rank 3", page.ViewerRank, page.ViewerHasProfile)
+	}
+}
+
 func TestRankServiceRejectsInvalidQuery(t *testing.T) {
 	_, err := (RankService{Repository: fakemongo.NewXPAdminRepository()}).Query(context.Background(), RankQuery{GuildID: "guild", Kind: RankKindText})
 	if !errors.Is(err, domain.ErrInvalidXPRankQuery) {
