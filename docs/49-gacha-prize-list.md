@@ -21,13 +21,13 @@ Status: implemented behind explicit staging/runtime gates.
 - Optional option: string `連抽` with legacy choices `5`, `11`, `17`, and `23`
 - Mongo reads: `coins`, `gifts`, `gift_changes`
 - Mongo writes: updates matching `coins` rows for the member; decrements or deletes auto-delete `gifts` rows by `{guild,gift_name}`
-- Discord behavior: public defer, loading GIF edit, final legacy result embed, best-effort prize-code DM, and best-effort notification-channel winner embed
+- Discord behavior: public defer, loading GIF follow-up, 8.5-second reveal delay, edit of that follow-up to the final legacy result embed, best-effort prize-code DM, and one best-effort notification-channel winner embed per non-air draw
 
-The command preserves the legacy visible draw UI, draw-count mapping, missing-balance/empty-pool/insufficient-coin errors, default gacha cost `500`, weighted air result, prize-code DM fields, and notification-channel embed text. Paid draws remain `1`, `5`, `10`, `15`, or `20`; actual result lines remain `1`, `5`, `11`, `17`, or `23`.
+The command preserves the legacy visible draw UI, draw-count mapping, missing-balance/empty-pool/insufficient-coin errors, default gacha cost `500`, weighted air result, prize-code DM fields, and notification-channel embed text. Paid draws remain `1`, `5`, `10`, `15`, or `20`; actual result lines remain `1`, `5`, `11`, `17`, or `23`. Multi-draws reload the `gifts` pool before every actual draw and apply that draw's inventory mutation immediately, so a depleted auto-delete prize is unavailable to later draws in the same command.
 
 ## Draw Safety Fix
 
-The legacy draw code can touch auto-delete prize inventory twice through separate async callback loops. The Go implementation keeps the same user-visible results but applies one intended decrement/delete per drawn auto-delete prize. Coin updates are also applied once as `starting coin - cost + give_coin total`, and duplicate `{guild,member}` coin rows are updated together for rollback compatibility with the current duplicate-audit posture. Prize inventory writes remain non-transactional and target one legacy prize name row, so keep this path limited to isolated staging data until production duplicate and transaction policy is reviewed.
+The legacy draw code can touch auto-delete prize inventory twice through separate async callback loops. The Go implementation preserves the per-draw pool reload and depletion behavior but applies one intended decrement/delete per drawn auto-delete prize. Coin updates are also applied once as `starting coin - cost + give_coin total`, and duplicate `{guild,member}` coin rows are updated together for rollback compatibility with the current duplicate-audit posture. Prize inventory writes remain non-transactional and target one legacy prize name row, so keep this path limited to isolated staging data until production duplicate and transaction policy is reviewed.
 
 ## Prize-list Scope
 
