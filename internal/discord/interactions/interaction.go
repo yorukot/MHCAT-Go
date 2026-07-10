@@ -48,7 +48,8 @@ type Actor struct {
 }
 
 func (a Actor) HasPermission(permission int64) bool {
-	return permission != 0 && a.PermissionBits&permission == permission
+	const administratorPermission = int64(1 << 3)
+	return permission != 0 && (a.PermissionBits&administratorPermission != 0 || a.PermissionBits&permission == permission)
 }
 
 type Route struct {

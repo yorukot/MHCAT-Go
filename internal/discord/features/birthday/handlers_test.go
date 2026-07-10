@@ -29,6 +29,21 @@ func TestHandlerRequiresManageMessagesForConfig(t *testing.T) {
 	}
 }
 
+func TestHandlerAcceptsAdministratorForBirthdayConfig(t *testing.T) {
+	repo := &fakemongo.BirthdayConfigRepository{}
+	module := NewModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	interaction := birthdayConfigSlash()
+	interaction.Actor.PermissionBits = 1 << 3
+
+	if err := module.Handler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if _, ok := repo.Last(); !ok || len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Color != birthdaySuccessColor {
+		t.Fatalf("saved=%t edits=%#v", ok, responder.Edits)
+	}
+}
+
 func TestHandlerSavesBirthdayConfigAndRendersLegacySuccess(t *testing.T) {
 	repo := &fakemongo.BirthdayConfigRepository{}
 	usage := &fakeusage.Tracker{}
