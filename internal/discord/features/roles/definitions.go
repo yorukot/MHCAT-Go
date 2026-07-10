@@ -6,7 +6,6 @@ const (
 	RoleButtonCommandName         = "選取身分組-按鈕"
 	RoleReactionSetCommandName    = "選取身分組-表情符號"
 	RoleReactionDeleteCommandName = "選取身分組刪除-表情符號"
-	manageMessagesPermission      = "8192"
 )
 
 func Definitions() []commands.Definition {
@@ -19,11 +18,10 @@ func Definitions() []commands.Definition {
 
 func RoleButtonDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     RoleButtonCommandName,
-		Description:              "設定領取身分組的消息(點按鈕自動增加身分組)",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		Ownership:                commands.ManagedOwnership("role-selection", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        RoleButtonCommandName,
+		Description: "設定領取身分組的消息(點按鈕自動增加身分組)",
+		Ownership:   commands.ManagedOwnership("role-selection", commands.ScopeGuild),
 		Options: []commands.Option{{
 			Type:        commands.OptionTypeRole,
 			Name:        "身分組",
@@ -35,11 +33,10 @@ func RoleButtonDefinition() commands.Definition {
 
 func RoleReactionSetDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     RoleReactionSetCommandName,
-		Description:              "設定領取身分組的消息-點按鈕自動增加身分組(如要更改某個表情符號所給予的身分組，請一樣打這個指令)",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		Ownership:                commands.ManagedOwnership("role-selection", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        RoleReactionSetCommandName,
+		Description: "設定領取身分組的消息-點按鈕自動增加身分組(如要更改某個表情符號所給予的身分組，請一樣打這個指令)",
+		Ownership:   commands.ManagedOwnership("role-selection", commands.ScopeGuild),
 		Options: []commands.Option{
 			{
 				Type:        commands.OptionTypeString,
@@ -65,11 +62,10 @@ func RoleReactionSetDefinition() commands.Definition {
 
 func RoleReactionDeleteDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     RoleReactionDeleteCommandName,
-		Description:              "選取身分組刪除-表情符號版(進行刪除)",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		Ownership:                commands.ManagedOwnership("role-selection", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        RoleReactionDeleteCommandName,
+		Description: "選取身分組刪除-表情符號版(進行刪除)",
+		Ownership:   commands.ManagedOwnership("role-selection", commands.ScopeGuild),
 		Options: []commands.Option{
 			{
 				Type:        commands.OptionTypeString,
@@ -85,8 +81,4 @@ func RoleReactionDeleteDefinition() commands.Definition {
 			},
 		},
 	}
-}
-
-func stringPtr(value string) *string {
-	return &value
 }
