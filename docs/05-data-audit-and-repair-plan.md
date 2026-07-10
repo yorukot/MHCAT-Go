@@ -98,8 +98,8 @@ Before running `mhcat-work-payout --apply`, perform audit-only checks:
 
 | Audit | Problem | Detection | Write behavior | Automatic repair |
 | --- | --- | --- | --- | --- |
-| Duplicate work users | Multiple `work_users` rows for the same `{guild,user}` can duplicate or mask payouts | group by `{guild,user}` with count > 1 | none | no |
-| Duplicate coin balances | Multiple `coins` rows for `{guild,member}` can make `$inc` target an arbitrary duplicate until uniqueness is resolved | group by `{guild,member}` with count > 1 | none | no |
+| Duplicate work users | Multiple `work_users` rows for the same `{guild,user}` are each treated as independent jobs keyed by `_id`, but may still indicate legacy corruption | group by `{guild,user}` with count > 1 | none | no; Go markers prevent token collision but do not choose a repair winner |
+| Duplicate coin balances | Multiple `coins` rows for `{guild,member}` make the canonical balance ambiguous | group by `{guild,member}` with count > 1 | none | no; Go payout fails with `ErrWorkPayoutCoinConflict` before crediting the affected job |
 | Duplicate gift config | Multiple `gift_changes` rows for a guild can make new-balance `today` behavior ambiguous | group by `guild` with count > 1 | none | no |
 | Oversized gacha prize pools | More than 25 `gifts` rows for one guild can make the legacy single embed fail Discord validation | group `gifts` by `guild` with count > 25 | none | no; Go read-only prize-list splits embeds as a runtime compatibility fix |
 | Gacha prize numeric drift | `gift_chence` and `gift_count` may be strings, numbers, null, or impossible values | sample `gifts` field types and range-check negative chance/count | none | no |
@@ -110,7 +110,8 @@ Before running `mhcat-work-payout --apply`, perform audit-only checks:
 | Voice XP config stale background | Legacy command exposes `背景` but does not save it; old duplicate rows may retain mixed `background` values | sample `voice_xp_channels.background` presence/type by guild | none | no; Go set unsets `background` on matched duplicate rows |
 | Duplicate join role config | Multiple `join_roles` rows for the same `{guild,role}` can block the future unique index and make member-add role assignment repeat work | group `join_roles` by `{guild,role}` with count > 1 | none | no; Go delete removes duplicate `{guild,role}` rows only when an operator deletes that specific config |
 | Due non-idle rows | Large backlog can exceed one lease window | count `work_users` where `state != "待業中"` and `end_time < now` | none | no |
-| Mixed numeric types | `$inc` can fail if existing `coins.coin` is non-numeric; loose `end_time` or `get_coin` can differ from legacy Mongoose casting | sample field types for `coins.coin`, `work_users.end_time`, `work_users.get_coin` | none | no |
+| Mixed numeric types | the atomic payout pipeline fails if existing `coins.coin` is non-numeric; loose `end_time` or `get_coin` can differ from legacy Mongoose casting | sample field types for `coins.coin`, `work_users.end_time`, `work_users.get_coin` | none | no |
+| Payout marker shape | malformed or externally modified `coins.mhcat_work_payouts` entries can block safe token comparison | sample object types and require marker values to contain string `token` plus numeric `end_time` | none | no; fail closed and inspect before repair |
 | Suspicious rewards | Zero or negative `get_coin` is legacy-compatible but may indicate bad data | sample due rows where normalized `get_coin <= 0` | none | no |
 
 Any repair must follow the standard flow: audit first, dry-run report, explicit `--apply`, backup requirement, rollback note, and no automatic production mutation.

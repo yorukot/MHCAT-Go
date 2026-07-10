@@ -846,9 +846,9 @@ MHCAT_SCHEDULER_LEASE_OWNER=staging-worker \
 go run ./cmd/mhcat-work-payout --apply
 ```
 
-The command can increment `coins.coin`, create missing `coins` documents, and reset due `work_users.state` to `待業中`. It does not create indexes, repair documents, sync commands, send Discord messages, or write from bot startup.
+The command conditionally increments `coins.coin` and writes the latest per-work-row token under `coins.mhcat_work_payouts` in one atomic update. A retry after the coin commit reports `idempotent_replays` and does not increment again. Missing balances use a deterministic ObjectID; duplicate `{guild,member}` coin rows fail before credit. The command resets only the exact due `work_users` snapshot to `待業中`. It does not create indexes, repair documents, sync commands, send Discord messages, or write from bot startup.
 
-If another process holds the configured scheduler lease, apply mode skips the payout and exits with code `2`. Do not run production apply until duplicate audit results are reviewed and Node.js is no longer owning the same minute payout loop.
+If another process holds the configured scheduler lease, apply mode skips the payout and exits with code `2`. Do not run production apply until duplicate and marker-shape audit results are reviewed and Node.js is no longer owning the same minute payout loop. On rollback, stop Go, confirm lease release/expiry, then restore Node; leave marker fields in place.
 
 ## Work Command Runtime
 
@@ -861,7 +861,7 @@ export MHCAT_FEATURE_WORK_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_WORK=true
 ```
 
-Run `mhcat-staging-preflight` before command sync. It rejects `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true` unless the runtime flag is also enabled, and command sync still requires staging guild scope. Do not sync `打工系統` to production until scheduler ownership, duplicate audits, and payout idempotency are reviewed or a documented partial rollout is accepted. The start path can create a missing `work_users` row, deduct `energi`, and set `state`/`end_time`/`get_coin` through an atomic update. Admin paths can upsert/update `work_sets`, delete `work_somethings`, and clamp `work_users.energi`. They do not write payout state, coins, indexes, or scheduler leases.
+Run `mhcat-staging-preflight` before command sync. It rejects `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true` unless the runtime flag is also enabled, and command sync still requires staging guild scope. Do not sync `打工系統` to production until recurring payout ownership, duplicate audits, and isolated payout smoke are complete or a documented partial rollout is accepted. The start path can create a missing `work_users` row, deduct `energi`, and set `state`/`end_time`/`get_coin` through an atomic update. Admin paths can upsert/update `work_sets`, delete `work_somethings`, and clamp `work_users.energi`. They do not write payout state, coins, indexes, or scheduler leases.
 
 ## Scheduler Lease
 
@@ -873,7 +873,7 @@ The scheduler lease foundation is wired into bot startup for separately gated au
 - Expiry: UTC `expires_at`.
 - Release behavior: marks the lease expired and clears owner; it does not delete the document.
 
-The automatic-notification worker continuously owns `auto-notification-delivery`, renews before expiry, removes cron entries after lease loss, and releases on graceful shutdown. Daily-reset CLI apply and each midnight worker tick acquire/release `daily-reset`; contenders perform no writes. Neither lease coordinates with Node, so `handler/cron.js` must remain disabled while Go owns either path. Any future recurring work-payout loop needs a separate lease plus crash-safe payout idempotency.
+The automatic-notification worker continuously owns `auto-notification-delivery`, renews before expiry, removes cron entries after lease loss, and releases on graceful shutdown. Daily-reset CLI apply and each midnight worker tick acquire/release `daily-reset`; contenders perform no writes. Neither lease coordinates with Node, so `handler/cron.js` must remain disabled while Go owns either path. Work payout now has crash-safe repository idempotency; its future recurring loop still needs a separate gate, lease lifecycle, and shutdown tests.
 
 Read-only status:
 

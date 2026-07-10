@@ -51,7 +51,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		catalogSpec("coins", "coin", "models/coin.js", []string{"guild", "member"}, []catalogIndex{
 			uniqueCatalogIndex("coins_guild_member", []string{"guild", "member"}, "balance lookup and atomic coin updates"),
 			nonUniqueCatalogIndex("coins_guild_coin_rank", []IndexKey{{Field: "guild", Order: 1}, {Field: "coin", Order: -1}}, "coin ranking"),
-		}, "Economy writes require atomic repository methods; audit `today` mixed types before strict decode."),
+		}, "Economy writes require atomic repository methods; audit `today` mixed types before strict decode. Work payout adds rollback-compatible `mhcat_work_payouts` markers."),
 		catalogSpec("create_hours", "create_hours", "models/create_hours.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("create_hours_guild", []string{"guild"}, "account-age join policy singleton"),
 		}, "Mongoose pluralization for this underscore plural-looking model is intentionally preserved as `create_hours`."),
@@ -160,7 +160,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		catalogSpec("work_users", "work_user", "models/work_user.js", []string{"guild", "user"}, []catalogIndex{
 			uniqueCatalogIndex("work_users_guild_user", []string{"guild", "user"}, "work user state lookup"),
 			nonUniqueCatalogIndex("work_users_state_end_time", []IndexKey{{Field: "state", Order: 1}, {Field: "end_time", Order: 1}}, "due work-job scan"),
-		}, "Preserve misspelled legacy field `energi`; scheduler needs lease/idempotency before writes."),
+		}, "Preserve misspelled legacy field `energi`; work payout uses `work_users._id` for per-row idempotency."),
 	}
 	sortCollectionSpecs(specs)
 	return specs

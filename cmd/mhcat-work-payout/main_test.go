@@ -42,6 +42,23 @@ func TestWorkPayoutDefaultsToDryRunPreviewOnly(t *testing.T) {
 	}
 }
 
+func TestFormatWorkPayoutReportIncludesIdempotentReplays(t *testing.T) {
+	var output bytes.Buffer
+	report := workPayoutReport{
+		Mode: "apply",
+		Result: domain.WorkPayoutResult{
+			ProcessedJobs:     3,
+			IdempotentReplays: 2,
+		},
+	}
+	if err := formatWorkPayoutReport(&output, report, "text"); err != nil {
+		t.Fatalf("format report: %v", err)
+	}
+	if !strings.Contains(output.String(), "idempotent_replays=2") {
+		t.Fatalf("report missing replay count: %q", output.String())
+	}
+}
+
 func TestWorkPayoutApplyRequiresFeatureGate(t *testing.T) {
 	repository := &fakemongo.WorkPayoutRepository{}
 	leaseStore := newTestLeaseStore(true)

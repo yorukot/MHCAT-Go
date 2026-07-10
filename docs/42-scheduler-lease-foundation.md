@@ -52,7 +52,7 @@ Release:
 
 - `cmd/mhcat-bot` uses the lease store for separately gated automatic-notification delivery and daily reset workers.
 - `cmd/mhcat-economy-reset --apply` acquires `daily-reset`; dry-run remains lease-free.
-- `cmd/mhcat-work-payout --apply` uses the lease to prevent multiple Go operators from owning the payout run at the same time.
+- `cmd/mhcat-work-payout --apply` uses the lease to prevent multiple Go operators from owning the payout run at the same time; atomic per-job coin markers make a crash retry balance-idempotent.
 - The automatic-notification worker schedules and sends only while it holds `auto-notification-delivery`, reconciles at most every 30 seconds, and releases the lease during graceful shutdown.
 - The daily worker acquires/releases `daily-reset` around each midnight run; it does not hold the lease all day.
 - Leases do not coordinate with legacy Node, so `handler/cron.js` must be disabled before Go notification or reset ownership starts.
@@ -94,7 +94,7 @@ Current consumers:
 
 Future scheduler/job slices should use this lease before writes:
 
-- recurring work payout if it moves from one-shot CLI to a background job;
+- recurring work payout when the separately gated background worker is added;
 - birthday/lottery scheduler decisions if those inactive legacy paths are restored by ADR.
 
 ## Open Decisions

@@ -313,3 +313,14 @@ Blocked without audit/ADR:
 - Consequences: Staging smoke can verify the current utility slice while default production behavior remains unchanged. Command ownership metadata is local-only and stripped before Discord payload/hash generation.
 - Risks: Operators still need valid staging Discord/Mongo env. Real smoke has not been executed in this environment.
 - Tests: staging config tests, command ownership/hash tests, staging sync safety tests, CLI apply guard tests, script secret scans, app smoke timeout tests.
+
+## ADR-026 Work Payout Idempotency Marker
+
+- Status: Accepted.
+- Context: Legacy and the first Go one-shot implementation incremented `coins.coin` before resetting `work_users.state`. A process crash in that window left the job due and a retry could credit it again. Production currently has no unique `{guild,member}` coin index, and rollback to Node must remain possible.
+- Decision: Derive a versioned marker key from `work_users._id` and a deterministic job token from the exact work snapshot. Store the latest `{token,end_time}` per work-row key in additive `coins.mhcat_work_payouts`, using the same single-document Mongo pipeline update as the conditional balance increment. Resolve one existing coin by stable `_id`, use a deterministic ObjectID when creating a missing coin, reject duplicate logical coin rows before credit, and reset only the exact work snapshot.
+- Options considered: a multi-document Mongo transaction plus payout ledger; an unbounded token array on `coins`; claiming state before credit; a single last-token field per user; a per-work-row latest marker with monotonic end-time rejection.
+- Consequences: A crash retry with the same token does not increment again; duplicate work rows have independent markers; older delayed attempts cannot replace newer markers; normal repeated jobs overwrite one marker instead of appending history. No transaction or replica-set requirement is introduced.
+- Risks: Node does not honor markers and must not overlap Go ownership. Duplicate coin rows stop the affected run until audited. Deleting/recreating work rows can leave historical marker keys. A same-row job version must have a later `end_time`; equal-time different tokens fail closed.
+- Rollback: Stop Go payout owners, release or expire the lease, and restore Node ownership. Leave additive markers in place because legacy Mongoose ignores them and removing an in-flight marker can re-enable a duplicate Go retry. No backfill is required.
+- Tests: deterministic token/filter/pipeline tests plus Mongo integration coverage for crash retry, concurrent same-token owners, stale ordering, missing coin upsert, malformed/duplicate coin rejection, and duplicate work rows.

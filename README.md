@@ -72,7 +72,7 @@ This module currently provides:
 - gated `guildMemberAdd` join-role assignment from legacy `join_roles`, disabled by default and requiring explicit Gateway + Guild Members intent.
 - gated `guildMemberRemove` leave-message delivery from legacy `leave_messages`, disabled by default and requiring explicit Gateway + Guild Members intent.
 - dry-run-first, lease-gated `mhcat-economy-reset` tool plus a separately gated `00:00 Asia/Taipei` recurring worker for the legacy `coins.today` reset and `work_users.energi` refill/clamp path.
-- dry-run-first, lease-gated `mhcat-work-payout` one-shot operational tool for the legacy `handler/gift.js` completed-work payout path.
+- dry-run-first, lease-gated, crash-idempotent `mhcat-work-payout` one-shot operational tool for the legacy `handler/gift.js` completed-work payout path.
 - Mongo-backed scheduler lease primitive, read-only-by-default diagnostic CLI, and lease-backed recurring consumers for automatic-notification delivery and the economy daily reset.
 - staging guild command sync apply completed for managed `help`, `info`, and `ping`.
 - gateway smoke completed with the gateway explicitly enabled for the smoke invocation.
@@ -505,13 +505,15 @@ go run ./cmd/mhcat-work-payout --apply
 The command:
 
 - scans due `work_users` rows with the effective legacy `end_time < round(now_seconds)` guard;
-- increments `coins.coin` with atomic `$inc` and creates missing balance documents with `$setOnInsert`;
-- resets paid `work_users.state` to `待業中`;
+- conditionally increments `coins.coin` and writes `mhcat_work_payouts` in the same atomic Mongo pipeline update;
+- skips the increment on a same-token crash retry and reports `idempotent_replays`;
+- rejects duplicate `{guild,member}` coin rows before crediting an affected job;
+- resets only the exact paid `work_users` job snapshot to `待業中`;
 - fixes the legacy `gift_change.time == 0` new-balance bug by using `today=1` for daily-reset mode;
 - requires the scheduler lease before apply writes;
 - does not create indexes, repair data, sync commands, send Discord messages, or run from `cmd/mhcat-bot`.
 
-Do not run apply against production until duplicate audits for `coins`, `work_users`, and `gift_changes` are reviewed and the Node.js bot is no longer owning the same payout loop.
+Do not run apply against production until duplicate audits for `coins`, `work_users`, and `gift_changes` are reviewed, all `coins` consumers accept the additive marker field, and the Node.js bot is no longer owning the same payout loop. Leave markers in place during rollback; Node ignores them, while removing an in-flight marker can make a Go retry pay twice.
 
 ## Scheduler Lease
 
@@ -578,7 +580,7 @@ The `/代幣重製` command is available only when `MHCAT_FEATURE_ECONOMY_COIN_R
 
 The role-selection commands are available only when `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION=true`; staging preflight and scripts reject unpaired sync/runtime flags.
 
-The `打工系統` command is available only when `MHCAT_FEATURE_WORK_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`; staging preflight rejects unpaired sync/runtime flags. The current work slices preserve the legacy dashboard redirect for `新增打工事項`, implement legacy-style `打工介面` list/captcha/detail/start UI, and implement `打工系統設定`, `打工事項刪除`, `增加個人精力`, and `增加全體精力` behind explicit admin repository wiring and Manage Messages checks. The start and energy paths can create/update `work_users` through atomic repository methods and do not write coins or payout state. Recurring scheduler ownership and payout idempotency remain pending.
+The `打工系統` command is available only when `MHCAT_FEATURE_WORK_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`; staging preflight rejects unpaired sync/runtime flags. The current work slices preserve the legacy dashboard redirect for `新增打工事項`, implement legacy-style `打工介面` list/captcha/detail/start UI, and implement `打工系統設定`, `打工事項刪除`, `增加個人精力`, and `增加全體精力` behind explicit admin repository wiring and Manage Messages checks. The start and energy paths can create/update `work_users` through atomic repository methods and do not write coins or payout state. One-shot payout is crash-idempotent; recurring scheduler ownership remains pending.
 
 The `/警告紀錄` command is available only when `MHCAT_FEATURE_WARNINGS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=true`; staging preflight rejects unpaired sync/runtime flags. This command reads `warndbs` only and does not create, remove, or escalate warnings.
 

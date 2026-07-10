@@ -25,13 +25,13 @@ Status: Platform Wave B. The default Go index plan is now derived from the full 
 
 | Collection | Index keys | Unique | Sparse / partial | TTL | Reason | Legacy query evidence | Risk | Bootstrap behavior | Rollback note |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `coins` | `{guild:1, member:1}` | candidate after audit | no | no | balance lookup/update | economy commands, sign, games | duplicates may exist | dry-run duplicate audit first | drop index only after traffic drained |
+| `coins` | `{guild:1, member:1}` | candidate after audit | no | no | balance lookup/update | economy commands, sign, games, work payout | duplicates may exist; work payout rejects an ambiguous logical balance | dry-run duplicate audit first | drop index only after traffic drained |
 | `coins` | `{guild:1, coin:-1}` | no | no | no | coin ranking | coin rank command | large collection sort | explicit apply | safe to drop if rank slows |
 | `text_xps` | `{guild:1, member:1}` | candidate after audit | no | no | text XP lookup/update | text XP event and commands | duplicates/type drift | dry-run duplicate audit first | drop after disabling Go writes |
 | `text_xps` | `{guild:1}` | no | no | no | rank list | rank command loads guild rows | large scan remains possible | apply after audit | safe to drop |
 | `voice_xps` | `{guild:1, member:1}` | candidate after audit | no | no | voice XP lookup/update | voice state event | duplicate active sessions | dry-run duplicate audit first | drop after disabling Go writes |
 | `voice_xps` | `{guild:1}` | no | no | no | voice rank list | voice rank command | large scan remains possible | apply after audit | safe to drop |
-| `work_users` | `{guild:1, user:1}` | candidate after audit | no | no | work state lookup/update | work interface/job completion | duplicates may pay twice | audit first; required before considering unique | drop after feature disabled |
+| `work_users` | `{guild:1, user:1}` | candidate after audit | no | no | work state lookup/update | work interface/job completion | duplicate rows are independently marked/paid but may represent bad legacy state | audit first; required before considering unique | drop after feature disabled |
 | `work_users` | `{state:1, end_time:1}` | no | partial possible for active jobs | no | due job scan | minute work completion loop and `mhcat-work-payout` one-shot | type drift in `end_time`; broad scan until index exists | explicit apply only after scheduler ownership review | safe to drop |
 | `cron_sets` | `{guild:1, id:1}` | candidate after audit | no | no | schedule lookup/delete | cron list/delete | duplicate schedules | audit first | drop after scheduler disabled |
 | `polls` | `{guild:1, messageid:1}` | candidate after audit | no | no | component vote/result lookup | poll buttons | duplicate poll docs | audit first | drop after poll disabled |
@@ -69,7 +69,7 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | `chatgpts` | `chatgpts_guild` | `{guild:1}` | candidate | no | no | chatbot handoff state | external worker may rely on singleton | audit external worker first |
 | `chatgpt_gets` | `chatgpt_gets_guild` | `{guild:1}` | candidate | no | no | chatbot price/config | singleton duplicates | audit external worker first |
 | `codes` | `codes_code` | `{code:1}` | candidate | no | no | redeem code lookup | duplicate/expired codes | audit, dry-run, explicit apply |
-| `coins` | `coins_guild_member` | `{guild:1,member:1}` | candidate | no | no | balance lookup/update | duplicate balances | audit before unique; explicit apply |
+| `coins` | `coins_guild_member` | `{guild:1,member:1}` | candidate | no | no | balance lookup/update and work-payout target resolution | duplicate balances; payout fails closed until repaired | audit before unique; explicit apply |
 | `coins` | `coins_guild_coin_rank` | `{guild:1,coin:-1}` | no | no | no | coin ranking | none for non-unique | explicit apply after live count review |
 | `create_hours` | `create_hours_guild` | `{guild:1}` | candidate | no | no | account-age config command and member-add join policy | singleton duplicates; config delete intentionally removes duplicate guild rows | audit duplicates first, dry-run, explicit apply only; not created by app startup |
 | `cron_sets` | `cron_sets_guild_id` | `{guild:1,id:1}` | candidate | no | no | schedule list/delete/send | duplicate schedule IDs | audit, dry-run, explicit apply |

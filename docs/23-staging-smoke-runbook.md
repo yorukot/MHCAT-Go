@@ -150,7 +150,7 @@ export MHCAT_FEATURE_WORK_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_WORK=true
 ```
 
-Set both together only in an isolated staging guild/database when testing the currently implemented `打工系統` dashboard redirect, interface/detail/start flow, setup/delete, and energy grant paths. Do not enable production work command sync until scheduler ownership, duplicate audits, and payout idempotency are reviewed.
+Set both together only in an isolated staging guild/database when testing the currently implemented `打工系統` dashboard redirect, interface/detail/start flow, setup/delete, and energy grant paths. One-shot payout has atomic retry markers, but do not enable production work command sync until recurring ownership, duplicate/marker audits, and isolated payout smoke are complete.
 
 Optional warning-history smoke flags:
 

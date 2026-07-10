@@ -210,7 +210,7 @@ func formatWorkPayoutReport(writer io.Writer, report workPayoutReport, format st
 		encoder.SetIndent("", "  ")
 		return encoder.Encode(report)
 	}
-	_, err := fmt.Fprintf(writer, "mode=%s\nlease_name=%s\nlease_acquired=%s\nlease_fence=%d\neligible_jobs=%d\nprocessed_jobs=%d\ncoin_matched=%d\ncoin_modified=%d\ncoin_upserted=%d\nstate_matched=%d\nstate_modified=%d\nskipped_invalid_jobs=%d\n",
+	_, err := fmt.Fprintf(writer, "mode=%s\nlease_name=%s\nlease_acquired=%s\nlease_fence=%d\neligible_jobs=%d\nprocessed_jobs=%d\ncoin_matched=%d\ncoin_modified=%d\ncoin_upserted=%d\nidempotent_replays=%d\nstate_matched=%d\nstate_modified=%d\nskipped_invalid_jobs=%d\n",
 		report.Mode,
 		report.LeaseName,
 		strconv.FormatBool(report.LeaseAcquired),
@@ -220,6 +220,7 @@ func formatWorkPayoutReport(writer io.Writer, report workPayoutReport, format st
 		report.Result.CoinMatched,
 		report.Result.CoinModified,
 		report.Result.CoinUpserted,
+		report.Result.IdempotentReplays,
 		report.Result.StateMatched,
 		report.Result.StateModified,
 		report.Result.SkippedInvalidJobs,

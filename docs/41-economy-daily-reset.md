@@ -103,5 +103,5 @@ This keeps missing, null, and loose-typed legacy values consistent with Go sign-
 
 ## Remaining Work
 
-- Recurring completed-work payout requires crash-safe payout idempotency before scheduling.
+- Recurring completed-work payout now has crash-safe repository idempotency but still needs separately gated worker wiring, lease lifecycle tests, and Node-to-Go ownership smoke.
 - Optional stronger dry-run estimation for energy rows that are below max but will exceed max after increment.

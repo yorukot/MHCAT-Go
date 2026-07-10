@@ -47,11 +47,11 @@ go run ./cmd/mhcat-work-payout --apply
 
 ## Intentional Compatibility Fixes
 
-The Go payout does not copy the legacy read-modify-write coin update. It uses Mongo `$inc` with `$setOnInsert` so concurrent balance changes are not overwritten by a stale read.
+The Go payout does not copy the legacy read-modify-write coin update. It uses one Mongo aggregation-pipeline update that conditionally increments `coin` and writes the job marker atomically, so concurrent balance changes are not overwritten by a stale read and a crash retry cannot credit the same job twice.
 
 The Go payout also fixes the legacy `gift_change.time == 0` new-balance bug. A normalized reset marker of `0` means daily-reset mode, so a newly created coin document gets `today = 1`. Non-zero reset markers still use `today = now_seconds` like the legacy rolling-cooldown path.
 
-Due payout rows must have non-empty `guild`, non-empty `user`, non-idle `state`, and positive `end_time`. `get_coin` is applied as stored, including zero or negative values, because the legacy code did not block those values. Operators should audit impossible rewards before apply.
+Due payout rows must have Mongo's guaranteed `_id`, non-empty `guild`, non-empty `user`, non-idle `state`, and positive `end_time`. `get_coin` is applied as stored, including zero or negative values, because the legacy code did not block those values. Operators should audit impossible rewards before apply.
 
 ## Lease Safety
 
@@ -59,15 +59,24 @@ Apply mode acquires `mhcat_scheduler_locks` with the configured lease name befor
 
 Dry-run does not acquire a lease and performs no writes.
 
-The lease prevents two Go operator processes from intentionally running the payout at the same time. It is not a complete job idempotency system.
+The lease prevents two Go operator processes from intentionally running the payout at the same time. Job idempotency is independent of the lease and is enforced by the coin marker described below.
 
-## Known Limitation
+## Crash Idempotency
 
-The current write sequence increments coins before resetting the `work_users.state`. If the process crashes after coin increment and before state reset, rerunning may pay that row again. This matches the legacy ordering risk in spirit and is documented instead of hidden.
+Each valid due row gets two deterministic values:
 
-If the state reset matches no document after a coin increment, the command fails with a state-conflict error instead of reporting success. That can indicate Node.js still owns the loop, another operator is mutating the same rows, or legacy duplicate/stale rows need audit. The coin increment may already have happened, so do not retry blindly without checking the affected row.
+- a marker key derived from `work_users._id`;
+- a job token derived from `_id`, `guild`, `user`, `state`, `end_time`, and `get_coin`.
 
-Future recurring scheduler work should consider either a transaction, a per-job payout marker, or a state transition before payout with a recovery path. That would be a schema/behavior change requiring ADR, audit, rollback guidance, and tests.
+The coin update stores the latest token and `end_time` under `coins.mhcat_work_payouts.<marker-key>` in the same atomic update that increments `coin`. A retry with the same token preserves the balance and then completes the state reset. A delayed attempt with an older `end_time`, or a different token at the same `end_time`, is rejected instead of overwriting a newer marker.
+
+Only the latest marker for each distinct `work_users._id` is retained, so repeated jobs on the normal single work row do not append unbounded history. Deleting and recreating work rows can leave historical marker keys; no automatic cleanup is performed.
+
+Existing coin rows are targeted by their stable `_id`. A missing balance is created with a deterministic BSON ObjectID so a crash retry resolves the same row. If more than one `coins` row exists for `{guild,member}`, the command returns `ErrWorkPayoutCoinConflict` before crediting that job. Duplicate `work_users` rows remain independently payable because each has a distinct `_id` and marker key.
+
+The final state update matches the exact `_id`, guild, user, state, end time, and reward snapshot. If that snapshot changed after the credit, the command returns a state-conflict error and does not reset a newer job. The already-written marker makes retrying the original snapshot balance-safe.
+
+This protection applies to Go payout attempts. Legacy Node does not read or write the marker, so Node and Go ownership must still be exclusive.
 
 The command also acquires a lease once and does not renew it. Apply validation requires the lease TTL to be greater than the command timeout, but very large backlogs should still be handled in bounded operational batches before this becomes a recurring scheduler.
 
@@ -77,6 +86,7 @@ The command also acquires a lease once and does not renew it. Apply validation r
 - The tool does not sync Discord commands.
 - The tool does not create Mongo indexes.
 - The tool does not repair or backfill documents.
+- The marker field is added lazily only to coin rows that receive a Go work payout.
 - The tool sends no Discord messages.
 - Dry-run counts eligible jobs and performs no writes.
 - Apply requires the work-payout gate, scheduler-lease gate, scheduler owner, and `--apply`.
@@ -89,13 +99,32 @@ Before production apply:
 - Confirm duplicate risks for `coins.guild/member`, `work_users.guild/user`, and `gift_changes.guild`.
 - Audit due rows for mixed/non-numeric `coin`, `end_time`, and `get_coin`, and for zero/negative rewards.
 - Confirm Node.js bot and Go tool are not both trying to own the payout loop.
-- Review the crash-idempotency limitation above.
+- Confirm the additive marker field and rollback behavior below are acceptable to all `coins` consumers.
 - Capture backup/restore point or at least an operational rollback plan.
 - Run against staging data first and compare sample balances/state changes manually.
 
 ## Remaining Work
 
 - Recurring scheduler or worker process.
-- Job-level idempotency beyond lease ownership.
 - Production runbook for Node-to-Go job ownership handoff.
 - Optional unique indexes after duplicate audits.
+
+## Rollback
+
+1. Stop or disable every Go work-payout owner and confirm the configured lease is released or expired.
+2. Restore the Node minute-loop owner only after Go can no longer write payouts.
+3. Leave `coins.mhcat_work_payouts` in place. Legacy Mongoose and dashboard readers ignore the additive field, while preserving it allows a later Go rollout to recognize prior jobs.
+4. Do not unset markers while a due work row may already have been credited but not reset. Removing that marker can make the next Go retry credit it again.
+
+No backfill is required. Marker removal is optional only after all Go payout paths are retired and an audit confirms there are no in-flight due rows.
+
+## Verification
+
+The opt-in Mongo integration tests cover:
+
+- a crash after atomic coin commit but before state reset, followed by a no-double-credit retry;
+- concurrent same-token contenders crediting the balance exactly once;
+- a newer job replacing the retained marker and rejecting an older delayed attempt;
+- deterministic missing-balance creation;
+- duplicate coin rejection before writes;
+- independent payout markers for duplicate work rows.

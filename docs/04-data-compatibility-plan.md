@@ -111,12 +111,12 @@ Required changed-schema plan format:
 
 ## Work Payout Compatibility
 
-`mhcat-work-payout` does not add fields or collections. It writes only legacy-compatible fields:
+`mhcat-work-payout` adds one rollback-compatible marker field to paid `coins` rows. It does not require a backfill or a new collection:
 
 | Collection | Legacy fields | New fields | Read strategy | Write strategy | Backfill needed | Rollback strategy | Dashboard impact |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `work_users` | `guild`, `user`, `state`, `end_time`, `get_coin` | none | read due rows with non-idle `state` and effective `end_time < round(now_seconds)` guard | `$set` `state` to `待業中` after payout | no | Node.js bot can continue reading the same fields | none expected |
-| `coins` | `guild`, `member`, `coin`, `today` | none | match by `{guild, member}` | atomic `$inc` `coin`; `$setOnInsert` legacy fields for missing balance | no | Node.js bot can continue reading the same fields | dashboard backup/export remains compatible |
+| `work_users` | `guild`, `user`, `state`, `end_time`, `get_coin` | none | read due rows with non-idle `state` and effective `end_time < round(now_seconds)` guard; `_id` identifies duplicate rows independently | reset only the exact `_id`/guild/user/state/end-time/reward snapshot to `待業中` after payout | no | Node.js bot can continue reading the same fields | none expected |
+| `coins` | `guild`, `member`, `coin`, `today` | `mhcat_work_payouts.<v1_work_row_hash>.token`, `.end_time` | resolve at most one `{guild,member}` row, then target stable `_id`; marker reads are Go-only | one aggregation-pipeline update conditionally increments `coin` and stores the latest per-work-row marker; missing rows use deterministic ObjectID | no; markers are lazy on first Go payout | stop Go and leave markers in place; Node ignores unknown fields; do not unset an in-flight marker | dashboard backup/export must preserve the additive object; no known UI dependency |
 | `gift_changes` | `guild`, `time` | none | read config by `guild`; missing config uses daily marker | read-only | no | Node.js bot can continue reading the same fields | none expected |
 | `gifts` | `guild`, `gift_name`, `gift_chence`, `gift_count` | none | read prizes by `guild`; decode `gift_chence` and `gift_count` from numeric or numeric-string legacy values | read-only | no | Node.js bot can continue reading the same fields | none expected |
 
