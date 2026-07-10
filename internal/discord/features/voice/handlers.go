@@ -10,6 +10,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/voice"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 )
@@ -24,6 +25,7 @@ const (
 	discordChannelTypeVoice  = 2
 	voiceLockAnswerInputID   = "anser"
 	legacyUnlockEmoji        = "<:unlock:1017087850556174367>"
+	legacyLockEmoji          = "<:lock:1017077025397288980>"
 	legacyArrowPinkEmoji     = "<a:arrow_pink:996242460294512690>"
 )
 
@@ -147,6 +149,63 @@ func (m LockModule) AnswerHandler() interactions.Handler {
 	}
 }
 
+func (m LockModule) PromptHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		channelID, userID, ok := voiceLockPromptPayload(interaction.CustomID)
+		if !ok {
+			message := voiceLockPromptUnavailableMessage()
+			message.Ephemeral = true
+			return responder.Reply(ctx, message)
+		}
+		if userID != "" && strings.TrimSpace(interaction.Actor.UserID) != userID {
+			message := voiceLockPromptUnavailableMessage()
+			message.Ephemeral = true
+			return responder.Reply(ctx, message)
+		}
+		return responder.ShowModal(ctx, voiceLockAnswerModal(channelID))
+	}
+}
+
+func (m LockEventModule) VoiceStateHandler() events.Handler {
+	return func(ctx context.Context, event events.Event) error {
+		if event.Type != events.TypeVoiceState || event.VoiceState == nil {
+			return nil
+		}
+		voice := event.VoiceState
+		guildID := strings.TrimSpace(voice.GuildID)
+		if guildID == "" {
+			guildID = strings.TrimSpace(event.GuildID)
+		}
+		channelID := strings.TrimSpace(voice.ChannelID)
+		userID := strings.TrimSpace(voice.UserID)
+		if userID == "" {
+			userID = strings.TrimSpace(event.UserID)
+		}
+		isBot := event.IsBot
+		if event.Member != nil {
+			isBot = event.Member.IsBot
+			if event.Member.UserID != "" {
+				userID = strings.TrimSpace(event.Member.UserID)
+			}
+		}
+		if guildID == "" || channelID == "" || userID == "" || isBot || channelID == strings.TrimSpace(voice.BeforeChannel) {
+			return nil
+		}
+		lock, prompt, err := m.service.LockedJoinPrompt(ctx, guildID, channelID, userID)
+		if err != nil || !prompt {
+			return err
+		}
+		if _, err := m.messages.SendMessage(ctx, lock.TextChannelID, voiceLockPromptOutbound(lock, userID)); err != nil {
+			return err
+		}
+		if err := m.members.MoveMember(ctx, guildID, userID, nil); err != nil {
+			return err
+		}
+		_, _ = m.direct.SendDirectMessage(ctx, userID, voiceLockDirectMessage(lock))
+		return ctx.Err()
+	}
+}
+
 func voiceSetSuccessMessage() responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
@@ -217,6 +276,21 @@ func voiceLockSuccessMessage(password string) responses.Message {
 	}
 }
 
+func voiceLockAnswerModal(channelID string) responses.Modal {
+	return responses.Modal{
+		CustomID: strings.TrimSpace(channelID) + "anser",
+		Title:    "請輸入密碼!",
+		Rows: []responses.ModalRow{{
+			Inputs: []responses.TextInput{{
+				CustomID: voiceLockAnswerInputID,
+				Label:    "請輸入包廂密碼!",
+				Style:    responses.TextInputStyleShort,
+				Required: true,
+			}},
+		}},
+	}
+}
+
 func voiceLockAnswerSuccessMessage(guildID string, channelID string) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
@@ -243,6 +317,10 @@ func voiceLockAnswerMissingMessage() responses.Message {
 	return voiceErrorMessage("很抱歉，該包廂可能已被刪除!")
 }
 
+func voiceLockPromptUnavailableMessage() responses.Message {
+	return voiceErrorMessage("請重新加入語音頻道後再試一次!")
+}
+
 func voiceLockChannelLinkRow(guildID string, channelID string) responses.ComponentRow {
 	return responses.ComponentRow{Components: []responses.Component{{
 		Type:  responses.ComponentTypeButton,
@@ -251,6 +329,38 @@ func voiceLockChannelLinkRow(guildID string, channelID string) responses.Compone
 		URL:   "https://discord.com/channels/" + strings.TrimSpace(guildID) + "/" + strings.TrimSpace(channelID),
 		Style: responses.ButtonStyleLink,
 	}}}
+}
+
+func voiceLockPromptOutbound(lock domain.VoiceRoomLock, userID string) ports.OutboundMessage {
+	return ports.OutboundMessage{
+		Content: "<@" + strings.TrimSpace(userID) + ">",
+		Embeds: []ports.OutboundEmbed{{
+			Title:       legacyUnlockEmoji + " | 該包廂已被上鎖，請輸入密碼",
+			Description: "請於60秒內點選下面的按鈕\n輸入密碼來加入<#" + strings.TrimSpace(lock.ChannelID) + ">(請找房主拿密碼)",
+			Color:       voiceSuccessColor,
+		}},
+		Components: []ports.OutboundComponentRow{{
+			Components: []ports.OutboundComponent{{
+				Type:     "button",
+				CustomID: voiceLockPromptButtonID(lock.ChannelID, userID),
+				Label:    "點我輸入密碼!",
+				Emoji:    legacyArrowPinkEmoji,
+				Style:    "success",
+			}},
+		}},
+		AllowedMentions: ports.AllowedMentions{UserIDs: []string{strings.TrimSpace(userID)}},
+	}
+}
+
+func voiceLockDirectMessage(lock domain.VoiceRoomLock) ports.OutboundMessage {
+	return ports.OutboundMessage{
+		Embeds: []ports.OutboundEmbed{{
+			Title:       legacyLockEmoji + " | 該語音頻道已被房主上鎖!",
+			Description: "請前往<#" + strings.TrimSpace(lock.TextChannelID) + ">輸入密碼進行解鎖\n否則你將無法加入\n輸入完密碼後就可以重新加入囉!",
+			Color:       voiceSuccessColor,
+		}},
+		AllowedMentions: ports.AllowedMentions{},
+	}
 }
 
 func firstCommandOption(interaction interactions.Interaction, name string) interactions.CommandOptionValue {
@@ -277,6 +387,33 @@ func firstOption(interaction interactions.Interaction, name string) string {
 
 func voiceLockAnswerChannelID(customID string) string {
 	return strings.TrimSpace(strings.TrimSuffix(customID, "anser"))
+}
+
+func voiceLockPromptButtonID(channelID string, userID string) string {
+	payload, err := customid.KeyValuePayload(map[string]string{
+		"c": strings.TrimSpace(channelID),
+		"u": strings.TrimSpace(userID),
+	})
+	if err != nil {
+		return "lock_start"
+	}
+	id, err := customid.Encode(customid.InteractionKindComponent, "voice_lock", "prompt", payload)
+	if err != nil {
+		return "lock_start"
+	}
+	return id
+}
+
+func voiceLockPromptPayload(raw string) (string, string, bool) {
+	parsed, err := customid.ParseComponent(raw)
+	if err != nil || parsed.Feature != "voice_lock" || parsed.Action != "prompt" || parsed.Payload.Kind != customid.PayloadKV {
+		return "", "", false
+	}
+	channelID := strings.TrimSpace(parsed.Payload.Values["c"])
+	if channelID == "" {
+		return "", "", false
+	}
+	return channelID, strings.TrimSpace(parsed.Payload.Values["u"]), true
 }
 
 func voiceLockAnswerValue(fields []customid.ModalField) string {

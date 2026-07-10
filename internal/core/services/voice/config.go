@@ -114,3 +114,32 @@ func (s LockService) AnswerPassword(ctx context.Context, guildID string, channel
 	}
 	return s.Repository.AllowVoiceRoomLockUser(ctx, guildID, channelID, userID)
 }
+
+func (s LockService) LockedJoinPrompt(ctx context.Context, guildID string, channelID string, userID string) (domain.VoiceRoomLock, bool, error) {
+	if s.Repository == nil {
+		return domain.VoiceRoomLock{}, false, domain.ErrInvalidVoiceRoomLock
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	userID = strings.TrimSpace(userID)
+	if guildID == "" || channelID == "" || userID == "" {
+		return domain.VoiceRoomLock{}, false, domain.ErrInvalidVoiceRoomLock
+	}
+	lock, err := s.Repository.GetVoiceRoomLock(ctx, guildID, channelID)
+	if err != nil {
+		if errors.Is(err, ports.ErrVoiceRoomLockMissing) {
+			return domain.VoiceRoomLock{}, false, nil
+		}
+		return domain.VoiceRoomLock{}, false, err
+	}
+	lock = lock.Normalize()
+	if lock.Password == "" || lock.TextChannelID == "" {
+		return domain.VoiceRoomLock{}, false, nil
+	}
+	for _, allowed := range lock.AllowedUserIDs {
+		if strings.TrimSpace(allowed) == userID {
+			return domain.VoiceRoomLock{}, false, nil
+		}
+	}
+	return lock, true, nil
+}

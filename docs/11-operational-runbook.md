@@ -623,7 +623,7 @@ MHCAT_DISCORD_ENABLE_GATEWAY=true
 MHCAT_DISCORD_VOICE_STATE_INTENT=true
 ```
 
-This feature reads the actor's current voice channel from DiscordGo state for `/上鎖頻道`, verifies the actor owns the existing `lock_channels` row, and replaces that row with a nullable legacy `lock_anser` password and empty `ok_people`. It also routes legacy `<channel>anser` modal submits, compares the stored password, and appends the submitter to `ok_people`. It does not create dynamic rooms, write `voice_channel_ids`, edit channel permission overwrites, move members, emit the locked-room prompt, handle `lock_start`, or write usage counters.
+This feature reads the actor's current voice channel from DiscordGo state for `/上鎖頻道`, verifies the actor owns the existing `lock_channels` row, and replaces that row with a nullable legacy `lock_anser` password and empty `ok_people`. For existing passworded lock rows, voice-state joins now send the legacy-style password prompt to `text_channel`, disconnect unauthorized users from the locked voice channel, and DM the legacy instructions. The generated prompt button opens the legacy `<channel>anser` modal, and modal submits compare the stored password and append the submitter to `ok_people`. Old orphaned `lock_start` buttons cannot recover the channel from legacy collector state and return a retry error. This does not create dynamic rooms, write `voice_channel_ids`, edit channel permission overwrites, or write usage counters.
 
 Config-only `/加入身份組設置` and `/加入身份組刪除` are available only when both staging command sync and runtime flags are explicitly enabled:
 

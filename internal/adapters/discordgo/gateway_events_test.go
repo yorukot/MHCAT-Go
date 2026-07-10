@@ -53,8 +53,16 @@ func TestEventFromMemberIncludesGuildNameFromState(t *testing.T) {
 }
 
 func TestEventFromVoiceState(t *testing.T) {
-	event := eventFromVoiceState(&dgo.VoiceState{GuildID: "guild-1", UserID: "user-1", ChannelID: "new"}, &dgo.VoiceState{ChannelID: "old"})
+	event := eventFromVoiceState(&dgo.VoiceState{
+		GuildID:   "guild-1",
+		UserID:    "user-1",
+		ChannelID: "new",
+		Member:    &dgo.Member{User: &dgo.User{ID: "user-1", Username: "Bot", Bot: true}},
+	}, &dgo.VoiceState{ChannelID: "old"})
 	if event.Type != events.TypeVoiceState || event.VoiceState == nil || event.VoiceState.ChannelID != "new" || event.VoiceState.BeforeChannel != "old" {
+		t.Fatalf("event = %#v", event)
+	}
+	if !event.IsBot || event.Member == nil || !event.Member.IsBot || event.UserID != "user-1" {
 		t.Fatalf("event = %#v", event)
 	}
 }

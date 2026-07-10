@@ -23,6 +23,7 @@ type SideEffects struct {
 	Reactions         []ReactionAdd
 	AddedRoles        []RoleChange
 	RemovedRoles      []RoleChange
+	MovedMembers      []MemberMove
 	Nicknames         []NicknameChange
 	Kicked            []KickAction
 	Banned            []BanAction
@@ -68,6 +69,12 @@ type RoleChange struct {
 	GuildID string
 	UserID  string
 	RoleID  string
+}
+
+type MemberMove struct {
+	GuildID   string
+	UserID    string
+	ChannelID *string
 }
 
 type ReactionAdd struct {
@@ -344,7 +351,18 @@ func (s *SideEffects) RemoveRole(ctx context.Context, guildID string, userID str
 }
 
 func (s *SideEffects) MoveMember(ctx context.Context, guildID string, userID string, channelID *string) error {
-	return s.ready(ctx)
+	if err := s.ready(ctx); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var copied *string
+	if channelID != nil {
+		value := *channelID
+		copied = &value
+	}
+	s.MovedMembers = append(s.MovedMembers, MemberMove{GuildID: guildID, UserID: userID, ChannelID: copied})
+	return nil
 }
 
 func (s *SideEffects) SetNickname(ctx context.Context, guildID string, userID string, nickname string) error {

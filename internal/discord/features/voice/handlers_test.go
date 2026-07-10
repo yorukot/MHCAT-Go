@@ -7,6 +7,7 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
@@ -296,6 +297,134 @@ func TestLockModuleRoutesLegacyAnswerModal(t *testing.T) {
 		t.Fatalf("handle answer modal: %v", err)
 	}
 	assertLockAnswerMessage(t, responder, legacyUnlockEmoji+" | 您成功輸入正確密碼\n可以重新加入語音頻道囉!")
+}
+
+func TestLockPromptHandlerShowsLegacyAnswerModal(t *testing.T) {
+	module := NewLockModule(fakemongo.NewVoiceRoomLockRepository(), nil)
+	interaction := fakediscord.ComponentInteractionFromID(voiceLockPromptButtonID("123456789012345678", "user-1"))
+	responder := fakediscord.NewResponder()
+	if err := module.PromptHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("prompt handler: %v", err)
+	}
+	if len(responder.Modals) != 1 {
+		t.Fatalf("modals = %#v", responder.Modals)
+	}
+	modal := responder.Modals[0]
+	if modal.CustomID != "123456789012345678anser" || modal.Title != "請輸入密碼!" {
+		t.Fatalf("modal = %#v", modal)
+	}
+	if len(modal.Rows) != 1 || len(modal.Rows[0].Inputs) != 1 || modal.Rows[0].Inputs[0].CustomID != voiceLockAnswerInputID || modal.Rows[0].Inputs[0].Label != "請輸入包廂密碼!" {
+		t.Fatalf("modal inputs = %#v", modal.Rows)
+	}
+}
+
+func TestLockModuleRoutesVersionedPromptButton(t *testing.T) {
+	router := interactions.NewRouter()
+	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
+	module := NewLockModule(fakemongo.NewVoiceRoomLockRepository(), nil)
+	if err := module.RegisterRoutes(router); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.ComponentInteractionFromID(voiceLockPromptButtonID("123456789012345678", "user-1"))
+	if err := router.Handle(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handle prompt: %v", err)
+	}
+	if len(responder.Modals) != 1 || responder.Modals[0].CustomID != "123456789012345678anser" {
+		t.Fatalf("modals = %#v", responder.Modals)
+	}
+}
+
+func TestLockModuleRoutesLegacyPromptButtonToRetryError(t *testing.T) {
+	router := interactions.NewRouter()
+	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
+	module := NewLockModule(fakemongo.NewVoiceRoomLockRepository(), nil)
+	if err := module.RegisterRoutes(router); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+	responder := fakediscord.NewResponder()
+	if err := router.Handle(context.Background(), fakediscord.ComponentInteractionFromID("lock_start"), responder); err != nil {
+		t.Fatalf("handle legacy prompt: %v", err)
+	}
+	if len(responder.Replies) != 1 || len(responder.Replies[0].Embeds) != 1 || !strings.Contains(responder.Replies[0].Embeds[0].Title, "請重新加入語音頻道後再試一次!") || !responder.Replies[0].Ephemeral {
+		t.Fatalf("reply = %#v", responder.Replies)
+	}
+}
+
+func TestLockEventHandlerPromptsDisconnectsAndDMsLockedJoin(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00123456789012345678"] = domain.VoiceRoomLock{
+		GuildID:       "guild-1",
+		ChannelID:     "123456789012345678",
+		Password:      "secret",
+		OwnerID:       "owner-1",
+		TextChannelID: "text-1",
+	}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewLockEventModule(repo, sideEffects, sideEffects, sideEffects)
+	err := module.VoiceStateHandler()(context.Background(), events.Event{
+		Type:    events.TypeVoiceState,
+		GuildID: "guild-1",
+		UserID:  "user-1",
+		VoiceState: &events.VoiceState{
+			GuildID:   "guild-1",
+			UserID:    "user-1",
+			ChannelID: "123456789012345678",
+		},
+	})
+	if err != nil {
+		t.Fatalf("voice state handler: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].ChannelID != "text-1" {
+		t.Fatalf("sent messages = %#v", sideEffects.Sent)
+	}
+	prompt := sideEffects.Sent[0].Message
+	if prompt.Content != "<@user-1>" || len(prompt.Embeds) != 1 || !strings.Contains(prompt.Embeds[0].Description, "<#123456789012345678>") {
+		t.Fatalf("prompt = %#v", prompt)
+	}
+	if len(prompt.Components) != 1 || len(prompt.Components[0].Components) != 1 {
+		t.Fatalf("prompt components = %#v", prompt.Components)
+	}
+	button := prompt.Components[0].Components[0]
+	if button.Label != "點我輸入密碼!" || button.Emoji != legacyArrowPinkEmoji || button.Style != "success" {
+		t.Fatalf("prompt button = %#v", button)
+	}
+	channelID, userID, ok := voiceLockPromptPayload(button.CustomID)
+	if !ok || channelID != "123456789012345678" || userID != "user-1" {
+		t.Fatalf("prompt custom id parsed as channel=%q user=%q ok=%t raw=%q", channelID, userID, ok, button.CustomID)
+	}
+	if len(sideEffects.MovedMembers) != 1 || sideEffects.MovedMembers[0].GuildID != "guild-1" || sideEffects.MovedMembers[0].UserID != "user-1" || sideEffects.MovedMembers[0].ChannelID != nil {
+		t.Fatalf("moved members = %#v", sideEffects.MovedMembers)
+	}
+	if len(sideEffects.DirectMessages) != 1 || sideEffects.DirectMessages[0].UserID != "user-1" || !strings.Contains(sideEffects.DirectMessages[0].Message.Embeds[0].Description, "<#text-1>") {
+		t.Fatalf("direct messages = %#v", sideEffects.DirectMessages)
+	}
+}
+
+func TestLockEventHandlerSkipsAllowedBotAndUnchangedVoiceState(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00123456789012345678"] = domain.VoiceRoomLock{
+		GuildID:        "guild-1",
+		ChannelID:      "123456789012345678",
+		Password:       "secret",
+		OwnerID:        "owner-1",
+		TextChannelID:  "text-1",
+		AllowedUserIDs: []string{"allowed-user"},
+	}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewLockEventModule(repo, sideEffects, sideEffects, sideEffects)
+	for _, event := range []events.Event{
+		{Type: events.TypeVoiceState, GuildID: "guild-1", IsBot: true, VoiceState: &events.VoiceState{GuildID: "guild-1", UserID: "bot-1", ChannelID: "123456789012345678"}},
+		{Type: events.TypeVoiceState, GuildID: "guild-1", VoiceState: &events.VoiceState{GuildID: "guild-1", UserID: "allowed-user", ChannelID: "123456789012345678"}},
+		{Type: events.TypeVoiceState, GuildID: "guild-1", VoiceState: &events.VoiceState{GuildID: "guild-1", UserID: "user-1", ChannelID: "123456789012345678", BeforeChannel: "123456789012345678"}},
+	} {
+		if err := module.VoiceStateHandler()(context.Background(), event); err != nil {
+			t.Fatalf("voice state handler: %v", err)
+		}
+	}
+	if len(sideEffects.Sent) != 0 || len(sideEffects.MovedMembers) != 0 || len(sideEffects.DirectMessages) != 0 {
+		t.Fatalf("side effects should be empty: sent=%#v moved=%#v dm=%#v", sideEffects.Sent, sideEffects.MovedMembers, sideEffects.DirectMessages)
+	}
 }
 
 func voiceSetInteraction() interactions.Interaction {

@@ -413,7 +413,7 @@ export MHCAT_DISCORD_ENABLE_GATEWAY=true
 export MHCAT_DISCORD_VOICE_STATE_INTENT=true
 ```
 
-Set all four together only in an isolated staging guild/database when testing `/上鎖頻道`. This path replaces an existing `lock_channels` row for the caller's current voice channel and routes legacy `<channel>anser` modal submits to append `ok_people` after a correct password; it does not create dynamic rooms, write `voice_channel_ids`, move members, edit permission overwrites, emit the locked-room prompt, or handle `lock_start`.
+Set all four together only in an isolated staging guild/database when testing `/上鎖頻道` and existing passworded `lock_channels` rows. This path replaces an existing `lock_channels` row for the caller's current voice channel, sends the locked-room password prompt when an unauthorized user joins that channel, disconnects that user, DMs the legacy instructions, and routes the generated prompt button plus `<channel>anser` modal submit to append `ok_people` after a correct password. It does not create dynamic rooms, write `voice_channel_ids`, or edit permission overwrites.
 
 Optional join-role config smoke flags:
 
@@ -1412,9 +1412,11 @@ If voice-room lock flags were enabled and command sync apply was reviewed:
 - seed a disposable `lock_channels` row for the staging guild/current voice channel with the invoking user as `owner`;
 - join that staging voice channel and run `/上鎖頻道` with a password;
 - verify the legacy ephemeral success embed appears and the row is replaced with `lock_anser`, `owner`, `text_channel`, and empty `ok_people`;
+- from another test user, join the locked voice channel and verify the prompt message appears in `text_channel`, the user is disconnected, and the DM instruction is sent;
+- click the generated prompt button, submit the correct password, and verify the user ID is added to `ok_people`;
 - run `/上鎖頻道` without `密碼` and verify the success embed shows `null` and `lock_anser` is null/empty in Mongo;
 - verify not-in-voice, missing lock row, and non-owner cases return the legacy red ephemeral errors;
-- verify no dynamic channel creation/deletion, `voice_channel_ids`, member moves, permission overwrites, prompt/button handling, or usage-counter write happened.
+- verify no dynamic channel creation/deletion, `voice_channel_ids`, permission overwrites, or usage-counter write happened.
 
 Verify:
 

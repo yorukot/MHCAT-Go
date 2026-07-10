@@ -154,3 +154,29 @@ func TestLockServiceAnswerPasswordRejectsWrongPassword(t *testing.T) {
 		t.Fatalf("wrong password should not allow user: %#v", repo.Locks["guild-1\x00voice-1"])
 	}
 }
+
+func TestLockServiceLockedJoinPrompt(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{
+		GuildID:        "guild-1",
+		ChannelID:      "voice-1",
+		Password:       "secret",
+		OwnerID:        "owner-1",
+		TextChannelID:  "text-1",
+		AllowedUserIDs: []string{"user-2"},
+	}
+	service := coreservice.NewLockService(repo)
+	lock, prompt, err := service.LockedJoinPrompt(context.Background(), " guild-1 ", " voice-1 ", " user-1 ")
+	if err != nil {
+		t.Fatalf("locked join prompt: %v", err)
+	}
+	if !prompt || lock.ChannelID != "voice-1" || lock.TextChannelID != "text-1" {
+		t.Fatalf("prompt=%t lock=%#v", prompt, lock)
+	}
+	if _, prompt, err := service.LockedJoinPrompt(context.Background(), "guild-1", "voice-1", "user-2"); err != nil || prompt {
+		t.Fatalf("allowed user should not prompt: prompt=%t err=%v", prompt, err)
+	}
+	if _, prompt, err := service.LockedJoinPrompt(context.Background(), "guild-1", "missing", "user-1"); err != nil || prompt {
+		t.Fatalf("missing lock should no-op: prompt=%t err=%v", prompt, err)
+	}
+}

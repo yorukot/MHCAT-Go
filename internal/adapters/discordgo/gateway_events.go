@@ -176,8 +176,17 @@ func eventFromVoiceState(voice *dgo.VoiceState, before *dgo.VoiceState) events.E
 		event.GuildID = voice.GuildID
 		event.ChannelID = voice.ChannelID
 		event.UserID = voice.UserID
+		event.Member = memberFromDiscord(voice.Member)
+		if event.Member != nil {
+			event.IsBot = event.Member.IsBot
+			event.UserTag = event.Member.UserTag
+			event.AvatarURL = event.Member.AvatarURL
+			if event.UserID == "" {
+				event.UserID = event.Member.UserID
+			}
+		}
 		event.VoiceState = &events.VoiceState{
-			UserID:    voice.UserID,
+			UserID:    event.UserID,
 			GuildID:   voice.GuildID,
 			ChannelID: voice.ChannelID,
 		}
