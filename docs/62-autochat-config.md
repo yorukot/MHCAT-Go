@@ -16,25 +16,30 @@ Config commands:
 
 - `/自動聊天頻道`
 - `/自動聊天頻道刪除`
+- remain visible to all guild members because the legacy registration did not set effective default member permissions
+- enforce Manage Messages at runtime, including the Discord Administrator override
 
 Local fallback:
 
 - reads `chats.channel` and `chatgpt_gets.price`
 - uses the legacy local corpus for a missing, negative, or malformed balance
 - preserves zero-balance silence
-- preserves `說出`, fuzzy matching, typing, and the randomized 1-5 second delay
+- preserves the broken `說出` guards, first-only `我` replacement, and single effective blocked word
+- preserves JavaScript object-key ordering, full Unicode lowercasing, UTF-16 edit distance, typing, and the randomized `[1000,5000)` millisecond delay
 - suppresses all mentions in replies
 
 Paid handoff:
 
-- accepts only human guild messages in the configured channel with a positive finite balance
+- accepts only human guild messages in the configured channel with a positive finite balance after supported legacy scalar coercion
 - rejects input containing `@`, deletes the source, and deletes the legacy warning after four seconds
 - preserves the legacy 10-second in-flight guard and two-second busy warning cleanup
 - debits `chatgpt_gets.price` by the JavaScript UTF-16 length rule times `0.00003`
 - writes the exact worker contract in `chatgpts`: `guild`, `resid_c`, `resid_p`, `reply`, `message`, and `time`
-- preserves `resid_c`/`resid_p` from 10 through 40 seconds and resets both after 40 seconds
+- preserves Mongoose Number coercion for stored handoff times, including numeric strings, booleans, null, dates, Decimal128, infinities, and fractional values
+- treats ages below 10 seconds as busy, preserves `resid_c`/`resid_p` at exactly 10 through exactly 40 seconds, and resets both only after 40 seconds
 - sends typing, waits the legacy fixed ten seconds, then reads the response for the exact request timestamp
-- replies to the source message and substitutes the legacy safety warning when worker output contains `@`
+- coerces string, boolean, and numeric worker messages as the legacy Mongoose String path did; missing, null, or uncastable messages produce no reply
+- ignores the worker `reply` field as legacy did, replies to the source message, and substitutes the legacy safety warning when worker output contains `@`
 
 The external worker code was not found in the workspace. Go publishes and consumes the legacy Mongo handoff; it does not call an AI provider directly.
 
@@ -42,13 +47,16 @@ The external worker code was not found in the workspace. Go publishes and consum
 
 The balance debit and handoff publication run in one Mongo transaction. A rejected or failed `chatgpts` write therefore cannot leave a charge without a request. This intentionally improves the legacy non-transactional order and requires a replica-set or sharded Mongo deployment.
 
+The paid path intentionally rejects NaN and infinite balances, binds the response to the exact request timestamp, suppresses reply mentions, and rejects duplicate singleton rows. These choices prevent ambiguous charging, stale worker replies, pings, and nondeterministic duplicate updates even where legacy behavior was unsafe.
+
 The repository:
 
 - patches legacy fields instead of replacing worker-owned state
 - targets existing rows by `_id`
+- compares the original raw `price` value during the debit so a concurrent type or value change cannot pass the optimistic update
 - uses a deterministic ObjectID for a missing `chatgpts` singleton
 - rejects duplicate `{guild}` rows in either `chatgpts` or `chatgpt_gets`
-- accepts legacy numeric `price` and numeric millisecond `time` BSON types
+- accepts finite numeric BSON, decimal-string, boolean, date, and Decimal128 `price` values plus Mongoose-compatible millisecond `time` values without requiring a BSON numeric type rewrite first
 - creates no indexes at startup
 
 Run the duplicate audit before staging or production. Candidate `{guild:1}` unique indexes remain explicit, audit-gated operations.
@@ -90,6 +98,14 @@ Set `MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true` only after all of these are t
 5. The staging rows and channel are disposable.
 
 The local and paid gates may be enabled together to restore the full legacy balance split. Paid handles positive balances; local handles missing, negative, or malformed balances; zero remains silent.
+
+## Parity Contracts
+
+Focused tests lock the command definitions and embeds, warning text and delays, corpus SHA-256 and JavaScript key order, `說出` quirks, UTF-16 pricing, 10/40-second timing boundaries, worker scalar coercion, and legacy collection names. Run:
+
+```bash
+go test ./internal/core/services/autochat ./internal/discord/features/autochat ./internal/adapters/mongo/documents ./internal/adapters/mongo/repositories
+```
 
 ## Staging Checklist
 
