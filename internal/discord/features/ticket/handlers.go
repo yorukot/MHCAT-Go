@@ -27,6 +27,10 @@ const (
 	permissionSendMessages        = 2048
 	permissionManageMessages      = 8192
 	permissionReadMessageHistory  = 65536
+
+	legacyDiscordNamedRed   = 0xED4245
+	legacyDiscordNamedGreen = 0x57F287
+	legacyTicketOpenGreen   = 0x00DB00
 )
 
 func (m Module) SetupHandler() interactions.Handler {
@@ -171,7 +175,7 @@ func (m Module) DeleteHandler() interactions.Handler {
 			Embeds: []responses.Embed{{
 				Title:       "刪除私人頻道設定",
 				Description: description,
-				Color:       0xFF0000,
+				Color:       legacyDiscordNamedRed,
 			}},
 		}); err != nil {
 			return err
@@ -323,7 +327,7 @@ func ticketErrorMessage(content string) responses.Message {
 		Ephemeral: true,
 		Embeds: []responses.Embed{{
 			Title: content,
-			Color: 0xFF0000,
+			Color: legacyDiscordNamedRed,
 		}},
 	}
 }
@@ -332,7 +336,7 @@ func ticketEditErrorMessage(content string) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title: content,
-			Color: 0xFF0000,
+			Color: legacyDiscordNamedRed,
 		}},
 	}
 }
@@ -342,7 +346,7 @@ func ticketPermissionDeniedMessage(permission string) responses.Message {
 		Ephemeral: true,
 		Embeds: []responses.Embed{{
 			Title: "<a:Discord_AnimatedNo:1015989839809757295> | 你需要有`" + permission + "`才能使用此指令",
-			Color: 0xFF0000,
+			Color: legacyDiscordNamedRed,
 		}},
 	}
 }
@@ -359,7 +363,7 @@ func ticketDuplicateConfigMessage() responses.Message {
 		Embeds: []responses.Embed{{
 			Title:       "__**錯誤**__",
 			Description: "您已經註冊一個私人頻道了，如果需要更改，請打\n`<>h 刪除私人頻道`\n將會告訴您如何刪除",
-			Color:       0xFF0000,
+			Color:       legacyDiscordNamedRed,
 		}},
 	}
 }
@@ -368,7 +372,7 @@ func ticketSetupSuccessMessage() responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title: "<a:green_tick:994529015652163614> | 成功創建私人頻道",
-			Color: 0x00DB00,
+			Color: legacyDiscordNamedGreen,
 		}},
 	}
 }
@@ -379,7 +383,7 @@ func ticketAlreadyOpenMessage() responses.Message {
 		Embeds: []responses.Embed{{
 			Title:       "__**客服頻道**__",
 			Description: ":warning: 你已經有一個客服頻道了!",
-			Color:       0xFF0000,
+			Color:       legacyDiscordNamedRed,
 		}},
 	}
 }
@@ -399,7 +403,7 @@ func ticketWelcomeMessage() ports.OutboundMessage {
 		Embeds: []ports.OutboundEmbed{{
 			Title:       "__**私人頻道**__",
 			Description: "你開啟了一個私人頻道，請等待客服人員的回復!",
-			Color:       0x00DB00,
+			Color:       legacyDiscordNamedGreen,
 		}},
 		Components: []ports.OutboundComponentRow{{Components: []ports.OutboundComponent{{
 			Type:     "button",
@@ -416,7 +420,7 @@ func ticketOpenSuccessMessage() responses.Message {
 		Embeds: []responses.Embed{{
 			Title:       "__**頻道**__",
 			Description: ":white_check_mark: 你成功開啟了頻道!",
-			Color:       0x00DB00,
+			Color:       legacyTicketOpenGreen,
 		}},
 	}
 }
@@ -426,7 +430,7 @@ func ticketCloseDeniedMessage() responses.Message {
 		Embeds: []responses.Embed{{
 			Title:       "__**私人頻道**__",
 			Description: "你開啟了一個私人頻道，請靜候客服人員的回復!",
-			Color:       0xFF0000,
+			Color:       legacyDiscordNamedRed,
 		}},
 	}
 }

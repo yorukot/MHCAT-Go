@@ -294,6 +294,31 @@ func TestParseLegacyColorRejectsUnsupportedForms(t *testing.T) {
 	}
 }
 
+func TestTicketFixedMessagesMatchLegacyDiscordNamedColors(t *testing.T) {
+	redMessages := []responses.Message{
+		ticketErrorMessage("error"),
+		ticketEditErrorMessage("error"),
+		ticketPermissionDeniedMessage("permission"),
+		ticketDuplicateConfigMessage(),
+		ticketAlreadyOpenMessage(),
+		ticketCloseDeniedMessage(),
+	}
+	for index, message := range redMessages {
+		if len(message.Embeds) != 1 || message.Embeds[0].Color != legacyDiscordNamedRed {
+			t.Fatalf("red message %d = %#v", index, message)
+		}
+	}
+	if got := ticketSetupSuccessMessage().Embeds[0].Color; got != legacyDiscordNamedGreen {
+		t.Fatalf("setup success color = %#x, want %#x", got, legacyDiscordNamedGreen)
+	}
+	if got := ticketWelcomeMessage().Embeds[0].Color; got != legacyDiscordNamedGreen {
+		t.Fatalf("welcome color = %#x, want %#x", got, legacyDiscordNamedGreen)
+	}
+	if got := ticketOpenSuccessMessage().Embeds[0].Color; got != legacyTicketOpenGreen {
+		t.Fatalf("open success color = %#x, want %#x", got, legacyTicketOpenGreen)
+	}
+}
+
 func TestDeleteHandlerDeletesConfigWithLegacyMessage(t *testing.T) {
 	repo := fakemongo.NewTicketConfigRepository()
 	if err := repo.SaveTicketConfig(context.Background(), domain.TicketConfig{
@@ -322,6 +347,9 @@ func TestDeleteHandlerDeletesConfigWithLegacyMessage(t *testing.T) {
 	description := responder.Edits[0].Embeds[0].Description
 	if !strings.Contains(description, "成功刪除私人頻道的設置") {
 		t.Fatalf("delete description = %q", description)
+	}
+	if got := responder.Edits[0].Embeds[0].Color; got != legacyDiscordNamedRed {
+		t.Fatalf("delete color = %#x, want %#x", got, legacyDiscordNamedRed)
 	}
 }
 
