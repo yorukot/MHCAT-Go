@@ -261,13 +261,17 @@ func (m RoomEventModule) createDynamicRoom(ctx context.Context, guildID string, 
 	if err != nil || !ok {
 		return err
 	}
-	overwrites, err := m.dynamicRoomPermissionOverwrites(ctx, guildID, config.ParentID, userID)
+	parentID, err := m.dynamicRoomParentID(ctx, guildID, triggerChannelID, config.ParentID)
+	if err != nil {
+		return err
+	}
+	overwrites, err := m.dynamicRoomPermissionOverwrites(ctx, guildID, parentID, userID)
 	if err != nil {
 		return err
 	}
 	created, err := m.channels.CreateChannel(ctx, ports.ChannelCreateRequest{
 		GuildID:              guildID,
-		ParentID:             config.ParentID,
+		ParentID:             parentID,
 		Name:                 voiceRoomDynamicName(config.Name, username, userID),
 		Type:                 discordChannelTypeVoice,
 		UserLimit:            config.Limit,
@@ -290,6 +294,17 @@ func (m RoomEventModule) createDynamicRoom(ctx context.Context, guildID string, 
 		_, _ = m.direct.SendDirectMessage(ctx, userID, voiceRoomLockableOwnerMessage(m.randomColor()))
 	}
 	return ctx.Err()
+}
+
+func (m RoomEventModule) dynamicRoomParentID(ctx context.Context, guildID string, triggerChannelID string, storedParentID string) (string, error) {
+	trigger, err := m.channels.FindChannelByID(ctx, guildID, triggerChannelID)
+	if err == nil {
+		return strings.TrimSpace(trigger.ParentID), nil
+	}
+	if errors.Is(err, ports.ErrChannelNotFound) {
+		return strings.TrimSpace(storedParentID), nil
+	}
+	return "", err
 }
 
 func (m RoomEventModule) cleanupDynamicRoom(ctx context.Context, guildID string, channelID string) error {

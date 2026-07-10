@@ -597,6 +597,38 @@ func TestRoomEventHandlerCreatesDynamicRoomForBotLikeLegacy(t *testing.T) {
 	}
 }
 
+func TestRoomEventHandlerUsesTriggerCurrentParentLikeLegacy(t *testing.T) {
+	configs := fakemongo.NewVoiceRoomConfigRepository()
+	configs.Configs["guild-1\x00trigger-1"] = domain.VoiceRoomConfig{
+		GuildID:          "guild-1",
+		TriggerChannelID: "trigger-1",
+		ParentID:         "old-parent",
+		Name:             "{name} room",
+	}
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.Channels = append(sideEffects.Channels,
+		portsChannel("guild-1", "trigger-1", "current-parent", "Join to create", discordChannelTypeVoice, nil),
+		portsChannel("guild-1", "current-parent", "", "Current category", 4, []ports.PermissionOverwrite{{ID: "role-1", Type: 0, Deny: 1024}}),
+	)
+	module := NewRoomEventModule(configs, fakemongo.NewVoiceRoomStateRepository(), fakemongo.NewVoiceRoomLockRepository(), sideEffects, sideEffects, sideEffects)
+	err := module.VoiceStateHandler()(context.Background(), events.Event{
+		Type:    events.TypeVoiceState,
+		GuildID: "guild-1",
+		Member:  &events.Member{UserID: "user-1", Username: "Yoru"},
+		VoiceState: &events.VoiceState{
+			GuildID:   "guild-1",
+			UserID:    "user-1",
+			ChannelID: "trigger-1",
+		},
+	})
+	if err != nil {
+		t.Fatalf("voice state handler: %v", err)
+	}
+	if len(sideEffects.Created) != 1 || sideEffects.Created[0].ParentID != "current-parent" || !hasOverwrite(sideEffects.Created[0].PermissionOverwrites, "role-1", 0, 0, 1024) {
+		t.Fatalf("created channels = %#v", sideEffects.Created)
+	}
+}
+
 func TestRoomEventHandlerDeletesEmptyTrackedRoom(t *testing.T) {
 	configs := fakemongo.NewVoiceRoomConfigRepository()
 	states := fakemongo.NewVoiceRoomStateRepository()
