@@ -922,3 +922,87 @@ func TestRewardRoleVoicePaginationUpdatesMessage(t *testing.T) {
 		t.Fatalf("components = %#v", responder.Updates[0].Components)
 	}
 }
+
+func TestRewardRoleListPreservesLegacySixthFieldIndexing(t *testing.T) {
+	configs := make([]domain.XPRewardRoleConfig, 13)
+	for index := range configs {
+		configs[index] = domain.XPRewardRoleConfig{GuildID: "guild-1", Level: int64(index + 1), RoleID: fmt.Sprintf("role-%d", index+1), DeleteWhenNot: index == 5}
+	}
+
+	fields := rewardRoleListMessage("聊天", configs[:12], 0, true, 0x123456).Embeds[0].Fields
+	if len(fields) != 11 {
+		t.Fatalf("12-row fields = %#v", fields)
+	}
+	for _, field := range fields {
+		if field.Name == "第6個:" {
+			t.Fatalf("legacy field six should be absent without a next page: %#v", fields)
+		}
+	}
+
+	fields = rewardRoleListMessage("聊天", configs, 0, true, 0x123456).Embeds[0].Fields
+	if len(fields) != 12 || fields[5].Name != "第6個:" {
+		t.Fatalf("13-row fields = %#v", fields)
+	}
+	if !strings.Contains(fields[5].Value, "**等級:**`13`") || !strings.Contains(fields[5].Value, "**身分組:**<@&role-6>") || !strings.HasSuffix(fields[5].Value, "true") {
+		t.Fatalf("legacy mixed sixth field = %#v", fields[5])
+	}
+}
+
+func TestRewardRoleQueryDisplaysThenDeletesMissingCachedRoles(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		text bool
+	}{
+		{name: "text", text: true},
+		{name: "voice", text: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			textRepo := fakemongo.NewTextXPRewardRoleRepository()
+			voiceRepo := fakemongo.NewVoiceXPRewardRoleRepository()
+			configs := []domain.XPRewardRoleConfig{
+				{GuildID: "guild-1", Level: 1, RoleID: "missing-role"},
+				{GuildID: "guild-1", Level: 2, RoleID: "live-role"},
+			}
+			if tc.text {
+				textRepo.Configs = append(textRepo.Configs, configs...)
+			} else {
+				voiceRepo.Configs = append(voiceRepo.Configs, configs...)
+			}
+			roles := fakediscord.NewSideEffects()
+			roles.MissingRoles["guild-1/missing-role"] = true
+			module := NewRewardRoleModule(textRepo, voiceRepo, roles, nil)
+			module.color = func() int { return 0x123456 }
+			commandName := TextXPRewardRoleCommandName
+			handler := module.TextHandler()
+			if !tc.text {
+				commandName = VoiceXPRewardRoleCommandName
+				handler = module.VoiceHandler()
+			}
+			interaction := fakediscord.SlashInteractionWithOptions(commandName, "設定查詢", nil)
+			interaction.Actor.PermissionBits = permissionManageMessages
+
+			responder := fakediscord.NewResponder()
+			if err := handler(context.Background(), interaction, responder); err != nil {
+				t.Fatalf("first query: %v", err)
+			}
+			if fields := responder.Edits[0].Embeds[0].Fields; len(fields) != 2 || !strings.Contains(fields[0].Value, "missing-role") {
+				t.Fatalf("first query fields = %#v", fields)
+			}
+			remaining := textRepo.Configs
+			if !tc.text {
+				remaining = voiceRepo.Configs
+			}
+			if len(remaining) != 1 || remaining[0].RoleID != "live-role" {
+				t.Fatalf("remaining configs = %#v", remaining)
+			}
+
+			responder = fakediscord.NewResponder()
+			if err := handler(context.Background(), interaction, responder); err != nil {
+				t.Fatalf("second query: %v", err)
+			}
+			if fields := responder.Edits[0].Embeds[0].Fields; len(fields) != 1 || strings.Contains(fields[0].Value, "missing-role") {
+				t.Fatalf("second query fields = %#v", fields)
+			}
+		})
+	}
+}

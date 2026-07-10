@@ -29,6 +29,7 @@ type DisabledProfileModule struct {
 type RewardRoleModule struct {
 	textService  coreservice.TextRewardRoleService
 	voiceService coreservice.VoiceRewardRoleService
+	roleCache    ports.DiscordCachedRoleReader
 	usage        ports.UsageTracker
 	color        func() int
 }
@@ -97,12 +98,16 @@ func NewDisabledProfileModule(usage ports.UsageTracker) DisabledProfileModule {
 }
 
 func NewRewardRoleModule(textRepo ports.TextXPRewardRoleRepository, voiceRepo ports.VoiceXPRewardRoleRepository, roles ports.DiscordRoleInspector, usage ports.UsageTracker) RewardRoleModule {
-	return RewardRoleModule{
+	module := RewardRoleModule{
 		textService:  coreservice.TextRewardRoleService{Repository: textRepo, RoleInspector: roles},
 		voiceService: coreservice.VoiceRewardRoleService{Repository: voiceRepo, RoleInspector: roles},
 		usage:        usage,
 		color:        randomXPColor,
 	}
+	if roleCache, ok := roles.(ports.DiscordCachedRoleReader); ok {
+		module.roleCache = roleCache
+	}
+	return module
 }
 
 func NewAdminModule(repo ports.XPAdminRepository, usage ports.UsageTracker) AdminModule {

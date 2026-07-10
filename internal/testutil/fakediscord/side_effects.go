@@ -281,6 +281,15 @@ func (s *SideEffects) CanAssignRole(ctx context.Context, guildID string, roleID 
 	return s.AssignableRoles[guildID+"/"+roleID], nil
 }
 
+func (s *SideEffects) CachedRoleExists(ctx context.Context, guildID string, roleID string) (bool, error) {
+	if err := s.ready(ctx); err != nil {
+		return false, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.MissingRoles == nil || !s.MissingRoles[guildID+"/"+roleID], nil
+}
+
 func (s *SideEffects) ActorCanModerate(ctx context.Context, guildID string, actorRoleIDs []string, targetUserID string) (bool, error) {
 	if err := s.ready(ctx); err != nil {
 		return false, err
@@ -572,3 +581,4 @@ var _ ports.DiscordGuildStatsReader = (*SideEffects)(nil)
 var _ ports.DiscordRoleStatsReader = (*SideEffects)(nil)
 var _ ports.DiscordGuildMemberReader = (*SideEffects)(nil)
 var _ ports.DiscordRoleInspector = (*SideEffects)(nil)
+var _ ports.DiscordCachedRoleReader = (*SideEffects)(nil)

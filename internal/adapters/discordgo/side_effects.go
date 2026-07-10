@@ -616,6 +616,33 @@ func (c SideEffectClient) CanAssignRole(ctx context.Context, guildID string, rol
 	return targetPosition < botHighest, ctx.Err()
 }
 
+func (c SideEffectClient) CachedRoleExists(ctx context.Context, guildID string, roleID string) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	roleID = strings.TrimSpace(roleID)
+	if roleID == "" {
+		return false, nil
+	}
+	session, err := c.session()
+	if err != nil {
+		return false, err
+	}
+	if session.State == nil {
+		return false, errors.New("discord role cache is unavailable")
+	}
+	guild, err := session.State.Guild(strings.TrimSpace(guildID))
+	if err != nil || guild == nil {
+		return false, errors.New("discord role cache is missing guild")
+	}
+	for _, role := range guild.Roles {
+		if role != nil && role.ID == roleID {
+			return true, ctx.Err()
+		}
+	}
+	return false, ctx.Err()
+}
+
 func (c SideEffectClient) ActorCanModerate(ctx context.Context, guildID string, actorRoleIDs []string, targetUserID string) (bool, error) {
 	session, err := c.session()
 	if err != nil {
@@ -935,5 +962,6 @@ var _ ports.DiscordDirectMessagePort = SideEffectClient{}
 var _ ports.DiscordGuildMemberReader = SideEffectClient{}
 var _ ports.DiscordGuildStatsReader = SideEffectClient{}
 var _ ports.DiscordRoleInspector = SideEffectClient{}
+var _ ports.DiscordCachedRoleReader = SideEffectClient{}
 var _ ports.DiscordMemberPort = SideEffectClient{}
 var _ ports.DiscordMemberHierarchyInspector = SideEffectClient{}

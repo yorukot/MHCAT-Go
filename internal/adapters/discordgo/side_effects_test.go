@@ -182,6 +182,29 @@ func TestRoleStatsUsesLegacyGuildMemberCache(t *testing.T) {
 	}
 }
 
+func TestCachedRoleExistsUsesGuildRoleCache(t *testing.T) {
+	state := dgo.NewState()
+	if err := state.GuildAdd(&dgo.Guild{
+		ID:    "guild-1",
+		Roles: []*dgo.Role{{ID: "guild-1", Name: "@everyone"}, {ID: "role-1", Name: "VIP"}},
+	}); err != nil {
+		t.Fatalf("seed guild state: %v", err)
+	}
+	client := SideEffectClient{Session: &Session{session: &dgo.Session{State: state}}}
+
+	exists, err := client.CachedRoleExists(context.Background(), "guild-1", "role-1")
+	if err != nil || !exists {
+		t.Fatalf("cached role = %t, err = %v", exists, err)
+	}
+	exists, err = client.CachedRoleExists(context.Background(), "guild-1", "missing-role")
+	if err != nil || exists {
+		t.Fatalf("missing cached role = %t, err = %v", exists, err)
+	}
+	if _, err := client.CachedRoleExists(context.Background(), "missing-guild", "role-1"); err == nil {
+		t.Fatal("expected missing cached guild error")
+	}
+}
+
 func TestAuditLogEntriesFromDiscordIncludesActorIdentity(t *testing.T) {
 	action := dgo.AuditLogActionChannelUpdate
 	entries := auditLogEntriesFromDiscord(&dgo.GuildAuditLog{

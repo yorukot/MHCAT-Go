@@ -163,6 +163,10 @@ type DiscordRolePort interface {
 	RemoveRole(ctx context.Context, guildID string, userID string, roleID string) error
 }
 
+type DiscordCachedRoleReader interface {
+	CachedRoleExists(ctx context.Context, guildID string, roleID string) (bool, error)
+}
+
 type DiscordMemberPort interface {
 	MoveMember(ctx context.Context, guildID string, userID string, channelID *string) error
 	SetNickname(ctx context.Context, guildID string, userID string, nickname string) error

@@ -76,6 +76,7 @@ func (m RewardRoleModule) pageHandler(label string, text bool) interactions.Hand
 		if err != nil {
 			return responder.UpdateMessage(ctx, textXPErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 		}
+		m.cleanupMissingRewardRoles(ctx, interaction.Actor.GuildID, configs, text)
 		return responder.UpdateMessage(ctx, rewardRoleListMessage(label, configs, page, text, m.nextColor()))
 	}
 }
@@ -125,6 +126,7 @@ func (m RewardRoleModule) queryRewardRoles(ctx context.Context, interaction inte
 	if err != nil {
 		return responder.EditOriginal(ctx, textXPErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 	}
+	m.cleanupMissingRewardRoles(ctx, interaction.Actor.GuildID, configs, text)
 	if err := responder.EditOriginal(ctx, rewardRoleListMessage(label, configs, page, text, m.nextColor())); err != nil {
 		return err
 	}
@@ -136,6 +138,23 @@ func (m RewardRoleModule) listRewardRoles(ctx context.Context, guildID string, t
 		return m.textService.List(ctx, guildID)
 	}
 	return m.voiceService.List(ctx, guildID)
+}
+
+func (m RewardRoleModule) cleanupMissingRewardRoles(ctx context.Context, guildID string, configs []domain.XPRewardRoleConfig, text bool) {
+	if m.roleCache == nil {
+		return
+	}
+	for _, config := range configs {
+		exists, err := m.roleCache.CachedRoleExists(ctx, guildID, config.RoleID)
+		if err != nil || exists {
+			continue
+		}
+		if text {
+			_ = m.textService.Delete(ctx, guildID, config.Level, config.RoleID)
+		} else {
+			_ = m.voiceService.Delete(ctx, guildID, config.Level, config.RoleID)
+		}
+	}
 }
 
 func rewardRoleSaveMessage(label string) responses.Message {
@@ -169,18 +188,20 @@ func rewardRoleListMessage(label string, configs []domain.XPRewardRoleConfig, pa
 		page = totalPages - 1
 	}
 	start := page * rewardRolePageSize
-	end := start + rewardRolePageSize
-	if end > len(configs) {
-		end = len(configs)
-	}
 	fields := make([]responses.EmbedField, 0, rewardRolePageSize)
-	for index, config := range configs[start:end] {
-		number := start + index + 1
-		fields = append(fields, responses.EmbedField{
-			Name:   fmt.Sprintf("第%d個:", number),
-			Value:  fmt.Sprintf("%s **等級:**`%d`\n%s **身分組:**<@&%s>\n%s **是否自動刪除身分組:**%t", levelEmoji, config.Level, roleEmoji, config.RoleID, deleteEmoji, config.DeleteWhenNot),
-			Inline: true,
-		})
+	for offset := 0; offset < rewardRolePageSize; offset++ {
+		index := start + offset
+		if offset == 5 {
+			// Legacy gates field six on the next page and reads its level from a separate index.
+			if nextPageIndex := start + rewardRolePageSize; nextPageIndex < len(configs) {
+				fields = append(fields, rewardRoleListField(start+6, configs[page*5+12], configs[index]))
+			}
+			continue
+		}
+		if index >= len(configs) {
+			continue
+		}
+		fields = append(fields, rewardRoleListField(index+1, configs[index], configs[index]))
 	}
 	kind := "text"
 	if !text {
@@ -200,6 +221,14 @@ func rewardRoleListMessage(label string, configs []domain.XPRewardRoleConfig, pa
 			},
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func rewardRoleListField(number int, levelConfig domain.XPRewardRoleConfig, roleConfig domain.XPRewardRoleConfig) responses.EmbedField {
+	return responses.EmbedField{
+		Name:   fmt.Sprintf("第%d個:", number),
+		Value:  fmt.Sprintf("%s **等級:**`%d`\n%s **身分組:**<@&%s>\n%s **是否自動刪除身分組:**%t", levelEmoji, levelConfig.Level, roleEmoji, roleConfig.RoleID, deleteEmoji, roleConfig.DeleteWhenNot),
+		Inline: true,
 	}
 }
 
