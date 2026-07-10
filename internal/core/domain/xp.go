@@ -208,7 +208,7 @@ func (c XPRewardRoleConfig) Validate() error {
 	return nil
 }
 
-var legacyHexColorPattern = regexp.MustCompile(`^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
+var legacyHexColorPattern = regexp.MustCompile(`^#?[0-9a-fA-F]{6}$`)
 
 func ValidLegacyColor(value string) bool {
 	_, ok := ParseLegacyColorValue(value)
@@ -216,40 +216,50 @@ func ValidLegacyColor(value string) bool {
 }
 
 func ParseLegacyColorValue(value string) (int, bool) {
-	value = strings.TrimSpace(value)
 	if value == "" {
 		return 0, false
 	}
 	if legacyHexColorPattern.MatchString(value) {
 		raw := strings.TrimPrefix(value, "#")
-		if len(raw) == 3 {
-			raw = string([]byte{raw[0], raw[0], raw[1], raw[1], raw[2], raw[2]})
-		}
 		parsed, err := strconv.ParseInt(raw, 16, 32)
 		if err != nil {
 			return 0, false
 		}
 		return int(parsed), true
 	}
-	parsed, ok := legacyCSSColorValues[strings.ToLower(value)]
+	parsed, ok := legacyDiscordColorValues[value]
 	return parsed, ok
 }
 
-var legacyCSSColorValues = map[string]int{
-	"black":       0x000000,
-	"blue":        0x0000FF,
-	"brown":       0xA52A2A,
-	"cyan":        0x00FFFF,
-	"gray":        0x808080,
-	"green":       0x008000,
-	"grey":        0x808080,
-	"lime":        0x00FF00,
-	"magenta":     0xFF00FF,
-	"orange":      0xFFA500,
-	"pink":        0xFFC0CB,
-	"purple":      0x800080,
-	"red":         0xFF0000,
-	"transparent": 0x000000,
-	"white":       0xFFFFFF,
-	"yellow":      0xFFFF00,
+var legacyDiscordColorValues = map[string]int{
+	"Default":           0x000000,
+	"White":             0xFFFFFF,
+	"Aqua":              0x1ABC9C,
+	"Green":             0x57F287,
+	"Blue":              0x3498DB,
+	"Yellow":            0xFEE75C,
+	"Purple":            0x9B59B6,
+	"LuminousVividPink": 0xE91E63,
+	"Fuchsia":           0xEB459E,
+	"Gold":              0xF1C40F,
+	"Orange":            0xE67E22,
+	"Red":               0xED4245,
+	"Grey":              0x95A5A6,
+	"Navy":              0x34495E,
+	"DarkAqua":          0x11806A,
+	"DarkGreen":         0x1F8B4C,
+	"DarkBlue":          0x206694,
+	"DarkPurple":        0x71368A,
+	"DarkVividPink":     0xAD1457,
+	"DarkGold":          0xC27C0E,
+	"DarkOrange":        0xA84300,
+	"DarkRed":           0x992D22,
+	"DarkGrey":          0x979C9F,
+	"DarkerGrey":        0x7F8C8D,
+	"LightGrey":         0xBCC0C0,
+	"DarkNavy":          0x2C3E50,
+	"Blurple":           0x5865F2,
+	"Greyple":           0x99AAB5,
+	"DarkButNotBlack":   0x2C2F33,
+	"NotQuiteBlack":     0x23272A,
 }

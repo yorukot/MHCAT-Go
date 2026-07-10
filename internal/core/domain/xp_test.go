@@ -35,12 +35,12 @@ func TestVoiceXPConfigValidate(t *testing.T) {
 }
 
 func TestValidLegacyColor(t *testing.T) {
-	for _, value := range []string{"#fff", "#ffffff", "ffffff", "red", "Green", ""} {
+	for _, value := range []string{"#ffffff", "ffffff", "Red", "Green", ""} {
 		if !ValidLegacyColor(value) {
 			t.Fatalf("expected %q to be valid", value)
 		}
 	}
-	for _, value := range []string{"#ffff", "bad color", "url(javascript:alert(1))"} {
+	for _, value := range []string{"#fff", "#ffff", "red", "AliceBlue", "bad color", "url(javascript:alert(1))"} {
 		if ValidLegacyColor(value) {
 			t.Fatalf("expected %q to be invalid", value)
 		}
@@ -89,8 +89,9 @@ func TestValidLegacyXPColorMatchesValidateColorPackage(t *testing.T) {
 func TestParseLegacyColorValue(t *testing.T) {
 	tests := map[string]int{
 		"#df1f2f": 0xDF1F2F,
-		"df1":     0xDDFF11,
-		"red":     0xFF0000,
+		"df1f2f":  0xDF1F2F,
+		"Red":     0xED4245,
+		"Green":   0x57F287,
 	}
 	for value, want := range tests {
 		got, ok := ParseLegacyColorValue(value)

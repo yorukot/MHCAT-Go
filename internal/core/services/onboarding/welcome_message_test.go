@@ -204,4 +204,10 @@ func TestLegacyRandomColorNames(t *testing.T) {
 			t.Fatalf("did not expect %q to be random", value)
 		}
 	}
+	if got := welcomeMessageColor("Green"); got != 0x57F287 {
+		t.Fatalf("Discord.js Green = %#x", got)
+	}
+	if got := leaveMessageDeliveryColor("Red"); got != 0xED4245 {
+		t.Fatalf("Discord.js Red = %#x", got)
+	}
 }
