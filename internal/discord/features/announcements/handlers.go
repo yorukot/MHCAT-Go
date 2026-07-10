@@ -55,8 +55,8 @@ func (m Module) handleOnce(ctx context.Context, interaction interactions.Interac
 
 func (m Module) handleBound(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
 	channelID := firstOption(interaction, optionChannel)
-	color := firstOption(interaction, optionColor)
-	if strings.TrimSpace(color) != "" && !domain.ValidLegacyColor(color) && color != "Random" {
+	color := firstRawOption(interaction, optionColor)
+	if !domain.ValidLegacyBoundAnnouncementColor(color) {
 		return responder.EditOriginal(ctx, announcementErrorMessage("你傳送的並不是顏色(色碼)"))
 	}
 	created, err := m.service.SetBoundAnnouncement(ctx, domain.BoundAnnouncementConfig{

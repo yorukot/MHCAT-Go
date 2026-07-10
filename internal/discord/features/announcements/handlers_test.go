@@ -98,6 +98,45 @@ func TestConfigHandlerAcceptsLegacyRandomColor(t *testing.T) {
 	}
 }
 
+func TestConfigHandlerPreservesLegacyRawBoundValues(t *testing.T) {
+	repo := fakemongo.NewAnnouncementConfigRepository()
+	module := NewModule(repo, nil)
+	interaction := announcementInteraction(subcommandBound, map[string]string{
+		optionChannel: "channel-1",
+		optionTag:     " ",
+		optionColor:   "rgb(0 0 0)",
+		optionTitle:   "\t",
+	})
+	responder := fakediscord.NewResponder()
+
+	if err := module.ConfigHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	saved := repo.BoundAnnouncements["guild-1:channel-1"]
+	if saved.Tag != " " || saved.Color != "rgb(0 0 0)" || saved.Title != "\t" {
+		t.Fatalf("raw values = %#v", saved)
+	}
+}
+
+func TestConfigHandlerDoesNotTrimColorIntoValidity(t *testing.T) {
+	module := NewModule(fakemongo.NewAnnouncementConfigRepository(), nil)
+	for _, color := range []string{"53FF53", " #53FF53"} {
+		interaction := announcementInteraction(subcommandBound, map[string]string{
+			optionChannel: "channel-1",
+			optionTag:     "@here",
+			optionColor:   color,
+			optionTitle:   "公告",
+		})
+		responder := fakediscord.NewResponder()
+		if err := module.ConfigHandler()(context.Background(), interaction, responder); err != nil {
+			t.Fatalf("handler %q: %v", color, err)
+		}
+		if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 你傳送的並不是顏色(色碼)" {
+			t.Fatalf("color %q response = %#v", color, responder.Edits)
+		}
+	}
+}
+
 func TestConfigHandlerRejectsPermissionAndInvalidColor(t *testing.T) {
 	module := NewModule(fakemongo.NewAnnouncementConfigRepository(), nil)
 	interaction := fakediscord.SlashInteractionWithOptions(ConfigCommandName, subcommandOnce, map[string]string{optionChannel: "channel-1"})

@@ -3,7 +3,6 @@ package announcements
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -48,7 +47,7 @@ func (m Module) SendModalHandler() interactions.Handler {
 		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
 			return err
 		}
-		if _, ok := domain.ParseLegacyColorValue(firstFieldValue(interaction.ModalFields, fieldColor)); !ok {
+		if _, ok := domain.ParseLegacyAnnouncementSendColor(firstFieldValue(interaction.ModalFields, fieldColor)); !ok {
 			return responder.EditOriginal(ctx, modalErrorMessage("你傳送的並不是顏色(色碼)"))
 		}
 		draft, err := draftFromInteraction(interaction)
@@ -136,8 +135,8 @@ func draftFromInteraction(interaction interactions.Interaction) (AnnouncementDra
 	colorValue := firstFieldValue(interaction.ModalFields, fieldColor)
 	title := firstFieldValue(interaction.ModalFields, fieldTitle)
 	content := firstFieldValue(interaction.ModalFields, fieldContent)
-	color, ok := domain.ParseLegacyColorValue(colorValue)
-	if !ok || strings.TrimSpace(tag) == "" || strings.TrimSpace(title) == "" || strings.TrimSpace(content) == "" {
+	color, ok := domain.ParseLegacyAnnouncementSendColor(colorValue)
+	if !ok || tag == "" || title == "" || content == "" {
 		return AnnouncementDraft{}, domain.ErrInvalidAnnouncementConfig
 	}
 	return AnnouncementDraft{

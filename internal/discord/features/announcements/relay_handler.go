@@ -63,7 +63,7 @@ func (m Module) RelayHandler() events.Handler {
 }
 
 func relayColor(value string) (int, bool) {
-	if strings.EqualFold(strings.TrimSpace(value), "random") {
+	if value == "Random" || value == "RANDOM" {
 		return randomLegacyColor(), true
 	}
 	return domain.ParseLegacyColorValue(value)

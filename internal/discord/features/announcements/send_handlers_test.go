@@ -121,6 +121,56 @@ func TestSendModalRejectsInvalidColor(t *testing.T) {
 	}
 }
 
+func TestSendModalRejectsLegacyValidatorOrDiscordColorMismatch(t *testing.T) {
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	for _, color := range []string{"53FF53", "#fff", "red", "AliceBlue"} {
+		interaction := modalInteraction(map[string]string{
+			fieldTag:     "@here",
+			fieldColor:   color,
+			fieldTitle:   "公告",
+			fieldContent: "內容",
+		})
+		responder := fakediscord.NewResponder()
+		if err := module.SendModalHandler()(context.Background(), interaction, responder); err != nil {
+			t.Fatalf("handler %q: %v", color, err)
+		}
+		if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "你傳送的並不是顏色(色碼)" {
+			t.Fatalf("color %q response = %#v", color, responder.Edits)
+		}
+	}
+}
+
+func TestSendModalPreservesNonemptyWhitespaceFields(t *testing.T) {
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	interaction := modalInteraction(map[string]string{
+		fieldTag:     " ",
+		fieldColor:   "#53FF53",
+		fieldTitle:   "\t",
+		fieldContent: "\n",
+	})
+	responder := fakediscord.NewResponder()
+
+	if err := module.SendModalHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Content != " " || responder.Edits[0].Embeds[0].Title != "\t" || responder.Edits[0].Embeds[0].Description != "\n" {
+		t.Fatalf("preview = %#v", responder.Edits)
+	}
+}
+
+func TestRelayColorPreservesLegacyRandomCasing(t *testing.T) {
+	for _, value := range []string{"Random", "RANDOM"} {
+		if _, ok := relayColor(value); !ok {
+			t.Fatalf("expected %q to resolve", value)
+		}
+	}
+	for _, value := range []string{"random", " Random "} {
+		if _, ok := relayColor(value); ok {
+			t.Fatalf("unexpected normalized random value %q", value)
+		}
+	}
+}
+
 func TestConfirmMissingAnnouncementChannel(t *testing.T) {
 	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
 	stateID, err := module.draftStore().Put(AnnouncementDraft{
