@@ -214,7 +214,7 @@ func (m Module) OpenHandler() interactions.Handler {
 			ParentID:             config.CategoryID,
 			Name:                 interaction.Actor.UserID,
 			Type:                 discordChannelTypeGuildText,
-			PermissionOverwrites: m.ticketOpenPermissionOverwrites(config, interaction.Actor.UserID, ticketBotUserID(interaction.ApplicationID, m.botUserID)),
+			PermissionOverwrites: m.ticketOpenPermissionOverwrites(config, interaction.Actor.GuildID, interaction.Actor.UserID, ticketBotUserID(interaction.ApplicationID, m.botUserID)),
 		})
 		if err != nil {
 			return err
@@ -250,12 +250,12 @@ func (m Module) CloseHandler() interactions.Handler {
 	}
 }
 
-func (m Module) ticketOpenPermissionOverwrites(config domain.TicketConfig, userID string, botUserID string) []ports.PermissionOverwrite {
+func (m Module) ticketOpenPermissionOverwrites(config domain.TicketConfig, guildID string, userID string, botUserID string) []ports.PermissionOverwrite {
 	allow := int64(permissionViewChannel | permissionSendMessages | permissionReadMessageHistory)
 	denyInvite := int64(permissionCreateInstantInvite)
 	overwrites := []ports.PermissionOverwrite{
 		{ID: config.AdminRoleID, Type: permissionOverwriteRole, Allow: allow, Deny: denyInvite},
-		{ID: config.EveryoneRoleID, Type: permissionOverwriteRole, Deny: int64(permissionViewChannel)},
+		{ID: guildID, Type: permissionOverwriteRole, Deny: int64(permissionViewChannel)},
 		{ID: userID, Type: permissionOverwriteMember, Allow: allow, Deny: denyInvite},
 	}
 	if botUserID != "" {

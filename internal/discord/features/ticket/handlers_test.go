@@ -403,6 +403,14 @@ func TestDeleteHandlerRequiresManageMessagesBeforeDeletingConfig(t *testing.T) {
 
 func TestOpenHandlerCreatesTicketChannelAndSendsLegacyWelcome(t *testing.T) {
 	repo := seededTicketRepo(t)
+	if err := repo.SaveTicketConfig(context.Background(), domain.TicketConfig{
+		GuildID:        testGuildID,
+		CategoryID:     testCategoryID,
+		AdminRoleID:    testAdminRole,
+		EveryoneRoleID: "stale-everyone-role",
+	}); err != nil {
+		t.Fatalf("seed stale everyone role: %v", err)
+	}
 	sideEffects := fakediscord.NewSideEffects()
 	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, "")
 	responder := fakediscord.NewResponder()
