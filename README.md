@@ -55,7 +55,7 @@ This module currently provides:
 - gated auto-chat local fallback MessageCreate runtime with the legacy response corpus, `說出` replies, typing delay, and read-only `chats`/`chatgpt_gets` gating.
 - gated paid auto-chat MessageCreate handoff with transactional `chatgpt_gets` debit plus rollback-compatible `chatgpts` publication, legacy cooldown/reset timing, and mention-safe worker replies.
 - gated `automatic-notification`, `/自動通知列表`, and `/自動通知刪除` setup/list/delete commands plus a separately gated lease-backed recurring delivery worker for legacy `cron_sets` rows.
-- gated `/set-log-channel` logging-configuration command and `loggin_create`-compatible select route; event log emitters remain disabled.
+- gated `/set-log-channel` logging-configuration command and `loggin_create`-compatible select route; message update/delete, channel topic/permission, and voice join/leave emitters are implemented behind separate event gates.
 - gated read-only `/扭蛋獎池查詢` prize-pool query with legacy embed text and rollback-compatible `gifts`/`gift_changes` reads.
 - gated `/扭蛋獎池增加` prize add command with legacy Manage Messages permission, ephemeral success/error embeds, and rollback-compatible `gifts` inserts.
 - gated `/扭蛋獎品編輯` prize edit command with legacy Manage Messages permission, ephemeral success/error embeds, and one-row `gifts` replacement by `{guild,gift_name}`.
@@ -78,20 +78,15 @@ This module currently provides:
 - staging guild command sync apply completed for managed `help`, `info`, and `ping`.
 - gateway smoke completed with the gateway explicitly enabled for the smoke invocation.
 
-Not implemented yet:
+Deliberately unavailable by default or still outstanding:
 
-- prefix commands;
-- high-risk slash command feature groups;
-- command registration from `cmd/mhcat-bot`;
-- most Mongo feature repositories;
-- default Mongo index creation;
-- production feature writes.
-- ticket and poll runtime commands/components unless their explicit feature flags are enabled.
-- economy query/rank/sign-in/settings/coin-admin runtime and command sync unless their explicit feature flags are enabled.
-- production enablement of recurring automatic-notification, daily-reset, and work-payout workers; all are wired behind separate disabled-by-default lease gates.
-- reaction-role moderation commands.
-- message/channel/voice logging event emitters.
-- announcement relay tag pings; relay messages suppress mentions by default.
+- prefix-command runtime; the legacy checkout has no active `commands/` tree to dispatch;
+- command registration from `cmd/mhcat-bot`; command changes remain owned by the explicit sync CLI;
+- default Mongo index creation and automatic data repair;
+- production feature writes and recurring workers; implemented write paths remain behind disabled-by-default runtime, sync, ownership, and lease gates;
+- production ticket/poll/economy rollout and live staging smoke, despite their gated runtime handlers and repositories being implemented;
+- announcement relay attachment forwarding and tag pings; relay messages intentionally suppress mentions;
+- external ChatGPT worker confirmation/deployment and dashboard-owned workflows.
 
 Implemented utility commands:
 
@@ -167,9 +162,7 @@ Implemented event features:
 
 `/info user` and `/info guild` use the legacy embed layouts with read-only Discord snapshots. Lookup failures return a red safe error embed and do not expose internal errors.
 
-Not implemented yet:
-
-- remaining economy game/shop writes, rank cards, gift delivery, lottery creation/panel generation, announcement relay attachment handling/tag pings, production scheduler ownership, external ChatGPT worker confirmation/deployment, and dashboard.
+Known external, intentionally inactive, or rollout gaps include lottery creation/panel generation, the disabled legacy XP profile-card branches, commented-out birthday delivery, announcement relay attachment forwarding/tag pings, production scheduler ownership, external ChatGPT worker confirmation/deployment, and dashboard-owned workflows. Economy game/shop writes, economy/profile/XP leaderboard images, and gacha prize delivery are implemented behind their explicit gates.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete and daily-reset ownership is assigned exclusively to the lease-backed one-shot or recurring Go path after Node cron is stopped.
 
@@ -636,7 +629,7 @@ The bound announcement relay is available only when `MHCAT_FEATURE_ANNOUNCEMENT_
 
 The `/聊天經驗設定` and `/聊天經驗刪除` commands are available only when `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `text_xp_channels` config and do not enable text XP accrual, rank cards, voice XP, Message Content intent, or XP reward behavior. Text XP message accrual is a separate event gate: `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true` requires `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`; it updates rollback-compatible `text_xps` rows using the legacy message XP formula and level reset behavior, sends the configured/default level-up announcement when a `text_xp_channels` row exists, sends legacy fallback errors when the configured announcement channel is missing or unusable, applies configured `chat_roles` reward-role changes on level-up, and grants legacy XP coin rewards from `gift_changes.xp_multiple` after the configured announcement path succeeds. Profile cards remain disabled.
 
-The `/語音經驗設定` and `/語音經驗刪除` commands are available only when `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `voice_xp_channels` config, preserve the old visible `背景` option without saving it, and do not enable Voice State intent, rank cards, or runtime XP reward behavior. Voice XP runtime is a separate event gate: `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true` requires `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`, creates missing `voice_xps` rows with legacy string `xp`/`leavel`, marks `leavejoin` as `join` or `leave`, and starts one legacy 30-second XP loop per active joined user. The runtime preserves legacy `+5 XP` ticks, configured/default level-up announcements, owner DM fallbacks, `voice_roles` changes, and XP coin rewards from `gift_changes.xp_multiple`. Restart reconciliation for already-joined rows remains pending.
+The `/語音經驗設定` and `/語音經驗刪除` commands are available only when `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `voice_xp_channels` config, preserve the old visible `背景` option without saving it, and do not enable Voice State intent, rank cards, or runtime XP reward behavior. Voice XP runtime is a separate event gate: `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true` requires `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`, creates missing `voice_xps` rows with legacy string `xp`/`leavel`, marks `leavejoin` as `join` or `leave`, and starts one legacy 30-second XP loop per active joined user. The runtime preserves legacy `+5 XP` ticks, configured/default level-up announcements, owner DM fallbacks, `voice_roles` changes, and XP coin rewards from `gift_changes.xp_multiple`. On startup it also reconciles persisted `leavejoin:"join"` rows and starts one deduplicated worker per active profile before registering new Voice State events.
 
 The `/聊天經驗身分組設定` and `/語音經驗身分組設定` commands are available only when `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true`; staging preflight and scripts reject unpaired sync/runtime flags. These commands add, delete, query, and paginate legacy-compatible `chat_roles` and `voice_roles` reward-role config rows with the legacy misspelled `leavel` field. They require Manage Messages and verify the selected role is assignable by the bot before saving. These commands alone do not enable XP accrual, rank cards, coin rewards, Message Content intent, Guild Messages intent, Voice State intent, or usage-counter writes; text reward-role assignment/removal runs only through the separate text accrual event gate.
 
@@ -739,7 +732,7 @@ Useful flags:
 
 ## Mongo Index Dry-Run
 
-`mhcat-mongo-index` defaults to dry-run and compares the local partial index plan with live indexes. It never drops indexes in Wave 3.
+`mhcat-mongo-index` defaults to dry-run and compares the local partial index plan with live indexes. It never drops indexes.
 
 ```bash
 MHCAT_MONGODB_URI='<uri>' \
@@ -749,11 +742,11 @@ go run ./cmd/mhcat-mongo-index --dry-run --format json
 
 Index apply is not default. Missing safe indexes can only be created with explicit `--apply`. Unique indexes additionally require `--allow-unique` and a clean duplicate audit. TTL indexes require `--allow-ttl` and a retention ADR/note in the index plan.
 
-Wave 3 still has no feature repositories, no production Mongo feature writes by default, no command registration from bot startup, and no feature parity implementation.
+Feature repositories and gated Mongo write paths now exist, but production writes remain disabled by default. The index tool is still operator-invoked only, and bot startup still performs no command registration or automatic index mutation.
 
 ## Custom ID Parsing
 
-Wave 4 adds the shared parser layer for components and modals. New Go-generated IDs use:
+The shared parser layer handles components and modals. New Go-generated IDs use:
 
 ```txt
 mhcat:v1:<feature>:<action>:<payload>
@@ -763,7 +756,7 @@ Encoded custom IDs are length-checked against Discord's 100-character `custom_id
 
 Legacy live-message compatibility is handled through explicit decoders for documented high-confidence IDs, including ticket buttons, polls, verification prompts, rank pagination, sign/profile buttons, role buttons, voice-lock prompts, shop/game controls, and setup modals. Ambiguous legacy IDs return typed parse errors instead of being routed through broad substring matching.
 
-The parser is now used by the legacy help menu, ticket setup modal path, poll components, sign-in page buttons, and verification prompt/modal routes. Role-button, most economy, game, and most modal feature behavior are still not implemented.
+The typed parser/router is used by help/info refresh, ticket, poll, sign/profile/rank pagination, role selection, economy shop/game, verification, voice lock, logging, lottery, work, birthday, notification, announcement, and XP component/modal paths. Feature gates still control whether each parsed route is registered; parser coverage and 74/74 command-definition parity are not substitutes for runtime behavior and UI verification.
 
 ## Ticket Slice
 
@@ -794,7 +787,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_TICKETS=true
 
 The command-sync CLI rejects ticket inclusion outside staging guild scope. Deletion and bulk overwrite remain disabled unless their separate explicit unsafe flags are used, and staging still rejects them.
 
-Still not implemented:
+Remaining rollout work:
 
 - Production ticket command sync.
 - Staging smoke for the full ticket setup/open/close flow.
@@ -828,7 +821,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_POLLS=true
 
 The command-sync CLI rejects poll inclusion outside staging guild scope. Deletion and bulk overwrite remain disabled unless their separate explicit unsafe flags are used, and staging still rejects them.
 
-Still not implemented:
+Remaining rollout work:
 
 - Production poll command sync.
 - Staging smoke for the full poll create/vote/result/export/menu flow.
