@@ -599,7 +599,7 @@ MHCAT_DISCORD_ENABLE_GATEWAY=true
 MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED=true
 ```
 
-This gate reads existing `lotters`, atomically appends eligible participants, returns the legacy participant embed and `discord.txt`, sets `end:true` on stop/reroll, and sends one winner message on reroll. It does not enable `/抽獎設置` or create new lottery panels. Test only with disposable copied rows and channels, and do not run Node and Go button ownership for the same guild simultaneously.
+This gate reads existing `lotters`, atomically appends eligible participants with legacy duplicate/cap/date/role error precedence, returns the legacy participant embed and complete `discord.txt`, sets `end:true` on stop or positive-count reroll, and sends one aggregate winner message on positive-count reroll. Search preserves the 99/100-name cutoff, legacy discriminator and missing-user labels, and Node 20 Taipei timestamp formatting. Reroll preserves stored prize whitespace, bot guild display color, replacement draws, and the legacy nonpositive-count deferred no-op; it intentionally rechecks destructive authorization, allowlists winner mentions, and caps oversized winner counts at 50. It does not enable `/抽獎設置` or create new lottery panels. Test only with disposable copied rows and channels, and do not run Node and Go button ownership for the same guild simultaneously.
 
 Static `/統計系統查詢` parity is available only when both staging command sync and runtime flags are explicitly enabled:
 
