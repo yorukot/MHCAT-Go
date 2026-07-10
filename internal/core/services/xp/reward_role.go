@@ -31,15 +31,15 @@ func (s TextRewardRoleService) Add(ctx context.Context, config domain.XPRewardRo
 	if err := config.Validate(); err != nil {
 		return err
 	}
-	if err := ensureAssignableRewardRole(ctx, s.RoleInspector, config); err != nil {
-		return err
-	}
 	existing, err := s.Repository.ListTextXPRewardRoles(ctx, config.GuildID)
 	if err != nil {
 		return err
 	}
 	if len(existing) > legacyRewardRoleLimit {
 		return ports.ErrXPRewardRoleLimitExceeded
+	}
+	if err := ensureAssignableRewardRole(ctx, s.RoleInspector, config); err != nil {
+		return err
 	}
 	return s.Repository.SaveTextXPRewardRole(ctx, config)
 }
@@ -91,15 +91,15 @@ func (s VoiceRewardRoleService) Add(ctx context.Context, config domain.XPRewardR
 	if err := config.Validate(); err != nil {
 		return err
 	}
-	if err := ensureAssignableRewardRole(ctx, s.RoleInspector, config); err != nil {
-		return err
-	}
 	existing, err := s.Repository.ListVoiceXPRewardRoles(ctx, config.GuildID)
 	if err != nil {
 		return err
 	}
 	if len(existing) > legacyRewardRoleLimit {
 		return ports.ErrXPRewardRoleLimitExceeded
+	}
+	if err := ensureAssignableRewardRole(ctx, s.RoleInspector, config); err != nil {
+		return err
 	}
 	return s.Repository.SaveVoiceXPRewardRole(ctx, config)
 }

@@ -50,6 +50,41 @@ func TestTextRewardRoleServiceRejectsUnassignableAndTooMany(t *testing.T) {
 	}
 }
 
+func TestRewardRoleServicesCheckLegacyLimitBeforeRoleHierarchy(t *testing.T) {
+	roles := fakediscord.NewSideEffects()
+	textRepo := fakemongo.NewTextXPRewardRoleRepository()
+	voiceRepo := fakemongo.NewVoiceXPRewardRoleRepository()
+	for i := 0; i < 120; i++ {
+		config := domain.XPRewardRoleConfig{GuildID: "guild-1", Level: int64(i), RoleID: "role"}
+		textRepo.Configs = append(textRepo.Configs, config)
+		voiceRepo.Configs = append(voiceRepo.Configs, config)
+	}
+
+	for _, tc := range []struct {
+		name string
+		add  func() error
+	}{
+		{
+			name: "text",
+			add: func() error {
+				return (TextRewardRoleService{Repository: textRepo, RoleInspector: roles}).Add(context.Background(), domain.XPRewardRoleConfig{GuildID: "guild-1", Level: 120, RoleID: "unassignable"})
+			},
+		},
+		{
+			name: "voice",
+			add: func() error {
+				return (VoiceRewardRoleService{Repository: voiceRepo, RoleInspector: roles}).Add(context.Background(), domain.XPRewardRoleConfig{GuildID: "guild-1", Level: 120, RoleID: "unassignable"})
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.add(); !errors.Is(err, ports.ErrXPRewardRoleLimitExceeded) {
+				t.Fatalf("expected legacy limit error before role hierarchy, got %v", err)
+			}
+		})
+	}
+}
+
 func TestTextRewardRoleServiceApplyLevelUpChangesConfiguredRoles(t *testing.T) {
 	repo := fakemongo.NewTextXPRewardRoleRepository()
 	repo.Configs = []domain.XPRewardRoleConfig{
