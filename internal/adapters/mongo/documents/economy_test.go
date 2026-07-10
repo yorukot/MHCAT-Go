@@ -103,6 +103,33 @@ func TestEconomyConfigDefaultGachaCost(t *testing.T) {
 	}
 }
 
+func TestShopItemWriteDocumentPreservesLegacyTextWhitespace(t *testing.T) {
+	write := ShopItemWriteDocumentFromDomain(domain.ShopItem{
+		GuildID:     " guild-1 ",
+		CommodityID: 1001,
+		Name:        " VIP ",
+		NeedCoins:   50,
+		Description: " role reward ",
+		Code:        " CODE ",
+		RoleID:      " role-1 ",
+		Count:       1,
+	})
+	raw, err := bson.Marshal(write)
+	if err != nil {
+		t.Fatalf("marshal shop item: %v", err)
+	}
+	var decoded map[string]any
+	if err := bson.Unmarshal(raw, &decoded); err != nil {
+		t.Fatalf("decode shop item: %v", err)
+	}
+	if decoded["guild"] != "guild-1" || decoded["role"] != "role-1" {
+		t.Fatalf("identifiers were not normalized: %#v", decoded)
+	}
+	if decoded["name"] != " VIP " || decoded["commodity_description"] != " role reward " || decoded["code"] != " CODE " {
+		t.Fatalf("shop text was normalized: %#v", decoded)
+	}
+}
+
 func TestSignListDocumentDecodesNestedLegacyDate(t *testing.T) {
 	raw, err := bson.Marshal(bson.D{
 		{Key: "guild", Value: "guild-1"},

@@ -71,6 +71,29 @@ func TestShopAddUsesLegacyUTF16NameLength(t *testing.T) {
 	}
 }
 
+func TestShopAddPreservesLegacyTextWhitespace(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.AssignableRoles["guild-1/role-1"] = true
+	module := NewShopModule(repo, nil, sideEffects, sideEffects, sideEffects, nil, shopFixedClock{now: time.UnixMilli(1_710_000_000_000)})
+	interaction := shopAddInteraction()
+	interaction.Actor.PermissionBits = shopManageMessagesBit
+	interaction.Options[shopOptionName] = " VIP "
+	interaction.Options[shopOptionDescription] = " role reward "
+	interaction.Options[shopOptionCode] = " CODE "
+
+	if err := module.ShopHandler()(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("shop add: %v", err)
+	}
+	item, err := repo.GetShopItem(context.Background(), "guild-1", 1_710_000_000_000)
+	if err != nil {
+		t.Fatalf("get item: %v", err)
+	}
+	if item.Name != " VIP " || item.Description != " role reward " || item.Code != " CODE " {
+		t.Fatalf("item text was normalized: %#v", item)
+	}
+}
+
 func TestShopListRendersLegacyFieldsAndButtons(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 50, Description: "role reward", Count: 1})

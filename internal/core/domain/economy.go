@@ -325,10 +325,10 @@ func (i ShopItem) Normalize() ShopItem {
 	return ShopItem{
 		GuildID:     strings.TrimSpace(i.GuildID),
 		CommodityID: i.CommodityID,
-		Name:        strings.TrimSpace(i.Name),
+		Name:        i.Name,
 		NeedCoins:   i.NeedCoins,
-		Description: strings.TrimSpace(i.Description),
-		Code:        strings.TrimSpace(i.Code),
+		Description: i.Description,
+		Code:        i.Code,
 		AutoDelete:  i.AutoDelete,
 		RoleID:      strings.TrimSpace(i.RoleID),
 		Count:       i.Count,
