@@ -56,6 +56,30 @@ func TestDeleteReactionRemovesConfig(t *testing.T) {
 	}
 }
 
+func TestDeleteReactionNormalizesCustomEmojiAsReliabilityFix(t *testing.T) {
+	const emojiID = "123456789012345678"
+	repo := fakemongo.NewRoleSelectionRepository()
+	repo.Reactions["guild-1/message-1/"+emojiID] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: emojiID, RoleID: "role-1"}
+	discord := fakediscord.NewSideEffects()
+	seedReactionMessage(discord, "guild-1", "channel-1", "message-1")
+	service := SelectionService{Repository: repo, Reactions: discord}
+
+	err := service.DeleteReaction(context.Background(), ReactionDeleteCommand{
+		GuildID:    "guild-1",
+		MessageURL: "https://discord.com/channels/guild-1/channel-1/message-1",
+		Emoji:      "<:mhcat:" + emojiID + ">",
+	})
+	if err != nil {
+		t.Fatalf("DeleteReaction: %v", err)
+	}
+	if _, ok := repo.Reactions["guild-1/message-1/"+emojiID]; ok {
+		t.Fatal("custom reaction config should be deleted by its stored ID")
+	}
+	if len(discord.Reactions) != 1 || discord.Reactions[0].Emoji != "mhcat:"+emojiID {
+		t.Fatalf("reactions = %#v", discord.Reactions)
+	}
+}
+
 func TestApplyReactionAddsAndRemovesRole(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	repo.Reactions["guild-1/message-1/✅"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "✅", RoleID: "role-1"}
