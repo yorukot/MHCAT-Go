@@ -43,7 +43,7 @@ func (m Module) CreateHandler() interactions.Handler {
 			GuildID:     interaction.Actor.GuildID,
 			ChannelType: firstStatsOption(interaction, statsOptionChannelType),
 			Option:      firstStatsOption(interaction, statsOptionStat),
-			BotUserID:   m.botUserID,
+			BotUserID:   statsBotUserID(interaction.ApplicationID, m.botUserID),
 			BeforeBaseCreate: func(ctx context.Context) error {
 				messageID, err := responder.CreateFollowUp(ctx, statsCreateLoadingMessage())
 				if err == nil {
@@ -83,7 +83,7 @@ func (m Module) RoleHandler() interactions.Handler {
 			GuildID:     interaction.Actor.GuildID,
 			ChannelType: firstStatsOption(interaction, statsOptionChannelType),
 			RoleID:      firstStatsOption(interaction, statsOptionRole),
-			BotUserID:   m.botUserID,
+			BotUserID:   statsBotUserID(interaction.ApplicationID, m.botUserID),
 		})
 		if err != nil {
 			return responder.EditOriginal(ctx, statsRoleErrorMessage(err))
@@ -118,6 +118,13 @@ func (m Module) DeleteHandler() interactions.Handler {
 		}
 		return m.track(ctx, interaction, StatsDeleteCommandName, "stats-delete")
 	}
+}
+
+func statsBotUserID(applicationID string, fallbackID string) string {
+	if applicationID = strings.TrimSpace(applicationID); applicationID != "" {
+		return applicationID
+	}
+	return strings.TrimSpace(fallbackID)
 }
 
 func statsRoleSuccessMessage(channelID string) responses.Message {

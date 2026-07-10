@@ -58,6 +58,44 @@ func TestCreateStatsConfigCreatesLegacyTextChannels(t *testing.T) {
 	}
 }
 
+func TestStatsPermissionOverwritesMatchLegacy(t *testing.T) {
+	tests := []struct {
+		name        string
+		channelType int
+		want        []ports.PermissionOverwrite
+	}{
+		{
+			name:        "text",
+			channelType: discordChannelTypeGuildText,
+			want: []ports.PermissionOverwrite{
+				{ID: "bot-1", Type: permissionOverwriteMember, Allow: permissionViewChannel | permissionManageMessages | permissionSendMessages},
+				{ID: "guild-1", Type: permissionOverwriteRole, Allow: permissionViewChannel, Deny: permissionSendMessages},
+			},
+		},
+		{
+			name:        "voice",
+			channelType: discordChannelTypeGuildVoice,
+			want: []ports.PermissionOverwrite{
+				{ID: "bot-1", Type: permissionOverwriteMember, Allow: permissionViewChannel | permissionManageMessages | permissionConnect},
+				{ID: "guild-1", Type: permissionOverwriteRole, Allow: permissionViewChannel, Deny: permissionConnect},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := statsPermissionOverwrites("guild-1", "bot-1", test.channelType)
+			if len(got) != len(test.want) {
+				t.Fatalf("overwrites = %#v", got)
+			}
+			for index := range test.want {
+				if got[index] != test.want[index] {
+					t.Fatalf("overwrite[%d] = %#v, want %#v", index, got[index], test.want[index])
+				}
+			}
+		})
+	}
+}
+
 func TestCreateStatsConfigCreatesLegacyVoiceChannelNames(t *testing.T) {
 	repo := fakemongo.NewStatsConfigRepository()
 	discord := fakediscord.NewSideEffects()

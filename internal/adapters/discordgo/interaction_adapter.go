@@ -21,6 +21,7 @@ func InteractionFromDiscord(event *dgo.InteractionCreate) (interactions.Interact
 		}
 		return interactions.Interaction{
 			ID:              event.ID,
+			ApplicationID:   event.AppID,
 			Type:            interactions.TypeSlash,
 			CommandName:     data.Name,
 			SubcommandGroup: subcommandGroup,
@@ -35,13 +36,14 @@ func InteractionFromDiscord(event *dgo.InteractionCreate) (interactions.Interact
 	case dgo.InteractionApplicationCommandAutocomplete:
 		data := event.ApplicationCommandData()
 		return interactions.Interaction{
-			ID:          event.ID,
-			Type:        interactions.TypeAutocomplete,
-			CommandName: data.Name,
-			ChannelID:   event.ChannelID,
-			Locale:      string(event.Locale),
-			GuildLocale: guildLocale(event.Interaction),
-			Actor:       actor,
+			ID:            event.ID,
+			ApplicationID: event.AppID,
+			Type:          interactions.TypeAutocomplete,
+			CommandName:   data.Name,
+			ChannelID:     event.ChannelID,
+			Locale:        string(event.Locale),
+			GuildLocale:   guildLocale(event.Interaction),
+			Actor:         actor,
 		}, nil
 	case dgo.InteractionMessageComponent:
 		data := event.MessageComponentData()
@@ -51,6 +53,7 @@ func InteractionFromDiscord(event *dgo.InteractionCreate) (interactions.Interact
 		}
 		return interactions.Interaction{
 			ID:                        event.ID,
+			ApplicationID:             event.AppID,
 			Type:                      interactions.TypeComponent,
 			CustomID:                  input.CustomID,
 			Values:                    input.Values,
@@ -69,14 +72,15 @@ func InteractionFromDiscord(event *dgo.InteractionCreate) (interactions.Interact
 			return interactions.Interaction{}, err
 		}
 		return interactions.Interaction{
-			ID:          event.ID,
-			Type:        interactions.TypeModal,
-			CustomID:    input.CustomID,
-			ModalFields: input.Fields,
-			ChannelID:   event.ChannelID,
-			Locale:      string(event.Locale),
-			GuildLocale: guildLocale(event.Interaction),
-			Actor:       actor,
+			ID:            event.ID,
+			ApplicationID: event.AppID,
+			Type:          interactions.TypeModal,
+			CustomID:      input.CustomID,
+			ModalFields:   input.Fields,
+			ChannelID:     event.ChannelID,
+			Locale:        string(event.Locale),
+			GuildLocale:   guildLocale(event.Interaction),
+			Actor:         actor,
 		}, nil
 	default:
 		return interactions.Interaction{}, fmt.Errorf("unsupported discord interaction type %d", event.Type)

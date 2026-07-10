@@ -118,12 +118,13 @@ func TestCreateHandlerCreatesStatsWithLegacySuccess(t *testing.T) {
 	discord.TotalMembers = 15
 	discord.NonBotMembers = 12
 	usage := &fakeusage.Tracker{}
-	module := NewCreateModule(repo, discord, discord, usage, "bot-1")
+	module := NewCreateModule(repo, discord, discord, usage, "")
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(StatsCreateCommandName, "", map[string]string{
 		statsOptionChannelType: "文字頻道",
 	})
 	interaction.Actor.PermissionBits = permissionManageMessages
+	interaction.ApplicationID = "bot-1"
 
 	if err := module.CreateHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
@@ -142,6 +143,11 @@ func TestCreateHandlerCreatesStatsWithLegacySuccess(t *testing.T) {
 	}
 	if len(discord.Created) != 4 || discord.Created[1].Name != "總人數: 15" {
 		t.Fatalf("created channels = %#v", discord.Created)
+	}
+	for _, request := range discord.Created[1:] {
+		if len(request.PermissionOverwrites) != 2 || request.PermissionOverwrites[0].ID != "bot-1" || request.PermissionOverwrites[0].Type != 1 {
+			t.Fatalf("permission overwrites = %#v", request.PermissionOverwrites)
+		}
 	}
 	if saved := repo.Configs["guild-1"]; saved.MemberNumberName != "15" || saved.UserNumberName != "12" || saved.BotNumberName != "3" {
 		t.Fatalf("saved = %#v", saved)
@@ -252,13 +258,14 @@ func TestRoleHandlerCreatesLegacyRoleStatsChannel(t *testing.T) {
 	discord.RoleNames["guild-1/role-1"] = "VIP"
 	discord.RoleMemberCounts["guild-1/role-1"] = 6
 	usage := &fakeusage.Tracker{}
-	module := NewRoleModule(repo, repo, discord, discord, usage, "bot-1")
+	module := NewRoleModule(repo, repo, discord, discord, usage, "")
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(StatsRoleCommandName, "", map[string]string{
 		statsOptionChannelType: "文字頻道",
 		statsOptionRole:        "role-1",
 	})
 	interaction.Actor.PermissionBits = permissionManageMessages
+	interaction.ApplicationID = "bot-1"
 
 	if err := module.RoleHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
@@ -272,6 +279,9 @@ func TestRoleHandlerCreatesLegacyRoleStatsChannel(t *testing.T) {
 	}
 	if len(discord.Created) != 1 || discord.Created[0].Name != "VIP: 6" || discord.Created[0].ParentID != "parent-1" {
 		t.Fatalf("created channels = %#v", discord.Created)
+	}
+	if overwrites := discord.Created[0].PermissionOverwrites; len(overwrites) != 2 || overwrites[0].ID != "bot-1" || overwrites[0].Type != 1 {
+		t.Fatalf("permission overwrites = %#v", overwrites)
 	}
 	if saved := repo.RoleConfigs["guild-1/role-1"]; saved.ChannelID != "created-channel-1" || saved.ChannelName != "6" || saved.RoleID != "role-1" {
 		t.Fatalf("saved role config = %#v", saved)

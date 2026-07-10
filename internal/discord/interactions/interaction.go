@@ -75,6 +75,7 @@ func (r Route) String() string {
 
 type Interaction struct {
 	ID                        string
+	ApplicationID             string
 	Type                      Type
 	CommandName               string
 	SubcommandGroup           string

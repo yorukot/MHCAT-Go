@@ -21,6 +21,9 @@ func TestRuntimeInteractionSlashCommand(t *testing.T) {
 	if interaction.CommandName != "help" || interaction.Type != interactions.TypeSlash {
 		t.Fatalf("interaction = %#v", interaction)
 	}
+	if interaction.ApplicationID != "application-1" {
+		t.Fatalf("application id = %q", interaction.ApplicationID)
+	}
 	if interaction.ID == "private-token" || interaction.CustomID == "private-token" {
 		t.Fatalf("interaction leaked token: %#v", interaction)
 	}
@@ -200,6 +203,7 @@ func testSession() *Session {
 func slashEvent(name string, options []*dgo.ApplicationCommandInteractionDataOption) *dgo.Interaction {
 	return &dgo.Interaction{
 		ID:        "interaction-1",
+		AppID:     "application-1",
 		Type:      dgo.InteractionApplicationCommand,
 		GuildID:   "guild-1",
 		ChannelID: "channel-1",
