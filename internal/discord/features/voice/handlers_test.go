@@ -436,6 +436,7 @@ func TestLockEventHandlerPromptsDisconnectsAndDMsLockedJoin(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
 	now := time.UnixMilli(1_700_000_000_000)
 	module := NewLockEventModuleWithClock(repo, sideEffects, sideEffects, sideEffects, voiceFixedClock{now: now})
+	module.color = func() int { return 0x123456 }
 	err := module.VoiceStateHandler()(context.Background(), events.Event{
 		Type:    events.TypeVoiceState,
 		GuildID: "guild-1",
@@ -470,7 +471,7 @@ func TestLockEventHandlerPromptsDisconnectsAndDMsLockedJoin(t *testing.T) {
 	if len(sideEffects.MovedMembers) != 1 || sideEffects.MovedMembers[0].GuildID != "guild-1" || sideEffects.MovedMembers[0].UserID != "user-1" || sideEffects.MovedMembers[0].ChannelID != nil {
 		t.Fatalf("moved members = %#v", sideEffects.MovedMembers)
 	}
-	if len(sideEffects.DirectMessages) != 1 || sideEffects.DirectMessages[0].UserID != "user-1" || !strings.Contains(sideEffects.DirectMessages[0].Message.Embeds[0].Description, "<#text-1>") {
+	if len(sideEffects.DirectMessages) != 1 || sideEffects.DirectMessages[0].UserID != "user-1" || sideEffects.DirectMessages[0].Message.Embeds[0].Color != 0x123456 || !strings.Contains(sideEffects.DirectMessages[0].Message.Embeds[0].Description, "<#text-1>") {
 		t.Fatalf("direct messages = %#v", sideEffects.DirectMessages)
 	}
 }
@@ -519,6 +520,7 @@ func TestRoomEventHandlerCreatesTracksMovesAndDMsLockableRoom(t *testing.T) {
 		{ID: "user-1", Type: permissionOverwriteMember, Deny: permissionManageChannels},
 	}))
 	module := NewRoomEventModule(configs, states, locks, sideEffects, sideEffects, sideEffects)
+	module.color = func() int { return 0x654321 }
 	err := module.VoiceStateHandler()(context.Background(), events.Event{
 		Type:    events.TypeVoiceState,
 		GuildID: "guild-1",
@@ -556,7 +558,7 @@ func TestRoomEventHandlerCreatesTracksMovesAndDMsLockableRoom(t *testing.T) {
 	if len(sideEffects.MovedMembers) != 1 || sideEffects.MovedMembers[0].ChannelID == nil || *sideEffects.MovedMembers[0].ChannelID != "created-channel-1" {
 		t.Fatalf("moved members = %#v", sideEffects.MovedMembers)
 	}
-	if len(sideEffects.DirectMessages) != 1 || !strings.Contains(sideEffects.DirectMessages[0].Message.Embeds[0].Title, "你開啟了一個可上鎖的語音頻道") {
+	if len(sideEffects.DirectMessages) != 1 || sideEffects.DirectMessages[0].Message.Embeds[0].Color != 0x654321 || !strings.Contains(sideEffects.DirectMessages[0].Message.Embeds[0].Title, "你開啟了一個可上鎖的語音頻道") {
 		t.Fatalf("direct messages = %#v", sideEffects.DirectMessages)
 	}
 }

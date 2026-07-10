@@ -1,6 +1,9 @@
 package voice
 
 import (
+	"crypto/rand"
+	"math/big"
+
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/voice"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
@@ -26,6 +29,7 @@ type LockEventModule struct {
 	direct   ports.DiscordDirectMessagePort
 	members  ports.DiscordMemberPort
 	clock    ports.Clock
+	color    func() int
 }
 
 type RoomEventModule struct {
@@ -33,6 +37,7 @@ type RoomEventModule struct {
 	channels ports.DiscordChannelPort
 	members  ports.DiscordMemberPort
 	direct   ports.DiscordDirectMessagePort
+	color    func() int
 }
 
 func NewModule(repo ports.VoiceRoomConfigRepository, usage ports.UsageTracker) Module {
@@ -71,6 +76,7 @@ func NewLockEventModuleWithClock(repo ports.VoiceRoomLockRepository, messages po
 		direct:   direct,
 		members:  members,
 		clock:    clock,
+		color:    legacyVoiceRandomColor,
 	}
 }
 
@@ -80,7 +86,16 @@ func NewRoomEventModule(configs ports.VoiceRoomConfigRepository, states ports.Vo
 		channels: channels,
 		members:  members,
 		direct:   direct,
+		color:    legacyVoiceRandomColor,
 	}
+}
+
+func legacyVoiceRandomColor() int {
+	value, err := rand.Int(rand.Reader, big.NewInt(0xFFFFFF+1))
+	if err != nil {
+		return legacyVoiceLockColor
+	}
+	return int(value.Int64())
 }
 
 func (m Module) Name() string {

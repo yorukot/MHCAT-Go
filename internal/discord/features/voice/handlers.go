@@ -209,7 +209,7 @@ func (m LockEventModule) VoiceStateHandler() events.Handler {
 		if err := m.members.MoveMember(ctx, guildID, userID, nil); err != nil {
 			return err
 		}
-		_, _ = m.direct.SendDirectMessage(ctx, userID, voiceLockDirectMessage(lock))
+		_, _ = m.direct.SendDirectMessage(ctx, userID, voiceLockDirectMessage(lock, m.randomColor()))
 		return ctx.Err()
 	}
 }
@@ -287,7 +287,7 @@ func (m RoomEventModule) createDynamicRoom(ctx context.Context, guildID string, 
 		return err
 	}
 	if config.Lock {
-		_, _ = m.direct.SendDirectMessage(ctx, userID, voiceRoomLockableOwnerMessage())
+		_, _ = m.direct.SendDirectMessage(ctx, userID, voiceRoomLockableOwnerMessage(m.randomColor()))
 	}
 	return ctx.Err()
 }
@@ -470,23 +470,23 @@ func voiceLockPromptOutbound(lock domain.VoiceRoomLock, userID string, expiresAt
 	}
 }
 
-func voiceLockDirectMessage(lock domain.VoiceRoomLock) ports.OutboundMessage {
+func voiceLockDirectMessage(lock domain.VoiceRoomLock, color int) ports.OutboundMessage {
 	return ports.OutboundMessage{
 		Embeds: []ports.OutboundEmbed{{
 			Title:       legacyLockEmoji + " | 該語音頻道已被房主上鎖!",
 			Description: "請前往<#" + strings.TrimSpace(lock.TextChannelID) + ">輸入密碼進行解鎖\n否則你將無法加入\n輸入完密碼後就可以重新加入囉!",
-			Color:       voiceSuccessColor,
+			Color:       color,
 		}},
 		AllowedMentions: ports.AllowedMentions{},
 	}
 }
 
-func voiceRoomLockableOwnerMessage() ports.OutboundMessage {
+func voiceRoomLockableOwnerMessage(color int) ports.OutboundMessage {
 	return ports.OutboundMessage{
 		Embeds: []ports.OutboundEmbed{{
 			Title:       legacyLockEmoji + " | 你開啟了一個可上鎖的語音頻道!",
 			Description: "**你可以到你所在的語音頻道伺服器\n在該伺服器打指令的頻道打上**`/上鎖頻道 密碼:`\n**當然也可以不用上鎖\n如需解除上鎖只需打**`/上鎖頻道`\n**當頻道上鎖後對方將會被踢\n並且傳送密碼輸入給該名使用者\n對方輸入正確密碼後即可解鎖**",
-			Color:       voiceSuccessColor,
+			Color:       color,
 		}},
 		AllowedMentions: ports.AllowedMentions{},
 	}
@@ -599,6 +599,20 @@ func (m LockEventModule) now() time.Time {
 		return time.Now()
 	}
 	return m.clock.Now()
+}
+
+func (m LockEventModule) randomColor() int {
+	if m.color == nil {
+		return legacyVoiceRandomColor()
+	}
+	return m.color()
+}
+
+func (m RoomEventModule) randomColor() int {
+	if m.color == nil {
+		return legacyVoiceRandomColor()
+	}
+	return m.color()
 }
 
 func voiceLockAnswerValue(fields []customid.ModalField) string {
