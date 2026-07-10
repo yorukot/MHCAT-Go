@@ -118,16 +118,46 @@ func TestEventFromMemberIncludesGuildNameFromState(t *testing.T) {
 }
 
 func TestEventFromVoiceState(t *testing.T) {
+	state := dgo.NewState()
+	state.User = &dgo.User{ID: "bot-1", Username: "MHCAT", Avatar: "bot-avatar"}
+	if err := state.GuildAdd(&dgo.Guild{
+		ID: "guild-1",
+		Channels: []*dgo.Channel{
+			{ID: "old", GuildID: "guild-1", Name: "Old Voice"},
+			{ID: "new", GuildID: "guild-1", Name: "New Voice"},
+		},
+	}); err != nil {
+		t.Fatalf("guild add: %v", err)
+	}
 	event := eventFromVoiceState(&dgo.VoiceState{
 		GuildID:   "guild-1",
 		UserID:    "user-1",
 		ChannelID: "new",
-		Member:    &dgo.Member{User: &dgo.User{ID: "user-1", Username: "Bot", Bot: true}},
-	}, &dgo.VoiceState{ChannelID: "old"})
+		Member:    &dgo.Member{User: &dgo.User{ID: "user-1", Username: "Bot", Avatar: "user-avatar", Bot: true}},
+	}, &dgo.VoiceState{GuildID: "guild-1", UserID: "user-1", ChannelID: "old"}, &dgo.Session{State: state})
 	if event.Type != events.TypeVoiceState || event.VoiceState == nil || event.VoiceState.ChannelID != "new" || event.VoiceState.BeforeChannel != "old" {
 		t.Fatalf("event = %#v", event)
 	}
-	if !event.IsBot || event.Member == nil || !event.Member.IsBot || event.UserID != "user-1" {
+	if event.VoiceState.ChannelName != "New Voice" || event.VoiceState.BeforeChannelName != "Old Voice" {
+		t.Fatalf("voice channel names = %#v", event.VoiceState)
+	}
+	if !event.IsBot || event.Member == nil || !event.Member.IsBot || event.UserID != "user-1" || event.Username != "Bot" || event.AvatarURL == "" || event.BotAvatarURL == "" {
+		t.Fatalf("event = %#v", event)
+	}
+}
+
+func TestEventFromVoiceStateFallsBackToCachedMemberOnLeave(t *testing.T) {
+	event := eventFromVoiceState(
+		&dgo.VoiceState{GuildID: "guild-1", UserID: "user-1"},
+		&dgo.VoiceState{
+			GuildID:   "guild-1",
+			UserID:    "user-1",
+			ChannelID: "old",
+			Member:    &dgo.Member{User: &dgo.User{ID: "user-1", Username: "Yoru", Avatar: "user-avatar"}},
+		},
+		nil,
+	)
+	if event.Username != "Yoru" || event.AvatarURL == "" || event.Member == nil || event.VoiceState.BeforeChannel != "old" {
 		t.Fatalf("event = %#v", event)
 	}
 }

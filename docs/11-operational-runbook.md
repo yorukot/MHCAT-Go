@@ -45,6 +45,7 @@ Primary Go env vars:
 - `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED`
 - `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED`
 - `MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED`
+- `MHCAT_FEATURE_LOGGING_VOICE_EVENTS_ENABLED`
 - `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED`
 - `MHCAT_FEATURE_GACHA_DRAW_ENABLED`
 - `MHCAT_FEATURE_GACHA_PRIZE_CREATE_ENABLED`
@@ -474,6 +475,16 @@ MHCAT_DISCORD_ENABLE_GATEWAY=true
 ```
 
 This runtime reads existing `loggings` rows and emits only channel topic and permission-overwrite update embeds when `channel_update` is selected for a staging log channel. It uses cached old channel data and best-effort audit-log actor attribution, and suppresses mentions in sent embeds. It does not enable `/set-log-channel` by itself, create indexes, or emit message/voice logs.
+
+Logging voice join/leave events are available only when the event runtime flag, Gateway, and Voice State intent are explicitly enabled:
+
+```bash
+MHCAT_FEATURE_LOGGING_VOICE_EVENTS_ENABLED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_DISCORD_VOICE_STATE_INTENT=true
+```
+
+This runtime reads existing `loggings` rows and emits only voice join/leave embeds when `member_voice_update` is selected for a staging log channel. It uses cached member and channel data, suppresses mentions, and intentionally emits nothing for channel-to-channel moves or mute/deafen-only updates to match the legacy handler. It does not enable `/set-log-channel` by itself, create indexes, or emit message/channel logs.
 
 Read-only `/扭蛋獎池查詢` is available only when both staging command sync and runtime flags are explicitly enabled:
 

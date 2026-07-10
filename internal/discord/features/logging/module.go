@@ -16,6 +16,7 @@ type Module struct {
 	usage                ports.UsageTracker
 	messageEventsEnabled bool
 	channelEventsEnabled bool
+	voiceEventsEnabled   bool
 }
 
 func NewModule(repo ports.LoggingConfigRepository, usage ports.UsageTracker) Module {

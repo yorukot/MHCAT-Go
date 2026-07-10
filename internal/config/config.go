@@ -46,6 +46,7 @@ const (
 	DefaultFeatureLoggingConfigEnabled          = false
 	DefaultFeatureLoggingMessageEventsEnabled   = false
 	DefaultFeatureLoggingChannelEventsEnabled   = false
+	DefaultFeatureLoggingVoiceEventsEnabled     = false
 	DefaultFeatureGachaPrizeListEnabled         = false
 	DefaultFeatureGachaDrawEnabled              = false
 	DefaultFeatureGachaPrizeCreateEnabled       = false
@@ -133,6 +134,7 @@ type Config struct {
 	FeatureLoggingConfigEnabled          bool
 	FeatureLoggingMessageEventsEnabled   bool
 	FeatureLoggingChannelEventsEnabled   bool
+	FeatureLoggingVoiceEventsEnabled     bool
 	FeatureGachaPrizeListEnabled         bool
 	FeatureGachaDrawEnabled              bool
 	FeatureGachaPrizeCreateEnabled       bool

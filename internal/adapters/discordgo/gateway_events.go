@@ -86,8 +86,8 @@ func (s *Session) RegisterGatewayEventHandlers(dispatcher *events.Dispatcher, op
 		)
 	}
 	if opts.VoiceStates {
-		removers = append(removers, s.session.AddHandler(func(_ *dgo.Session, event *dgo.VoiceStateUpdate) {
-			dispatcher.DispatchSafe(context.Background(), eventFromVoiceState(event.VoiceState, event.BeforeUpdate))
+		removers = append(removers, s.session.AddHandler(func(session *dgo.Session, event *dgo.VoiceStateUpdate) {
+			dispatcher.DispatchSafe(context.Background(), eventFromVoiceState(event.VoiceState, event.BeforeUpdate, session))
 		}))
 	}
 	return func() {
@@ -299,34 +299,64 @@ func botFromState(session *dgo.Session) *dgo.User {
 	return session.State.User
 }
 
-func eventFromVoiceState(voice *dgo.VoiceState, before *dgo.VoiceState) events.Event {
+func eventFromVoiceState(voice *dgo.VoiceState, before *dgo.VoiceState, session *dgo.Session) events.Event {
 	event := events.Event{Type: events.TypeVoiceState}
+	if bot := botFromState(session); bot != nil {
+		event.BotUserID = bot.ID
+		event.BotAvatarURL = bot.AvatarURL("")
+	}
+	var member *dgo.Member
 	if voice != nil {
 		event.GuildID = voice.GuildID
 		event.ChannelID = voice.ChannelID
 		event.UserID = voice.UserID
-		event.Member = memberFromDiscord(voice.Member)
-		if event.Member != nil {
-			event.IsBot = event.Member.IsBot
-			event.UserTag = event.Member.UserTag
-			event.AvatarURL = event.Member.AvatarURL
-			if event.UserID == "" {
-				event.UserID = event.Member.UserID
-			}
+		member = voice.Member
+	}
+	if before != nil {
+		if event.GuildID == "" {
+			event.GuildID = before.GuildID
 		}
-		event.VoiceState = &events.VoiceState{
-			UserID:    event.UserID,
-			GuildID:   voice.GuildID,
-			ChannelID: voice.ChannelID,
+		if event.UserID == "" {
+			event.UserID = before.UserID
+		}
+		if member == nil {
+			member = before.Member
 		}
 	}
-	if event.VoiceState == nil {
-		event.VoiceState = &events.VoiceState{}
+	event.Member = memberFromDiscord(member)
+	if event.Member != nil {
+		event.IsBot = event.Member.IsBot
+		event.Username = event.Member.Username
+		event.UserTag = event.Member.UserTag
+		event.AvatarURL = event.Member.AvatarURL
+		if event.UserID == "" {
+			event.UserID = event.Member.UserID
+		}
+	}
+	event.VoiceState = &events.VoiceState{
+		UserID:    event.UserID,
+		GuildID:   event.GuildID,
+		ChannelID: event.ChannelID,
+	}
+	if voice != nil {
+		event.VoiceState.ChannelName = channelNameFromState(session, voice.ChannelID)
 	}
 	if before != nil {
 		event.VoiceState.BeforeChannel = before.ChannelID
+		event.VoiceState.BeforeChannelName = channelNameFromState(session, before.ChannelID)
 	}
 	return event
+}
+
+func channelNameFromState(session *dgo.Session, channelID string) string {
+	if session == nil || session.State == nil || channelID == "" {
+		return ""
+	}
+	channel, err := session.State.Channel(channelID)
+	if err != nil || channel == nil {
+		return ""
+	}
+	return channel.Name
 }
 
 func memberFromDiscord(member *dgo.Member) *events.Member {

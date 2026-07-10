@@ -93,10 +93,12 @@ type PermissionOverwrite struct {
 }
 
 type VoiceState struct {
-	UserID        string
-	GuildID       string
-	ChannelID     string
-	BeforeChannel string
+	UserID            string
+	GuildID           string
+	ChannelID         string
+	ChannelName       string
+	BeforeChannel     string
+	BeforeChannelName string
 }
 
 type Handler func(ctx context.Context, event Event) error

@@ -35,6 +35,9 @@ func (m Module) RegisterEventRoutes(dispatcher *events.Dispatcher) {
 	if m.channelEventsEnabled {
 		dispatcher.Register(events.TypeChannelUpdate, m.ChannelUpdateHandler())
 	}
+	if m.voiceEventsEnabled {
+		dispatcher.Register(events.TypeVoiceState, m.VoiceStateHandler())
+	}
 }
 
 func (m Module) MessageUpdateHandler() events.Handler {

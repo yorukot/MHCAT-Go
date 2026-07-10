@@ -183,6 +183,14 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureLoggingVoiceEventsEnabled {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_LOGGING_VOICE_EVENTS_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordVoiceStateIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_LOGGING_VOICE_EVENTS_ENABLED requires MHCAT_DISCORD_VOICE_STATE_INTENT=true", ErrInvalidConfig)
+		}
+	}
 	if cfg.FeatureStatsRenameWorkerEnabled {
 		if !cfg.DiscordEnableGateway {
 			return fmt.Errorf("%w: MHCAT_FEATURE_STATS_RENAME_WORKER_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)

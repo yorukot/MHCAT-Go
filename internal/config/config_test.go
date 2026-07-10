@@ -198,6 +198,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureLoggingChannelEventsEnabled {
 		t.Fatal("logging channel events feature must be disabled by default")
 	}
+	if cfg.FeatureLoggingVoiceEventsEnabled {
+		t.Fatal("logging voice events feature must be disabled by default")
+	}
 	if cfg.FeatureGachaPrizeListEnabled {
 		t.Fatal("gacha prize-list feature must be disabled by default")
 	}
@@ -716,6 +719,36 @@ func TestFeatureLoggingChannelEventsRequiresGateway(t *testing.T) {
 	_, err = LoadWithLookup(mapLookup(env))
 	if err == nil || !errors.Is(err, ErrInvalidConfig) || !strings.Contains(err.Error(), "MHCAT_DISCORD_ENABLE_GATEWAY=true") {
 		t.Fatalf("expected gateway validation error, got %v", err)
+	}
+}
+
+func TestFeatureLoggingVoiceEventsRequiresGatewayAndVoiceStateIntent(t *testing.T) {
+	base := map[string]string{
+		"MHCAT_DISCORD_TOKEN":                        "token",
+		"MHCAT_MONGODB_URI":                          "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                     "mhcat",
+		"MHCAT_FEATURE_LOGGING_VOICE_EVENTS_ENABLED": "true",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":               "true",
+		"MHCAT_DISCORD_VOICE_STATE_INTENT":           "true",
+	}
+	cfg, err := LoadWithLookup(mapLookup(base))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureLoggingVoiceEventsEnabled {
+		t.Fatal("expected logging voice events feature to be enabled explicitly")
+	}
+
+	for key, want := range map[string]string{
+		"MHCAT_DISCORD_ENABLE_GATEWAY":     "MHCAT_DISCORD_ENABLE_GATEWAY=true",
+		"MHCAT_DISCORD_VOICE_STATE_INTENT": "MHCAT_DISCORD_VOICE_STATE_INTENT=true",
+	} {
+		env := copyMap(base)
+		env[key] = "false"
+		_, err := LoadWithLookup(mapLookup(env))
+		if err == nil || !errors.Is(err, ErrInvalidConfig) || !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected %s validation error, got %v", want, err)
+		}
 	}
 }
 
