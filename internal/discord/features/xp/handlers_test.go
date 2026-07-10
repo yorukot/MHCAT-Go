@@ -639,6 +639,42 @@ func TestResetHandlerDeletesIndividualProfiles(t *testing.T) {
 	}
 }
 
+func TestResetHandlerDefaultsMissingIndividualTargetToOwner(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 10}
+	repo.VoiceProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 20}
+	module := NewResetModule(
+		repo,
+		&fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "user-1"}},
+		fakediscord.NewSideEffects(),
+		nil,
+		nil,
+	)
+
+	for _, tc := range []struct {
+		name       string
+		subcommand string
+		remaining  func() bool
+	}{
+		{name: "text", subcommand: "重製個人聊天經驗", remaining: func() bool { _, ok := repo.TextProfiles["guild-1/user-1"]; return ok }},
+		{name: "voice", subcommand: "重製個人語音經驗", remaining: func() bool { _, ok := repo.VoiceProfiles["guild-1/user-1"]; return ok }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			interaction := fakediscord.SlashInteractionWithOptions(XPResetCommandName, tc.subcommand, nil)
+			responder := fakediscord.NewResponder()
+			if err := module.ResetHandler()(context.Background(), interaction, responder); err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+			if tc.remaining() {
+				t.Fatal("owner profile was not deleted")
+			}
+			if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Content, "<@user-1>") {
+				t.Fatalf("response = %#v", responder.Edits)
+			}
+		})
+	}
+}
+
 func TestResetHandlerReportsMissingIndividualProfile(t *testing.T) {
 	module := NewResetModule(
 		fakemongo.NewXPAdminRepository(),

@@ -44,7 +44,7 @@ func (m ResetModule) ResetHandler() interactions.Handler {
 
 		switch interaction.Subcommand {
 		case "重製個人聊天經驗":
-			userID := firstOption(interaction, "使用者")
+			userID := xpResetTargetUserID(interaction)
 			if err := m.service.ResetTextProfile(ctx, interaction.Actor.GuildID, userID); err != nil {
 				return responder.EditOriginal(ctx, xpResetProfileErrorMessage(err))
 			}
@@ -52,7 +52,7 @@ func (m ResetModule) ResetHandler() interactions.Handler {
 				return err
 			}
 		case "重製個人語音經驗":
-			userID := firstOption(interaction, "使用者")
+			userID := xpResetTargetUserID(interaction)
 			if err := m.service.ResetVoiceProfile(ctx, interaction.Actor.GuildID, userID); err != nil {
 				return responder.EditOriginal(ctx, xpResetProfileErrorMessage(err))
 			}
@@ -84,6 +84,13 @@ func (m ResetModule) ResetHandler() interactions.Handler {
 		}
 		return m.track(ctx, interaction)
 	}
+}
+
+func xpResetTargetUserID(interaction interactions.Interaction) string {
+	if userID := firstOption(interaction, "使用者"); userID != "" {
+		return userID
+	}
+	return strings.TrimSpace(interaction.Actor.UserID)
 }
 
 func (m ResetModule) ConfirmationHandler() events.Handler {
