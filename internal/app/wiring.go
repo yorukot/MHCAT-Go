@@ -874,7 +874,13 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		if err != nil {
 			return nil, err
 		}
-		featureonboarding.NewJoinRoleAssignmentModule(repo, sideEffects).RegisterEventRoutes(dispatcher)
+		featureonboarding.NewJoinRoleAssignmentModule(
+			repo,
+			sideEffects,
+			sideEffects,
+			discordInfoProvider(session),
+			sideEffects,
+		).RegisterEventRoutes(dispatcher)
 	}
 	if cfg.FeatureLeaveMessageDeliveryEnabled {
 		repo, err := leaveMessageConfigRepositoryFromMongo(mongoClient)

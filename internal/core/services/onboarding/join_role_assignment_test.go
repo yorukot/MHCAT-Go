@@ -3,9 +3,13 @@ package onboarding
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakebotinfo"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 )
 
 func TestJoinRoleAssignmentServiceAppliesLegacyAudienceRules(t *testing.T) {
@@ -49,6 +53,39 @@ func TestJoinRoleAssignmentServiceContinuesAfterRoleError(t *testing.T) {
 	}
 	if got := roles.roleIDs(); len(got) != 2 || got[0] != "bad" || got[1] != "good" {
 		t.Fatalf("roles = %#v", got)
+	}
+}
+
+func TestJoinRoleAssignmentServicePreservesLegacyRoleChecksAndOwnerWarning(t *testing.T) {
+	repo := fakeJoinRoleAssignmentRepo{configs: []domain.JoinRoleConfig{
+		{GuildID: "guild", RoleID: "missing", GiveTo: domain.JoinRoleGiveAllUsers},
+		{GuildID: "guild", RoleID: "too-high", GiveTo: domain.JoinRoleGiveAllUsers},
+		{GuildID: "guild", RoleID: "good", GiveTo: domain.JoinRoleGiveAllUsers},
+	}}
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.MissingRoles["guild/missing"] = true
+	sideEffects.AssignableRoles["guild/good"] = true
+	guilds := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "owner"}}
+	service := JoinRoleAssignmentService{
+		Repository:     repo,
+		Roles:          sideEffects,
+		RoleInspector:  sideEffects,
+		Guilds:         guilds,
+		DirectMessages: sideEffects,
+	}
+
+	if err := service.AssignOnJoin(context.Background(), "guild", "user", false); err != nil {
+		t.Fatalf("assign: %v", err)
+	}
+	if len(sideEffects.AddedRoles) != 1 || sideEffects.AddedRoles[0].RoleID != "good" {
+		t.Fatalf("added roles = %#v", sideEffects.AddedRoles)
+	}
+	if len(sideEffects.DirectMessages) != 1 || sideEffects.DirectMessages[0].UserID != "owner" {
+		t.Fatalf("direct messages = %#v", sideEffects.DirectMessages)
+	}
+	want := "很抱歉，我沒有權限給他加入的成員身分組\n麻煩請將我的身份組位階調高!\n身分組:<@too-high>"
+	if message := sideEffects.DirectMessages[0].Message; message.Content != want || !reflect.DeepEqual(message.AllowedMentions, ports.AllowedMentions{}) {
+		t.Fatalf("owner warning = %#v", message)
 	}
 }
 

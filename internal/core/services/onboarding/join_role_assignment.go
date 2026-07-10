@@ -10,8 +10,11 @@ import (
 )
 
 type JoinRoleAssignmentService struct {
-	Repository ports.JoinRoleConfigReader
-	Roles      ports.DiscordRolePort
+	Repository     ports.JoinRoleConfigReader
+	Roles          ports.DiscordRolePort
+	RoleInspector  ports.DiscordRoleInspector
+	Guilds         ports.DiscordInfoProvider
+	DirectMessages ports.DiscordDirectMessagePort
 }
 
 func (s JoinRoleAssignmentService) AssignOnJoin(ctx context.Context, guildID string, userID string, isBot bool) error {
@@ -44,6 +47,22 @@ func (s JoinRoleAssignmentService) AssignOnJoin(ctx context.Context, guildID str
 		if !joinRoleAppliesToMember(config.GiveTo, isBot) {
 			continue
 		}
+		if s.RoleInspector != nil {
+			assignable, err := s.RoleInspector.CanAssignRole(ctx, guildID, config.RoleID)
+			if errors.Is(err, ports.ErrDiscordRoleMissing) {
+				continue
+			}
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			if !assignable {
+				if err := s.notifyOwnerRoleHierarchy(ctx, guildID, config.RoleID); err != nil {
+					errs = append(errs, err)
+				}
+				continue
+			}
+		}
 		if err := s.Roles.AddRole(ctx, guildID, userID, config.RoleID); err != nil {
 			errs = append(errs, err)
 		}
@@ -60,4 +79,23 @@ func joinRoleAppliesToMember(giveTo string, isBot bool) bool {
 	default:
 		return true
 	}
+}
+
+func (s JoinRoleAssignmentService) notifyOwnerRoleHierarchy(ctx context.Context, guildID string, roleID string) error {
+	if s.Guilds == nil || s.DirectMessages == nil {
+		return ports.ErrDiscordRoleNotAssignable
+	}
+	guild, err := s.Guilds.GuildInfo(ctx, guildID)
+	if err != nil {
+		return err
+	}
+	ownerID := strings.TrimSpace(guild.OwnerID)
+	if ownerID == "" {
+		return ports.ErrDiscordRoleNotAssignable
+	}
+	_, err = s.DirectMessages.SendDirectMessage(ctx, ownerID, ports.OutboundMessage{
+		Content:         "很抱歉，我沒有權限給他加入的成員身分組\n麻煩請將我的身份組位階調高!\n身分組:<@" + strings.TrimSpace(roleID) + ">",
+		AllowedMentions: ports.AllowedMentions{},
+	})
+	return err
 }

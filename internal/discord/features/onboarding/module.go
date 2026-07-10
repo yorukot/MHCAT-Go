@@ -46,9 +46,15 @@ func NewMessageModule(repo ports.LeaveMessageConfigRepository, usage ports.Usage
 	}
 }
 
-func NewJoinRoleAssignmentModule(repo ports.JoinRoleConfigReader, roles ports.DiscordRolePort) Module {
+func NewJoinRoleAssignmentModule(repo ports.JoinRoleConfigReader, roles ports.DiscordRolePort, inspector ports.DiscordRoleInspector, guilds ports.DiscordInfoProvider, directMessages ports.DiscordDirectMessagePort) Module {
 	return Module{
-		assignmentService: coreservice.JoinRoleAssignmentService{Repository: repo, Roles: roles},
+		assignmentService: coreservice.JoinRoleAssignmentService{
+			Repository:     repo,
+			Roles:          roles,
+			RoleInspector:  inspector,
+			Guilds:         guilds,
+			DirectMessages: directMessages,
+		},
 		assignmentEnabled: repo != nil && roles != nil,
 	}
 }

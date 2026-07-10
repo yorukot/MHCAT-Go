@@ -16,7 +16,7 @@ func TestJoinRoleAssignmentHandlerAssignsMatchingRoles(t *testing.T) {
 	repo.Configs["guild-1/member"] = domain.JoinRoleConfig{GuildID: "guild-1", RoleID: "member", GiveTo: domain.JoinRoleGiveMembers}
 	repo.Configs["guild-1/bot"] = domain.JoinRoleConfig{GuildID: "guild-1", RoleID: "bot", GiveTo: domain.JoinRoleGiveBots}
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewJoinRoleAssignmentModule(repo, sideEffects)
+	module := NewJoinRoleAssignmentModule(repo, sideEffects, nil, nil, nil)
 
 	err := module.JoinRoleAssignmentHandler()(context.Background(), events.Event{
 		Type:    events.TypeMemberAdd,
@@ -36,7 +36,7 @@ func TestJoinRoleAssignmentHandlerIgnoresNonMemberAddAndIncompleteEvents(t *test
 	repo := fakemongo.NewJoinRoleConfigRepository()
 	repo.Configs["guild-1/all"] = domain.JoinRoleConfig{GuildID: "guild-1", RoleID: "all", GiveTo: domain.JoinRoleGiveAllUsers}
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewJoinRoleAssignmentModule(repo, sideEffects)
+	module := NewJoinRoleAssignmentModule(repo, sideEffects, nil, nil, nil)
 
 	for _, event := range []events.Event{
 		{Type: events.TypeMemberRemove, GuildID: "guild-1", UserID: "user-1"},
@@ -54,7 +54,7 @@ func TestJoinRoleAssignmentHandlerIgnoresNonMemberAddAndIncompleteEvents(t *test
 
 func TestJoinRoleAssignmentEventRouteRegistration(t *testing.T) {
 	dispatcher := events.NewDispatcher(nil)
-	NewJoinRoleAssignmentModule(fakemongo.NewJoinRoleConfigRepository(), fakediscord.NewSideEffects()).RegisterEventRoutes(dispatcher)
+	NewJoinRoleAssignmentModule(fakemongo.NewJoinRoleConfigRepository(), fakediscord.NewSideEffects(), nil, nil, nil).RegisterEventRoutes(dispatcher)
 	if !dispatcher.HasHandlers(events.TypeMemberAdd) {
 		t.Fatal("expected member-add handler")
 	}
