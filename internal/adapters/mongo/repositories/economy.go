@@ -808,7 +808,7 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 		return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
 	}
 	if item.AutoDelete {
-		if item.Count == command.Quantity {
+		if item.Count == 1 {
 			if _, err := r.shopItems.DeleteOne(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "commodity_id", Value: command.CommodityID}}); err != nil {
 				return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("delete purchased shop item: %w", err))
 			}

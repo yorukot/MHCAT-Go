@@ -372,6 +372,39 @@ func TestShopPurchaseFlowMutatesCoinsInventoryRoleAndCode(t *testing.T) {
 	}
 }
 
+func TestShopPurchaseAllMultiStockLeavesLegacyZeroCountItem(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "Bundle", NeedCoins: 20, Description: "reward", AutoDelete: true, Count: 2})
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 100})
+	module := NewShopModule(repo, nil, nil, nil, nil, nil, nil)
+	showShopDetail(t, &module, 1001, "message-1")
+
+	start := fakediscord.ComponentInteractionFromID("1001ghp")
+	start.MessageID = "message-1"
+	if err := module.ShopItemHandler()(context.Background(), start, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("start purchase: %v", err)
+	}
+	digit := fakediscord.ComponentInteractionFromID("2ghp_number")
+	digit.MessageID = "message-1"
+	if err := module.ShopQuantityHandler()(context.Background(), digit, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("digit: %v", err)
+	}
+	confirm := fakediscord.ComponentInteractionFromID("confirmghp_number1001")
+	confirm.MessageID = "message-1"
+	if err := module.ShopQuantityHandler()(context.Background(), confirm, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+
+	item, err := repo.GetShopItem(context.Background(), "guild-1", 1001)
+	if err != nil || item.Count != 0 {
+		t.Fatalf("sold-out item = %#v, err = %v", item, err)
+	}
+	balance, err := repo.GetCoinBalance(context.Background(), "guild-1", "user-1")
+	if err != nil || balance.Coins != 60 {
+		t.Fatalf("balance = %#v, err = %v", balance, err)
+	}
+}
+
 func TestShopPurchaseInsufficientCoinsUsesLegacyError(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 20, Description: "role reward", AutoDelete: true, Count: 1})

@@ -495,7 +495,7 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	}
 	purchased := item
 	if item.AutoDelete {
-		if item.Count == command.Quantity {
+		if item.Count == 1 {
 			delete(r.ShopItems, itemKey)
 			for index, candidate := range r.shopItemOrder {
 				if candidate == itemKey {
