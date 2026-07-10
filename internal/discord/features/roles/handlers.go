@@ -248,6 +248,8 @@ func roleSelectionErrorFromError(err error, fallback string) responses.Message {
 		return roleSelectionErrorMessage("你必須輸入正確的表情符號!(表情符號所在伺服器我必須在裡面!)")
 	case errors.Is(err, domain.ErrInvalidRoleSelectionConfig):
 		return roleSelectionErrorMessage("你輸入的不是一個訊息連結")
+	case errors.Is(err, ports.ErrChannelNotFound), errors.Is(err, ports.ErrDiscordMessageNotFound):
+		return roleSelectionErrorMessage("很抱歉，找不到這個訊息")
 	case errors.Is(err, ports.ErrDiscordRoleNotAssignable), errors.Is(err, ports.ErrDiscordRoleMissing):
 		return roleSelectionErrorMessage("我沒有權限給大家這個身分組(請把我的身分組調高)!")
 	case errors.Is(err, ports.ErrRoleReactionConfigMissing):

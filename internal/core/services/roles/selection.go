@@ -82,8 +82,8 @@ func (s SelectionService) ConfigureReaction(ctx context.Context, command Reactio
 	if err != nil {
 		return domain.RoleReactionConfig{}, err
 	}
-	if guildID != target.GuildID {
-		return domain.RoleReactionConfig{}, domain.ErrInvalidRoleSelectionConfig
+	if _, err := s.Reactions.FindCachedChannelByID(ctx, guildID, target.ChannelID); err != nil {
+		return domain.RoleReactionConfig{}, err
 	}
 	reaction, err := domain.NormalizeLegacyReaction(command.Emoji)
 	if err != nil {
@@ -99,6 +99,9 @@ func (s SelectionService) ConfigureReaction(ctx context.Context, command Reactio
 		}
 	} else if !domain.IsLegacyUnicodeEmoji(command.Emoji) {
 		return domain.RoleReactionConfig{}, domain.ErrInvalidRoleSelectionEmoji
+	}
+	if _, err := s.Reactions.FetchMessage(ctx, target.ChannelID, target.MessageID); err != nil {
+		return domain.RoleReactionConfig{}, err
 	}
 	if err := s.Reactions.AddReaction(ctx, target.ChannelID, target.MessageID, reaction.API); err != nil {
 		return domain.RoleReactionConfig{}, err
@@ -127,11 +130,17 @@ func (s SelectionService) DeleteReaction(ctx context.Context, command ReactionDe
 	if err != nil {
 		return err
 	}
-	if guildID == "" || guildID != target.GuildID {
+	if guildID == "" {
 		return domain.ErrInvalidRoleSelectionConfig
+	}
+	if _, err := s.Reactions.FindCachedChannelByID(ctx, guildID, target.ChannelID); err != nil {
+		return err
 	}
 	reaction, err := domain.NormalizeLegacyReaction(command.Emoji)
 	if err != nil {
+		return err
+	}
+	if _, err := s.Reactions.FetchMessage(ctx, target.ChannelID, target.MessageID); err != nil {
 		return err
 	}
 	if err := s.Reactions.AddReaction(ctx, target.ChannelID, target.MessageID, reaction.API); err != nil {

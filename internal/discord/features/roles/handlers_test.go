@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
@@ -19,6 +20,7 @@ func TestReactionSetHandlerStoresConfigAndAddsReaction(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	discord := fakediscord.NewSideEffects()
 	discord.AssignableRoles["guild-1/role-1"] = true
+	seedRoleReactionMessage(discord, "guild-1", "channel-1", "message-1")
 	usage := &fakeusage.Tracker{}
 	module := NewModule(repo, discord, discord, discord, discord, discord, usage)
 	interaction := fakediscord.SlashInteractionWithOptions(RoleReactionSetCommandName, "", map[string]string{
@@ -71,6 +73,7 @@ func TestReactionSetHandlerReportsLegacyInvalidEmoji(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	discord := fakediscord.NewSideEffects()
 	discord.AssignableRoles["guild-1/role-1"] = true
+	seedRoleReactionChannel(discord, "guild-1", "channel-1")
 	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
 	interaction := fakediscord.SlashInteractionWithOptions(RoleReactionSetCommandName, "", map[string]string{
 		"訊息url": "https://discord.com/channels/guild-1/channel-1/message-1",
@@ -96,6 +99,7 @@ func TestReactionDeleteHandlerDeletesConfig(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	repo.Reactions["guild-1/message-1/✅"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "✅", RoleID: "role-1"}
 	discord := fakediscord.NewSideEffects()
+	seedRoleReactionMessage(discord, "guild-1", "channel-1", "message-1")
 	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
 	interaction := fakediscord.SlashInteractionWithOptions(RoleReactionDeleteCommandName, "", map[string]string{
 		"訊息url": "https://discord.com/channels/guild-1/channel-1/message-1",
@@ -135,6 +139,45 @@ func TestReactionDeleteHandlerRejectsLegacyDiscordAppHost(t *testing.T) {
 	}
 	if len(discord.Reactions) != 0 {
 		t.Fatalf("reactions = %#v", discord.Reactions)
+	}
+}
+
+func TestReactionSetHandlerReportsMissingLegacyMessage(t *testing.T) {
+	tests := []struct {
+		name        string
+		seedChannel bool
+	}{
+		{name: "missing cached channel"},
+		{name: "missing fetched message", seedChannel: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewRoleSelectionRepository()
+			discord := fakediscord.NewSideEffects()
+			discord.AssignableRoles["guild-1/role-1"] = true
+			if test.seedChannel {
+				seedRoleReactionChannel(discord, "guild-1", "channel-1")
+			}
+			module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+			interaction := fakediscord.SlashInteractionWithOptions(RoleReactionSetCommandName, "", map[string]string{
+				"訊息url": "https://discord.com/channels/guild-1/channel-1/message-1",
+				"身分組":   "role-1",
+				"表情符號":  "✅",
+			})
+			interaction.Actor.PermissionBits = permissionManageMessages
+			responder := fakediscord.NewResponder()
+
+			if err := module.ReactionSetHandler()(context.Background(), interaction, responder); err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+			want := roleSelectionErrorPrefix + "很抱歉，找不到這個訊息"
+			if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != want {
+				t.Fatalf("edits = %#v", responder.Edits)
+			}
+			if len(discord.Reactions) != 0 || len(repo.Reactions) != 0 {
+				t.Fatalf("missing target side effects: reactions=%#v configs=%#v", discord.Reactions, repo.Reactions)
+			}
+		})
 	}
 }
 
@@ -329,4 +372,13 @@ func TestButtonApplyAlreadyAssignedUsesLegacyError(t *testing.T) {
 	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "你已經擁有身分組了") {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
+}
+
+func seedRoleReactionChannel(discord *fakediscord.SideEffects, guildID string, channelID string) {
+	discord.Channels = append(discord.Channels, ports.ChannelRef{GuildID: guildID, ChannelID: channelID})
+}
+
+func seedRoleReactionMessage(discord *fakediscord.SideEffects, guildID string, channelID string, messageID string) {
+	seedRoleReactionChannel(discord, guildID, channelID)
+	discord.Messages[channelID+"/"+messageID] = ports.MessageRef{ChannelID: channelID, MessageID: messageID}
 }

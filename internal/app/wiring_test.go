@@ -2043,6 +2043,8 @@ func TestBuildRuntimeRoutesRoleSelectionOnlyWithDependencies(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	sideEffects := fakediscord.NewSideEffects()
 	sideEffects.AssignableRoles["guild-1/role-1"] = true
+	sideEffects.Channels = append(sideEffects.Channels, ports.ChannelRef{GuildID: "guild-1", ChannelID: "channel-1"})
+	sideEffects.Messages["channel-1/message-1"] = ports.MessageRef{ChannelID: "channel-1", MessageID: "message-1"}
 	dispatcher, err = BuildRuntime(RuntimeOptions{
 		Config:                     validTestConfig(),
 		RoleSelectionRepository:    repo,

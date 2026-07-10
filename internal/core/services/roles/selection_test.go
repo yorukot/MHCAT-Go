@@ -16,6 +16,7 @@ func TestConfigureReactionSavesLegacyConfigAndAddsReaction(t *testing.T) {
 	discord := fakediscord.NewSideEffects()
 	discord.AssignableRoles["guild-1/role-1"] = true
 	discord.CachedEmojiIDs["123456789012345678"] = true
+	seedReactionMessage(discord, "guild-1", "channel-1", "message-1")
 	service := SelectionService{Repository: repo, RoleInspector: discord, Reactions: discord}
 
 	config, err := service.ConfigureReaction(context.Background(), ReactionSetCommand{
@@ -39,6 +40,7 @@ func TestDeleteReactionRemovesConfig(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	repo.Reactions["guild-1/message-1/✅"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "✅", RoleID: "role-1"}
 	discord := fakediscord.NewSideEffects()
+	seedReactionMessage(discord, "guild-1", "channel-1", "message-1")
 	service := SelectionService{Repository: repo, Reactions: discord}
 
 	err := service.DeleteReaction(context.Background(), ReactionDeleteCommand{
@@ -157,6 +159,7 @@ func TestConfigureReactionRejectsInvalidLegacyEmoji(t *testing.T) {
 			repo := fakemongo.NewRoleSelectionRepository()
 			discord := fakediscord.NewSideEffects()
 			discord.AssignableRoles["guild-1/role-1"] = true
+			seedReactionChannel(discord, "guild-1", "channel-1")
 			service := SelectionService{Repository: repo, RoleInspector: discord, Reactions: discord}
 
 			_, err := service.ConfigureReaction(context.Background(), ReactionSetCommand{
@@ -168,10 +171,72 @@ func TestConfigureReactionRejectsInvalidLegacyEmoji(t *testing.T) {
 			if !errors.Is(err, domain.ErrInvalidRoleSelectionEmoji) {
 				t.Fatalf("expected invalid emoji, got %v", err)
 			}
-			if len(discord.Reactions) != 0 || len(repo.Reactions) != 0 {
-				t.Fatalf("invalid emoji side effects: reactions=%#v configs=%#v", discord.Reactions, repo.Reactions)
+			if len(discord.MessageFetches) != 0 || len(discord.Reactions) != 0 || len(repo.Reactions) != 0 {
+				t.Fatalf("invalid emoji side effects: fetches=%#v reactions=%#v configs=%#v", discord.MessageFetches, discord.Reactions, repo.Reactions)
 			}
 		})
+	}
+}
+
+func TestConfigureReactionChecksCachedChannelBeforeEmoji(t *testing.T) {
+	repo := fakemongo.NewRoleSelectionRepository()
+	discord := fakediscord.NewSideEffects()
+	discord.AssignableRoles["guild-1/role-1"] = true
+	service := SelectionService{Repository: repo, RoleInspector: discord, Reactions: discord}
+
+	_, err := service.ConfigureReaction(context.Background(), ReactionSetCommand{
+		GuildID:    "guild-1",
+		MessageURL: "https://discord.com/channels/guild-1/missing-channel/message-1",
+		RoleID:     "role-1",
+		Emoji:      "not-an-emoji",
+	})
+	if !errors.Is(err, ports.ErrChannelNotFound) {
+		t.Fatalf("expected cached channel error before emoji validation, got %v", err)
+	}
+	if len(discord.MessageFetches) != 0 || len(discord.Reactions) != 0 {
+		t.Fatalf("missing channel side effects: fetches=%#v reactions=%#v", discord.MessageFetches, discord.Reactions)
+	}
+}
+
+func TestConfigureReactionChecksMessageAfterEmoji(t *testing.T) {
+	repo := fakemongo.NewRoleSelectionRepository()
+	discord := fakediscord.NewSideEffects()
+	discord.AssignableRoles["guild-1/role-1"] = true
+	seedReactionChannel(discord, "guild-1", "channel-1")
+	service := SelectionService{Repository: repo, RoleInspector: discord, Reactions: discord}
+
+	_, err := service.ConfigureReaction(context.Background(), ReactionSetCommand{
+		GuildID:    "guild-1",
+		MessageURL: "https://discord.com/channels/guild-1/channel-1/missing-message",
+		RoleID:     "role-1",
+		Emoji:      "✅",
+	})
+	if !errors.Is(err, ports.ErrDiscordMessageNotFound) {
+		t.Fatalf("expected missing message, got %v", err)
+	}
+	if len(discord.MessageFetches) != 1 || len(discord.Reactions) != 0 || len(repo.Reactions) != 0 {
+		t.Fatalf("missing message side effects: fetches=%#v reactions=%#v configs=%#v", discord.MessageFetches, discord.Reactions, repo.Reactions)
+	}
+}
+
+func TestConfigureReactionIgnoresURLGuildSegmentAfterCachedChannelLookup(t *testing.T) {
+	repo := fakemongo.NewRoleSelectionRepository()
+	discord := fakediscord.NewSideEffects()
+	discord.AssignableRoles["guild-1/role-1"] = true
+	seedReactionMessage(discord, "guild-1", "channel-1", "message-1")
+	service := SelectionService{Repository: repo, RoleInspector: discord, Reactions: discord}
+
+	config, err := service.ConfigureReaction(context.Background(), ReactionSetCommand{
+		GuildID:    "guild-1",
+		MessageURL: "https://discord.com/channels/another-guild/channel-1/message-1",
+		RoleID:     "role-1",
+		Emoji:      "✅",
+	})
+	if err != nil {
+		t.Fatalf("ConfigureReaction: %v", err)
+	}
+	if config.GuildID != "guild-1" || config.MessageID != "message-1" {
+		t.Fatalf("config = %#v", config)
 	}
 }
 
@@ -191,4 +256,33 @@ func TestDeleteReactionRejectsLegacyDiscordAppHost(t *testing.T) {
 	if len(discord.Reactions) != 0 {
 		t.Fatalf("reactions = %#v", discord.Reactions)
 	}
+}
+
+func TestDeleteReactionIgnoresURLGuildSegmentAfterCachedChannelLookup(t *testing.T) {
+	repo := fakemongo.NewRoleSelectionRepository()
+	repo.Reactions["guild-1/message-1/✅"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "✅", RoleID: "role-1"}
+	discord := fakediscord.NewSideEffects()
+	seedReactionMessage(discord, "guild-1", "channel-1", "message-1")
+	service := SelectionService{Repository: repo, Reactions: discord}
+
+	err := service.DeleteReaction(context.Background(), ReactionDeleteCommand{
+		GuildID:    "guild-1",
+		MessageURL: "https://discord.com/channels/another-guild/channel-1/message-1",
+		Emoji:      "✅",
+	})
+	if err != nil {
+		t.Fatalf("DeleteReaction: %v", err)
+	}
+	if _, ok := repo.Reactions["guild-1/message-1/✅"]; ok {
+		t.Fatal("reaction config should be deleted")
+	}
+}
+
+func seedReactionChannel(discord *fakediscord.SideEffects, guildID string, channelID string) {
+	discord.Channels = append(discord.Channels, ports.ChannelRef{GuildID: guildID, ChannelID: channelID})
+}
+
+func seedReactionMessage(discord *fakediscord.SideEffects, guildID string, channelID string, messageID string) {
+	seedReactionChannel(discord, guildID, channelID)
+	discord.Messages[channelID+"/"+messageID] = ports.MessageRef{ChannelID: channelID, MessageID: messageID}
 }

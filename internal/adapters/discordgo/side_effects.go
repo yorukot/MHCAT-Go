@@ -96,6 +96,24 @@ func (c SideEffectClient) AddReaction(ctx context.Context, channelID string, mes
 	return ctx.Err()
 }
 
+func (c SideEffectClient) FetchMessage(ctx context.Context, channelID string, messageID string) (ports.MessageRef, error) {
+	session, err := c.session()
+	if err != nil {
+		return ports.MessageRef{}, err
+	}
+	message, err := session.ChannelMessage(channelID, messageID, dgo.WithContext(ctx))
+	if err != nil {
+		if isDiscordNotFound(err) {
+			return ports.MessageRef{}, ports.ErrDiscordMessageNotFound
+		}
+		return ports.MessageRef{}, fmt.Errorf("fetch discord message: %w", err)
+	}
+	if message == nil || strings.TrimSpace(message.ID) != strings.TrimSpace(messageID) {
+		return ports.MessageRef{}, ports.ErrDiscordMessageNotFound
+	}
+	return ports.MessageRef{ChannelID: strings.TrimSpace(channelID), MessageID: message.ID}, ctx.Err()
+}
+
 func (c SideEffectClient) CachedEmojiExists(ctx context.Context, emojiID string) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err

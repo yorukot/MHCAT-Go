@@ -24,6 +24,7 @@ type SideEffects struct {
 	AuditEntries      []ports.AuditLogEntry
 	CleanupRequests   []ports.MessageCleanupRequest
 	Reactions         []ReactionAdd
+	MessageFetches    []ports.MessageRef
 	AddedRoles        []RoleChange
 	RemovedRoles      []RoleChange
 	MovedMembers      []MemberMove
@@ -42,6 +43,7 @@ type SideEffects struct {
 	AssignableRoles   map[string]bool
 	MissingRoles      map[string]bool
 	CachedEmojiIDs    map[string]bool
+	Messages          map[string]ports.MessageRef
 	ModerationAllowed map[string]bool
 	Err               error
 	KickErr           error
@@ -115,7 +117,7 @@ type BanAction struct {
 }
 
 func NewSideEffects() *SideEffects {
-	return &SideEffects{RoleNames: map[string]string{}, RoleMemberCounts: map[string]int{}, VoiceMembers: map[string]int{}, MemberTagValues: map[string]string{}, AssignableRoles: map[string]bool{}, MissingRoles: map[string]bool{}, CachedEmojiIDs: map[string]bool{}, ModerationAllowed: map[string]bool{}, nextChannel: 1, nextMessage: 1}
+	return &SideEffects{RoleNames: map[string]string{}, RoleMemberCounts: map[string]int{}, VoiceMembers: map[string]int{}, MemberTagValues: map[string]string{}, AssignableRoles: map[string]bool{}, MissingRoles: map[string]bool{}, CachedEmojiIDs: map[string]bool{}, Messages: map[string]ports.MessageRef{}, ModerationAllowed: map[string]bool{}, nextChannel: 1, nextMessage: 1}
 }
 
 func (s *SideEffects) FindChannelByID(ctx context.Context, guildID string, channelID string) (ports.ChannelRef, error) {
@@ -387,6 +389,21 @@ func (s *SideEffects) AddReaction(ctx context.Context, channelID string, message
 	defer s.mu.Unlock()
 	s.Reactions = append(s.Reactions, ReactionAdd{ChannelID: channelID, MessageID: messageID, Emoji: emoji})
 	return nil
+}
+
+func (s *SideEffects) FetchMessage(ctx context.Context, channelID string, messageID string) (ports.MessageRef, error) {
+	if err := s.ready(ctx); err != nil {
+		return ports.MessageRef{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	requested := ports.MessageRef{ChannelID: channelID, MessageID: messageID}
+	s.MessageFetches = append(s.MessageFetches, requested)
+	message, ok := s.Messages[channelID+"/"+messageID]
+	if !ok {
+		return ports.MessageRef{}, ports.ErrDiscordMessageNotFound
+	}
+	return message, nil
 }
 
 func (s *SideEffects) CachedEmojiExists(ctx context.Context, emojiID string) (bool, error) {

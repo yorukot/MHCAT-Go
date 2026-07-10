@@ -3,6 +3,8 @@ package discordgo
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -43,6 +45,42 @@ func TestCachedEmojiExistsUsesGlobalDiscordState(t *testing.T) {
 	exists, err = client.CachedEmojiExists(context.Background(), "missing")
 	if err != nil || exists {
 		t.Fatalf("missing emoji: exists=%t err=%v", exists, err)
+	}
+}
+
+func TestFetchMessageUsesDiscordRESTAndMapsNotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.URL.Path {
+		case "/channels/channel-1/messages/message-1":
+			_, _ = writer.Write([]byte(`{"id":"message-1","channel_id":"channel-1"}`))
+		case "/channels/channel-1/messages/missing":
+			writer.WriteHeader(http.StatusNotFound)
+			_, _ = writer.Write([]byte(`{"message":"Unknown Message","code":10008}`))
+		default:
+			writer.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	previousChannels := dgo.EndpointChannels
+	dgo.EndpointChannels = server.URL + "/channels/"
+	defer func() { dgo.EndpointChannels = previousChannels }()
+	session, err := dgo.New("Bot test-token")
+	if err != nil {
+		t.Fatalf("new discord session: %v", err)
+	}
+	client := SideEffectClient{Session: &Session{session: session}}
+
+	message, err := client.FetchMessage(context.Background(), "channel-1", "message-1")
+	if err != nil {
+		t.Fatalf("fetch message: %v", err)
+	}
+	if message.ChannelID != "channel-1" || message.MessageID != "message-1" {
+		t.Fatalf("message = %#v", message)
+	}
+	_, err = client.FetchMessage(context.Background(), "channel-1", "missing")
+	if !errors.Is(err, ports.ErrDiscordMessageNotFound) {
+		t.Fatalf("missing message error = %v", err)
 	}
 }
 

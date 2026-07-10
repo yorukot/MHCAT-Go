@@ -7,6 +7,7 @@ import (
 )
 
 var ErrChannelNotFound = errors.New("channel not found")
+var ErrDiscordMessageNotFound = errors.New("discord message not found")
 
 type OutboundMessage struct {
 	Content          string
@@ -139,6 +140,8 @@ type DiscordTypingPort interface {
 type DiscordReactionPort interface {
 	AddReaction(ctx context.Context, channelID string, messageID string, emoji string) error
 	CachedEmojiExists(ctx context.Context, emojiID string) (bool, error)
+	FindCachedChannelByID(ctx context.Context, guildID string, channelID string) (ChannelRef, error)
+	FetchMessage(ctx context.Context, channelID string, messageID string) (MessageRef, error)
 }
 
 type DiscordMessageCleaner interface {
