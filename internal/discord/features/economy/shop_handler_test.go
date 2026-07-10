@@ -203,6 +203,33 @@ func TestShopDetailAndQuantityUseLegacyRandomColors(t *testing.T) {
 	}
 }
 
+func TestShopBackspaceRendersLegacyEmptySelection(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 50, Description: "reward", Count: 2})
+	module := NewShopModule(repo, nil, nil, nil, nil, nil, nil)
+	showShopDetail(t, &module, 1001, "message-1")
+
+	start := fakediscord.ComponentInteractionFromID("1001ghp")
+	start.MessageID = "message-1"
+	if err := module.ShopItemHandler()(context.Background(), start, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("start purchase: %v", err)
+	}
+	digit := fakediscord.ComponentInteractionFromID("1ghp_number")
+	digit.MessageID = "message-1"
+	if err := module.ShopQuantityHandler()(context.Background(), digit, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("digit: %v", err)
+	}
+	back := fakediscord.ComponentInteractionFromID("backghp_number")
+	back.MessageID = "message-1"
+	responder := fakediscord.NewResponder()
+	if err := module.ShopQuantityHandler()(context.Background(), back, responder); err != nil {
+		t.Fatalf("backspace: %v", err)
+	}
+	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Embeds[0].Description, "目前選擇數量:``") {
+		t.Fatalf("backspace response = %#v", responder.Updates)
+	}
+}
+
 func TestShopComponentsRejectDifferentRequester(t *testing.T) {
 	module := NewShopModule(fakemongo.NewEconomyRepository(), nil, nil, nil, nil, nil, nil)
 	tests := []struct {

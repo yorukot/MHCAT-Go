@@ -190,7 +190,7 @@ func (m Module) ShopItemHandler() interactions.Handler {
 			}
 			session.Quantity = ""
 			m.shopSessions.Put(session)
-			return responder.UpdateMessage(ctx, shopQuantityMessage(item, "", m.color()))
+			return responder.UpdateMessage(ctx, shopQuantityMessage(item, "", false, m.color()))
 		}
 		now := m.shopNow()
 		if !m.shopSessions.ClaimBrowse(interaction.Actor.GuildID, interaction.Actor.UserID, interaction.OriginalInteractionID, now) {
@@ -242,7 +242,7 @@ func (m Module) ShopQuantityHandler() interactions.Handler {
 				session.Quantity = session.Quantity[:len(session.Quantity)-1]
 			}
 			m.shopSessions.Update(session)
-			return responder.UpdateMessage(ctx, shopQuantityMessage(item, session.Quantity, m.color()))
+			return responder.UpdateMessage(ctx, shopQuantityMessage(item, session.Quantity, true, m.color()))
 		case strings.HasSuffix(raw, "ghp_number") && len(raw) > len("ghp_number"):
 			digit := strings.TrimSuffix(raw, "ghp_number")
 			if len(digit) != 1 || digit[0] < '0' || digit[0] > '9' {
@@ -258,7 +258,7 @@ func (m Module) ShopQuantityHandler() interactions.Handler {
 			}
 			session.Quantity = next
 			m.shopSessions.Update(session)
-			return responder.UpdateMessage(ctx, shopQuantityMessage(item, session.Quantity, m.color()))
+			return responder.UpdateMessage(ctx, shopQuantityMessage(item, session.Quantity, true, m.color()))
 		default:
 			return responder.UpdateMessage(ctx, shopUpdateErrorMessage(shopGenericErrorContent, shopPurchaseDocsPath))
 		}
@@ -443,9 +443,9 @@ func shopDetailMessage(item domain.ShopItem, color int) responses.Message {
 	}
 }
 
-func shopQuantityMessage(item domain.ShopItem, quantity string, color int) responses.Message {
+func shopQuantityMessage(item domain.ShopItem, quantity string, selectionStarted bool, color int) responses.Message {
 	description := shopItemDetailDescription(item) + "目前選擇數量:"
-	if quantity != "" {
+	if selectionStarted {
 		description += fmt.Sprintf("`%s`", quantity)
 	}
 	return responses.Message{
