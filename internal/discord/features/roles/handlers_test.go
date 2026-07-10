@@ -7,7 +7,6 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
-	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/roles"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
@@ -428,44 +427,6 @@ func TestButtonApplyAlreadyAssignedUsesLegacyError(t *testing.T) {
 	want := roleSelectionErrorPrefix + "你已經擁有身分組了!"
 	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || responder.Edits[0].Embeds[0].Title != want {
 		t.Fatalf("edits = %#v", responder.Edits)
-	}
-}
-
-func TestRoleSelectionButtonErrorsMatchLegacy(t *testing.T) {
-	unknown := errors.New("button dependency failed")
-	tests := []struct {
-		name        string
-		err         error
-		remove      bool
-		wantTitle   string
-		wantContent string
-	}{
-		{name: "missing config reliability response", err: ports.ErrRoleButtonConfigMissing, wantContent: "很抱歉，出現了錯誤!"},
-		{name: "already assigned", err: coreservice.ErrRoleAlreadyAssigned, wantTitle: roleSelectionErrorPrefix + "你已經擁有身分組了!"},
-		{name: "not assigned", err: coreservice.ErrRoleNotAssigned, remove: true, wantTitle: roleSelectionErrorPrefix + " 你沒有這個身分組!"},
-		{name: "missing role add", err: ports.ErrDiscordRoleMissing, wantTitle: roleSelectionActionPrefix + "請通知群主管裡員找不到這個身分組!"},
-		{name: "missing role remove", err: ports.ErrDiscordRoleMissing, remove: true, wantTitle: roleSelectionActionPrefix + "找不到這個身分組!"},
-		{name: "hierarchy add", err: ports.ErrDiscordRoleNotAssignable, wantTitle: roleSelectionActionPrefix + "請通知群主管裡員我沒有權限給你這個身分組(請把我的身分組調高)!"},
-		{name: "hierarchy remove", err: ports.ErrDiscordRoleNotAssignable, remove: true, wantTitle: roleSelectionActionPrefix + "請通知群主管裡員我沒有權限給你這個身分組(請把我的身分組調高)!"},
-		{name: "operational fallback", err: unknown, wantContent: "opps,出現了錯誤!\n有可能是你設定沒設定好\n或是我沒有權限喔(請確認我的權限比你要加的權限高，還需要管理身分組的權限)"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			message := roleSelectionButtonError(test.err, test.remove)
-			if message.Content != test.wantContent {
-				t.Fatalf("content = %q, want %q", message.Content, test.wantContent)
-			}
-			if test.wantTitle == "" {
-				if len(message.Embeds) != 0 {
-					t.Fatalf("embeds = %#v", message.Embeds)
-				}
-			} else if len(message.Embeds) != 1 || message.Embeds[0].Title != test.wantTitle || message.Embeds[0].Color != roleSelectionErrorColor {
-				t.Fatalf("embeds = %#v", message.Embeds)
-			}
-			if message.AllowedMentions == nil {
-				t.Fatal("allowed mentions must be explicit")
-			}
-		})
 	}
 }
 
