@@ -229,20 +229,27 @@ func (c SideEffectClient) GuildStats(ctx context.Context, guildID string) (domai
 	if err != nil {
 		return domain.StatsSnapshot{}, fmt.Errorf("list discord guild channels for stats: %w", err)
 	}
-	nonBotMembers, err := c.CountNonBotMembers(ctx, guildID)
-	if err != nil {
-		return domain.StatsSnapshot{}, err
-	}
-	snapshot := domain.StatsSnapshot{UserCount: nonBotMembers}
-	if guild != nil {
-		snapshot.MemberCount = guild.MemberCount
-	}
-	snapshot.BotCount = snapshot.MemberCount - snapshot.UserCount
-	if snapshot.BotCount < 0 {
-		snapshot.BotCount = 0
+	memberCount, userCount, botCount := legacyStatsMemberCounts(guild)
+	snapshot := domain.StatsSnapshot{
+		MemberCount: memberCount,
+		UserCount:   userCount,
+		BotCount:    botCount,
 	}
 	snapshot.ChannelCount, snapshot.TextChannelCount, snapshot.VoiceChannelCount = legacyStatsChannelCounts(channels)
 	return snapshot, ctx.Err()
+}
+
+func legacyStatsMemberCounts(guild *dgo.Guild) (int, int, int) {
+	if guild == nil {
+		return 0, 0, 0
+	}
+	botCount := 0
+	for _, member := range guild.Members {
+		if member != nil && member.User != nil && member.User.Bot {
+			botCount++
+		}
+	}
+	return guild.MemberCount, guild.MemberCount - botCount, botCount
 }
 
 func legacyStatsChannelCounts(channels []*dgo.Channel) (int, int, int) {

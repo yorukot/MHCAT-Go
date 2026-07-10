@@ -61,6 +61,22 @@ func TestLegacyStatsChannelCountsPreserveV14StringComparisons(t *testing.T) {
 	}
 }
 
+func TestLegacyStatsMemberCountsUseCachedBots(t *testing.T) {
+	memberCount, userCount, botCount := legacyStatsMemberCounts(&dgo.Guild{
+		MemberCount: 10,
+		Members: []*dgo.Member{
+			{User: &dgo.User{ID: "user-1"}},
+			{User: &dgo.User{ID: "bot-1", Bot: true}},
+			{User: &dgo.User{ID: "bot-2", Bot: true}},
+			nil,
+			{},
+		},
+	})
+	if memberCount != 10 || userCount != 8 || botCount != 2 {
+		t.Fatalf("counts = (%d, %d, %d)", memberCount, userCount, botCount)
+	}
+}
+
 func TestAuditLogEntriesFromDiscordIncludesActorIdentity(t *testing.T) {
 	action := dgo.AuditLogActionChannelUpdate
 	entries := auditLogEntriesFromDiscord(&dgo.GuildAuditLog{
