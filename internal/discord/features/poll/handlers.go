@@ -24,8 +24,8 @@ var (
 const (
 	permissionManageMessages = 8192
 	pollColor                = 0x5865F2
-	pollSuccessColor         = 0x00DB00
-	pollErrorColor           = 0xFF0000
+	pollSuccessColor         = 0x57F287
+	pollErrorColor           = 0xED4245
 )
 
 func (m Module) CreateHandler() interactions.Handler {

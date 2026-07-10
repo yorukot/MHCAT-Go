@@ -78,6 +78,9 @@ func TestCreateHandlerSendsLegacyPollUIAndSavesDocument(t *testing.T) {
 	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "成功創建投票") {
 		t.Fatalf("success edit = %#v", responder.Edits)
 	}
+	if got := responder.Edits[0].Embeds[0].Color; got != 0x57F287 {
+		t.Fatalf("success color = %#x", got)
+	}
 }
 
 func TestCreateHandlerPreservesQuestionWhitespace(t *testing.T) {
@@ -122,6 +125,9 @@ func TestCreateHandlerRequiresManageMessages(t *testing.T) {
 	}
 	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") {
 		t.Fatalf("permission edits = %#v", responder.Edits)
+	}
+	if got := responder.Edits[0].Embeds[0].Color; got != 0xED4245 {
+		t.Fatalf("error color = %#x", got)
 	}
 }
 
