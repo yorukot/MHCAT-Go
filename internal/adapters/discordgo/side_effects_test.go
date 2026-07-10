@@ -77,6 +77,37 @@ func TestLegacyStatsMemberCountsUseCachedBots(t *testing.T) {
 	}
 }
 
+func TestGuildStatsUsesLegacyGuildCaches(t *testing.T) {
+	state := dgo.NewState()
+	if err := state.GuildAdd(&dgo.Guild{
+		ID:          "guild-1",
+		MemberCount: 10,
+		Members: []*dgo.Member{
+			{User: &dgo.User{ID: "user-1"}},
+			{User: &dgo.User{ID: "bot-1", Bot: true}},
+		},
+		Channels: []*dgo.Channel{
+			{ID: "text-1", GuildID: "guild-1", Type: dgo.ChannelTypeGuildText},
+			{ID: "voice-1", GuildID: "guild-1", Type: dgo.ChannelTypeGuildVoice},
+			{ID: "category-1", GuildID: "guild-1", Type: dgo.ChannelTypeGuildCategory},
+		},
+	}); err != nil {
+		t.Fatalf("seed guild state: %v", err)
+	}
+	client := SideEffectClient{Session: &Session{session: &dgo.Session{State: state}}}
+
+	snapshot, err := client.GuildStats(context.Background(), "guild-1")
+	if err != nil {
+		t.Fatalf("guild stats: %v", err)
+	}
+	if snapshot.MemberCount != 10 || snapshot.UserCount != 9 || snapshot.BotCount != 1 {
+		t.Fatalf("member counts = %#v", snapshot)
+	}
+	if snapshot.ChannelCount != 3 || snapshot.TextChannelCount != 0 || snapshot.VoiceChannelCount != 0 {
+		t.Fatalf("channel counts = %#v", snapshot)
+	}
+}
+
 func TestAuditLogEntriesFromDiscordIncludesActorIdentity(t *testing.T) {
 	action := dgo.AuditLogActionChannelUpdate
 	entries := auditLogEntriesFromDiscord(&dgo.GuildAuditLog{
