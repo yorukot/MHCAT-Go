@@ -143,6 +143,38 @@ func TestLegacyLotteryParticipantTimeMatchesNode20(t *testing.T) {
 	}
 }
 
+func TestLotterySearchPreservesLegacyParticipantDisplayBoundaries(t *testing.T) {
+	module := Module{color: func() int { return 0x123456 }}
+	for _, count := range []int{0, 99, 100} {
+		t.Run(strconv.Itoa(count), func(t *testing.T) {
+			participants := make([]domain.LotteryParticipant, count)
+			for index := range participants {
+				participants[index] = domain.LotteryParticipant{UserID: "user-" + strconv.Itoa(index), JoinedAtRaw: "legacy time"}
+			}
+			message := module.lotterySearchMessage(context.Background(), domain.Lottery{GuildID: "guild-1", ID: lotteryTestID, Participants: participants}, "", false)
+			description := message.Embeds[0].Description
+			warning := "**由於人數過多，無法顯示所有成員名稱!\n請使用`.txt`檔案觀看**"
+			switch count {
+			case 0:
+				if !strings.HasSuffix(description, "\n\n┃ ┃") || len(message.Files[0].Data) != 0 {
+					t.Fatalf("message = %#v", message)
+				}
+			case 99:
+				if strings.Contains(description, warning) || !strings.Contains(description, "使用者已消失!") {
+					t.Fatalf("description = %q", description)
+				}
+			case 100:
+				if !strings.Contains(description, warning) || strings.Contains(description, "使用者已消失!") {
+					t.Fatalf("description = %q", description)
+				}
+			}
+			if count > 0 && strings.Count(string(message.Files[0].Data), "\n")+1 != count {
+				t.Fatalf("file row count for %d participants = %d", count, strings.Count(string(message.Files[0].Data), "\n")+1)
+			}
+		})
+	}
+}
+
 func TestLotteryRerollSendsOneLegacyWinnerMessageAndEndsLottery(t *testing.T) {
 	repo := fakemongo.NewLotteryRepository()
 	repo.Lotteries["guild-1:"+lotteryTestID] = domain.Lottery{
