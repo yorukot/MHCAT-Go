@@ -53,3 +53,34 @@ func TestGoodWebConfigReadDocumentUsesMongooseBooleanCoercion(t *testing.T) {
 		}
 	}
 }
+
+func TestScamURLReadDocumentUsesMongooseStringCoercion(t *testing.T) {
+	objectID := bson.NewObjectID()
+	for _, test := range []struct {
+		value any
+		want  string
+		ok    bool
+	}{
+		{value: "https://bad.example", want: "https://bad.example", ok: true},
+		{value: true, want: "true", ok: true},
+		{value: int32(12), want: "12", ok: true},
+		{value: 1.5, want: "1.5", ok: true},
+		{value: objectID, want: objectID.Hex(), ok: true},
+		{value: nil},
+		{value: bson.D{{Key: "nested", Value: "value"}}},
+		{value: bson.A{"value"}},
+	} {
+		raw, err := bson.Marshal(bson.D{{Key: "web", Value: test.value}})
+		if err != nil {
+			t.Fatalf("marshal %#v: %v", test.value, err)
+		}
+		var document ScamURLReadDocument
+		if err := bson.Unmarshal(raw, &document); err != nil {
+			t.Fatalf("decode %#v: %v", test.value, err)
+		}
+		got, ok := document.ToWeb()
+		if got != test.want || ok != test.ok {
+			t.Fatalf("value %#v decoded as %q,%v, want %q,%v", test.value, got, ok, test.want, test.ok)
+		}
+	}
+}

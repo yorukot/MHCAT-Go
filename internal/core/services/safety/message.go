@@ -34,8 +34,7 @@ func (s MessageService) Scan(ctx context.Context, guildID string, content string
 	if guildID == "" {
 		return MessageScanResult{}, domain.ErrInvalidAntiScamConfig
 	}
-	content = strings.TrimSpace(content)
-	if content == "" {
+	if strings.TrimSpace(content) == "" {
 		return MessageScanResult{}, ctx.Err()
 	}
 	config, err := s.configs.FindAntiScamConfig(ctx, guildID)

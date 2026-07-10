@@ -58,6 +58,25 @@ func TestMessageServiceIgnoresClosedMissingAndCleanMessages(t *testing.T) {
 	}
 }
 
+func TestMessageServicePreservesRawCatalogAndMessageWhitespace(t *testing.T) {
+	configs := fakemongo.NewAntiScamConfigRepository()
+	configs.Configs["guild-1"] = domain.AntiScamConfig{GuildID: "guild-1", Open: true}
+	catalog := fakemongo.NewScamURLCatalogRepository()
+	catalog.Known = []string{" https://bad.example "}
+	service := NewMessageService(configs, catalog)
+
+	result, err := service.Scan(context.Background(), "guild-1", "visit https://bad.example!")
+	if err != nil {
+		t.Fatalf("scan message: %v", err)
+	}
+	if result.Delete {
+		t.Fatalf("stored whitespace was normalized: %#v", result)
+	}
+	if len(catalog.Checked) != 1 || catalog.Checked[0] != "visit https://bad.example!" {
+		t.Fatalf("checked content = %#v", catalog.Checked)
+	}
+}
+
 func TestMessageServiceRejectsMissingPortsAndGuild(t *testing.T) {
 	_, err := (MessageService{}).Scan(context.Background(), "guild-1", "https://bad.example")
 	if !errors.Is(err, domain.ErrInvalidAntiScamConfig) {

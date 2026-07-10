@@ -87,7 +87,6 @@ func (r *ScamURLCatalogRepository) ContainsScamURL(ctx context.Context, rawURL s
 	if r.Err != nil {
 		return false, r.Err
 	}
-	rawURL = strings.TrimSpace(rawURL)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.Checked = append(r.Checked, rawURL)
@@ -106,12 +105,10 @@ func (r *ScamURLCatalogRepository) FindScamURLInContent(ctx context.Context, con
 	if r.Err != nil {
 		return "", false, r.Err
 	}
-	content = strings.TrimSpace(content)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.Checked = append(r.Checked, content)
 	for _, known := range r.Known {
-		known = strings.TrimSpace(known)
 		if known != "" && strings.Contains(content, known) {
 			return known, true, nil
 		}

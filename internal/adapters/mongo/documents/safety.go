@@ -15,8 +15,8 @@ type GoodWebConfigReadDocument struct {
 	Open  bson.RawValue `bson:"open" json:"open"`
 }
 
-type ScamURLDocument struct {
-	Web string `bson:"web" json:"web"`
+type ScamURLReadDocument struct {
+	Web bson.RawValue `bson:"web" json:"web"`
 }
 
 func GoodWebConfigDocumentFromDomain(config domain.AntiScamConfig) GoodWebConfigDocument {
@@ -38,4 +38,8 @@ func (d GoodWebConfigReadDocument) ToDomain() domain.AntiScamConfig {
 		GuildID: d.Guild,
 		Open:    legacyMongooseBoolean(d.Open),
 	}
+}
+
+func (d ScamURLReadDocument) ToWeb() (string, bool) {
+	return legacyMongooseString(d.Web)
 }
