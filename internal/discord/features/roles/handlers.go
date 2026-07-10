@@ -171,11 +171,10 @@ func roleSelectionModal(baseID string) responses.Modal {
 		Title:    "領取身分系統!",
 		Rows: []responses.ModalRow{{
 			Inputs: []responses.TextInput{{
-				CustomID: roleSelectionFieldPrefix + baseID,
-				Label:    "請輸入身分訊息內文",
-				Style:    responses.TextInputStyleParagraph,
-				Required: true,
-			}},
+					CustomID: roleSelectionFieldPrefix + baseID,
+					Label:    "請輸入身分訊息內文",
+					Style:    responses.TextInputStyleParagraph,
+				}},
 		}},
 	}
 }

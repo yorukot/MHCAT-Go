@@ -9,6 +9,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
@@ -83,8 +84,9 @@ func TestButtonSetupShowsLegacyModalAndStoresButtonConfigs(t *testing.T) {
 	if len(responder.Modals) != 1 || responder.Modals[0].CustomID != "nal" || responder.Modals[0].Title != "領取身分系統!" {
 		t.Fatalf("modals = %#v", responder.Modals)
 	}
-	if got := responder.Modals[0].Rows[0].Inputs[0].CustomID; got != "roleaddcontent2026070901011234" {
-		t.Fatalf("input custom id = %q", got)
+	input := responder.Modals[0].Rows[0].Inputs[0]
+	if input.CustomID != "roleaddcontent2026070901011234" || input.Label != "請輸入身分訊息內文" || input.Style != responses.TextInputStyleParagraph || input.Required {
+		t.Fatalf("modal input = %#v", input)
 	}
 	if _, ok := repo.Buttons["guild-1/2026070901011234add"]; !ok {
 		t.Fatalf("add button config missing: %#v", repo.Buttons)
