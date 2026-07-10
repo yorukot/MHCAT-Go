@@ -554,7 +554,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW=true
 MHCAT_FEATURE_GACHA_DRAW_ENABLED=true
 ```
 
-This command reads `coins`, `gifts`, and `gift_changes`, updates matching `coins` rows for the member, decrements or deletes drawn auto-delete `gifts` rows by `{guild,gift_name}`, and may send prize-code DMs plus notification-channel winner messages. It preserves the legacy draw-count choices, loading GIF, final result embed, and error follow-ups. It intentionally applies one inventory decrement/delete per drawn prize instead of the legacy duplicate async decrement loops. Use only against isolated staging balances and disposable prize rows until duplicate audits, transaction policy, and DM failure policy are reviewed.
+This command reads `coins`, `gifts`, and `gift_changes`, updates matching `coins` rows for the member, decrements or deletes drawn auto-delete `gifts` rows by `{guild,gift_name}`, and may send prize-code DMs plus one notification-channel winner message per non-air draw. It preserves the legacy draw-count choices, loading GIF follow-up, 8.5-second reveal, final result embed, error follow-ups, and per-draw prize-pool reload. It intentionally applies one inventory decrement/delete per drawn prize instead of the legacy duplicate async decrement loops. Use only against isolated staging balances and disposable prize rows until duplicate audits, transaction policy, and DM failure policy are reviewed.
 
 `/扭蛋獎池增加` is available only when both staging command sync and runtime flags are explicitly enabled:
 
@@ -563,7 +563,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE=true
 MHCAT_FEATURE_GACHA_PRIZE_CREATE_ENABLED=true
 ```
 
-This command requires Manage Messages and inserts one `gifts` row using the legacy fields `guild`, `gift_name`, `gift_code`, `gift_chence`, `auto_delete`, `gift_count`, and `give_coin`. It preserves the legacy ephemeral defer/edit success and red error embeds, duplicate-name check, optional defaults, and 25-row pool guard. It does not draw prizes, decrement inventory counts, send DMs, mutate user coin balances, write usage counters, create indexes, or enable gacha shop behavior. Use only against disposable staging gacha prize rows until backups and duplicate-name policy are reviewed.
+This command requires Manage Messages and inserts one `gifts` row using the legacy fields `guild`, `gift_name`, `gift_code`, `gift_chence`, `auto_delete`, `gift_count`, and `give_coin`. It preserves the legacy ephemeral defer/edit success and red error embeds, exact untrimmed name/code text, JavaScript numeric name guard, duplicate-name check, optional defaults, zero-chance BSON `null`, and 25-row pool guard. It does not draw prizes, decrement inventory counts, send DMs, mutate user coin balances, write usage counters, create indexes, or enable gacha shop behavior. Use only against disposable staging gacha prize rows until backups and duplicate-name policy are reviewed.
 
 `/扭蛋獎品編輯` is available only when both staging command sync and runtime flags are explicitly enabled:
 
@@ -572,7 +572,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_EDIT=true
 MHCAT_FEATURE_GACHA_PRIZE_EDIT_ENABLED=true
 ```
 
-This command requires Manage Messages and replaces one `gifts` row by `{guild,gift_name}` using the legacy fields `guild`, `gift_name`, `gift_code`, `gift_chence`, `auto_delete`, `gift_count`, and `give_coin`. It preserves the legacy ephemeral defer/edit success and red error embeds plus legacy merge quirks: omitted or zero chance/coin keep the old value, false `自動刪除` does not override an existing true value, and omitted or zero count saves as `1`. The write path deletes the old row before inserting the merged replacement and has no transaction rollback. It does not draw prizes, decrement inventory counts, send DMs, mutate user coin balances, write usage counters, create indexes, or enable gacha shop behavior. Use only against disposable staging gacha prize rows.
+This command requires Manage Messages and replaces one exact-name `gifts` row by `{guild,gift_name}` using the legacy fields `guild`, `gift_name`, `gift_code`, `gift_chence`, `auto_delete`, `gift_count`, and `give_coin`. It preserves untrimmed name/code text, the JavaScript numeric name guard, the legacy ephemeral defer/edit success and red error embeds, and legacy merge quirks: omitted or zero chance/coin keep the old value, false `自動刪除` does not override an existing true value, and omitted or zero count saves as `1`. The write path deletes the old row before inserting the merged replacement and has no transaction rollback. It does not draw prizes, decrement inventory counts, send DMs, mutate user coin balances, write usage counters, create indexes, or enable gacha shop behavior. Use only against disposable staging gacha prize rows.
 
 `/扭蛋獎池刪除` is available only when both staging command sync and runtime flags are explicitly enabled:
 
@@ -581,7 +581,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE=true
 MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=true
 ```
 
-This command requires Manage Messages and deletes one `gifts` row by `{guild,gift_name}`. It preserves the legacy public defer/edit success and red error embeds, but it does not draw prizes, decrement inventory counts, send DMs, mutate coins, write usage counters, create indexes, or enable gacha shop behavior. Use only against disposable staging gacha prize rows.
+This command requires Manage Messages and deletes one exact-name `gifts` row by `{guild,gift_name}` without trimming the submitted or displayed name. It preserves the legacy public defer/edit success and red error embeds, but it does not draw prizes, decrement inventory counts, send DMs, mutate coins, write usage counters, create indexes, or enable gacha shop behavior. Use only against disposable staging gacha prize rows.
 
 Disabled `/抽獎設置` parity is available only when both staging command sync and runtime flags are explicitly enabled:
 

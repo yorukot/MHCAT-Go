@@ -55,7 +55,7 @@ The legacy command adds one embed field per prize and can fail Discord validatio
 - Mongo write: inserts one `gifts` row with legacy-compatible fields
 - Discord behavior: ephemeral defer, edit original with legacy-style success/error embeds
 
-The command preserves the legacy duplicate-prize error, overfull-pool error, optional defaults (`自動刪除=true`, `獎品數量=1`, `給予硬幣=0`), and the success embed fields from `giftadd.js`. The Go path intentionally keeps this as prize-config maintenance only: it does not draw prizes, decrement inventory, mutate user coin balances, send prize-code DMs, or enable shop behavior.
+The command preserves the legacy duplicate-prize error, overfull-pool error, optional defaults (`自動刪除=true`, `獎品數量=1`, `給予硬幣=0`), and the success embed fields from `giftadd.js`. Prize names and codes are matched, stored, and displayed without trimming. The apparent name-length guard is also preserved as the legacy JavaScript numeric comparison: numeric-looking names greater than `200` are rejected, while long nonnumeric names are accepted. A submitted zero chance is stored as BSON `null`, matching the legacy falsey constructor expression. The Go path intentionally keeps this as prize-config maintenance only: it does not draw prizes, decrement inventory, mutate user coin balances, send prize-code DMs, or enable shop behavior.
 
 ## Prize-edit Scope
 
@@ -68,7 +68,7 @@ The command preserves the legacy duplicate-prize error, overfull-pool error, opt
 - Mongo write: deletes one `gifts` row by `{guild,gift_name}` and inserts one merged replacement row
 - Discord behavior: ephemeral defer, edit original with legacy-style success/error embeds
 
-The command preserves the legacy success embed title `<a:green_tick:994529015652163614>編輯成功成功` and the visible submitted/default field text. It also preserves legacy merge quirks: a new non-empty prize code replaces the old one; omitted or zero chance and give-coin keep the old value; false `自動刪除` does not override an existing true value; and omitted or zero count saves as `1`. Missing prize uses the same red `找不到這個獎品!` error as delete instead of allowing a legacy panic path.
+The command preserves the legacy success embed title `<a:green_tick:994529015652163614>編輯成功成功`, exact untrimmed prize names/codes, the JavaScript numeric name guard, and the visible submitted/default field text. It also preserves legacy merge quirks: a new non-empty prize code replaces the old one; omitted or zero chance and give-coin keep the old value; false `自動刪除` does not override an existing true value; and omitted or zero count saves as `1`. Missing prize uses the same red `找不到這個獎品!` error as delete instead of allowing a legacy panic path.
 
 The write path intentionally follows the legacy delete-plus-insert shape and does not run in a transaction. If insertion fails after deletion, the old row is not restored. Keep this path limited to disposable staging prize rows until a production backup and rollback policy exists.
 
@@ -82,11 +82,10 @@ The write path intentionally follows the legacy delete-plus-insert shape and doe
 - Mongo write: deletes one `gifts` row by `{guild,gift_name}`
 - Discord behavior: public defer, edit original with legacy-style success/error embeds
 
-The command preserves the legacy missing-prize error `找不到這個獎品!` and success embed title `<a:green_tick:994529015652163614>成功刪除!` with description `獎品名:<gift_name>`. It intentionally uses one-row delete semantics to match legacy `findOne(...); data.delete()` behavior when duplicate prize names exist.
+The command preserves the legacy missing-prize error `找不到這個獎品!` and success embed title `<a:green_tick:994529015652163614>成功刪除!` with description `獎品名:<gift_name>`. Prize names are matched and displayed exactly without trimming. It intentionally uses one-row delete semantics to match legacy `findOne(...); data.delete()` behavior when duplicate prize names exist.
 
 ## Not Implemented
 
-- gacha/shop purchase paths
 - indexes or data repair
 
 ## Rollout Notes
