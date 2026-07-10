@@ -110,6 +110,30 @@ func TestVoiceXPEventStartsAndStopsRuntimeWorker(t *testing.T) {
 	}
 }
 
+func TestVoiceXPStartJoinedSessionsRestoresRuntimeWorkers(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.VoiceProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", LeaveJoin: domain.VoiceXPSessionJoined}
+	repo.VoiceProfiles["guild-1/user-2"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-2", LeaveJoin: domain.VoiceXPSessionLeft}
+	repo.VoiceProfiles["guild-2/user-3"] = domain.XPProfile{GuildID: "guild-2", UserID: "user-3", LeaveJoin: domain.VoiceXPSessionJoined}
+	module := NewVoiceEventModule(repo).WithRuntimeWorker(time.Hour, nil)
+	t.Cleanup(func() { _ = module.StopRuntimeWorker(context.Background()) })
+
+	started, err := module.StartJoinedSessions(context.Background())
+	if err != nil {
+		t.Fatalf("start joined sessions: %v", err)
+	}
+	if started != 2 || module.worker.ActiveCount() != 2 {
+		t.Fatalf("started=%d active=%d", started, module.worker.ActiveCount())
+	}
+	started, err = module.StartJoinedSessions(context.Background())
+	if err != nil {
+		t.Fatalf("start joined sessions again: %v", err)
+	}
+	if started != 0 || module.worker.ActiveCount() != 2 {
+		t.Fatalf("duplicate reconciliation started=%d active=%d", started, module.worker.ActiveCount())
+	}
+}
+
 func TestVoiceXPWorkerTicksAndStopsWhenProfileInactive(t *testing.T) {
 	calls := make(chan []string, 1)
 	worker := NewVoiceXPWorker(time.Millisecond, func(ctx context.Context, guildID string, userID string, currentRoleIDs []string) (coreservice.VoiceAccrualResult, error) {

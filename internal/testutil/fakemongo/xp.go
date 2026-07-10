@@ -235,6 +235,21 @@ func (r *XPAdminRepository) MarkVoiceXPLeft(ctx context.Context, guildID string,
 	return r.markVoiceXPSession(ctx, guildID, userID, domain.VoiceXPSessionLeft)
 }
 
+func (r *XPAdminRepository) ListJoinedVoiceXPSessions(ctx context.Context) ([]domain.XPProfile, error) {
+	if err := r.ready(ctx); err != nil {
+		return nil, err
+	}
+	out := []domain.XPProfile{}
+	for _, profile := range r.VoiceProfiles {
+		profile = profile.Normalize()
+		if profile.GuildID == "" || profile.UserID == "" || profile.LeaveJoin != domain.VoiceXPSessionJoined {
+			continue
+		}
+		out = append(out, profile)
+	}
+	return out, nil
+}
+
 func (r *XPAdminRepository) ListTextXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error) {
 	if err := r.ready(ctx); err != nil {
 		return nil, err

@@ -288,6 +288,10 @@ func (r *XPAdminRepository) MarkVoiceXPLeft(ctx context.Context, guildID string,
 	return markVoiceXPSession(ctx, r.voiceProfiles, guildID, userID, domain.VoiceXPSessionLeft)
 }
 
+func (r *XPAdminRepository) ListJoinedVoiceXPSessions(ctx context.Context) ([]domain.XPProfile, error) {
+	return listJoinedVoiceXPSessions(ctx, r.voiceProfiles)
+}
+
 func (r *XPAdminRepository) ListTextXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error) {
 	return listAdminXPProfiles(ctx, r.textProfiles, guildID, "text")
 }
@@ -514,6 +518,33 @@ func markVoiceXPSession(ctx context.Context, collection *drivermongo.Collection,
 	return ctx.Err()
 }
 
+func listJoinedVoiceXPSessions(ctx context.Context, collection *drivermongo.Collection) ([]domain.XPProfile, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	cursor, err := collection.Find(ctx, voiceXPJoinedSessionFilter())
+	if err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("list joined voice xp sessions: %w", err))
+	}
+	defer cursor.Close(ctx)
+	profiles := []domain.XPProfile{}
+	for cursor.Next(ctx) {
+		var document documents.XPProfileDocument
+		if err := cursor.Decode(&document); err != nil {
+			return nil, mhcatmongo.MapError(fmt.Errorf("decode joined voice xp session: %w", err))
+		}
+		profile := document.ToDomain().Normalize()
+		if profile.GuildID == "" || profile.UserID == "" {
+			continue
+		}
+		profiles = append(profiles, profile)
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("iterate joined voice xp sessions: %w", err))
+	}
+	return profiles, ctx.Err()
+}
+
 func deleteAdminXPProfile(ctx context.Context, collection *drivermongo.Collection, guildID string, userID string, missing error, label string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -553,6 +584,10 @@ func deleteAdminXPGuild(ctx context.Context, collection *drivermongo.Collection,
 
 func xpProfileFilter(guildID string, userID string) bson.D {
 	return bson.D{{Key: "guild", Value: strings.TrimSpace(guildID)}, {Key: "member", Value: strings.TrimSpace(userID)}}
+}
+
+func voiceXPJoinedSessionFilter() bson.D {
+	return bson.D{{Key: "leavejoin", Value: domain.VoiceXPSessionJoined}}
 }
 
 func xpProfileUpdate(profile domain.XPProfile, voice bool) bson.D {

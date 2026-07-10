@@ -185,6 +185,29 @@ func (m VoiceEventModule) StopRuntimeWorker(ctx context.Context) error {
 	return m.worker.StopAll(ctx)
 }
 
+func (m VoiceEventModule) StartJoinedSessions(ctx context.Context) (int, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	if m.worker == nil || m.service.Repository == nil {
+		return 0, ctx.Err()
+	}
+	profiles, err := m.service.JoinedSessions(ctx)
+	if err != nil {
+		return 0, err
+	}
+	started := 0
+	for _, profile := range profiles {
+		if m.worker.Start(profile.GuildID, profile.UserID, nil) {
+			started++
+		}
+	}
+	return started, ctx.Err()
+}
+
 func voiceXPWorkerKey(guildID string, userID string) string {
 	return strings.TrimSpace(guildID) + "\x00" + strings.TrimSpace(userID)
 }

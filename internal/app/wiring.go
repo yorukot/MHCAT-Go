@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
@@ -907,6 +908,14 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 			WithRewardRoles(rewardRoleRepo, sideEffects).
 			WithCoinRewards(economyRepo).
 			WithRuntimeWorker(featurexp.LegacyVoiceXPInterval, logger)
+		started, err := module.StartJoinedSessions(context.Background())
+		if err != nil {
+			_ = module.StopRuntimeWorker(context.Background())
+			return nil, err
+		}
+		if logger != nil && started > 0 {
+			logger.Info("reconciled voice xp sessions", "workers", started)
+		}
 		module.RegisterEventRoutes(dispatcher)
 		dispatcher.RegisterShutdown(module.StopRuntimeWorker)
 	}

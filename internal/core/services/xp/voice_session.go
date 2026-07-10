@@ -35,3 +35,22 @@ func (s VoiceSessionService) Leave(ctx context.Context, guildID string, userID s
 	}
 	return s.Repository.MarkVoiceXPLeft(ctx, guildID, userID)
 }
+
+func (s VoiceSessionService) JoinedSessions(ctx context.Context) ([]domain.XPProfile, error) {
+	if s.Repository == nil {
+		return nil, domain.ErrInvalidXPAdjustment
+	}
+	profiles, err := s.Repository.ListJoinedVoiceXPSessions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.XPProfile, 0, len(profiles))
+	for _, profile := range profiles {
+		profile = profile.Normalize()
+		if profile.GuildID == "" || profile.UserID == "" || profile.LeaveJoin != domain.VoiceXPSessionJoined {
+			continue
+		}
+		out = append(out, profile)
+	}
+	return out, ctx.Err()
+}

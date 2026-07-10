@@ -366,7 +366,7 @@ export MHCAT_DISCORD_ENABLE_GATEWAY=true
 export MHCAT_DISCORD_VOICE_STATE_INTENT=true
 ```
 
-Use only an isolated staging database with disposable `voice_xps`, `voice_xp_channels`, `voice_roles`, `coins`, and `gift_changes` rows. This event-only path has no command-sync flag, marks `leavejoin` as users join or leave voice channels, and starts the legacy 30-second XP loop for users who join after the process is running. Restart reconciliation for already-joined rows remains pending.
+Use only an isolated staging database with disposable `voice_xps`, `voice_xp_channels`, `voice_roles`, `coins`, and `gift_changes` rows. This event-only path has no command-sync flag, marks `leavejoin` as users join or leave voice channels, starts the legacy 30-second XP loop for users who join after the process is running, and reconciles existing `leavejoin:"join"` rows on startup.
 
 Optional XP reward-role config smoke flags:
 
