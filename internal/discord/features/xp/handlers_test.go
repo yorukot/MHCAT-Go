@@ -343,7 +343,7 @@ func TestDisabledProfileHandlersReturnLegacyRemovalMessage(t *testing.T) {
 	usage := &fakeusage.Tracker{}
 	module := NewDisabledProfileModule(usage)
 
-	for _, tc := range []struct {
+	for index, tc := range []struct {
 		name    string
 		handler func() interactions.Handler
 	}{
@@ -351,7 +351,7 @@ func TestDisabledProfileHandlersReturnLegacyRemovalMessage(t *testing.T) {
 		{name: VoiceXPProfileCommandName, handler: module.VoiceHandler},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			interaction := fakediscord.SlashInteraction(tc.name)
+			interaction := fakediscord.SlashInteractionWithOptions(tc.name, "", map[string]string{"玩家": "ignored-user"})
 			responder := fakediscord.NewResponder()
 			if err := tc.handler()(context.Background(), interaction, responder); err != nil {
 				t.Fatalf("handler: %v", err)
@@ -368,6 +368,13 @@ func TestDisabledProfileHandlersReturnLegacyRemovalMessage(t *testing.T) {
 			}
 			if responder.Edits[0].AllowedMentions == nil {
 				t.Fatalf("allowed mentions should be explicitly empty: %#v", responder.Edits[0])
+			}
+			message := responder.Edits[0]
+			if message.Content != "" || embed.Description != "" || len(message.Components) != 0 || len(message.Files) != 0 || message.Ephemeral {
+				t.Fatalf("unexpected payload fields = %#v", message)
+			}
+			if len(usage.Events) != index+1 || usage.Events[index].UserID == "ignored-user" {
+				t.Fatalf("player option affected disabled path: %#v", usage.Events)
 			}
 		})
 	}
