@@ -54,7 +54,7 @@ func (m Module) VoiceStateHandler() events.Handler {
 		embed := ports.OutboundEmbed{
 			AuthorIconURL: loggingEventAvatarURL(event),
 			FooterText:    loggingFooterText,
-			FooterIconURL: event.BotAvatarURL,
+			FooterIconURL: loggingBotAvatarURL(event.BotAvatarURL),
 			Timestamp:     time.Now(),
 		}
 		if joined {

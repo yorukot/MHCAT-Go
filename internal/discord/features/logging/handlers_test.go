@@ -44,7 +44,7 @@ func TestLoggingConfigPromptRendersLegacySelect(t *testing.T) {
 	if embed.Title != "<:logfile:985948561625710663> 日誌系統" || embed.Color != loggingEmbedColor || !strings.Contains(embed.Description, "目前的選擇:") {
 		t.Fatalf("embed = %#v", embed)
 	}
-	if embed.Footer == nil || embed.Footer.Text != loggingFooterText || embed.Footer.IconURL != interaction.BotAvatarURL {
+	if embed.Footer == nil || embed.Footer.Text != loggingFooterText || embed.Footer.IconURL != "https://example.test/bot.webp" {
 		t.Fatalf("footer = %#v", embed.Footer)
 	}
 	if len(message.Components) != 1 || len(message.Components[0].Components) != 1 {
@@ -90,7 +90,7 @@ func TestLoggingConfigSelectSavesConfigAndUpdatesMessage(t *testing.T) {
 	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "`訊息更新`,`用戶語音更新`") {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
-	if footer := responder.Edits[0].Embeds[0].Footer; footer == nil || footer.IconURL != interaction.BotAvatarURL {
+	if footer := responder.Edits[0].Embeds[0].Footer; footer == nil || footer.IconURL != "https://example.test/bot.webp" {
 		t.Fatalf("footer = %#v", footer)
 	}
 	for _, option := range responder.Edits[0].Components[0].Components[0].Options {

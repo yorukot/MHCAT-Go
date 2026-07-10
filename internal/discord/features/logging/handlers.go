@@ -97,7 +97,7 @@ func loggingPromptMessage(channelID string, ownerID string, expiresAt time.Time,
 			Color:       loggingEmbedColor,
 			Footer: &responses.EmbedFooter{
 				Text:    loggingFooterText,
-				IconURL: botAvatarURL,
+				IconURL: loggingBotAvatarURL(botAvatarURL),
 			},
 		}},
 		Components: []responses.ComponentRow{{

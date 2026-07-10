@@ -75,7 +75,7 @@ func (m Module) MessageUpdateHandler() events.Handler {
 					{Name: "**<:attachment:1084846756799455242> 附件:**", Value: loggingAttachmentText(event.Attachments)},
 				},
 				FooterText:    loggingFooterText,
-				FooterIconURL: event.BotAvatarURL,
+				FooterIconURL: loggingBotAvatarURL(event.BotAvatarURL),
 				Timestamp:     time.Now(),
 			}},
 			AllowedMentions: ports.AllowedMentions{},
@@ -114,7 +114,7 @@ func (m Module) MessageDeleteHandler() events.Handler {
 					{Name: "**<:attachment:1084846756799455242> 附件:**", Value: loggingAttachmentText(event.Attachments)},
 				},
 				FooterText:    loggingFooterText,
-				FooterIconURL: event.BotAvatarURL,
+				FooterIconURL: loggingBotAvatarURL(event.BotAvatarURL),
 				Timestamp:     time.Now(),
 			}},
 			AllowedMentions: ports.AllowedMentions{},
@@ -180,6 +180,19 @@ func loggingPNGAvatarURL(raw string) string {
 	switch strings.ToLower(extension) {
 	case ".gif", ".jpg", ".jpeg", ".webp":
 		parsed.Path = strings.TrimSuffix(parsed.Path, extension) + ".png"
+	}
+	return parsed.String()
+}
+
+func loggingBotAvatarURL(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return raw
+	}
+	extension := path.Ext(parsed.Path)
+	switch strings.ToLower(extension) {
+	case ".png", ".jpg", ".jpeg":
+		parsed.Path = strings.TrimSuffix(parsed.Path, extension) + ".webp"
 	}
 	return parsed.String()
 }

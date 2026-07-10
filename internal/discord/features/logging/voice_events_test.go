@@ -48,7 +48,7 @@ func TestVoiceJoinLoggingSendsLegacyEmbed(t *testing.T) {
 	if len(embed.Fields) != 1 || embed.Fields[0].Name != "**<:joines:1086217186256900098> 加入頻道:**" || embed.Fields[0].Value != "<#voice-1>(`General`)" {
 		t.Fatalf("fields = %#v", embed.Fields)
 	}
-	if embed.FooterText != loggingFooterText || embed.FooterIconURL != "https://example.test/bot.png" || embed.Timestamp.IsZero() {
+	if embed.FooterText != loggingFooterText || embed.FooterIconURL != "https://example.test/bot.webp" || embed.Timestamp.IsZero() {
 		t.Fatalf("footer/timestamp = %#v", embed)
 	}
 	if discord.Sent[0].Message.AllowedMentions.ParseUsers || discord.Sent[0].Message.AllowedMentions.ParseRoles || discord.Sent[0].Message.AllowedMentions.ParseEveryone {

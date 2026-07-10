@@ -174,6 +174,15 @@ func TestLoggingEventAvatarMatchesLegacyPNGAndFallback(t *testing.T) {
 	}
 }
 
+func TestLoggingBotAvatarMatchesLegacyDefaultExtension(t *testing.T) {
+	if got := loggingBotAvatarURL("https://cdn.discordapp.com/avatars/bot/hash.png"); got != "https://cdn.discordapp.com/avatars/bot/hash.webp" {
+		t.Fatalf("static avatar = %q", got)
+	}
+	if got := loggingBotAvatarURL("https://cdn.discordapp.com/avatars/bot/a_hash.gif"); got != "https://cdn.discordapp.com/avatars/bot/a_hash.gif" {
+		t.Fatalf("animated avatar = %q", got)
+	}
+}
+
 func TestLoggingAttachmentTextPreservesLegacyValuesAndOrder(t *testing.T) {
 	attachments := []events.Attachment{{URL: " first "}, {URL: ""}, {URL: "second"}}
 	if got := loggingAttachmentText(attachments); got != " first ,second" {
