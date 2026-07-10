@@ -2,10 +2,12 @@ package safety
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
@@ -86,4 +88,94 @@ func TestAntiScamMessageRuntimePreservesLegacyBotScanning(t *testing.T) {
 	if len(sideEffects.DeletedMessage) != 1 || len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Content != antiScamDeleteWarning {
 		t.Fatalf("side effects deleted=%#v sent=%#v", sideEffects.DeletedMessage, sideEffects.Sent)
 	}
+}
+
+func TestAntiScamURLValidatorMatchesPinnedLegacyCases(t *testing.T) {
+	for _, test := range []struct {
+		raw  string
+		want bool
+	}{
+		{raw: "https://example.com", want: true},
+		{raw: "ftp://example.com/path", want: true},
+		{raw: "custom_1://example.com", want: true},
+		{raw: "//example.com", want: true},
+		{raw: "//localhost", want: true},
+		{raw: "http://localhost:3000/path", want: true},
+		{raw: "https://例子.公司", want: true},
+		{raw: "//a.😀", want: true},
+		{raw: "https://example.com\u0085", want: true},
+		{raw: ""},
+		{raw: "example.com"},
+		{raw: "mailto:test@example.com"},
+		{raw: " https://example.com "},
+		{raw: "https://a.x"},
+		{raw: "//a.é"},
+		{raw: "https://example.com\u00a0"},
+		{raw: "https://example.com\ufeff"},
+	} {
+		if got := domain.LooksLikeURL(test.raw); got != test.want {
+			t.Fatalf("LooksLikeURL(%q) = %v, want %v", test.raw, got, test.want)
+		}
+	}
+}
+
+func TestAntiScamMessageSideEffectOrdering(t *testing.T) {
+	deleteErr := errors.New("delete failed")
+	sendErr := errors.New("send failed")
+	for _, test := range []struct {
+		name      string
+		deleteErr error
+		sendErr   error
+		wantErr   error
+		wantOps   []string
+	}{
+		{name: "success", wantOps: []string{"delete", "send"}},
+		{name: "delete failure stops warning", deleteErr: deleteErr, wantErr: deleteErr, wantOps: []string{"delete"}},
+		{name: "warning failure keeps deletion", sendErr: sendErr, wantErr: sendErr, wantOps: []string{"delete", "send"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			configs := fakemongo.NewAntiScamConfigRepository()
+			configs.Configs["guild-1"] = domain.AntiScamConfig{GuildID: "guild-1", Open: true}
+			catalog := fakemongo.NewScamURLCatalogRepository()
+			catalog.Known = []string{"https://bad.example"}
+			messages := &orderedMessagePort{deleteErr: test.deleteErr, sendErr: test.sendErr}
+			module := NewMessageDeleteModule(configs, catalog, messages)
+
+			err := module.MessageCreateHandler()(context.Background(), antiScamMessageEvent("visit https://bad.example"))
+			if !errors.Is(err, test.wantErr) {
+				t.Fatalf("error = %v, want %v", err, test.wantErr)
+			}
+			if !reflect.DeepEqual(messages.ops, test.wantOps) {
+				t.Fatalf("operations = %#v, want %#v", messages.ops, test.wantOps)
+			}
+			if len(messages.sent) > 0 {
+				message := messages.sent[0]
+				if message.Content != antiScamDeleteWarning || !reflect.DeepEqual(message.AllowedMentions, ports.AllowedMentions{}) {
+					t.Fatalf("warning = %#v", message)
+				}
+			}
+		})
+	}
+}
+
+type orderedMessagePort struct {
+	ops       []string
+	sent      []ports.OutboundMessage
+	deleteErr error
+	sendErr   error
+}
+
+func (p *orderedMessagePort) SendMessage(_ context.Context, _ string, message ports.OutboundMessage) (ports.MessageRef, error) {
+	p.ops = append(p.ops, "send")
+	p.sent = append(p.sent, message)
+	return ports.MessageRef{}, p.sendErr
+}
+
+func (p *orderedMessagePort) EditMessage(context.Context, ports.MessageRef, ports.OutboundMessage) error {
+	return errors.New("unexpected edit")
+}
+
+func (p *orderedMessagePort) DeleteMessage(_ context.Context, _ ports.MessageRef) error {
+	p.ops = append(p.ops, "delete")
+	return p.deleteErr
 }
