@@ -52,7 +52,7 @@ func (r *BirthdayConfigRepository) FindBirthdayConfig(ctx context.Context, guild
 	if guildID == "" {
 		return domain.BirthdayConfig{}, domain.ErrInvalidBirthdayConfig
 	}
-	var document documents.BirthdayConfigDocument
+	var document documents.BirthdayConfigReadDocument
 	if err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document); err != nil {
 		if mhcatmongo.ErrorIs(mhcatmongo.MapError(err), mhcatmongo.ErrorKindNotFound) {
 			return domain.BirthdayConfig{}, ports.ErrBirthdayConfigMissing
@@ -109,7 +109,7 @@ func (r *BirthdayConfigRepository) FindBirthdayProfile(ctx context.Context, guil
 	if err != nil {
 		return domain.BirthdayProfile{}, err
 	}
-	var document documents.BirthdayProfileDocument
+	var document documents.BirthdayProfileReadDocument
 	if err := collection.FindOne(ctx, filter).Decode(&document); err != nil {
 		if mhcatmongo.ErrorIs(mhcatmongo.MapError(err), mhcatmongo.ErrorKindNotFound) {
 			return domain.BirthdayProfile{}, ports.ErrBirthdayProfileMissing
@@ -196,7 +196,7 @@ func (r *BirthdayConfigRepository) ListBirthdayProfiles(ctx context.Context, gui
 	defer cursor.Close(ctx)
 	profiles := []domain.BirthdayProfile{}
 	for cursor.Next(ctx) {
-		var document documents.BirthdayProfileDocument
+		var document documents.BirthdayProfileReadDocument
 		if err := cursor.Decode(&document); err != nil {
 			return nil, mhcatmongo.MapError(fmt.Errorf("decode birthday profile: %w", err))
 		}

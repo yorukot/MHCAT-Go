@@ -1,6 +1,9 @@
 package documents
 
-import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+import (
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"go.mongodb.org/mongo-driver/v2/bson"
+)
 
 type BirthdayConfigDocument struct {
 	Guild                      string  `bson:"guild" json:"guild"`
@@ -20,6 +23,26 @@ type BirthdayProfileDocument struct {
 	SendHour      *int   `bson:"send_msg_hour" json:"send_msg_hour"`
 	SendMinute    *int   `bson:"send_msg_min" json:"send_msg_min"`
 	Allow         bool   `bson:"allow" json:"allow"`
+}
+
+type BirthdayConfigReadDocument struct {
+	Guild                      bson.RawValue `bson:"guild" json:"guild"`
+	Message                    bson.RawValue `bson:"msg" json:"msg"`
+	UTCOffset                  bson.RawValue `bson:"utc" json:"utc"`
+	Channel                    bson.RawValue `bson:"channel" json:"channel"`
+	EveryoneCanSetBirthdayDate bson.RawValue `bson:"everyone_can_set_birthday_date" json:"everyone_can_set_birthday_date"`
+	Role                       bson.RawValue `bson:"role" json:"role"`
+}
+
+type BirthdayProfileReadDocument struct {
+	Guild         bson.RawValue `bson:"guild" json:"guild"`
+	User          bson.RawValue `bson:"user" json:"user"`
+	BirthdayYear  bson.RawValue `bson:"birthday_year" json:"birthday_year"`
+	BirthdayMonth bson.RawValue `bson:"birthday_month" json:"birthday_month"`
+	BirthdayDay   bson.RawValue `bson:"birthday_day" json:"birthday_day"`
+	SendHour      bson.RawValue `bson:"send_msg_hour" json:"send_msg_hour"`
+	SendMinute    bson.RawValue `bson:"send_msg_min" json:"send_msg_min"`
+	Allow         bson.RawValue `bson:"allow" json:"allow"`
 }
 
 func BirthdayConfigDocumentFromDomain(config domain.BirthdayConfig) BirthdayConfigDocument {
@@ -68,6 +91,52 @@ func (d BirthdayProfileDocument) ToDomain() domain.BirthdayProfile {
 		SendMinute:    intPointerOrNil(d.SendMinute),
 		AllowAdmin:    d.Allow,
 	}
+}
+
+func (d BirthdayConfigReadDocument) ToDomain() domain.BirthdayConfig {
+	guild, _ := legacyMongooseString(d.Guild)
+	message, _ := legacyMongooseString(d.Message)
+	utcOffset, _ := legacyMongooseString(d.UTCOffset)
+	channel, _ := legacyMongooseString(d.Channel)
+	role, _ := legacyMongooseString(d.Role)
+	return domain.BirthdayConfig{
+		GuildID:                    guild,
+		Message:                    message,
+		UTCOffset:                  utcOffset,
+		ChannelID:                  channel,
+		EveryoneCanSetBirthdayDate: legacyMongooseBoolean(d.EveryoneCanSetBirthdayDate),
+		RoleID:                     role,
+	}
+}
+
+func (d BirthdayProfileReadDocument) ToDomain() domain.BirthdayProfile {
+	guild, _ := legacyMongooseString(d.Guild)
+	user, _ := legacyMongooseString(d.User)
+	return domain.BirthdayProfile{
+		GuildID:       guild,
+		UserID:        user,
+		BirthdayYear:  birthdayNullableInt(d.BirthdayYear),
+		BirthdayMonth: birthdayNullableInt(d.BirthdayMonth),
+		BirthdayDay:   birthdayNullableInt(d.BirthdayDay),
+		SendHour:      birthdayNullableInt(d.SendHour),
+		SendMinute:    birthdayNullableInt(d.SendMinute),
+		AllowAdmin:    legacyMongooseBoolean(d.Allow),
+	}
+}
+
+func birthdayNullableInt(value bson.RawValue) *int {
+	if value.Type == 0 || value.Type == bson.TypeUndefined || value.Type == bson.TypeNull {
+		return nil
+	}
+	parsed, ok := LegacyExactInt64(value)
+	if !ok {
+		return nil
+	}
+	converted := int(parsed)
+	if int64(converted) != parsed {
+		return nil
+	}
+	return &converted
 }
 
 func intPointerOrNil(value *int) *int {
