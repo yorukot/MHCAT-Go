@@ -187,8 +187,8 @@ func loggingCodeBlock(content string) string {
 func loggingAttachmentText(attachments []events.Attachment) string {
 	urls := []string{}
 	for _, attachment := range attachments {
-		if strings.TrimSpace(attachment.URL) != "" {
-			urls = append(urls, strings.TrimSpace(attachment.URL))
+		if attachment.URL != "" {
+			urls = append(urls, attachment.URL)
 		}
 	}
 	if len(urls) == 0 {

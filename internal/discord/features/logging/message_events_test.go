@@ -173,3 +173,13 @@ func TestLoggingEventAvatarMatchesLegacyPNGAndFallback(t *testing.T) {
 		t.Fatalf("default avatar = %q", got)
 	}
 }
+
+func TestLoggingAttachmentTextPreservesLegacyValuesAndOrder(t *testing.T) {
+	attachments := []events.Attachment{{URL: " first "}, {URL: ""}, {URL: "second"}}
+	if got := loggingAttachmentText(attachments); got != " first ,second" {
+		t.Fatalf("attachments = %q", got)
+	}
+	if got := loggingAttachmentText(nil); got != "**沒有附件**" {
+		t.Fatalf("empty attachments = %q", got)
+	}
+}
