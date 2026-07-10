@@ -125,3 +125,12 @@ func TestMessageEventModuleRegistersRoutes(t *testing.T) {
 		t.Fatal("expected message logging handlers")
 	}
 }
+
+func TestLoggingCodeBlockPreservesLegacySpacing(t *testing.T) {
+	if got := loggingCodeBlock(""); got != "``` ```" {
+		t.Fatalf("empty code block = %q", got)
+	}
+	if got := loggingCodeBlock("content"); got != "```content ```" {
+		t.Fatalf("content code block = %q", got)
+	}
+}

@@ -169,9 +169,6 @@ func loggingEventAvatarURL(event events.Event) string {
 }
 
 func loggingCodeBlock(content string) string {
-	if content == "" {
-		content = " "
-	}
 	return "```" + content + " ```"
 }
 
