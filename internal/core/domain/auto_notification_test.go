@@ -30,3 +30,14 @@ func TestAutoNotificationColorAloneDoesNotCreateEmbed(t *testing.T) {
 		t.Fatal("color without title or description should preserve the legacy plain-message shape")
 	}
 }
+
+func TestAutoNotificationMessagePreservesLegacyWhitespace(t *testing.T) {
+	plain := domain.AutoNotificationMessage{Content: "   "}.Normalized()
+	if plain.Content != "   " || plain.Empty() || plain.HasEmbed() {
+		t.Fatalf("plain message = %#v", plain)
+	}
+	embed := domain.AutoNotificationMessage{EmbedTitle: " ", EmbedDescription: "  content  "}.Normalized()
+	if embed.EmbedTitle != " " || embed.EmbedDescription != "  content  " || embed.Empty() || !embed.HasEmbed() {
+		t.Fatalf("embed message = %#v", embed)
+	}
+}

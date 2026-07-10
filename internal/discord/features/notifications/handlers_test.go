@@ -103,6 +103,52 @@ func TestSetupModalRejectsInvalidColor(t *testing.T) {
 	}
 }
 
+func TestSetupModalPreservesLegacyMessageWhitespace(t *testing.T) {
+	repo := fakemongo.NewAutoNotificationScheduleRepository()
+	repo.Schedules["guild-1"] = []domain.AutoNotificationSchedule{{GuildID: "guild-1", ID: "id-1", ChannelID: "channel-1", Pending: true}}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewModuleWithMessagePort(repo, nil, sideEffects, nil)
+	responder := fakediscord.NewResponder()
+	interaction := autoNotificationModal("id-1", "*/30 * * * *", "  hello  ", "#123456", "  Title  ", "  Content  ")
+	interaction.ChannelID = "source-channel"
+
+	if err := module.SetupModalHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(repo.Completed) != 1 {
+		t.Fatalf("completed = %#v", repo.Completed)
+	}
+	message := repo.Completed[0].Message
+	if message.Content != "  hello  " || message.EmbedTitle != "  Title  " || message.EmbedDescription != "  Content  " {
+		t.Fatalf("stored message = %#v", message)
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Content != "  hello  " || sideEffects.Sent[0].Message.Embeds[0].Title != "  Title  " || sideEffects.Sent[0].Message.Embeds[0].Description != "  Content  " {
+		t.Fatalf("preview = %#v", sideEffects.Sent)
+	}
+}
+
+func TestSetupModalAcceptsWhitespaceOnlyLegacyContentAndRejectsWhitespaceColor(t *testing.T) {
+	repo := fakemongo.NewAutoNotificationScheduleRepository()
+	repo.Schedules["guild-1"] = []domain.AutoNotificationSchedule{{GuildID: "guild-1", ID: "id-1", ChannelID: "channel-1", Pending: true}}
+	module := NewModule(repo, nil, nil)
+	responder := fakediscord.NewResponder()
+	if err := module.SetupModalHandler()(context.Background(), autoNotificationModal("id-1", "*/30 * * * *", "   ", "", "", ""), responder); err != nil {
+		t.Fatalf("whitespace content handler: %v", err)
+	}
+	if len(repo.Completed) != 1 || repo.Completed[0].Message.Content != "   " {
+		t.Fatalf("completed = %#v", repo.Completed)
+	}
+
+	repo.Schedules["guild-1"] = append(repo.Schedules["guild-1"], domain.AutoNotificationSchedule{GuildID: "guild-1", ID: "id-2", ChannelID: "channel-1", Pending: true})
+	responder = fakediscord.NewResponder()
+	if err := module.SetupModalHandler()(context.Background(), autoNotificationModal("id-2", "*/30 * * * *", "hello", "   ", "", ""), responder); err != nil {
+		t.Fatalf("whitespace color handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "你傳送的並不是顏色") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func TestSetupModalStartsLegacySimplifiedCronWizard(t *testing.T) {
 	repo := fakemongo.NewAutoNotificationScheduleRepository()
 	repo.Schedules["guild-1"] = []domain.AutoNotificationSchedule{{GuildID: "guild-1", ID: "1700000000000", ChannelID: "target-channel", Pending: true}}

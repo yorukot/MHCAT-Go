@@ -80,6 +80,28 @@ func TestAutoNotificationMessageBSONPreservesLegacyEmbedDataShape(t *testing.T) 
 	}
 }
 
+func TestAutoNotificationMessageBSONPreservesLegacyWhitespace(t *testing.T) {
+	payload := AutoNotificationMessageBSON(domain.AutoNotificationMessage{
+		Content:          "   ",
+		EmbedTitle:       "  Title  ",
+		EmbedDescription: "  Content  ",
+	})
+	raw, err := bson.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if content := bson.Raw(raw).Lookup("content"); content.Type != bson.TypeString || content.StringValue() != "   " {
+		t.Fatalf("content = %#v", content)
+	}
+	var decoded AutoNotificationMessageDocument
+	if err := bson.Unmarshal(raw, &decoded); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	if len(decoded.Embeds) != 1 || decoded.Embeds[0].Data.Title.StringValue() != "  Title  " || decoded.Embeds[0].Data.Description.StringValue() != "  Content  " {
+		t.Fatalf("decoded = %#v", decoded)
+	}
+}
+
 func TestAutoNotificationDeliveryDocumentDecodesLegacyNumericEmbedColor(t *testing.T) {
 	raw, err := bson.Marshal(bson.D{
 		{Key: "guild", Value: "guild-1"},

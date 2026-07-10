@@ -117,7 +117,7 @@ func AutoNotificationMessageBSON(message domain.AutoNotificationMessage) bson.D 
 }
 
 func nullableString(value string) any {
-	if strings.TrimSpace(value) == "" {
+	if value == "" {
 		return nil
 	}
 	return value

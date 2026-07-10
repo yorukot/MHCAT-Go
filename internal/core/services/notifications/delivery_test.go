@@ -69,6 +69,32 @@ func TestDeliveryServiceSupportsPersistedRandomColor(t *testing.T) {
 	}
 }
 
+func TestDeliveryServicePreservesLegacyMessageWhitespace(t *testing.T) {
+	repo := newDeliveryRepository(domain.AutoNotificationSchedule{
+		GuildID:   "guild-1",
+		ID:        "schedule-1",
+		Cron:      "0 9 * * 1",
+		ChannelID: "channel-1",
+		Message: domain.AutoNotificationMessage{
+			Content:          "  hello  ",
+			EmbedTitle:       " ",
+			EmbedDescription: "  Content  ",
+		},
+	})
+	messages := fakediscord.NewSideEffects()
+	service := DeliveryService{Repository: repo, Messages: messages}
+	if err := service.Deliver(context.Background(), "guild-1", "schedule-1"); err != nil {
+		t.Fatalf("deliver: %v", err)
+	}
+	if len(messages.Sent) != 1 {
+		t.Fatalf("sent = %#v", messages.Sent)
+	}
+	message := messages.Sent[0].Message
+	if message.Content != "  hello  " || len(message.Embeds) != 1 || message.Embeds[0].Title != " " || message.Embeds[0].Description != "  Content  " {
+		t.Fatalf("message = %#v", message)
+	}
+}
+
 type deliveryRepository struct {
 	mu        sync.Mutex
 	schedules map[string]domain.AutoNotificationSchedule

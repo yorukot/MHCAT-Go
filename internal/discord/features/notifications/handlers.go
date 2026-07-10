@@ -101,8 +101,10 @@ func (m Module) SetupModalHandler() interactions.Handler {
 			EmbedDescription: fields[fieldContent],
 			EmbedColor:       fields[fieldColor],
 		}.Normalized()
-		if message.EmbedColor != "" && message.EmbedColor != "Random" && !domain.ValidLegacyColor(message.EmbedColor) {
-			return responder.EditOriginal(ctx, autoNotificationErrorMessage("你傳送的並不是顏色(色碼)"))
+		if message.EmbedColor != "" {
+			if strings.TrimSpace(message.EmbedColor) == "" || message.EmbedColor != "Random" && !domain.ValidLegacyColor(message.EmbedColor) {
+				return responder.EditOriginal(ctx, autoNotificationErrorMessage("你傳送的並不是顏色(色碼)"))
+			}
 		}
 		if message.Empty() {
 			return responder.EditOriginal(ctx, autoNotificationErrorMessage("你都沒輸入你要發送甚麼，我要怎麼發送啦!"))
@@ -291,7 +293,7 @@ func setupID(createdAt time.Time) string {
 func autoNotificationModalFields(fields []customid.ModalField) map[string]string {
 	values := make(map[string]string, len(fields))
 	for _, field := range fields {
-		values[field.CustomID] = strings.TrimSpace(field.Value)
+		values[field.CustomID] = field.Value
 	}
 	return values
 }

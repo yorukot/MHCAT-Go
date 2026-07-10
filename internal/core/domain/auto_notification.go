@@ -61,19 +61,14 @@ func (s AutoNotificationSetup) Normalized() AutoNotificationSetup {
 }
 
 func (m AutoNotificationMessage) Normalized() AutoNotificationMessage {
-	m.Content = strings.TrimSpace(m.Content)
-	m.EmbedTitle = strings.TrimSpace(m.EmbedTitle)
-	m.EmbedDescription = strings.TrimSpace(m.EmbedDescription)
-	m.EmbedColor = strings.TrimSpace(m.EmbedColor)
 	return m
 }
 
 func (m AutoNotificationMessage) HasEmbed() bool {
-	return strings.TrimSpace(m.EmbedTitle) != "" || strings.TrimSpace(m.EmbedDescription) != ""
+	return m.EmbedTitle != "" || m.EmbedDescription != ""
 }
 
 func (m AutoNotificationMessage) Empty() bool {
-	m = m.Normalized()
 	return m.Content == "" && m.EmbedTitle == "" && m.EmbedDescription == ""
 }
 
