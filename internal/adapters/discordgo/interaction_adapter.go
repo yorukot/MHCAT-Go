@@ -56,6 +56,7 @@ func InteractionFromDiscord(event *dgo.InteractionCreate) (interactions.Interact
 			Values:                    input.Values,
 			ChannelID:                 event.ChannelID,
 			MessageID:                 interactionMessageID(event.Interaction),
+			OriginalInteractionID:     originalInteractionID(event.Interaction),
 			OriginalInteractionUserID: originalInteractionUserID(event.Interaction),
 			Locale:                    string(event.Locale),
 			GuildLocale:               guildLocale(event.Interaction),
@@ -185,6 +186,19 @@ func interactionMessageID(interaction *dgo.Interaction) string {
 		return ""
 	}
 	return interaction.Message.ID
+}
+
+func originalInteractionID(interaction *dgo.Interaction) string {
+	if interaction == nil || interaction.Message == nil {
+		return ""
+	}
+	if metadata := interaction.Message.InteractionMetadata; metadata != nil {
+		return metadata.ID
+	}
+	if legacy := interaction.Message.Interaction; legacy != nil {
+		return legacy.ID
+	}
+	return ""
 }
 
 func originalInteractionUserID(interaction *dgo.Interaction) string {

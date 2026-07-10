@@ -352,11 +352,13 @@ type shopSession struct {
 	MessageID   string
 	CommodityID int64
 	Quantity    string
+	ExpiresAt   time.Time
 }
 
 type shopSessionStore struct {
-	mu       sync.Mutex
-	sessions map[shopSessionKey]shopSession
+	mu             sync.Mutex
+	sessions       map[shopSessionKey]shopSession
+	browseSessions map[shopBrowseSessionKey]shopBrowseSession
 }
 
 type shopSessionKey struct {
@@ -366,8 +368,24 @@ type shopSessionKey struct {
 	CommodityID int64
 }
 
+type shopBrowseSession struct {
+	GuildID       string
+	UserID        string
+	InteractionID string
+	ExpiresAt     time.Time
+}
+
+type shopBrowseSessionKey struct {
+	GuildID       string
+	UserID        string
+	InteractionID string
+}
+
 func newShopSessionStore() *shopSessionStore {
-	return &shopSessionStore{sessions: map[shopSessionKey]shopSession{}}
+	return &shopSessionStore{
+		sessions:       map[shopSessionKey]shopSession{},
+		browseSessions: map[shopBrowseSessionKey]shopBrowseSession{},
+	}
 }
 
 func (s *shopSessionStore) Put(session shopSession) {
@@ -416,8 +434,48 @@ func (s *shopSessionStore) Delete(session shopSession) {
 	delete(s.sessions, session.key())
 }
 
+func (s *shopSessionStore) PutBrowse(session shopBrowseSession, now time.Time) {
+	if s == nil || session.GuildID == "" || session.UserID == "" || session.InteractionID == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pruneLocked(now)
+	s.browseSessions[session.key()] = session
+}
+
+func (s *shopSessionStore) ClaimBrowse(guildID string, userID string, interactionID string, now time.Time) bool {
+	if s == nil || guildID == "" || userID == "" || interactionID == "" {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pruneLocked(now)
+	key := shopBrowseSessionKey{GuildID: guildID, UserID: userID, InteractionID: interactionID}
+	_, ok := s.browseSessions[key]
+	delete(s.browseSessions, key)
+	return ok
+}
+
+func (s *shopSessionStore) pruneLocked(now time.Time) {
+	for key, session := range s.sessions {
+		if !session.ExpiresAt.IsZero() && !now.Before(session.ExpiresAt) {
+			delete(s.sessions, key)
+		}
+	}
+	for key, session := range s.browseSessions {
+		if !session.ExpiresAt.IsZero() && !now.Before(session.ExpiresAt) {
+			delete(s.browseSessions, key)
+		}
+	}
+}
+
 func (s shopSession) key() shopSessionKey {
 	return shopSessionKey{GuildID: s.GuildID, UserID: s.UserID, MessageID: s.MessageID, CommodityID: s.CommodityID}
+}
+
+func (s shopBrowseSession) key() shopBrowseSessionKey {
+	return shopBrowseSessionKey{GuildID: s.GuildID, UserID: s.UserID, InteractionID: s.InteractionID}
 }
 
 func (m Module) RegisterEventRoutes(dispatcher *events.Dispatcher) {

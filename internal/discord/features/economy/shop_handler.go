@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -40,6 +41,7 @@ const (
 	shopRoleHighDocsPath    = "MHCAT/bug#%E8%BA%AB%E5%88%86%E7%B5%84%E4%BD%8D%E9%9A%8E%E8%AA%BF%E9%AB%98%E6%98%AF%E7%94%9A%E9%BA%BC%E6%84%8F%E6%80%9D"
 	shopFallbackGuildName   = "這個伺服器"
 	shopGenericErrorContent = "很抱歉，出現了未知的錯誤，請重試!"
+	shopCollectorTTL        = 10 * time.Minute
 )
 
 func (m Module) ShopHandler() interactions.Handler {
@@ -154,6 +156,13 @@ func (m Module) handleShopList(ctx context.Context, interaction interactions.Int
 	if err := responder.EditOriginal(ctx, shopListMessage(items, m.shopGuildName(ctx, interaction.Actor.GuildID), interaction.Actor.UserTag, interaction.Actor.AvatarURL, m.color())); err != nil {
 		return err
 	}
+	now := m.shopNow()
+	m.shopSessions.PutBrowse(shopBrowseSession{
+		GuildID:       interaction.Actor.GuildID,
+		UserID:        interaction.Actor.UserID,
+		InteractionID: interaction.ID,
+		ExpiresAt:     now.Add(shopCollectorTTL),
+	}, now)
 	return m.trackCommand(ctx, interaction, ShopCommandName)
 }
 
@@ -168,17 +177,24 @@ func (m Module) ShopItemHandler() interactions.Handler {
 			if !ok {
 				return responder.UpdateMessage(ctx, shopUpdateErrorMessage(shopGenericErrorContent, shopPurchaseDocsPath))
 			}
+			session, ok := m.shopSessions.Get(interaction.Actor.GuildID, interaction.Actor.UserID, interaction.MessageID, commodityID)
+			if !ok {
+				return nil
+			}
+			if !m.shopSessionActive(session) {
+				return nil
+			}
 			item, err := m.shop.Detail(ctx, interaction.Actor.GuildID, commodityID)
 			if err != nil {
 				return responder.UpdateMessage(ctx, shopDetailError(err))
 			}
-			m.shopSessions.Put(shopSession{
-				GuildID:     interaction.Actor.GuildID,
-				UserID:      interaction.Actor.UserID,
-				MessageID:   interaction.MessageID,
-				CommodityID: commodityID,
-			})
+			session.Quantity = ""
+			m.shopSessions.Put(session)
 			return responder.UpdateMessage(ctx, shopQuantityMessage(item, "", m.color()))
+		}
+		now := m.shopNow()
+		if !m.shopSessions.ClaimBrowse(interaction.Actor.GuildID, interaction.Actor.UserID, interaction.OriginalInteractionID, now) {
+			return nil
 		}
 		commodityID, ok := shopCommodityIDFromCustomID(raw)
 		if !ok {
@@ -188,6 +204,13 @@ func (m Module) ShopItemHandler() interactions.Handler {
 		if err != nil {
 			return responder.UpdateMessage(ctx, shopDetailError(err))
 		}
+		m.shopSessions.Put(shopSession{
+			GuildID:     interaction.Actor.GuildID,
+			UserID:      interaction.Actor.UserID,
+			MessageID:   interaction.MessageID,
+			CommodityID: commodityID,
+			ExpiresAt:   now.Add(shopCollectorTTL),
+		})
 		return responder.UpdateMessage(ctx, shopDetailMessage(item, m.color()))
 	}
 }
@@ -206,8 +229,8 @@ func (m Module) ShopQuantityHandler() interactions.Handler {
 			return m.confirmShopQuantity(ctx, interaction, responder, commodityID)
 		}
 		session, ok := m.shopSessions.GetByMessage(interaction.Actor.GuildID, interaction.Actor.UserID, interaction.MessageID)
-		if !ok {
-			return responder.UpdateMessage(ctx, shopUpdateErrorMessage(shopGenericErrorContent, shopPurchaseDocsPath))
+		if !ok || !m.shopSessionActive(session) {
+			return nil
 		}
 		item, err := m.shop.Detail(ctx, interaction.Actor.GuildID, session.CommodityID)
 		if err != nil {
@@ -244,8 +267,8 @@ func (m Module) ShopQuantityHandler() interactions.Handler {
 
 func (m Module) confirmShopQuantity(ctx context.Context, interaction interactions.Interaction, responder responses.Responder, commodityID int64) error {
 	session, ok := m.shopSessions.Get(interaction.Actor.GuildID, interaction.Actor.UserID, interaction.MessageID, commodityID)
-	if !ok {
-		return responder.UpdateMessage(ctx, shopUpdateErrorMessage(shopGenericErrorContent, shopPurchaseDocsPath))
+	if !ok || !m.shopSessionActive(session) {
+		return nil
 	}
 	quantity, err := strconv.ParseInt(strings.TrimSpace(session.Quantity), 10, 64)
 	if err != nil || quantity <= 0 {
@@ -287,6 +310,22 @@ func (m Module) nextShopCommodityID() int64 {
 		clock = ports.SystemClock{}
 	}
 	return clock.Now().UnixMilli()
+}
+
+func (m Module) shopNow() time.Time {
+	clock := m.clock
+	if clock == nil {
+		clock = ports.SystemClock{}
+	}
+	return clock.Now()
+}
+
+func (m Module) shopSessionActive(session shopSession) bool {
+	if session.ExpiresAt.IsZero() || m.shopNow().Before(session.ExpiresAt) {
+		return true
+	}
+	m.shopSessions.Delete(session)
+	return false
 }
 
 func (m Module) shopGuildName(ctx context.Context, guildID string) string {

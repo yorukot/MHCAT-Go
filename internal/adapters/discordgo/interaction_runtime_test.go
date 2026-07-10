@@ -131,6 +131,7 @@ func TestRuntimeInteractionComponent(t *testing.T) {
 		Message: &dgo.Message{
 			ID: "panel-message",
 			InteractionMetadata: &dgo.MessageInteractionMetadata{
+				ID:   "request-interaction-1",
 				User: &dgo.User{ID: "requester-1"},
 			},
 		},
@@ -140,7 +141,7 @@ func TestRuntimeInteractionComponent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runtime interaction: %v", err)
 	}
-	if interaction.CustomID != "mhcat:v1:help:category:overview" || len(interaction.Values) != 1 || interaction.MessageID != "panel-message" || interaction.OriginalInteractionUserID != "requester-1" || interaction.Actor.PermissionBits != 8192 {
+	if interaction.CustomID != "mhcat:v1:help:category:overview" || len(interaction.Values) != 1 || interaction.MessageID != "panel-message" || interaction.OriginalInteractionID != "request-interaction-1" || interaction.OriginalInteractionUserID != "requester-1" || interaction.Actor.PermissionBits != 8192 {
 		t.Fatalf("interaction = %#v", interaction)
 	}
 	parsed, err := customid.ParseComponent(interaction.CustomID)

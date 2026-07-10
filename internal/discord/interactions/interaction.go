@@ -91,6 +91,7 @@ type Interaction struct {
 	ChannelID                 string
 	ChannelName               string
 	MessageID                 string
+	OriginalInteractionID     string
 	OriginalInteractionUserID string
 	Locale                    string
 	GuildLocale               string
