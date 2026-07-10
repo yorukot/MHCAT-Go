@@ -153,7 +153,7 @@ func (s VerificationFlowService) completeConfigured(ctx context.Context, guildID
 	if err := s.Roles.AddRole(ctx, guildID, userID, config.RoleID); err != nil {
 		return err
 	}
-	if strings.TrimSpace(config.RenameTemplate) != "" {
+	if config.RenameTemplate != "" {
 		if s.Members == nil || s.Guilds == nil {
 			return domain.ErrInvalidVerificationChallenge
 		}

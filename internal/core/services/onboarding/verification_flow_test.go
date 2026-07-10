@@ -47,6 +47,26 @@ func TestVerificationFlowCompleteAddsRoleAndNickname(t *testing.T) {
 	}
 }
 
+func TestVerificationFlowTreatsWhitespaceRenameAsConfigured(t *testing.T) {
+	repo := &fakeVerificationConfigReader{config: domain.VerificationConfig{GuildID: "guild", RoleID: "role", RenameTemplate: "  "}}
+	store := &fakeVerificationChallengeStore{challenge: domain.VerificationChallenge{StateID: "state", GuildID: "guild", UserID: "user", Answer: "1234"}}
+	members := &fakeVerificationMemberPort{}
+	service := VerificationFlowService{
+		Repository: repo,
+		Store:      store,
+		Roles:      &fakeVerificationRolePort{},
+		Members:    members,
+		RolesCheck: fakeVerificationRoleInspectorFlow{assignable: true},
+		Guilds:     &fakeVerificationGuildInfo{ownerID: "owner"},
+	}
+	if err := service.Complete(context.Background(), "guild", "user", "state", "1234", "Yoru"); err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+	if members.nickname != "guild:user:  " {
+		t.Fatalf("nickname = %q", members.nickname)
+	}
+}
+
 func TestVerificationFlowCompleteRejectsWrongAnswerAndOwnerNickname(t *testing.T) {
 	repo := &fakeVerificationConfigReader{config: domain.VerificationConfig{GuildID: "guild", RoleID: "role", RenameTemplate: "{name}"}}
 	store := &fakeVerificationChallengeStore{challenge: domain.VerificationChallenge{StateID: "state", GuildID: "guild", UserID: "user", Answer: "1234"}}

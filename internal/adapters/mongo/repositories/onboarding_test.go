@@ -41,13 +41,13 @@ func TestVerificationConfigUpdate(t *testing.T) {
 	document := documents.VerificationDocumentFromDomain(domain.VerificationConfig{
 		GuildID:        "guild",
 		RoleID:         "role",
-		RenameTemplate: "{name} | MHCAT",
+		RenameTemplate: "  {name} | MHCAT  ",
 	})
 	update, err := verificationConfigUpdate(document)
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
-	if !bsonDHas(update, "$set", "role", "role") || !bsonDHas(update, "$set", "name", "{name} | MHCAT") {
+	if !bsonDHas(update, "$set", "role", "role") || !bsonDHas(update, "$set", "name", "  {name} | MHCAT  ") {
 		t.Fatalf("missing verification set: %#v", update)
 	}
 }

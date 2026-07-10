@@ -22,7 +22,7 @@ func (m Module) VerificationSetHandler() interactions.Handler {
 		config := domain.VerificationConfig{
 			GuildID:        interaction.Actor.GuildID,
 			RoleID:         firstOption(interaction, "身分組"),
-			RenameTemplate: firstOption(interaction, "改名"),
+			RenameTemplate: firstRawOption(interaction, "改名"),
 		}
 		if err := m.verificationService.Save(ctx, config); err != nil {
 			return responder.EditOriginal(ctx, verificationErrorFromError(err))
@@ -35,7 +35,7 @@ func (m Module) VerificationSetHandler() interactions.Handler {
 }
 
 func verificationSuccessMessage(roleID string, renameTemplate string) responses.Message {
-	name := strings.TrimSpace(renameTemplate)
+	name := renameTemplate
 	if name == "" {
 		name = "null"
 	}

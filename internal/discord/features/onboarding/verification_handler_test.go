@@ -19,7 +19,7 @@ func TestVerificationSetHandlerSavesConfigWithLegacySuccess(t *testing.T) {
 	module := NewVerificationModule(repo, roles, usage)
 	interaction := fakediscord.SlashInteractionWithOptions(VerificationSetCommandName, "", map[string]string{
 		"身分組": "role-1",
-		"改名":  "{name} | MHCAT",
+		"改名":  "  {name} | MHCAT  ",
 	})
 	interaction.Actor.PermissionBits = permissionManageMessages
 	responder := fakediscord.NewResponder()
@@ -37,14 +37,14 @@ func TestVerificationSetHandlerSavesConfigWithLegacySuccess(t *testing.T) {
 	if embed.Title != "<a:green_tick:994529015652163614> 設置成功!" {
 		t.Fatalf("embed title = %#v", embed)
 	}
-	if embed.Description != "<:roleplaying:985945121264635964>身分組: <@&role-1>!\n <:id:985950321975128094>改名為:{name} | MHCAT" {
+	if embed.Description != "<:roleplaying:985945121264635964>身分組: <@&role-1>!\n <:id:985950321975128094>改名為:  {name} | MHCAT  " {
 		t.Fatalf("description = %q", embed.Description)
 	}
 	if responder.Edits[0].AllowedMentions == nil || responder.Edits[0].AllowedMentions.ParseRoles {
 		t.Fatalf("mentions should be suppressed: %#v", responder.Edits[0].AllowedMentions)
 	}
 	saved := repo.Configs["guild-1"]
-	if saved.RoleID != "role-1" || saved.RenameTemplate != "{name} | MHCAT" {
+	if saved.RoleID != "role-1" || saved.RenameTemplate != "  {name} | MHCAT  " {
 		t.Fatalf("saved = %#v", saved)
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != VerificationSetCommandName || usage.Events[0].Feature != "verification-config" {

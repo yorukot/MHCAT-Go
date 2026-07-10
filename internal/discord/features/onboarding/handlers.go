@@ -291,6 +291,18 @@ func firstOption(interaction interactions.Interaction, names ...string) string {
 	return ""
 }
 
+func firstRawOption(interaction interactions.Interaction, names ...string) string {
+	for _, name := range names {
+		if value, ok := interaction.Options[name]; ok && value != "" {
+			return value
+		}
+		if option, ok := interaction.CommandOptions[name]; ok && option.String != "" {
+			return option.String
+		}
+	}
+	return ""
+}
+
 func (m Module) track(ctx context.Context, interaction interactions.Interaction, commandName string) error {
 	return m.trackFeature(ctx, interaction, commandName, "join-role-config")
 }

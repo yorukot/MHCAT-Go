@@ -21,7 +21,7 @@ func TestVerificationConfigServiceSavesAssignableRole(t *testing.T) {
 	if err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	if repo.saved.GuildID != "guild" || repo.saved.RoleID != "role" || repo.saved.RenameTemplate != "{name} | MHCAT" {
+	if repo.saved.GuildID != "guild" || repo.saved.RoleID != "role" || repo.saved.RenameTemplate != " {name} | MHCAT " {
 		t.Fatalf("saved = %#v", repo.saved)
 	}
 }

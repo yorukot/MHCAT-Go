@@ -344,7 +344,6 @@ func (r *VerificationConfigRepository) SaveVerificationConfig(ctx context.Contex
 	}
 	config.GuildID = strings.TrimSpace(config.GuildID)
 	config.RoleID = strings.TrimSpace(config.RoleID)
-	config.RenameTemplate = strings.TrimSpace(config.RenameTemplate)
 	if err := config.Validate(); err != nil {
 		return err
 	}
