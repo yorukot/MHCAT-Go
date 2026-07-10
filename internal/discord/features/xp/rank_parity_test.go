@@ -42,6 +42,51 @@ func TestRankComponentsPreserveLegacyRows(t *testing.T) {
 	}
 }
 
+func TestRankLoadingMessagePreservesLegacyPayload(t *testing.T) {
+	tests := map[string]string{
+		"missing avatar":         rankDefaultAvatar,
+		"Discord default avatar": rankDefaultAvatar,
+		"animated avatar":        "https://cdn.discordapp.com/avatars/123/a_hash.png?size=128",
+		"static avatar":          "https://example.test/avatar.png",
+	}
+	inputs := map[string]string{
+		"missing avatar":         "",
+		"Discord default avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
+		"animated avatar":        "https://cdn.discordapp.com/avatars/123/a_hash.gif?size=128",
+		"static avatar":          "https://example.test/avatar.png",
+	}
+
+	for name, wantAvatar := range tests {
+		t.Run(name, func(t *testing.T) {
+			want := responses.Message{
+				Embeds: []responses.Embed{{
+					Author: &responses.EmbedAuthor{Name: rankLoadingAuthor, IconURL: rankLoadingIcon},
+					Footer: &responses.EmbedFooter{Text: rankLoadingFooter, IconURL: wantAvatar},
+					Color:  rankLoadingColor,
+				}},
+				AllowedMentions: &responses.AllowedMentions{},
+			}
+			if got := rankLoadingMessage(inputs[name]); !reflect.DeepEqual(got, want) {
+				t.Fatalf("rankLoadingMessage() = %#v, want %#v", got, want)
+			}
+		})
+	}
+}
+
+func TestRankMissingUserMessagePreservesLegacyPayload(t *testing.T) {
+	want := responses.Message{
+		Ephemeral: true,
+		Embeds: []responses.Embed{{
+			Title: rankMissingUserTitle,
+			Color: rankMissingUserColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+	if got := rankMissingUserMessage(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("rankMissingUserMessage() = %#v, want %#v", got, want)
+	}
+}
+
 func rankComponentRows(viewerID string, kind string, page int, totalPages int, targetPage string) []responses.ComponentRow {
 	button := func(customID string, label string, emoji string, style responses.ButtonStyle, disabled bool) responses.Component {
 		return responses.Component{Type: responses.ComponentTypeButton, CustomID: customID, Label: label, Emoji: emoji, Style: style, Disabled: disabled}

@@ -3,6 +3,8 @@ package xp
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -212,9 +214,7 @@ func (m RankModule) rankUserExists(ctx context.Context, guildID string, userID s
 }
 
 func rankLoadingMessage(avatarURL string) responses.Message {
-	if strings.TrimSpace(avatarURL) == "" {
-		avatarURL = rankDefaultAvatar
-	}
+	avatarURL = legacyRankAvatarURL(avatarURL)
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Author: &responses.EmbedAuthor{
@@ -229,6 +229,30 @@ func rankLoadingMessage(avatarURL string) responses.Message {
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
+}
+
+func legacyRankAvatarURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return rankDefaultAvatar
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host != "cdn.discordapp.com" && host != "media.discordapp.net" {
+		return raw
+	}
+	if strings.Contains(parsed.Path, "/embed/avatars/") {
+		return rankDefaultAvatar
+	}
+	if strings.EqualFold(path.Ext(parsed.Path), ".gif") {
+		parsed.Path = strings.TrimSuffix(parsed.Path, path.Ext(parsed.Path)) + ".png"
+		parsed.RawPath = ""
+		return parsed.String()
+	}
+	return raw
 }
 
 func rankMissingUserMessage() responses.Message {
