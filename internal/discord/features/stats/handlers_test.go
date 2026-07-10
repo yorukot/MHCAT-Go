@@ -32,16 +32,23 @@ func TestQueryHandlerRendersLegacyStaticEmbed(t *testing.T) {
 	if embed.Title != "統計系統查詢" || embed.Color != 0x123456 {
 		t.Fatalf("embed = %#v", embed)
 	}
-	for _, want := range []string{
-		"我的統計系統是每**10分鐘更新一次**",
-		"輸入 /統計系統創建",
-		"用戶總數 (伺服器的總人數)",
-		"文字頻道數量 (文字頻道總數)",
-		"語音頻道數量 (語音頻道總數)",
-	} {
-		if !strings.Contains(embed.Description, want) {
-			t.Fatalf("description missing %q: %q", want, embed.Description)
-		}
+	wantDescription := "\n" +
+		"        我的統計系統是每**10分鐘更新一次**`(因為discord api每10分鐘才能更新一次)`\n" +
+		"        輸入 /統計系統創建 [選擇要`文字頻道`或是`語音頻道`] [輸入想創建的統計名稱]\n" +
+		"        \n" +
+		"        **用戶查詢**\n" +
+		"        ```\n" +
+		"用戶總數 (伺服器的總人數)\n" +
+		"使用者總數 (伺服器非機器人人數)\n" +
+		"機器人數 (伺服器總共的機器人數量)```\n" +
+		"        **伺服器頻道**\n" +
+		"        ```\n" +
+		"頻道數量 (頻道總數量)\n" +
+		"文字頻道數量 (文字頻道總數)\n" +
+		"語音頻道數量 (語音頻道總數)```\n" +
+		"        "
+	if embed.Description != wantDescription || reply.Ephemeral {
+		t.Fatalf("reply = %#v", reply)
 	}
 	if reply.AllowedMentions == nil {
 		t.Fatal("expected allowed mentions to be disabled explicitly")
