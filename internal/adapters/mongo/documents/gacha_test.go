@@ -72,7 +72,7 @@ func TestGiftWriteDocumentFromDomainPreservesLegacyBSONFields(t *testing.T) {
 	if document.Guild != "guild-1" || document.GiftName != " 大獎 " || document.GiftCode == nil || *document.GiftCode != " code-1 " {
 		t.Fatalf("document identity = %#v", document)
 	}
-	if document.GiftChance != 12.5 || document.AutoDelete || document.GiftCount != 3 || document.GiveCoin != 7 {
+	if document.GiftChance == nil || *document.GiftChance != 12.5 || document.AutoDelete || document.GiftCount != 3 || document.GiveCoin != 7 {
 		t.Fatalf("document values = %#v", document)
 	}
 }
@@ -81,5 +81,24 @@ func TestGiftWriteDocumentFromDomainStoresMissingCodeAsNil(t *testing.T) {
 	document := GiftWriteDocumentFromDomain(domain.GachaPrizeConfig{GuildID: "guild-1", Name: "大獎", Count: 1})
 	if document.GiftCode != nil {
 		t.Fatalf("expected nil gift code, got %#v", document.GiftCode)
+	}
+}
+
+func TestGiftWriteDocumentFromDomainStoresZeroChanceAsLegacyNull(t *testing.T) {
+	document := GiftWriteDocumentFromDomain(domain.GachaPrizeConfig{GuildID: "guild-1", Name: "大獎", Count: 1})
+	if document.GiftChance != nil {
+		t.Fatalf("expected nil gift chance, got %#v", document.GiftChance)
+	}
+	raw, err := bson.Marshal(document)
+	if err != nil {
+		t.Fatalf("marshal document: %v", err)
+	}
+	var decoded bson.M
+	if err := bson.Unmarshal(raw, &decoded); err != nil {
+		t.Fatalf("decode document: %v", err)
+	}
+	chance, ok := decoded["gift_chence"]
+	if !ok || chance != nil {
+		t.Fatalf("gift_chence = %#v, present = %t", chance, ok)
 	}
 }
