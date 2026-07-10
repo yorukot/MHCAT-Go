@@ -18,6 +18,7 @@ const (
 	permissionKickMembers    = int64(2)
 	textXPErrorColor         = 0xED4245
 	textXPSuccessColor       = 0x57F287
+	xpAdminSuccessColor      = 0x53FF53
 	legacyLineEmoji          = "<:line:992363971803881493>"
 	disabledProfileMessage   = "該指令即將被移除，請使用`/我的檔案`進行替代"
 )
@@ -246,7 +247,7 @@ func xpAdminSuccessMessage(userID string, amount int64) responses.Message {
 		Embeds: []responses.Embed{{
 			Title:       "<:xp:990254386792005663> 經驗系統",
 			Description: fmt.Sprintf("%s成功為:<@%s>\n增加:`%d`", doneEmoji, strings.TrimSpace(userID), amount),
-			Color:       textXPSuccessColor,
+			Color:       xpAdminSuccessColor,
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}

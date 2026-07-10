@@ -531,7 +531,7 @@ func TestAdminHandlerAddsTextXPAndRendersLegacySuccess(t *testing.T) {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 	embed := responder.Edits[0].Embeds[0]
-	if embed.Title != "<:xp:990254386792005663> 經驗系統" || embed.Description != doneEmoji+"成功為:<@user-2>\n增加:`150`" {
+	if embed.Title != "<:xp:990254386792005663> 經驗系統" || embed.Description != doneEmoji+"成功為:<@user-2>\n增加:`150`" || embed.Color != 0x53FF53 {
 		t.Fatalf("embed = %#v", embed)
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != XPAdminCommandName || usage.Events[0].Feature != "xp-admin" {
