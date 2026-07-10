@@ -35,11 +35,11 @@ func (m Module) CreateHandler() interactions.Handler {
 		if m.messages == nil {
 			return ErrPollSideEffectsNotConfigured
 		}
-		if !interaction.Actor.HasPermission(m.memberPerm) {
-			return responder.Reply(ctx, pollErrorMessage("你需要有`訊息管理`才能使用此指令"))
-		}
 		if err := responder.Defer(ctx, responses.DeferOptions{Ephemeral: true}); err != nil {
 			return err
+		}
+		if !interaction.Actor.HasPermission(m.memberPerm) {
+			return responder.EditOriginal(ctx, pollErrorMessage("你需要有`訊息管理`才能使用此指令"))
 		}
 		question := strings.TrimSpace(interaction.Options["問題"])
 		choicesRaw := interaction.Options["選項"]

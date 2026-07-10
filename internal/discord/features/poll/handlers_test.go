@@ -89,8 +89,14 @@ func TestCreateHandlerRequiresManageMessages(t *testing.T) {
 	if err := module.CreateHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("create handler: %v", err)
 	}
-	if len(responder.Replies) != 1 || !strings.Contains(responder.Replies[0].Embeds[0].Title, "訊息管理") {
-		t.Fatalf("permission reply = %#v", responder.Replies)
+	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral {
+		t.Fatalf("permission defers = %#v", responder.Defers)
+	}
+	if len(responder.Replies) != 0 {
+		t.Fatalf("permission replies = %#v", responder.Replies)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") {
+		t.Fatalf("permission edits = %#v", responder.Edits)
 	}
 }
 
