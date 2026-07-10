@@ -1,6 +1,7 @@
 package documents
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -114,6 +115,75 @@ func TestVerificationDocumentDecodesLegacyRenameShapes(t *testing.T) {
 			config := document.ToDomain()
 			if config.GuildID != "guild" || config.RoleID != "role" || config.RenameTemplate != tc.wantRename {
 				t.Fatalf("config = %#v", config)
+			}
+		})
+	}
+}
+
+func TestAccountAgeDocumentDecodesLegacyShapes(t *testing.T) {
+	tests := []struct {
+		name        string
+		document    bson.D
+		wantChannel string
+	}{
+		{
+			name:     "missing channel",
+			document: bson.D{{Key: "guild", Value: "guild"}, {Key: "hours", Value: "3600"}},
+		},
+		{
+			name:     "null channel",
+			document: bson.D{{Key: "guild", Value: "guild"}, {Key: "hours", Value: "3600"}, {Key: "channel", Value: nil}},
+		},
+		{
+			name:        "string channel",
+			document:    bson.D{{Key: "guild", Value: "guild"}, {Key: "hours", Value: "3600"}, {Key: "channel", Value: "channel"}},
+			wantChannel: "channel",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded, err := bson.Marshal(tc.document)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			var document AccountAgeDocument
+			if err := bson.Unmarshal(encoded, &document); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			config, err := document.ToDomain()
+			if err != nil {
+				t.Fatalf("to domain: %v", err)
+			}
+			if config.GuildID != "guild" || config.RequiredSeconds != 3600 || config.ChannelID != tc.wantChannel {
+				t.Fatalf("config = %#v", config)
+			}
+		})
+	}
+}
+
+func TestAccountAgeDocumentRejectsInvalidLegacyHours(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		hours any
+	}{
+		{name: "null", hours: nil},
+		{name: "empty", hours: ""},
+		{name: "non-numeric", hours: "not-a-number"},
+		{name: "zero", hours: "0"},
+		{name: "negative", hours: "-3600"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded, err := bson.Marshal(bson.D{{Key: "guild", Value: "guild"}, {Key: "hours", Value: tc.hours}})
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			var document AccountAgeDocument
+			if err := bson.Unmarshal(encoded, &document); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if _, err := document.ToDomain(); !errors.Is(err, domain.ErrInvalidAccountAgeConfig) {
+				t.Fatalf("error = %v", err)
 			}
 		})
 	}
