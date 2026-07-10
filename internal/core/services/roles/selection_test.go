@@ -126,3 +126,19 @@ func TestConfigureReactionRejectsUnassignableRole(t *testing.T) {
 		t.Fatalf("expected not assignable, got %v", err)
 	}
 }
+
+func TestConfigureReactionChecksRoleBeforeMessageURL(t *testing.T) {
+	repo := fakemongo.NewRoleSelectionRepository()
+	discord := fakediscord.NewSideEffects()
+	service := SelectionService{Repository: repo, RoleInspector: discord, Reactions: discord}
+
+	_, err := service.ConfigureReaction(context.Background(), ReactionSetCommand{
+		GuildID:    "guild-1",
+		MessageURL: "not-a-message-url",
+		RoleID:     "role-1",
+		Emoji:      "not-an-emoji",
+	})
+	if !errors.Is(err, ports.ErrDiscordRoleNotAssignable) {
+		t.Fatalf("expected role hierarchy error before URL validation, got %v", err)
+	}
+}

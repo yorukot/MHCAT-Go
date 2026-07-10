@@ -46,6 +46,27 @@ func TestReactionSetHandlerStoresConfigAndAddsReaction(t *testing.T) {
 	}
 }
 
+func TestReactionSetHandlerReportsRoleHierarchyBeforeInvalidURL(t *testing.T) {
+	repo := fakemongo.NewRoleSelectionRepository()
+	discord := fakediscord.NewSideEffects()
+	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+	interaction := fakediscord.SlashInteractionWithOptions(RoleReactionSetCommandName, "", map[string]string{
+		"訊息url": "not-a-message-url",
+		"身分組":   "role-1",
+		"表情符號":  "not-an-emoji",
+	})
+	interaction.Actor.PermissionBits = permissionManageMessages
+	responder := fakediscord.NewResponder()
+
+	if err := module.ReactionSetHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	want := roleSelectionErrorPrefix + "我沒有權限給大家這個身分組(請把我的身分組調高)!"
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != want {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func TestReactionDeleteHandlerDeletesConfig(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	repo.Reactions["guild-1/message-1/✅"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "✅", RoleID: "role-1"}

@@ -68,16 +68,8 @@ func (s SelectionService) ConfigureReaction(ctx context.Context, command Reactio
 	}
 	guildID := strings.TrimSpace(command.GuildID)
 	roleID := strings.TrimSpace(command.RoleID)
-	target, err := domain.ParseDiscordMessageURL(command.MessageURL)
-	if err != nil {
-		return domain.RoleReactionConfig{}, err
-	}
-	if guildID == "" || guildID != target.GuildID || roleID == "" {
+	if guildID == "" || roleID == "" {
 		return domain.RoleReactionConfig{}, domain.ErrInvalidRoleSelectionConfig
-	}
-	reaction, err := domain.NormalizeLegacyReaction(command.Emoji)
-	if err != nil {
-		return domain.RoleReactionConfig{}, err
 	}
 	assignable, err := s.RoleInspector.CanAssignRole(ctx, guildID, roleID)
 	if err != nil {
@@ -85,6 +77,17 @@ func (s SelectionService) ConfigureReaction(ctx context.Context, command Reactio
 	}
 	if !assignable {
 		return domain.RoleReactionConfig{}, ports.ErrDiscordRoleNotAssignable
+	}
+	target, err := domain.ParseDiscordMessageURL(command.MessageURL)
+	if err != nil {
+		return domain.RoleReactionConfig{}, err
+	}
+	if guildID != target.GuildID {
+		return domain.RoleReactionConfig{}, domain.ErrInvalidRoleSelectionConfig
+	}
+	reaction, err := domain.NormalizeLegacyReaction(command.Emoji)
+	if err != nil {
+		return domain.RoleReactionConfig{}, err
 	}
 	if err := s.Reactions.AddReaction(ctx, target.ChannelID, target.MessageID, reaction.API); err != nil {
 		return domain.RoleReactionConfig{}, err
