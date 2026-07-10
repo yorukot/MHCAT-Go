@@ -515,8 +515,9 @@ func TestOpenHandlerDuplicateCheckMatchesAnyLegacyChannelType(t *testing.T) {
 
 func TestOpenHandlerMissingConfigDeletesPanelAndRepliesLegacyMessage(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewModuleWithSideEffects(fakemongo.NewTicketConfigRepository(), sideEffects, sideEffects, "")
 	responder := fakediscord.NewResponder()
+	messages := &replyAwareTicketMessagePort{SideEffects: sideEffects, responder: responder}
+	module := NewModuleWithSideEffects(fakemongo.NewTicketConfigRepository(), sideEffects, messages, "")
 	interaction := ticketButtonInteraction("tic")
 
 	if err := module.OpenHandler()(context.Background(), interaction, responder); err != nil {
@@ -524,6 +525,9 @@ func TestOpenHandlerMissingConfigDeletesPanelAndRepliesLegacyMessage(t *testing.
 	}
 	if len(sideEffects.DeletedMessage) != 1 || sideEffects.DeletedMessage[0].MessageID != "panel-message" {
 		t.Fatalf("deleted panel messages = %#v", sideEffects.DeletedMessage)
+	}
+	if !messages.repliedBeforeDelete {
+		t.Fatal("stale panel was deleted before the interaction reply")
 	}
 	if len(sideEffects.Created) != 0 || len(sideEffects.Sent) != 0 {
 		t.Fatalf("unexpected side effects: created=%#v sent=%#v", sideEffects.Created, sideEffects.Sent)
@@ -671,4 +675,15 @@ func flattenInputs(modal responses.Modal) []responses.TextInput {
 		inputs = append(inputs, row.Inputs...)
 	}
 	return inputs
+}
+
+type replyAwareTicketMessagePort struct {
+	*fakediscord.SideEffects
+	responder           *fakediscord.Responder
+	repliedBeforeDelete bool
+}
+
+func (p *replyAwareTicketMessagePort) DeleteMessage(ctx context.Context, ref ports.MessageRef) error {
+	p.repliedBeforeDelete = len(p.responder.Replies) > 0
+	return p.SideEffects.DeleteMessage(ctx, ref)
 }

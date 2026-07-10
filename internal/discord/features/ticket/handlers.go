@@ -200,10 +200,13 @@ func (m Module) OpenHandler() interactions.Handler {
 
 		config, err := m.repo.GetTicketConfig(ctx, interaction.Actor.GuildID)
 		if errors.Is(err, ports.ErrTicketConfigNotFound) {
+			if err := responder.Reply(ctx, ticketDeletedConfigMessage()); err != nil {
+				return err
+			}
 			if interaction.MessageID != "" {
 				_ = m.messages.DeleteMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: interaction.MessageID})
 			}
-			return responder.Reply(ctx, ticketDeletedConfigMessage())
+			return nil
 		}
 		if err != nil {
 			return err
