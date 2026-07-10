@@ -84,7 +84,7 @@ func (r *AutoChatPaidRepository) QueuePaidAutoChat(ctx context.Context, request 
 		}
 		balanceResult, err := r.balances.UpdateOne(
 			txCtx,
-			bson.D{{Key: "_id", Value: balance.ID}, {Key: "guild", Value: request.GuildID}, {Key: "price", Value: amount}},
+			bson.D{{Key: "_id", Value: balance.ID}, {Key: "guild", Value: request.GuildID}, {Key: "price", Value: balance.Price}},
 			bson.D{{Key: "$set", Value: bson.D{{Key: "price", Value: amount - request.Cost}}}},
 		)
 		if err != nil {
@@ -230,15 +230,8 @@ func (r *AutoChatPaidRepository) writePaidHandoff(ctx context.Context, target au
 }
 
 func autoChatPaidNumeric(value bson.RawValue) (float64, bool) {
-	var parsed float64
-	switch value.Type {
-	case bson.TypeDouble:
-		parsed = value.Double()
-	case bson.TypeInt32:
-		parsed = float64(value.Int32())
-	case bson.TypeInt64:
-		parsed = float64(value.Int64())
-	default:
+	parsed, ok := documents.LegacyMongooseNumber(value)
+	if !ok {
 		return 0, false
 	}
 	if math.IsNaN(parsed) || math.IsInf(parsed, 0) {

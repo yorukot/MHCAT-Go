@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
@@ -21,7 +22,11 @@ func TestNewAutoChatPaidRepositoryRequiresDependencies(t *testing.T) {
 }
 
 func TestAutoChatPaidNumericAcceptsLegacyNumberTypes(t *testing.T) {
-	for _, value := range []any{int32(2), int64(3), 4.5} {
+	decimal, err := bson.ParseDecimal128("5.5")
+	if err != nil {
+		t.Fatalf("parse decimal: %v", err)
+	}
+	for _, value := range []any{int32(2), int64(3), 4.5, "6.5", true, time.UnixMilli(7), decimal} {
 		typeValue, encoded, err := bson.MarshalValue(value)
 		if err != nil {
 			t.Fatalf("marshal %T: %v", value, err)
@@ -29,6 +34,28 @@ func TestAutoChatPaidNumericAcceptsLegacyNumberTypes(t *testing.T) {
 		if parsed, ok := autoChatPaidNumeric(bson.RawValue{Type: typeValue, Value: encoded}); !ok || parsed <= 0 {
 			t.Fatalf("value %v parsed as %f ok=%v", value, parsed, ok)
 		}
+	}
+}
+
+func TestAutoChatPaidNumericDoesNotTreatUnavailableValuesAsPositive(t *testing.T) {
+	for _, value := range []any{0, -1, "not-a-number", false, math.NaN(), math.Inf(1), bson.D{{Key: "invalid", Value: 1}}} {
+		parsed, ok := autoChatPaidNumeric(rawValue(t, value))
+		if ok && parsed > 0 {
+			t.Fatalf("value %#v parsed as %f", value, parsed)
+		}
+	}
+}
+
+func TestAutoChatPaidBalanceFilterPreservesRawPriceType(t *testing.T) {
+	price := rawValue(t, "12.5")
+	filter := bson.D{{Key: "_id", Value: bson.NewObjectID()}, {Key: "guild", Value: "guild-1"}, {Key: "price", Value: price}}
+	encoded, err := bson.Marshal(filter)
+	if err != nil {
+		t.Fatalf("marshal filter: %v", err)
+	}
+	stored := bson.Raw(encoded).Lookup("price")
+	if stored.Type != bson.TypeString || stored.StringValue() != "12.5" {
+		t.Fatalf("stored price = %#v", stored)
 	}
 }
 
