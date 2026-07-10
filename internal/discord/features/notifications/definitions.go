@@ -6,7 +6,6 @@ const (
 	AutoNotificationSetupCommandName  = "automatic-notification"
 	AutoNotificationListCommandName   = "自動通知列表"
 	AutoNotificationDeleteCommandName = "自動通知刪除"
-	manageMessagesPermission          = "8192"
 	optionChannel                     = "channel"
 	optionID                          = "id"
 )
@@ -29,9 +28,8 @@ func SetupDefinition() commands.Definition {
 			"en-US": "Set where automatic notification should be send",
 			"zh-TW": "设置自动聊天频道要在哪发送",
 		},
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		DocsURL:                  "https://youtu.be/D43zPrZU5Fw",
-		Ownership:                commands.ManagedOwnership("auto-notification-config", commands.ScopeGuild),
+		DocsURL:   "https://youtu.be/D43zPrZU5Fw",
+		Ownership: commands.ManagedOwnership("auto-notification-config", commands.ScopeGuild),
 		Options: []commands.Option{{
 			Type:        commands.OptionTypeChannel,
 			Name:        optionChannel,
@@ -54,23 +52,21 @@ func SetupDefinition() commands.Definition {
 
 func ListDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     AutoNotificationListCommandName,
-		Description:              "查看所有的自動通知列表",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		DocsURL:                  "https://youtu.be/D43zPrZU5Fw",
-		Ownership:                commands.ManagedOwnership("auto-notification-config", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        AutoNotificationListCommandName,
+		Description: "查看所有的自動通知列表",
+		DocsURL:     "https://youtu.be/D43zPrZU5Fw",
+		Ownership:   commands.ManagedOwnership("auto-notification-config", commands.ScopeGuild),
 	}
 }
 
 func DeleteDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     AutoNotificationDeleteCommandName,
-		Description:              "刪除之前設定的自動通知",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		DocsURL:                  "https://youtu.be/D43zPrZU5Fw",
-		Ownership:                commands.ManagedOwnership("auto-notification-config", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        AutoNotificationDeleteCommandName,
+		Description: "刪除之前設定的自動通知",
+		DocsURL:     "https://youtu.be/D43zPrZU5Fw",
+		Ownership:   commands.ManagedOwnership("auto-notification-config", commands.ScopeGuild),
 		Options: []commands.Option{{
 			Type:        commands.OptionTypeString,
 			Name:        optionID,
@@ -78,8 +74,4 @@ func DeleteDefinition() commands.Definition {
 			Required:    true,
 		}},
 	}
-}
-
-func stringPtr(value string) *string {
-	return &value
 }
