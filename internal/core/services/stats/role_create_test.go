@@ -64,6 +64,44 @@ func TestCreateStatsRoleCreatesLegacyTextChannelAndSavesRoleNumber(t *testing.T)
 	}
 }
 
+func TestRoleStatsPermissionOverwritesMatchLegacy(t *testing.T) {
+	tests := []struct {
+		name        string
+		channelType int
+		want        []ports.PermissionOverwrite
+	}{
+		{
+			name:        "text",
+			channelType: discordChannelTypeGuildText,
+			want: []ports.PermissionOverwrite{
+				{ID: "bot-1", Type: permissionOverwriteMember, Allow: permissionViewChannel | permissionManageChannels | permissionSendMessages},
+				{ID: "guild-1", Type: permissionOverwriteRole, Allow: permissionViewChannel, Deny: permissionSendMessages},
+			},
+		},
+		{
+			name:        "voice",
+			channelType: discordChannelTypeGuildVoice,
+			want: []ports.PermissionOverwrite{
+				{ID: "bot-1", Type: permissionOverwriteMember, Allow: permissionViewChannel | permissionManageMessages | permissionConnect},
+				{ID: "guild-1", Type: permissionOverwriteRole, Allow: permissionViewChannel, Deny: permissionConnect},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := roleStatsPermissionOverwrites("guild-1", "bot-1", test.channelType)
+			if len(got) != len(test.want) {
+				t.Fatalf("overwrites = %#v", got)
+			}
+			for index := range test.want {
+				if got[index] != test.want[index] {
+					t.Fatalf("overwrite[%d] = %#v, want %#v", index, got[index], test.want[index])
+				}
+			}
+		})
+	}
+}
+
 func TestCreateStatsRoleCreatesLegacyVoiceChannelWithoutMissingParent(t *testing.T) {
 	repo := fakemongo.NewStatsConfigRepository()
 	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "missing-parent"})
@@ -76,6 +114,7 @@ func TestCreateStatsRoleCreatesLegacyVoiceChannelWithoutMissingParent(t *testing
 		GuildID:     "guild-1",
 		ChannelType: domain.StatsChannelTypeVoice,
 		RoleID:      "role-1",
+		BotUserID:   "bot-1",
 	})
 	if err != nil {
 		t.Fatalf("create role stats: %v", err)
@@ -87,7 +126,7 @@ func TestCreateStatsRoleCreatesLegacyVoiceChannelWithoutMissingParent(t *testing
 	if request.Name != "VIP: 3" || request.Type != discordChannelTypeGuildVoice || request.ParentID != "" {
 		t.Fatalf("created channel = %#v", request)
 	}
-	if len(request.PermissionOverwrites) != 1 || request.PermissionOverwrites[0].Deny != permissionConnect {
+	if len(request.PermissionOverwrites) != 2 || request.PermissionOverwrites[0].ID != "bot-1" || request.PermissionOverwrites[1].Deny != permissionConnect {
 		t.Fatalf("voice overwrites = %#v", request.PermissionOverwrites)
 	}
 }
