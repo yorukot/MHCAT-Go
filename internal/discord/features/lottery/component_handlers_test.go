@@ -124,6 +124,25 @@ func TestLotterySearchHidesManagerControlsFromOtherUsers(t *testing.T) {
 	}
 }
 
+func TestLegacyLotteryParticipantTimeMatchesNode20(t *testing.T) {
+	tests := []struct {
+		name   string
+		millis int64
+		want   string
+	}{
+		{name: "normal hour", millis: 1_700_000_000_000, want: "2023/11/15\u200906:13:20 [台北標準時間]"},
+		{name: "midnight hour", millis: 1_699_977_601_000, want: "2023/11/15\u200924:00:01 [台北標準時間]"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := legacyLotteryParticipantTime(domain.LotteryParticipant{JoinedAtMillis: test.millis})
+			if got != test.want {
+				t.Fatalf("participant time = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func TestLotteryRerollSendsOneLegacyWinnerMessageAndEndsLottery(t *testing.T) {
 	repo := fakemongo.NewLotteryRepository()
 	repo.Lotteries["guild-1:"+lotteryTestID] = domain.Lottery{

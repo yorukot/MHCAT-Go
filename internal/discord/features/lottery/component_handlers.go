@@ -251,7 +251,12 @@ func legacyLotteryParticipantTime(participant domain.LotteryParticipant) string 
 	if participant.JoinedAtMillis > 0 {
 		location, err := time.LoadLocation("Asia/Taipei")
 		if err == nil {
-			return time.UnixMilli(participant.JoinedAtMillis).In(location).Format("2006/01/02\u200915:04:05") + " [台北標準時間]"
+			joinedAt := time.UnixMilli(participant.JoinedAtMillis).In(location)
+			hour := joinedAt.Format("15")
+			if joinedAt.Hour() == 0 {
+				hour = "24"
+			}
+			return joinedAt.Format("2006/01/02\u2009") + hour + joinedAt.Format(":04:05") + " [台北標準時間]"
 		}
 	}
 	return participant.JoinedAtRaw
