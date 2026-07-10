@@ -55,7 +55,7 @@ func (r *PollRepository) GetPoll(ctx context.Context, guildID string, messageID 
 	if err := ctx.Err(); err != nil {
 		return domain.Poll{}, err
 	}
-	var document documents.PollDocument
+	var document documents.PollReadDocument
 	if err := r.collection.FindOne(ctx, pollKeyFilter(guildID, messageID)).Decode(&document); err != nil {
 		if mhcatmongo.ErrorIs(mhcatmongo.MapError(err), mhcatmongo.ErrorKindNotFound) {
 			return domain.Poll{}, ports.ErrPollNotFound
@@ -105,7 +105,7 @@ func (r *PollRepository) Vote(ctx context.Context, guildID string, messageID str
 
 func pollRemoveVoteFilter(guildID string, messageID string, userID string, choice string) bson.D {
 	return append(pollActiveFilter(guildID, messageID),
-		bson.E{Key: "can_change_choose", Value: true},
+		bson.E{Key: "can_change_choose", Value: bson.D{{Key: "$in", Value: pollMongooseTrueValues()}}},
 		bson.E{Key: "join_member", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "id", Value: userID}, {Key: "choise", Value: choice}}}}},
 	)
 }
@@ -120,7 +120,7 @@ func pollAddVoteFilter(guildID string, messageID string, userID string, choice s
 				{Key: "as", Value: "vote"},
 				{Key: "cond", Value: bson.D{{Key: "$eq", Value: bson.A{"$$vote.id", userID}}}},
 			}}}}},
-			"$many_choose",
+			pollMaxChoicesExpression(),
 		}}}},
 	)
 }
@@ -211,7 +211,28 @@ func pollKeyFilter(guildID string, messageID string) bson.D {
 }
 
 func pollActiveFilter(guildID string, messageID string) bson.D {
-	return append(pollKeyFilter(guildID, messageID), bson.E{Key: "end", Value: bson.D{{Key: "$ne", Value: true}}})
+	return append(pollKeyFilter(guildID, messageID), bson.E{Key: "end", Value: bson.D{{Key: "$nin", Value: pollMongooseTrueValues()}}})
+}
+
+func pollMongooseTrueValues() bson.A {
+	return bson.A{true, "true", 1, "1", "yes"}
+}
+
+func pollMaxChoicesExpression() bson.D {
+	converted := bson.D{{Key: "$convert", Value: bson.D{
+		{Key: "input", Value: "$many_choose"},
+		{Key: "to", Value: "double"},
+		{Key: "onError", Value: 1},
+		{Key: "onNull", Value: 1},
+	}}}
+	return bson.D{{Key: "$let", Value: bson.D{
+		{Key: "vars", Value: bson.D{{Key: "maxChoices", Value: converted}}},
+		{Key: "in", Value: bson.D{{Key: "$cond", Value: bson.A{
+			bson.D{{Key: "$gt", Value: bson.A{"$$maxChoices", 0}}},
+			"$$maxChoices",
+			1,
+		}}}},
+	}}}
 }
 
 func (r *PollRepository) FindDuplicateKeys(ctx context.Context) ([]string, error) {

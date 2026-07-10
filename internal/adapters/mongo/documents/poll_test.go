@@ -28,7 +28,7 @@ func TestPollDocumentLegacyBSONDecodes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal legacy poll: %v", err)
 	}
-	var document PollDocument
+	var document PollReadDocument
 	if err := bson.Unmarshal(payload, &document); err != nil {
 		t.Fatalf("decode legacy poll: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestPollDocumentMissingFieldsDecodeSafe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal partial poll: %v", err)
 	}
-	var document PollDocument
+	var document PollReadDocument
 	if err := bson.Unmarshal(payload, &document); err != nil {
 		t.Fatalf("decode partial poll: %v", err)
 	}
@@ -69,5 +69,64 @@ func TestPollDocumentRoundTripDomainPreservesChoiseField(t *testing.T) {
 	}
 	if got := document.ToDomain(); got.Votes[0].Choice != poll.Votes[0].Choice || got.Choices[0] != "A" {
 		t.Fatalf("round trip = %#v", got)
+	}
+}
+
+func TestPollReadDocumentUsesMongooseScalarCoercion(t *testing.T) {
+	creatorID := bson.NewObjectID()
+	payload, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: "guild-1"},
+		{Key: "messageid", Value: "message-1"},
+		{Key: "question", Value: int32(42)},
+		{Key: "create_member_id", Value: creatorID},
+		{Key: "many_choose", Value: "2"},
+		{Key: "can_change_choose", Value: "yes"},
+		{Key: "can_see_result", Value: int32(1)},
+		{Key: "end", Value: "false"},
+		{Key: "anonymous", Value: "0"},
+		{Key: "choose_data", Value: bson.A{" A ", int32(7), "B"}},
+		{Key: "join_member", Value: bson.A{
+			bson.D{{Key: "id", Value: "user-1"}, {Key: "choise", Value: " A "}, {Key: "time", Value: "1"}},
+			bson.D{{Key: "id", Value: int32(2)}, {Key: "choise", Value: "B"}, {Key: "time", Value: "2"}},
+			"invalid",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("marshal mixed poll: %v", err)
+	}
+	var document PollReadDocument
+	if err := bson.Unmarshal(payload, &document); err != nil {
+		t.Fatalf("decode mixed poll: %v", err)
+	}
+	poll := document.ToDomain()
+	if poll.Question != "42" || poll.CreatorID != creatorID.Hex() || poll.MaxChoices != 2 {
+		t.Fatalf("scalar poll = %#v", poll)
+	}
+	if !poll.CanChangeChoice || !poll.CanSeeResult || poll.Ended || poll.Anonymous {
+		t.Fatalf("boolean poll = %#v", poll)
+	}
+	if len(poll.Choices) != 2 || poll.Choices[0] != " A " || poll.Choices[1] != "B" {
+		t.Fatalf("choices = %#v", poll.Choices)
+	}
+	if len(poll.Votes) != 1 || poll.Votes[0].UserID != "user-1" || poll.Votes[0].Choice != " A " {
+		t.Fatalf("votes = %#v", poll.Votes)
+	}
+}
+
+func TestPollReadDocumentWrapsMongooseArrayScalars(t *testing.T) {
+	payload, err := bson.Marshal(bson.D{
+		{Key: "choose_data", Value: "A"},
+		{Key: "join_member", Value: bson.D{{Key: "id", Value: "user-1"}, {Key: "choise", Value: "A"}, {Key: "time", Value: "1"}}},
+	})
+	if err != nil {
+		t.Fatalf("marshal scalar arrays: %v", err)
+	}
+	var document PollReadDocument
+	if err := bson.Unmarshal(payload, &document); err != nil {
+		t.Fatalf("decode scalar arrays: %v", err)
+	}
+	poll := document.ToDomain()
+	if len(poll.Choices) != 1 || poll.Choices[0] != "A" || len(poll.Votes) != 1 || poll.Votes[0].Choice != "A" {
+		t.Fatalf("poll = %#v", poll)
 	}
 }
