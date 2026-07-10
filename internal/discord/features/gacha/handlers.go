@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -377,6 +378,29 @@ func legacyGachaPrizeCodeMessage(prizes []domain.GachaDrawPrizeResult, color int
 }
 
 func formatLegacyNumber(value float64) string {
+	if value == 0 {
+		return "0"
+	}
+	if math.IsInf(value, 1) {
+		return "Infinity"
+	}
+	if math.IsInf(value, -1) {
+		return "-Infinity"
+	}
+	absolute := math.Abs(value)
+	if absolute < 1e-6 || absolute >= 1e21 {
+		mantissa, exponent, _ := strings.Cut(strconv.FormatFloat(value, 'e', -1, 64), "e")
+		sign := ""
+		if strings.HasPrefix(exponent, "+") || strings.HasPrefix(exponent, "-") {
+			sign = exponent[:1]
+			exponent = exponent[1:]
+		}
+		exponent = strings.TrimLeft(exponent, "0")
+		if exponent == "" {
+			exponent = "0"
+		}
+		return mantissa + "e" + sign + exponent
+	}
 	return strconv.FormatFloat(value, 'f', -1, 64)
 }
 

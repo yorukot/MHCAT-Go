@@ -2,6 +2,7 @@ package gacha
 
 import (
 	"context"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,27 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
+
+func TestFormatLegacyNumberMatchesJavaScriptNumberText(t *testing.T) {
+	tests := []struct {
+		value float64
+		want  string
+	}{
+		{0, "0"},
+		{math.Copysign(0, -1), "0"},
+		{0.0000001, "1e-7"},
+		{0.000001, "0.000001"},
+		{100000000000000000000.0, "100000000000000000000"},
+		{1e21, "1e+21"},
+		{math.Inf(1), "Infinity"},
+		{math.Inf(-1), "-Infinity"},
+	}
+	for _, test := range tests {
+		if got := formatLegacyNumber(test.value); got != test.want {
+			t.Errorf("formatLegacyNumber(%v) = %q, want %q", test.value, got, test.want)
+		}
+	}
+}
 
 func TestPrizeListRendersLegacyEmbed(t *testing.T) {
 	repo := fakemongo.NewGachaRepository()
