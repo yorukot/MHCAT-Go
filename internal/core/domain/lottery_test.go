@@ -8,6 +8,7 @@ import (
 func TestLotteryLegacyStateHelpers(t *testing.T) {
 	lottery := Lottery{
 		EndsAtUnix:      200,
+		Gift:            "  Nitro  ",
 		MaxParticipants: 2,
 		Participants: []LotteryParticipant{
 			{UserID: " user-1 "},
@@ -17,6 +18,9 @@ func TestLotteryLegacyStateHelpers(t *testing.T) {
 	}.Normalized()
 	if !lottery.HasParticipant("user-1") || !lottery.AtCapacity() {
 		t.Fatalf("lottery = %#v", lottery)
+	}
+	if lottery.Gift != "  Nitro  " {
+		t.Fatalf("gift = %q", lottery.Gift)
 	}
 	if lottery.IsExpired(time.Unix(200, 0)) {
 		t.Fatal("legacy lottery remains enterable through its ending second")

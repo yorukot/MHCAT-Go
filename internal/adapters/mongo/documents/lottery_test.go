@@ -11,7 +11,7 @@ func TestLotteryDocumentDecodesLegacyMixedValues(t *testing.T) {
 		{Key: "guild", Value: "guild-1"},
 		{Key: "id", Value: "1700000000000999lotter"},
 		{Key: "date", Value: "1700000300"},
-		{Key: "gift", Value: "gift"},
+		{Key: "gift", Value: "  gift  "},
 		{Key: "howmanywinner", Value: "2"},
 		{Key: "member", Value: bson.A{
 			bson.D{{Key: "id", Value: "user-1"}, {Key: "time", Value: int64(1700000000000)}},
@@ -33,7 +33,7 @@ func TestLotteryDocumentDecodesLegacyMixedValues(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	lottery := document.ToDomain()
-	if lottery.EndsAtUnix != 1700000300 || lottery.WinnerCount != 2 || lottery.Ended || lottery.RequiredRoleID != "" || lottery.ForbiddenRoleID != "role-2" || lottery.MaxParticipants != 10 {
+	if lottery.EndsAtUnix != 1700000300 || lottery.Gift != "  gift  " || lottery.WinnerCount != 2 || lottery.Ended || lottery.RequiredRoleID != "" || lottery.ForbiddenRoleID != "role-2" || lottery.MaxParticipants != 10 {
 		t.Fatalf("lottery = %#v", lottery)
 	}
 	if len(lottery.Participants) != 2 || lottery.Participants[0].JoinedAtMillis != 1700000000000 || lottery.Participants[1].JoinedAtRaw != "legacy time" {

@@ -40,7 +40,6 @@ type LotteryJoinRequest struct {
 func (l Lottery) Normalized() Lottery {
 	l.GuildID = strings.TrimSpace(l.GuildID)
 	l.ID = strings.TrimSpace(l.ID)
-	l.Gift = strings.TrimSpace(l.Gift)
 	l.ChannelID = strings.TrimSpace(l.ChannelID)
 	l.RequiredRoleID = strings.TrimSpace(l.RequiredRoleID)
 	l.ForbiddenRoleID = strings.TrimSpace(l.ForbiddenRoleID)

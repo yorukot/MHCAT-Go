@@ -129,7 +129,7 @@ func TestLotteryRerollSendsOneLegacyWinnerMessageAndEndsLottery(t *testing.T) {
 		GuildID:     "guild-1",
 		ID:          lotteryTestID,
 		OwnerID:     "user-1",
-		Gift:        "Nitro",
+		Gift:        "  Nitro  ",
 		WinnerCount: 2,
 		ChannelID:   "channel-1",
 		Participants: []domain.LotteryParticipant{
@@ -151,7 +151,8 @@ func TestLotteryRerollSendsOneLegacyWinnerMessageAndEndsLottery(t *testing.T) {
 		t.Fatalf("sent = %#v", messages.Sent)
 	}
 	sent := messages.Sent[0].Message
-	if sent.Content != "<@user-2><@user-2>" || len(sent.Embeds) != 1 || sent.Embeds[0].Color != 0x123456 || !strings.Contains(sent.Embeds[0].Description, "Nitro") || len(sent.AllowedMentions.UserIDs) != 1 || sent.AllowedMentions.UserIDs[0] != "user-2" {
+	wantDescription := "\n**<:celebration:997374188060946495> 恭喜:**\n<@user-2>\n<@user-2>\n<:gift:994585975445528576> **抽中:**   Nitro  \n"
+	if sent.Content != "<@user-2><@user-2>" || len(sent.Embeds) != 1 || sent.Embeds[0].Color != 0x123456 || sent.Embeds[0].Description != wantDescription || len(sent.AllowedMentions.UserIDs) != 1 || sent.AllowedMentions.UserIDs[0] != "user-2" {
 		t.Fatalf("winner message = %#v", sent)
 	}
 	if !repo.Lotteries["guild-1:"+lotteryTestID].Ended || len(repo.Ended) != 1 {
