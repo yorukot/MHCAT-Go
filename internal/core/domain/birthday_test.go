@@ -17,6 +17,18 @@ func TestBirthdayConfigValidateAcceptsLegacyUTCChoices(t *testing.T) {
 	}
 }
 
+func TestBirthdayConfigValidateAcceptsWhitespaceMessage(t *testing.T) {
+	config := BirthdayConfig{
+		GuildID:   "guild-1",
+		Message:   "   ",
+		UTCOffset: "+08:00",
+		ChannelID: "channel-1",
+	}
+	if err := config.Validate(); err != nil {
+		t.Fatalf("validate whitespace message: %v", err)
+	}
+}
+
 func TestBirthdayConfigValidateRejectsInvalidUTC(t *testing.T) {
 	config := BirthdayConfig{
 		GuildID:   "guild-1",

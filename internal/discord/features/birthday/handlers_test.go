@@ -90,16 +90,16 @@ func TestHandlerPreservesBirthdayMessageWhitespace(t *testing.T) {
 	module := NewModule(repo, nil)
 	responder := fakediscord.NewResponder()
 	interaction := birthdayConfigSlash()
-	interaction.Options[optionMessage] = "  {user} 生日快樂  "
+	interaction.Options[optionMessage] = "   "
 
 	if err := module.Handler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
 	saved, ok := repo.Last()
-	if !ok || saved.Message != "  {user} 生日快樂  " {
+	if !ok || saved.Message != "   " {
 		t.Fatalf("saved = %#v", saved)
 	}
-	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "\n  {user} 生日快樂  \n") {
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "\n   \n") {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 }

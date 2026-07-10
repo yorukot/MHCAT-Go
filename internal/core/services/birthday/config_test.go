@@ -41,3 +41,21 @@ func TestConfigServiceRejectsInvalidConfig(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestConfigServiceSavesWhitespaceMessage(t *testing.T) {
+	repo := &fakemongo.BirthdayConfigRepository{}
+	service := NewConfigService(repo)
+
+	if err := service.Save(context.Background(), domain.BirthdayConfig{
+		GuildID:   "guild-1",
+		Message:   "   ",
+		UTCOffset: "+08:00",
+		ChannelID: "channel-1",
+	}); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	saved, ok := repo.Last()
+	if !ok || saved.Message != "   " {
+		t.Fatalf("saved = %#v", saved)
+	}
+}

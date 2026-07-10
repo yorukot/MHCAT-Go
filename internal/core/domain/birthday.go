@@ -48,7 +48,7 @@ type BirthdayAddRequest struct {
 
 func (c BirthdayConfig) Validate() error {
 	if strings.TrimSpace(c.GuildID) == "" ||
-		strings.TrimSpace(c.Message) == "" ||
+		c.Message == "" ||
 		strings.TrimSpace(c.UTCOffset) == "" ||
 		strings.TrimSpace(c.ChannelID) == "" {
 		return ErrInvalidBirthdayConfig
