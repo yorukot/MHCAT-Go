@@ -85,6 +85,76 @@ func TestRewardRoleServicesCheckLegacyLimitBeforeRoleHierarchy(t *testing.T) {
 	}
 }
 
+func TestRewardRoleServicesAllowLegacy120thConfig(t *testing.T) {
+	t.Run("text", func(t *testing.T) {
+		repo := fakemongo.NewTextXPRewardRoleRepository()
+		for i := 0; i < 119; i++ {
+			repo.Configs = append(repo.Configs, domain.XPRewardRoleConfig{GuildID: "guild-1", Level: int64(i), RoleID: "existing-role"})
+		}
+		roles := fakediscord.NewSideEffects()
+		roles.AssignableRoles["guild-1/role-120"] = true
+		service := TextRewardRoleService{Repository: repo, RoleInspector: roles}
+		if err := service.Add(context.Background(), domain.XPRewardRoleConfig{GuildID: "guild-1", Level: 120, RoleID: "role-120"}); err != nil {
+			t.Fatalf("add 120th config: %v", err)
+		}
+		if len(repo.Configs) != 120 {
+			t.Fatalf("config count = %d", len(repo.Configs))
+		}
+		if err := service.Add(context.Background(), domain.XPRewardRoleConfig{GuildID: "guild-1", Level: 121, RoleID: "role-121"}); !errors.Is(err, ports.ErrXPRewardRoleLimitExceeded) {
+			t.Fatalf("add 121st config error = %v", err)
+		}
+	})
+
+	t.Run("voice", func(t *testing.T) {
+		repo := fakemongo.NewVoiceXPRewardRoleRepository()
+		for i := 0; i < 119; i++ {
+			repo.Configs = append(repo.Configs, domain.XPRewardRoleConfig{GuildID: "guild-1", Level: int64(i), RoleID: "existing-role"})
+		}
+		roles := fakediscord.NewSideEffects()
+		roles.AssignableRoles["guild-1/role-120"] = true
+		service := VoiceRewardRoleService{Repository: repo, RoleInspector: roles}
+		if err := service.Add(context.Background(), domain.XPRewardRoleConfig{GuildID: "guild-1", Level: 120, RoleID: "role-120"}); err != nil {
+			t.Fatalf("add 120th config: %v", err)
+		}
+		if len(repo.Configs) != 120 {
+			t.Fatalf("config count = %d", len(repo.Configs))
+		}
+		if err := service.Add(context.Background(), domain.XPRewardRoleConfig{GuildID: "guild-1", Level: 121, RoleID: "role-121"}); !errors.Is(err, ports.ErrXPRewardRoleLimitExceeded) {
+			t.Fatalf("add 121st config error = %v", err)
+		}
+	})
+}
+
+func TestRewardRoleServicesMapMissingRolesToHierarchyError(t *testing.T) {
+	roles := fakediscord.NewSideEffects()
+	roles.MissingRoles["guild-1/missing-role"] = true
+	config := domain.XPRewardRoleConfig{GuildID: "guild-1", Level: 1, RoleID: "missing-role"}
+
+	for _, tc := range []struct {
+		name string
+		add  func() error
+	}{
+		{
+			name: "text",
+			add: func() error {
+				return (TextRewardRoleService{Repository: fakemongo.NewTextXPRewardRoleRepository(), RoleInspector: roles}).Add(context.Background(), config)
+			},
+		},
+		{
+			name: "voice",
+			add: func() error {
+				return (VoiceRewardRoleService{Repository: fakemongo.NewVoiceXPRewardRoleRepository(), RoleInspector: roles}).Add(context.Background(), config)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.add(); !errors.Is(err, ports.ErrDiscordRoleNotAssignable) {
+				t.Fatalf("missing role error = %v", err)
+			}
+		})
+	}
+}
+
 func TestTextRewardRoleServiceApplyLevelUpChangesConfiguredRoles(t *testing.T) {
 	repo := fakemongo.NewTextXPRewardRoleRepository()
 	repo.Configs = []domain.XPRewardRoleConfig{

@@ -680,7 +680,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true
 MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true
 ```
 
-These commands add, delete, query, and paginate legacy-compatible `chat_roles` and `voice_roles` reward-role config rows. They require Manage Messages, preserve the legacy misspelled `leavel` string field, check that the selected role is assignable by the bot before saving, and create no indexes. They do not enable text/voice XP accrual, rank rendering, automatic reward-role assignment/removal, Message Content intent, Guild Messages intent, Voice State intent, or usage-counter writes.
+These commands add, delete, query, and paginate legacy-compatible `chat_roles` and `voice_roles` reward-role config rows. They require Manage Messages, preserve the legacy misspelled `leavel` string field, check that the selected role is assignable by the bot before saving, and create no indexes. They do not enable text/voice XP accrual, rank rendering, automatic reward-role assignment/removal, Message Content intent, Guild Messages intent, Voice State intent, or usage-counter writes. Follow the payload, preserved-quirk, and staging audit in `docs/68-xp-reward-role-config.md`.
 
 Disabled-response `/聊天經驗` and `/語音經驗` are available only when both staging command sync and runtime flags are explicitly enabled:
 
