@@ -623,7 +623,7 @@ MHCAT_DISCORD_ENABLE_GATEWAY=true
 MHCAT_DISCORD_VOICE_STATE_INTENT=true
 ```
 
-This command reads the actor's current voice channel from DiscordGo state, verifies the actor owns the existing `lock_channels` row, and replaces that row with a nullable legacy `lock_anser` password and empty `ok_people`. It does not create dynamic rooms, write `voice_channel_ids`, edit channel permission overwrites, move members, enable legacy lock buttons/modals, or usage-counter writes.
+This feature reads the actor's current voice channel from DiscordGo state for `/上鎖頻道`, verifies the actor owns the existing `lock_channels` row, and replaces that row with a nullable legacy `lock_anser` password and empty `ok_people`. It also routes legacy `<channel>anser` modal submits, compares the stored password, and appends the submitter to `ok_people`. It does not create dynamic rooms, write `voice_channel_ids`, edit channel permission overwrites, move members, emit the locked-room prompt, handle `lock_start`, or write usage counters.
 
 Config-only `/加入身份組設置` and `/加入身份組刪除` are available only when both staging command sync and runtime flags are explicitly enabled:
 

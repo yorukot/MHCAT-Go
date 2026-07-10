@@ -8,6 +8,8 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/voice"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 )
@@ -20,6 +22,9 @@ const (
 	legacyDoneEmoji          = "<a:green_tick:994529015652163614>"
 	legacyDeleteEmoji        = "<:trashbin:995991389043163257>"
 	discordChannelTypeVoice  = 2
+	voiceLockAnswerInputID   = "anser"
+	legacyUnlockEmoji        = "<:unlock:1017087850556174367>"
+	legacyArrowPinkEmoji     = "<a:arrow_pink:996242460294512690>"
 )
 
 func (m Module) SetHandler() interactions.Handler {
@@ -120,6 +125,28 @@ func (m LockModule) LockHandler() interactions.Handler {
 	}
 }
 
+func (m LockModule) AnswerHandler() interactions.Handler {
+	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
+			return err
+		}
+		channelID := voiceLockAnswerChannelID(interaction.CustomID)
+		password := voiceLockAnswerValue(interaction.ModalFields)
+		err := m.service.AnswerPassword(ctx, interaction.Actor.GuildID, channelID, interaction.Actor.UserID, password)
+		if err != nil {
+			switch {
+			case errors.Is(err, coreservice.ErrVoiceRoomLockPasswordMismatch):
+				return responder.EditOriginal(ctx, voiceLockAnswerWrongMessage(interaction.Actor.GuildID, channelID))
+			case errors.Is(err, ports.ErrVoiceRoomLockMissing):
+				return responder.EditOriginal(ctx, voiceLockAnswerMissingMessage())
+			default:
+				return responder.EditOriginal(ctx, voiceUnknownError(err))
+			}
+		}
+		return responder.EditOriginal(ctx, voiceLockAnswerSuccessMessage(interaction.Actor.GuildID, channelID))
+	}
+}
+
 func voiceSetSuccessMessage() responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
@@ -190,6 +217,42 @@ func voiceLockSuccessMessage(password string) responses.Message {
 	}
 }
 
+func voiceLockAnswerSuccessMessage(guildID string, channelID string) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: legacyUnlockEmoji + " | 您成功輸入正確密碼\n可以重新加入語音頻道囉!",
+			Color: voiceSuccessColor,
+		}},
+		Components:      []responses.ComponentRow{voiceLockChannelLinkRow(guildID, channelID)},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func voiceLockAnswerWrongMessage(guildID string, channelID string) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<a:Discord_AnimatedNo:1015989839809757295> | 你的密碼輸入錯誤!請重新加入語音頻道後在試一次!",
+			Color: voiceErrorColor,
+		}},
+		Components:      []responses.ComponentRow{voiceLockChannelLinkRow(guildID, channelID)},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func voiceLockAnswerMissingMessage() responses.Message {
+	return voiceErrorMessage("很抱歉，該包廂可能已被刪除!")
+}
+
+func voiceLockChannelLinkRow(guildID string, channelID string) responses.ComponentRow {
+	return responses.ComponentRow{Components: []responses.Component{{
+		Type:  responses.ComponentTypeButton,
+		Label: "點我前往該語音頻道!",
+		Emoji: legacyArrowPinkEmoji,
+		URL:   "https://discord.com/channels/" + strings.TrimSpace(guildID) + "/" + strings.TrimSpace(channelID),
+		Style: responses.ButtonStyleLink,
+	}}}
+}
+
 func firstCommandOption(interaction interactions.Interaction, name string) interactions.CommandOptionValue {
 	if value, ok := interaction.CommandOptions[name]; ok {
 		if strings.TrimSpace(value.String) != "" {
@@ -210,6 +273,22 @@ func firstOption(interaction interactions.Interaction, name string) string {
 		return strings.TrimSpace(option.String)
 	}
 	return ""
+}
+
+func voiceLockAnswerChannelID(customID string) string {
+	return strings.TrimSpace(strings.TrimSuffix(customID, "anser"))
+}
+
+func voiceLockAnswerValue(fields []customid.ModalField) string {
+	for _, field := range fields {
+		if field.CustomID == voiceLockAnswerInputID {
+			return strings.TrimSpace(field.Value)
+		}
+	}
+	if len(fields) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(fields[0].Value)
 }
 
 func boolOption(interaction interactions.Interaction, name string) bool {

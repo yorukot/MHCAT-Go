@@ -146,6 +146,37 @@ func (r *VoiceRoomLockRepository) SaveVoiceRoomLock(ctx context.Context, lock do
 	return nil
 }
 
+func (r *VoiceRoomLockRepository) AllowVoiceRoomLockUser(ctx context.Context, guildID string, channelID string, userID string) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	userID = strings.TrimSpace(userID)
+	if guildID == "" || channelID == "" || userID == "" {
+		return domain.ErrInvalidVoiceRoomLock
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.Locks == nil {
+		r.Locks = map[string]domain.VoiceRoomLock{}
+	}
+	key := voiceRoomKey(guildID, channelID)
+	lock, ok := r.Locks[key]
+	if !ok {
+		return ports.ErrVoiceRoomLockMissing
+	}
+	for _, allowed := range lock.AllowedUserIDs {
+		if strings.TrimSpace(allowed) == userID {
+			r.Locks[key] = lock
+			return nil
+		}
+	}
+	lock.AllowedUserIDs = append(lock.AllowedUserIDs, userID)
+	r.Locks[key] = lock
+	return nil
+}
+
 func (r *VoiceRoomLockRepository) Last() (domain.VoiceRoomLock, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

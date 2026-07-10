@@ -413,7 +413,7 @@ export MHCAT_DISCORD_ENABLE_GATEWAY=true
 export MHCAT_DISCORD_VOICE_STATE_INTENT=true
 ```
 
-Set all four together only in an isolated staging guild/database when testing `/上鎖頻道`. This path replaces an existing `lock_channels` row for the caller's current voice channel; it does not create dynamic rooms, write `voice_channel_ids`, move members, edit permission overwrites, or enable lock buttons/modals.
+Set all four together only in an isolated staging guild/database when testing `/上鎖頻道`. This path replaces an existing `lock_channels` row for the caller's current voice channel and routes legacy `<channel>anser` modal submits to append `ok_people` after a correct password; it does not create dynamic rooms, write `voice_channel_ids`, move members, edit permission overwrites, emit the locked-room prompt, or handle `lock_start`.
 
 Optional join-role config smoke flags:
 
@@ -1414,7 +1414,7 @@ If voice-room lock flags were enabled and command sync apply was reviewed:
 - verify the legacy ephemeral success embed appears and the row is replaced with `lock_anser`, `owner`, `text_channel`, and empty `ok_people`;
 - run `/上鎖頻道` without `密碼` and verify the success embed shows `null` and `lock_anser` is null/empty in Mongo;
 - verify not-in-voice, missing lock row, and non-owner cases return the legacy red ephemeral errors;
-- verify no dynamic channel creation/deletion, `voice_channel_ids`, member moves, permission overwrites, lock buttons/modals, or usage-counter write happened.
+- verify no dynamic channel creation/deletion, `voice_channel_ids`, member moves, permission overwrites, prompt/button handling, or usage-counter write happened.
 
 Verify:
 

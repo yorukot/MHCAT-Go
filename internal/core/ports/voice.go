@@ -20,4 +20,5 @@ type VoiceRoomConfigRepository interface {
 type VoiceRoomLockRepository interface {
 	GetVoiceRoomLock(ctx context.Context, guildID string, channelID string) (domain.VoiceRoomLock, error)
 	SaveVoiceRoomLock(ctx context.Context, lock domain.VoiceRoomLock) error
+	AllowVoiceRoomLockUser(ctx context.Context, guildID string, channelID string, userID string) error
 }

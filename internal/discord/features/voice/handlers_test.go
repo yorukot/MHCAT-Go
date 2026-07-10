@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
@@ -233,6 +235,69 @@ func TestLockHandlerEmptyPasswordStoresNullEquivalent(t *testing.T) {
 	assertLockEmbed(t, responder, legacyDoneEmoji+" | 成功進行設定", legacyVoiceEmoji+" 你成功對語音包廂密碼進行設定為:null")
 }
 
+func TestLockAnswerHandlerAllowsUserAndReturnsLegacySuccess(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00123456789012345678"] = domain.VoiceRoomLock{
+		GuildID:       "guild-1",
+		ChannelID:     "123456789012345678",
+		Password:      "secret",
+		OwnerID:       "owner-1",
+		TextChannelID: "text-1",
+	}
+	module := NewLockModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	if err := module.AnswerHandler()(context.Background(), voiceLockAnswerInteraction("secret"), responder); err != nil {
+		t.Fatalf("answer handler: %v", err)
+	}
+	lock := repo.Locks["guild-1\x00123456789012345678"]
+	if len(lock.AllowedUserIDs) != 1 || lock.AllowedUserIDs[0] != "user-1" {
+		t.Fatalf("allowed users = %#v", lock.AllowedUserIDs)
+	}
+	assertLockAnswerMessage(t, responder, legacyUnlockEmoji+" | 您成功輸入正確密碼\n可以重新加入語音頻道囉!")
+}
+
+func TestLockAnswerHandlerWrongPasswordUsesLegacyError(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00123456789012345678"] = domain.VoiceRoomLock{
+		GuildID:       "guild-1",
+		ChannelID:     "123456789012345678",
+		Password:      "secret",
+		OwnerID:       "owner-1",
+		TextChannelID: "text-1",
+	}
+	module := NewLockModule(repo, nil)
+	responder := fakediscord.NewResponder()
+	if err := module.AnswerHandler()(context.Background(), voiceLockAnswerInteraction("wrong"), responder); err != nil {
+		t.Fatalf("answer handler: %v", err)
+	}
+	if got := repo.Locks["guild-1\x00123456789012345678"].AllowedUserIDs; len(got) != 0 {
+		t.Fatalf("wrong password should not allow user: %#v", got)
+	}
+	assertLockAnswerMessage(t, responder, "<a:Discord_AnimatedNo:1015989839809757295> | 你的密碼輸入錯誤!請重新加入語音頻道後在試一次!")
+}
+
+func TestLockModuleRoutesLegacyAnswerModal(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00123456789012345678"] = domain.VoiceRoomLock{
+		GuildID:       "guild-1",
+		ChannelID:     "123456789012345678",
+		Password:      "secret",
+		OwnerID:       "owner-1",
+		TextChannelID: "text-1",
+	}
+	router := interactions.NewRouter()
+	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
+	module := NewLockModule(repo, nil)
+	if err := module.RegisterRoutes(router); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+	responder := fakediscord.NewResponder()
+	if err := router.Handle(context.Background(), voiceLockAnswerInteraction("secret"), responder); err != nil {
+		t.Fatalf("handle answer modal: %v", err)
+	}
+	assertLockAnswerMessage(t, responder, legacyUnlockEmoji+" | 您成功輸入正確密碼\n可以重新加入語音頻道囉!")
+}
+
 func voiceSetInteraction() interactions.Interaction {
 	interaction := fakediscord.SlashInteraction(VoiceRoomSetCommandName)
 	interaction.Actor.PermissionBits = permissionManageMessages
@@ -273,6 +338,18 @@ func voiceLockInteraction(password string) interactions.Interaction {
 	return interaction
 }
 
+func voiceLockAnswerInteraction(password string) interactions.Interaction {
+	return interactions.Interaction{
+		Type:     interactions.TypeModal,
+		CustomID: "123456789012345678anser",
+		Actor:    interactions.Actor{UserID: "user-1", Username: "User", UserTag: "User#0001", GuildID: "guild-1"},
+		ModalFields: []customid.ModalField{{
+			CustomID: voiceLockAnswerInputID,
+			Value:    password,
+		}},
+	}
+}
+
 func assertEmbed(t *testing.T, responder *fakediscord.Responder, title string, description string) {
 	t.Helper()
 	if len(responder.Defers) != 1 {
@@ -295,6 +372,27 @@ func assertEmbedContains(t *testing.T, responder *fakediscord.Responder, text st
 	embed := responder.Edits[0].Embeds[0]
 	if !strings.Contains(embed.Title, text) && !strings.Contains(embed.Description, text) {
 		t.Fatalf("embed = %#v, want text %q", embed, text)
+	}
+}
+
+func assertLockAnswerMessage(t *testing.T, responder *fakediscord.Responder, title string) {
+	t.Helper()
+	if len(responder.Defers) != 1 {
+		t.Fatalf("defers = %#v", responder.Defers)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if got := responder.Edits[0].Embeds[0].Title; got != title {
+		t.Fatalf("title = %q, want %q", got, title)
+	}
+	rows := responder.Edits[0].Components
+	if len(rows) != 1 || len(rows[0].Components) != 1 {
+		t.Fatalf("components = %#v", rows)
+	}
+	button := rows[0].Components[0]
+	if button.Type != responses.ComponentTypeButton || button.Style != responses.ButtonStyleLink || button.URL != "https://discord.com/channels/guild-1/123456789012345678" {
+		t.Fatalf("button = %#v", button)
 	}
 }
 

@@ -2,11 +2,14 @@ package voice
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 )
+
+var ErrVoiceRoomLockPasswordMismatch = errors.New("voice room lock password mismatch")
 
 type ConfigService struct {
 	Repository ports.VoiceRoomConfigRepository
@@ -89,4 +92,25 @@ func (s LockService) SetPassword(ctx context.Context, guildID string, channelID 
 		AllowedUserIDs: []string{},
 	}
 	return s.Repository.SaveVoiceRoomLock(ctx, lock)
+}
+
+func (s LockService) AnswerPassword(ctx context.Context, guildID string, channelID string, userID string, password string) error {
+	if s.Repository == nil {
+		return domain.ErrInvalidVoiceRoomLock
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	userID = strings.TrimSpace(userID)
+	password = strings.TrimSpace(password)
+	if guildID == "" || channelID == "" || userID == "" || password == "" {
+		return domain.ErrInvalidVoiceRoomLock
+	}
+	lock, err := s.Repository.GetVoiceRoomLock(ctx, guildID, channelID)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(lock.Password) == "" || strings.TrimSpace(lock.Password) != password {
+		return ErrVoiceRoomLockPasswordMismatch
+	}
+	return s.Repository.AllowVoiceRoomLockUser(ctx, guildID, channelID, userID)
 }

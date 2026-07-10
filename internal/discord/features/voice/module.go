@@ -4,6 +4,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/voice"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 )
 
@@ -55,5 +56,14 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 }
 
 func (m LockModule) RegisterRoutes(router *interactions.Router) error {
-	return router.RegisterSlash(VoiceRoomLockCommandName, m.LockHandler())
+	if err := router.RegisterSlash(VoiceRoomLockCommandName, m.LockHandler()); err != nil {
+		return err
+	}
+	return router.RegisterRoute(interactions.RouteKey{
+		Kind:    interactions.TypeModal,
+		Version: customid.LegacyVersion,
+		Feature: "voice_lock",
+		Action:  "answer",
+		Legacy:  true,
+	}, m.AnswerHandler())
 }

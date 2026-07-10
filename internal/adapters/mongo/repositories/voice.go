@@ -173,6 +173,30 @@ func (r *VoiceRoomLockRepository) SaveVoiceRoomLock(ctx context.Context, lock do
 	return ctx.Err()
 }
 
+func (r *VoiceRoomLockRepository) AllowVoiceRoomLockUser(ctx context.Context, guildID string, channelID string, userID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	guildID = strings.TrimSpace(guildID)
+	channelID = strings.TrimSpace(channelID)
+	userID = strings.TrimSpace(userID)
+	if guildID == "" || channelID == "" || userID == "" {
+		return domain.ErrInvalidVoiceRoomLock
+	}
+	update, err := mhcatmongo.NewUpdate().AddToSet("ok_people", userID).Build()
+	if err != nil {
+		return err
+	}
+	result, err := r.collection.UpdateOne(ctx, voiceRoomLockFilter(guildID, channelID), update)
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("allow voice room lock user: %w", err))
+	}
+	if result.MatchedCount == 0 {
+		return ports.ErrVoiceRoomLockMissing
+	}
+	return ctx.Err()
+}
+
 func voiceRoomConfigUpdate(document documents.VoiceRoomConfigDocument, upsert bool) (bson.D, error) {
 	builder := mhcatmongo.NewUpdate().
 		Set("limit", document.Limit).

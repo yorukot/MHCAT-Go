@@ -109,3 +109,48 @@ func TestLockServiceSetPasswordRejectsInvalidInput(t *testing.T) {
 		t.Fatalf("expected nil repository invalid lock error, got %v", err)
 	}
 }
+
+func TestLockServiceAnswerPasswordAllowsUser(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{
+		GuildID:        "guild-1",
+		ChannelID:      "voice-1",
+		Password:       "secret",
+		OwnerID:        "owner-1",
+		TextChannelID:  "text-1",
+		AllowedUserIDs: []string{"user-2"},
+	}
+	service := coreservice.NewLockService(repo)
+	if err := service.AnswerPassword(context.Background(), " guild-1 ", " voice-1 ", " user-1 ", " secret "); err != nil {
+		t.Fatalf("answer password: %v", err)
+	}
+	lock := repo.Locks["guild-1\x00voice-1"]
+	if got := lock.AllowedUserIDs; len(got) != 2 || got[0] != "user-2" || got[1] != "user-1" {
+		t.Fatalf("allowed users = %#v", got)
+	}
+	if err := service.AnswerPassword(context.Background(), "guild-1", "voice-1", "user-1", "secret"); err != nil {
+		t.Fatalf("answer password duplicate: %v", err)
+	}
+	if got := repo.Locks["guild-1\x00voice-1"].AllowedUserIDs; len(got) != 2 {
+		t.Fatalf("duplicate user should not be appended: %#v", got)
+	}
+}
+
+func TestLockServiceAnswerPasswordRejectsWrongPassword(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{
+		GuildID:       "guild-1",
+		ChannelID:     "voice-1",
+		Password:      "secret",
+		OwnerID:       "owner-1",
+		TextChannelID: "text-1",
+	}
+	service := coreservice.NewLockService(repo)
+	err := service.AnswerPassword(context.Background(), "guild-1", "voice-1", "user-1", "wrong")
+	if !errors.Is(err, coreservice.ErrVoiceRoomLockPasswordMismatch) {
+		t.Fatalf("expected password mismatch, got %v", err)
+	}
+	if len(repo.Locks["guild-1\x00voice-1"].AllowedUserIDs) != 0 {
+		t.Fatalf("wrong password should not allow user: %#v", repo.Locks["guild-1\x00voice-1"])
+	}
+}
