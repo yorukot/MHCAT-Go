@@ -1024,6 +1024,22 @@ func schedulerLeaseStoreFromMongo(mongoClient MongoClient, feature string) (*mon
 	return store, nil
 }
 
+func dailyResetRepositoryFromMongo(mongoClient MongoClient, feature string) (*mongorepositories.DailyResetRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("%s requires default mongo client", feature)
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("%s database: %w", feature, err)
+	}
+	repository, err := mongorepositories.NewDailyResetRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("%s repository: %w", feature, err)
+	}
+	return repository, nil
+}
+
 func balanceRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.BalanceRepository, error) {
 	concrete, ok := mongoClient.(*mongoadapter.Client)
 	if !ok {

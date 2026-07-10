@@ -8,6 +8,7 @@ import (
 	discordadapter "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/discordgo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/config"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	coreeconomy "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/economy"
 	corenotifications "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/notifications"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/onboarding"
 	corestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/stats"
@@ -736,8 +737,16 @@ func coinResetRuntimeEnabled(opts RuntimeOptions, guilds ports.DiscordInfoProvid
 	return opts.EconomyCoinResetRepository != nil && opts.EconomyCoinResetMessagePort != nil && guilds != nil
 }
 
-func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session DiscordSession, mongoClient MongoClient) (*discordevents.Dispatcher, error) {
+func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session DiscordSession, mongoClient MongoClient) (_ *discordevents.Dispatcher, returnErr error) {
 	dispatcher := discordevents.NewDispatcher(logger)
+	defer func() {
+		if returnErr == nil {
+			return
+		}
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+		defer cancel()
+		_ = dispatcher.Shutdown(cleanupCtx)
+	}()
 	if cfg.FeatureAnnouncementRelayEnabled {
 		repo, err := announcementConfigRepositoryFromMongo(mongoClient)
 		if err != nil {
@@ -1054,6 +1063,34 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		dispatcher.RegisterShutdown(worker.Stop)
 		if logger != nil {
 			logger.Info("auto-notification delivery worker started", "lease", corenotifications.AutoNotificationDeliveryLeaseName, "timezone", corenotifications.AutoNotificationDeliveryLocationName)
+		}
+	}
+	if cfg.FeatureDailyResetSchedulerEnabled {
+		const feature = "daily reset scheduler feature"
+		repo, err := dailyResetRepositoryFromMongo(mongoClient, feature)
+		if err != nil {
+			return nil, err
+		}
+		leases, err := schedulerLeaseStoreFromMongo(mongoClient, feature)
+		if err != nil {
+			return nil, err
+		}
+		worker, err := coreeconomy.NewDailyResetWorker(
+			repo,
+			leases,
+			cfg.SchedulerLeaseOwner,
+			cfg.SchedulerLeaseTTL,
+			cfg.SchedulerLeaseTimeout,
+			cfg.JobsDailyResetTimeout,
+			logger,
+		)
+		if err != nil {
+			return nil, err
+		}
+		worker.Start(context.Background())
+		dispatcher.RegisterShutdown(worker.Stop)
+		if logger != nil {
+			logger.Info("daily reset scheduler started", "lease", coreeconomy.DailyResetSchedulerLeaseName, "cron", coreeconomy.DailyResetSchedulerCronSpec, "timezone", coreeconomy.DailyResetSchedulerLocationName)
 		}
 	}
 	return dispatcher, nil

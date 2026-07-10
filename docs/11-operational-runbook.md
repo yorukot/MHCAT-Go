@@ -46,6 +46,7 @@ Primary Go env vars:
 - `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED`
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED`
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED`
+- `MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED`
 - `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED`
 - `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED`
 - `MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED`
@@ -792,7 +793,7 @@ The delivery path reads `join_messages`, sends the legacy welcome embed on `guil
 
 ## Economy Daily Reset
 
-The Go refactor provides a one-shot reset command for the legacy `00:00 Asia/Taipei` economy reset. It is not wired into `cmd/mhcat-bot` and it is not a recurring scheduler.
+Go provides a dry-run/apply command and a separately gated recurring worker for the legacy `00:00 Asia/Taipei` economy reset. Both Go write paths coordinate through lease name `daily-reset`.
 
 Preview only:
 
@@ -800,14 +801,31 @@ Preview only:
 go run ./cmd/mhcat-economy-reset --dry-run
 ```
 
-Apply requires both an explicit env gate and CLI flag:
+Apply requires the write gate, scheduler lease gate, a unique owner, and the explicit CLI flag:
 
 ```bash
 MHCAT_JOBS_DAILY_RESET_ENABLED=true \
+MHCAT_SCHEDULER_LEASE_ENABLED=true \
+MHCAT_SCHEDULER_LEASE_OWNER=staging-reset-cli \
 go run ./cmd/mhcat-economy-reset --apply
 ```
 
-The command can reset `coins.today` and refill/clamp `work_users.energi`. It does not create indexes, repair documents, sync commands, or write any other feature data. Do not run production apply until the dry-run output and duplicate audit results are reviewed.
+Apply exits with code `2` without writes when another owner holds `daily-reset`, and releases the lease after success or failure. The command can reset `coins.today` and refill/clamp `work_users.energi`. It does not create indexes, repair documents, sync commands, or write any other feature data.
+
+Recurring runtime:
+
+```bash
+MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED=true
+MHCAT_JOBS_DAILY_RESET_ENABLED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_SCHEDULER_LEASE_ENABLED=true
+MHCAT_SCHEDULER_LEASE_OWNER=staging-reset-bot-a
+MHCAT_SCHEDULER_LEASE_TTL=2m
+MHCAT_SCHEDULER_LEASE_TIMEOUT=10s
+MHCAT_JOBS_DAILY_RESET_TIMEOUT=60s
+```
+
+Every Go replica schedules `0 0 * * *` at fixed UTC+8 named `Asia/Taipei`, but only the per-tick lease holder writes. The worker makes no Discord API call and needs no privileged intent; Gateway is currently required for its app lifecycle. The lease TTL must exceed reset timeout plus lease-operation timeout. Stop Node `handler/cron.js` before Go apply or recurring ownership. Do not blindly retry a partial failure because already-processed work guilds can receive another energy increment. See `docs/41-economy-daily-reset.md`.
 
 ## Work Payout
 
@@ -847,7 +865,7 @@ Run `mhcat-staging-preflight` before command sync. It rejects `MHCAT_COMMAND_SYN
 
 ## Scheduler Lease
 
-The scheduler lease foundation is wired into bot startup only for the separately gated automatic-notification delivery worker. Daily reset and work payout still have no recurring bot-startup loops.
+The scheduler lease foundation is wired into bot startup for separately gated automatic-notification delivery and daily reset workers. Work payout still has no recurring bot-startup loop.
 
 - Collection: `mhcat_scheduler_locks`.
 - Identity: `_id` equals `lock_name`.
@@ -855,7 +873,7 @@ The scheduler lease foundation is wired into bot startup only for the separately
 - Expiry: UTC `expires_at`.
 - Release behavior: marks the lease expired and clears owner; it does not delete the document.
 
-The automatic-notification worker owns lease name `auto-notification-delivery`, renews before expiry, removes its cron entries after lease loss, and releases ownership on graceful shutdown. Its lease does not coordinate with Node, so `handler/cron.js` must remain disabled while Go owns delivery. Any future recurring work-payout or daily-reset loop must use a separate lease and have job-specific idempotency tests before enablement.
+The automatic-notification worker continuously owns `auto-notification-delivery`, renews before expiry, removes cron entries after lease loss, and releases on graceful shutdown. Daily-reset CLI apply and each midnight worker tick acquire/release `daily-reset`; contenders perform no writes. Neither lease coordinates with Node, so `handler/cron.js` must remain disabled while Go owns either path. Any future recurring work-payout loop needs a separate lease plus crash-safe payout idempotency.
 
 Read-only status:
 

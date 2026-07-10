@@ -71,9 +71,9 @@ This module currently provides:
 - gated `/上鎖頻道` password command and voice lock prompt/modal path with legacy embed UI and rollback-compatible `lock_channels.lock_anser`/`ok_people` writes; dynamic voice-room create/move/delete and `voice_channel_ids` cleanup are restored for configured triggers when gateway voice-state events are enabled.
 - gated `guildMemberAdd` join-role assignment from legacy `join_roles`, disabled by default and requiring explicit Gateway + Guild Members intent.
 - gated `guildMemberRemove` leave-message delivery from legacy `leave_messages`, disabled by default and requiring explicit Gateway + Guild Members intent.
-- dry-run-first `mhcat-economy-reset` one-shot operational tool for the legacy Asia/Taipei daily `coins.today` reset and `work_users.energi` refill/clamp path.
+- dry-run-first, lease-gated `mhcat-economy-reset` tool plus a separately gated `00:00 Asia/Taipei` recurring worker for the legacy `coins.today` reset and `work_users.energi` refill/clamp path.
 - dry-run-first, lease-gated `mhcat-work-payout` one-shot operational tool for the legacy `handler/gift.js` completed-work payout path.
-- Mongo-backed scheduler lease primitive, read-only-by-default diagnostic CLI, and the first lease-backed recurring consumer for automatic-notification delivery.
+- Mongo-backed scheduler lease primitive, read-only-by-default diagnostic CLI, and lease-backed recurring consumers for automatic-notification delivery and the economy daily reset.
 - staging guild command sync apply completed for managed `help`, `info`, and `ping`.
 - gateway smoke completed with the gateway explicitly enabled for the smoke invocation.
 
@@ -87,7 +87,7 @@ Not implemented yet:
 - production feature writes.
 - ticket and poll runtime commands/components unless their explicit feature flags are enabled.
 - economy query/rank/sign-in/settings/coin-admin runtime and command sync unless their explicit feature flags are enabled.
-- recurring scheduler loops for daily reset and work payout; automatic-notification delivery is the first lease-backed recurring worker wired into bot startup behind disabled-by-default gates.
+- recurring work-payout scheduling; automatic-notification delivery and the daily reset are wired into bot startup behind separate disabled-by-default lease gates.
 - reaction-role moderation commands.
 - message/channel/voice logging event emitters.
 - announcement relay tag pings; relay messages suppress mentions by default.
@@ -170,7 +170,7 @@ Not implemented yet:
 
 - remaining economy game/shop writes, rank cards, gift delivery, lottery creation/panel generation, announcement relay attachment handling/tag pings, recurring work scheduler ownership, the paid ChatGPT handoff worker, and dashboard.
 
-`/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete, and the daily reset is either run by the explicit one-shot tool under an operator process or owned by a future lease-backed scheduler.
+`/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete and daily-reset ownership is assigned exclusively to the lease-backed one-shot or recurring Go path after Node cron is stopped.
 
 `/代幣增加` is a disabled-by-default staging admin write slice. It requires Manage Messages, writes legacy-compatible `coins` rows, rejects negative balances and balances above `999999999`, and must be paired with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
 
@@ -268,6 +268,7 @@ Safe defaults:
 - `MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=false`
 - `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=false`
+- `MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED=false`
 - `MHCAT_JOBS_DAILY_RESET_ENABLED=false`
 - `MHCAT_JOBS_DAILY_RESET_DRY_RUN=true`
 - `MHCAT_JOBS_DAILY_RESET_TIMEOUT=60s`
@@ -455,7 +456,7 @@ scripts/staging/gateway-smoke.sh
 
 ## Economy Daily Reset
 
-The legacy Node bot runs a daily economy cron at `00:00 Asia/Taipei` on shard 0. The Go refactor currently provides a one-shot operational command instead of a recurring bot-startup scheduler, because recurring jobs need a lease/owner mechanism before multi-process rollout.
+The legacy Node bot runs a daily economy cron at `00:00 Asia/Taipei` on shard 0. Go provides both a dry-run/apply command and a separately gated recurring bot worker. Every Go write path uses lease name `daily-reset`.
 
 Dry-run is the default and performs no writes:
 
@@ -463,10 +464,12 @@ Dry-run is the default and performs no writes:
 go run ./cmd/mhcat-economy-reset --dry-run
 ```
 
-Apply mode requires both an explicit flag and an env gate:
+Apply mode requires an explicit flag, the write gate, and lease ownership:
 
 ```bash
 MHCAT_JOBS_DAILY_RESET_ENABLED=true \
+MHCAT_SCHEDULER_LEASE_ENABLED=true \
+MHCAT_SCHEDULER_LEASE_OWNER=staging-reset-cli \
 go run ./cmd/mhcat-economy-reset --apply
 ```
 
@@ -475,9 +478,10 @@ The command:
 - previews or resets `coins.today` for guilds not using rolling sign-in cooldowns;
 - previews or refills/clamps `work_users.energi` from `work_sets.get_energy` and `work_sets.max_energy`;
 - uses normalized `gift_changes.time` decoding instead of copying the legacy raw `$ne: 0` edge case;
-- does not create indexes, repair data, sync commands, or run from `cmd/mhcat-bot`.
+- exits with code `2` without writes when another owner holds `daily-reset`;
+- does not create indexes, repair data, or sync commands.
 
-Do not run apply against production until duplicate audits and rollback notes are reviewed.
+The recurring worker additionally requires `MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED=true` and `MHCAT_DISCORD_ENABLE_GATEWAY=true`. It schedules `0 0 * * *` at fixed UTC+8 named `Asia/Taipei`, acquires/releases `daily-reset` for each tick, and performs no Discord API calls. Stop Node `handler/cron.js` before either Go apply or recurring ownership. See `docs/41-economy-daily-reset.md` for staging and rollback.
 
 ## Work Payout
 
@@ -531,9 +535,10 @@ Current consumers and boundaries:
 
 - automatic-notification delivery starts from `cmd/mhcat-bot` only when its delivery, Gateway, and lease gates are enabled;
 - the recurring worker owns the `auto-notification-delivery` lease, renews it while active, and releases it during graceful shutdown;
+- the one-shot and recurring daily-reset paths acquire `daily-reset` only around each write run; contenders skip and the holder releases after completion or failure;
 - `mhcat-work-payout --apply` uses a lease, but its recurring bot-startup job remains unimplemented;
 - no lease indexes are created beyond MongoDB's default `_id` index;
-- diagnostic CLI lease writes require `MHCAT_SCHEDULER_LEASE_ENABLED=true --apply`; the delivery worker writes its lease only when all delivery prerequisites pass config validation.
+- diagnostic CLI lease writes require `MHCAT_SCHEDULER_LEASE_ENABLED=true --apply`; recurring workers write leases only when all job-specific prerequisites pass config validation.
 
 ## Command Sync
 

@@ -8,6 +8,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/config"
 )
@@ -135,6 +136,7 @@ func buildReport(lookup lookupFunc) []checkResult {
 		autoNotificationConfigCommandSync(lookup),
 		autoNotificationConfigRuntimePairing(lookup),
 		autoNotificationDeliveryRuntimeReadiness(lookup),
+		dailyResetSchedulerRuntimeReadiness(lookup),
 		antiScamConfigCommandSync(lookup),
 		antiScamConfigRuntimePairing(lookup),
 		antiScamReportCommandSync(lookup),
@@ -1173,6 +1175,54 @@ func autoNotificationDeliveryRuntimeReadiness(lookup lookupFunc) checkResult {
 		Name:    "auto-notification-delivery-runtime-readiness",
 		Status:  statusWarn,
 		Message: "delivery sends persisted cron_sets messages and writes mhcat_scheduler_locks; confirm the Node handler/cron.js owner is disabled and staging channels are disposable",
+	}
+}
+
+func dailyResetSchedulerRuntimeReadiness(lookup lookupFunc) checkResult {
+	const name = "daily-reset-scheduler-runtime-readiness"
+	enabled, err := boolValue(lookup, "MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED")
+	if err != nil {
+		return checkResult{Name: name, Status: statusFail, Message: err.Error()}
+	}
+	if !enabled {
+		return checkResult{Name: name, Status: statusSkipped, Message: "daily reset scheduler runtime is disabled"}
+	}
+	for _, requirement := range []string{
+		"MHCAT_DISCORD_ENABLE_GATEWAY",
+		"MHCAT_JOBS_DAILY_RESET_ENABLED",
+		"MHCAT_SCHEDULER_LEASE_ENABLED",
+	} {
+		value, err := boolValue(lookup, requirement)
+		if err != nil {
+			return checkResult{Name: name, Status: statusFail, Message: err.Error()}
+		}
+		if !value {
+			return checkResult{Name: name, Status: statusFail, Message: "MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED=true requires " + requirement + "=true"}
+		}
+	}
+	owner, _ := lookup("MHCAT_SCHEDULER_LEASE_OWNER")
+	if strings.TrimSpace(owner) == "" {
+		return checkResult{Name: name, Status: statusFail, Message: "MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED=true requires MHCAT_SCHEDULER_LEASE_OWNER"}
+	}
+	resetTimeout, err := durationValue(lookup, "MHCAT_JOBS_DAILY_RESET_TIMEOUT", config.DefaultDailyResetTimeout)
+	if err != nil || resetTimeout <= 0 {
+		return checkResult{Name: name, Status: statusFail, Message: positiveDurationMessage("MHCAT_JOBS_DAILY_RESET_TIMEOUT", err)}
+	}
+	leaseTimeout, err := durationValue(lookup, "MHCAT_SCHEDULER_LEASE_TIMEOUT", config.DefaultSchedulerLeaseTimeout)
+	if err != nil || leaseTimeout <= 0 {
+		return checkResult{Name: name, Status: statusFail, Message: positiveDurationMessage("MHCAT_SCHEDULER_LEASE_TIMEOUT", err)}
+	}
+	leaseTTL, err := durationValue(lookup, "MHCAT_SCHEDULER_LEASE_TTL", config.DefaultSchedulerLeaseTTL)
+	if err != nil || leaseTTL <= 0 {
+		return checkResult{Name: name, Status: statusFail, Message: positiveDurationMessage("MHCAT_SCHEDULER_LEASE_TTL", err)}
+	}
+	if leaseTTL <= resetTimeout || leaseTTL-resetTimeout <= leaseTimeout {
+		return checkResult{Name: name, Status: statusFail, Message: "MHCAT_SCHEDULER_LEASE_TTL must be greater than MHCAT_JOBS_DAILY_RESET_TIMEOUT plus MHCAT_SCHEDULER_LEASE_TIMEOUT"}
+	}
+	return checkResult{
+		Name:    name,
+		Status:  statusWarn,
+		Message: "scheduler runs at 00:00 Asia/Taipei, writes coins.today and work_users.energi, and acquires daily-reset in mhcat_scheduler_locks; use a unique per-process owner and disable Node handler/cron.js before staging",
 	}
 }
 
@@ -2448,6 +2498,26 @@ func boolValue(lookup lookupFunc, key string) (bool, error) {
 		return true, nil
 	}
 	return false, fmt.Errorf("%s must be a boolean", key)
+}
+
+func durationValue(lookup lookupFunc, key string, defaultValue time.Duration) (time.Duration, error) {
+	value, ok := lookup(key)
+	value = strings.TrimSpace(value)
+	if !ok || value == "" {
+		return defaultValue, nil
+	}
+	parsed, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be a duration", key)
+	}
+	return parsed, nil
+}
+
+func positiveDurationMessage(key string, err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	return key + " must be positive"
 }
 
 func applicationPin(lookup lookupFunc) checkResult {

@@ -1122,6 +1122,51 @@ func TestPreflightWarnsWhenAutoNotificationDeliveryEnabled(t *testing.T) {
 	}
 }
 
+func TestPreflightRejectsDailyResetSchedulerWithoutJobGate(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatalf("expected scheduler without job gate to fail, stdout=%q", stdout)
+	}
+	if !strings.Contains(stdout, "daily-reset-scheduler-runtime-readiness status=fail") || !strings.Contains(stdout, "MHCAT_JOBS_DAILY_RESET_ENABLED") {
+		t.Fatalf("expected daily reset job gate failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenDailyResetSchedulerEnabled(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_JOBS_DAILY_RESET_ENABLED"] = "true"
+	env["MHCAT_SCHEDULER_LEASE_ENABLED"] = "true"
+	env["MHCAT_SCHEDULER_LEASE_OWNER"] = "worker-a"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "daily-reset-scheduler-runtime-readiness status=warn") || !strings.Contains(stdout, "coins.today") || !strings.Contains(stdout, "work_users.energi") || !strings.Contains(stdout, "daily-reset") {
+		t.Fatalf("expected daily reset ownership warning, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightRejectsDailyResetSchedulerUnsafeLeaseWindow(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_JOBS_DAILY_RESET_ENABLED"] = "true"
+	env["MHCAT_SCHEDULER_LEASE_ENABLED"] = "true"
+	env["MHCAT_SCHEDULER_LEASE_OWNER"] = "worker-a"
+	env["MHCAT_JOBS_DAILY_RESET_TIMEOUT"] = "60s"
+	env["MHCAT_SCHEDULER_LEASE_TIMEOUT"] = "10s"
+	env["MHCAT_SCHEDULER_LEASE_TTL"] = "70s"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 || !strings.Contains(stdout, "greater than MHCAT_JOBS_DAILY_RESET_TIMEOUT") {
+		t.Fatalf("expected unsafe lease window failure, code=%d stdout=%q", code, stdout)
+	}
+}
+
 func TestPreflightRejectsAntiScamConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG"] = "true"

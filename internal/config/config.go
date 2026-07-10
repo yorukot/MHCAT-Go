@@ -43,6 +43,7 @@ const (
 	DefaultFeatureAutoChatFallbackEnabled       = false
 	DefaultFeatureAutoNotificationConfigEnabled = false
 	DefaultFeatureAutoNotificationDelivery      = false
+	DefaultFeatureDailyResetSchedulerEnabled    = false
 	DefaultFeatureAntiScamConfigEnabled         = false
 	DefaultFeatureAntiScamReportEnabled         = false
 	DefaultFeatureAntiScamMessageDeleteEnabled  = false
@@ -135,6 +136,7 @@ type Config struct {
 	FeatureAutoChatFallbackEnabled       bool
 	FeatureAutoNotificationConfigEnabled bool
 	FeatureAutoNotificationDelivery      bool
+	FeatureDailyResetSchedulerEnabled    bool
 	FeatureAntiScamConfigEnabled         bool
 	FeatureAntiScamReportEnabled         bool
 	FeatureAntiScamMessageDeleteEnabled  bool
@@ -180,6 +182,7 @@ type Config struct {
 	FeatureAccountAgePolicyEnabled       bool
 	FeatureRoleSelectionEnabled          bool
 	JobsDailyResetEnabled                bool
+	JobsDailyResetTimeout                time.Duration
 	SchedulerLeaseEnabled                bool
 	SchedulerLeaseOwner                  string
 	SchedulerLeaseTTL                    time.Duration

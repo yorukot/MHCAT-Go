@@ -65,6 +65,18 @@ func TestAutoNotificationDeliveryEventRuntimeRequiresDefaultAdapters(t *testing.
 	}
 }
 
+func TestDailyResetSchedulerEventRuntimeRequiresDefaultAdapters(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.FeatureDailyResetSchedulerEnabled = true
+	cfg.JobsDailyResetTimeout = config.DefaultDailyResetTimeout
+	cfg.SchedulerLeaseOwner = "worker-a"
+	cfg.SchedulerLeaseTTL = config.DefaultSchedulerLeaseTTL
+	cfg.SchedulerLeaseTimeout = config.DefaultSchedulerLeaseTimeout
+	if _, err := defaultEventRuntimeFactory(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil); err == nil {
+		t.Fatal("expected daily reset scheduler to reject non-default adapters")
+	}
+}
+
 func TestBuildRuntimeRoutesHelpDetail(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

@@ -56,6 +56,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureAutoChatFallbackEnabled:       DefaultFeatureAutoChatFallbackEnabled,
 		FeatureAutoNotificationConfigEnabled: DefaultFeatureAutoNotificationConfigEnabled,
 		FeatureAutoNotificationDelivery:      DefaultFeatureAutoNotificationDelivery,
+		FeatureDailyResetSchedulerEnabled:    DefaultFeatureDailyResetSchedulerEnabled,
 		FeatureAntiScamConfigEnabled:         DefaultFeatureAntiScamConfigEnabled,
 		FeatureAntiScamReportEnabled:         DefaultFeatureAntiScamReportEnabled,
 		FeatureAntiScamMessageDeleteEnabled:  DefaultFeatureAntiScamMessageDeleteEnabled,
@@ -101,6 +102,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureAccountAgePolicyEnabled:       DefaultFeatureAccountAgePolicyEnabled,
 		FeatureRoleSelectionEnabled:          DefaultFeatureRoleSelectionEnabled,
 		JobsDailyResetEnabled:                DefaultJobsDailyResetEnabled,
+		JobsDailyResetTimeout:                DefaultDailyResetTimeout,
 		SchedulerLeaseEnabled:                DefaultSchedulerLeaseEnabled,
 		SchedulerLeaseTTL:                    DefaultSchedulerLeaseTTL,
 		SchedulerLeaseTimeout:                DefaultSchedulerLeaseTimeout,
@@ -225,6 +227,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureAutoNotificationDelivery, err = getBool(lookup, "MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED", DefaultFeatureAutoNotificationDelivery); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureDailyResetSchedulerEnabled, err = getBool(lookup, "MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED", DefaultFeatureDailyResetSchedulerEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureAntiScamConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED", DefaultFeatureAntiScamConfigEnabled); err != nil {
@@ -360,6 +365,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.JobsDailyResetEnabled, err = getBool(lookup, "MHCAT_JOBS_DAILY_RESET_ENABLED", DefaultJobsDailyResetEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.JobsDailyResetTimeout, err = getDuration(lookup, "MHCAT_JOBS_DAILY_RESET_TIMEOUT", DefaultDailyResetTimeout); err != nil {
 		return Config{}, err
 	}
 	if cfg.SchedulerLeaseEnabled, err = getBool(lookup, "MHCAT_SCHEDULER_LEASE_ENABLED", DefaultSchedulerLeaseEnabled); err != nil {

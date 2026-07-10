@@ -76,7 +76,7 @@ If duplicate risks are present, do not apply unique indexes and do not enable pr
 
 ## Daily Reset
 
-The one-shot reset tool is documented in `docs/41-economy-daily-reset.md`.
+The lease-gated one-shot and recurring reset paths are documented in `docs/41-economy-daily-reset.md`.
 
 Preview only:
 
@@ -88,7 +88,9 @@ Apply requires explicit approval:
 
 ```bash
 MHCAT_JOBS_DAILY_RESET_ENABLED=true \
+MHCAT_SCHEDULER_LEASE_ENABLED=true \
+MHCAT_SCHEDULER_LEASE_OWNER=staging-reset-cli \
 go run ./cmd/mhcat-economy-reset --apply
 ```
 
-Do not wire this into bot startup until scheduler ownership/lease design is implemented.
+The recurring worker has a separate `MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED=true` gate. Keep Node `handler/cron.js` and every Go reset writer under exclusive ownership before production sign-in rollout.

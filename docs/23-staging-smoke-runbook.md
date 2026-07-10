@@ -62,6 +62,21 @@ export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true
 
 Set both together only in an isolated staging database when testing `/coin-related-settings`. This path writes `gift_changes`, which is shared by gacha, sign-in, daily reset, and XP reward behavior.
 
+Optional daily-reset scheduler smoke flags:
+
+```bash
+export MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED=true
+export MHCAT_JOBS_DAILY_RESET_ENABLED=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_SCHEDULER_LEASE_ENABLED=true
+export MHCAT_SCHEDULER_LEASE_OWNER=staging-reset-bot-a
+export MHCAT_SCHEDULER_LEASE_TTL=2m
+export MHCAT_SCHEDULER_LEASE_TIMEOUT=10s
+export MHCAT_JOBS_DAILY_RESET_TIMEOUT=60s
+```
+
+This path has no command-sync flag. It writes `coins.today`, `work_users.energi`, and `mhcat_scheduler_locks` across the staging database at `00:00 Asia/Taipei`. Stop Node `handler/cron.js`, use only disposable economy/work fixtures, and give each Go replica a unique owner. The one-shot `mhcat-economy-reset --apply` uses the same `daily-reset` lease; its dry-run remains lease-free.
+
 Optional economy coin-admin smoke flags:
 
 ```bash
@@ -650,6 +665,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true`, confirm gateway, Guild Messages, and Message Content are enabled; `chats.channel` targets a disposable staging channel; `chatgpt_gets` fixtures are safe; and the Node Chatbot handler is not concurrently active for that guild.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database/channel targets are disposable for auto-notification setup/list/delete.
 - If `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true`, confirm Gateway and scheduler leases are enabled, the lease owner is unique, the Node `handler/cron.js` owner is stopped, and every active staging `cron_sets` target/payload is safe to send.
+- If `MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED=true`, confirm the daily-reset write/Gateway/lease gates are enabled, lease TTL exceeds reset plus lease timeout, Node `handler/cron.js` is stopped, owners are unique, and every staging `coins`/`gift_changes`/`work_sets`/`work_users` row is disposable.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`, confirm `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true` and the selected log channel is staging-only.
 - If `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, and `loggings.channel_id` points to a staging-only log channel.
 - If `MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `loggings.channel_id` points to a staging-only log channel.
@@ -870,6 +886,8 @@ For auto-notification config staging smoke, expected additionally:
 - plan still performs no create/update/delete during dry-run.
 
 Auto-notification delivery has no command-sync include flag and should not change the dry-run plan. With delivery enabled, staging preflight must warn that the runtime sends persisted `cron_sets` payloads, writes `mhcat_scheduler_locks`, and requires the Node `handler/cron.js` owner to be disabled.
+
+Daily-reset scheduling also has no command-sync include flag. With it enabled, staging preflight must warn about the `00:00 Asia/Taipei` run, `coins.today`/`work_users.energi` writes, `daily-reset` lease, and exclusive Node ownership.
 
 For logging-config staging smoke, expected additionally:
 
@@ -1418,6 +1436,18 @@ If auto-notification delivery was explicitly enabled:
 - stop the Go bot gracefully and verify `auto-notification-delivery` is no longer held before any Node rollback;
 - keep the delivery gate off after smoke and remove the disposable row; no index should have been created and Message Content intent is not required.
 
+If daily-reset scheduling was explicitly enabled:
+
+- stop every Node process that loads `handler/cron.js`;
+- seed only disposable `coins`, `gift_changes`, `work_sets`, and `work_users` rows, including one daily-mode guild and one nonzero rolling-cooldown guild;
+- record `coins.today` and `work_users.energi`, then run `go run ./cmd/mhcat-economy-reset --dry-run` and verify expected counts without a lease write;
+- run one-shot apply with the write/lease gates and verify `lease_acquired=true`, expected reset/refill/clamp values, and a released `daily-reset` lease;
+- hold `daily-reset` with a different owner, rerun apply, and verify exit code `2` with no data changes;
+- restore fresh before-values, start two Go replicas with distinct owners, and keep them running across `00:00 Asia/Taipei`;
+- verify one replica logs reset completion, the contender logs a held-lease skip, daily-mode `coins.today` becomes `0`, rolling-cooldown guild rows remain unchanged, and each work row receives at most one increment before clamp;
+- stop both Go replicas gracefully, verify `daily-reset` is not held, disable the scheduler flag, and remove fixtures;
+- if the run partially fails, inspect per-guild after-values before any retry because another apply can increment already-processed work energy again.
+
 If announcement relay was explicitly enabled:
 
 - create or confirm a staging `ann_all_sets` row for a non-production channel;
@@ -1632,6 +1662,7 @@ Verify:
   - Exception: delete-data smoke deletes selected disposable staging config rows only.
   - Exception: auto-notification config smoke writes/completes disposable setup `cron_sets` rows, sends a setup preview, and deletes selected rows and abandoned pending drafts only.
   - Exception: auto-notification delivery smoke sends persisted disposable messages and acquires/renews/releases `mhcat_scheduler_locks`; it does not mutate `cron_sets`.
+  - Exception: daily-reset smoke mutates disposable `coins.today`/`work_users.energi` and acquires/releases `daily-reset` in `mhcat_scheduler_locks`.
   - Exception: voice-room config smoke writes/deletes legacy-compatible `voice_channels` rows and, with gateway Voice State events enabled, creates/moves/deletes disposable dynamic rooms plus `voice_channel_ids`/lock seed rows.
   - Exception: XP reset smoke deletes disposable staging `text_xps`/`voice_xps` rows only after an individual reset command or full-reset `^確認^` confirmation.
   - Exception: global usage tracking smoke increments `all_use_counts` once per slash attempt when `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`.
