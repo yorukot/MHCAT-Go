@@ -33,7 +33,7 @@ const (
 	legacyDiscordNamedGreen = 0x57F287
 	legacyTicketOpenGreen   = 0x00DB00
 
-	ticketConfigRollbackTimeout = 5 * time.Second
+	ticketRollbackTimeout = 5 * time.Second
 )
 
 func (m Module) SetupHandler() interactions.Handler {
@@ -155,7 +155,7 @@ func (m Module) submitTicketPanel(ctx context.Context, interaction interactions.
 	}
 	if _, err := m.messages.SendMessage(ctx, interaction.ChannelID, ticketPanelOutboundMessage(title, content, color)); err != nil {
 		if saveConfig != nil {
-			rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), ticketConfigRollbackTimeout)
+			rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), ticketRollbackTimeout)
 			defer cancel()
 			if rollbackErr := m.repo.RollbackTicketConfigCreation(rollbackCtx, creation); rollbackErr != nil {
 				return errors.Join(err, rollbackErr)
@@ -239,6 +239,11 @@ func (m Module) OpenHandler() interactions.Handler {
 			return err
 		}
 		if _, err := m.messages.SendMessage(ctx, created.ChannelID, ticketWelcomeMessage()); err != nil {
+			rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), ticketRollbackTimeout)
+			defer cancel()
+			if rollbackErr := m.channels.DeleteChannel(rollbackCtx, created.ChannelID); rollbackErr != nil {
+				return errors.Join(err, rollbackErr)
+			}
 			return err
 		}
 		if err := responder.Reply(ctx, ticketOpenSuccessMessage()); err != nil {

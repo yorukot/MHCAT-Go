@@ -521,6 +521,33 @@ func TestOpenHandlerCreatesTicketChannelAndSendsLegacyWelcome(t *testing.T) {
 	}
 }
 
+func TestOpenHandlerDeletesCreatedChannelWhenWelcomeSendCancelsContext(t *testing.T) {
+	repo := seededTicketRepo(t)
+	channels := fakediscord.NewSideEffects()
+	ctx, cancel := context.WithCancel(context.Background())
+	messages := &cancelingTicketMessagePort{cancel: cancel}
+	module := NewModuleWithSideEffects(repo, channels, messages, "")
+	responder := fakediscord.NewResponder()
+	interaction := ticketButtonInteraction("tic")
+
+	err := module.OpenHandler()(ctx, interaction, responder)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("open handler error = %v, want context canceled", err)
+	}
+	if messages.sends != 1 {
+		t.Fatalf("welcome send attempts = %d, want 1", messages.sends)
+	}
+	if len(channels.Created) != 1 || len(channels.Deleted) != 1 || channels.Deleted[0] != "created-channel-1" {
+		t.Fatalf("created = %#v, deleted = %#v", channels.Created, channels.Deleted)
+	}
+	if _, err := channels.FindChannelByName(context.Background(), testGuildID, interaction.Actor.UserID, -1); !errors.Is(err, ports.ErrChannelNotFound) {
+		t.Fatalf("failed ticket channel still blocks retry: %v", err)
+	}
+	if len(responder.Replies) != 0 {
+		t.Fatalf("open replies = %#v", responder.Replies)
+	}
+}
+
 func TestTicketBotUserIDUsesConfiguredFallbackOutsideRuntimeInteractions(t *testing.T) {
 	if got := ticketBotUserID("", " fallback-bot "); got != "fallback-bot" {
 		t.Fatalf("ticket bot user id = %q, want fallback-bot", got)
