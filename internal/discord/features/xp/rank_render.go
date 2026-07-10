@@ -36,6 +36,13 @@ type rankCanvasView struct {
 	Entries        []rankCanvasEntry
 }
 
+type rankFontFamily uint8
+
+const (
+	rankLanguageFont rankFontFamily = iota
+	rankNumericFont
+)
+
 func renderRankPNG(view rankCanvasView) ([]byte, error) {
 	canvas := image.NewRGBA(image.Rect(0, 0, 1000, 500))
 	if !drawRankBackground(canvas) {
@@ -92,8 +99,8 @@ func drawRankHeader(canvas *image.RGBA, view rankCanvasView) {
 	headerColor := color.RGBA{R: 211, G: 211, B: 211, A: 255}
 	drawRankText(canvas, 115, 50, guildName, headerColor, 37)
 	drawRankText(canvas, 118, 74, view.Title, color.RGBA{R: 168, G: 168, B: 168, A: 255}, 20)
-	drawRankCenteredText(canvas, 710, 70, view.ViewerRankText, headerColor, 30)
-	drawRankText(canvas, 790, 70, createdAt.Format("2006/01/02"), headerColor, 30)
+	drawRankCenteredNumericText(canvas, 710, 70, view.ViewerRankText, headerColor, 30)
+	drawRankNumericText(canvas, 790, 70, createdAt.Format("2006/01/02"), headerColor, 30)
 }
 
 func drawRankGuildIcon(canvas *image.RGBA, data []byte) {
@@ -172,14 +179,14 @@ func drawRankRows(canvas *image.RGBA, view rankCanvasView) {
 	rankSize := legacyRankNumberFontSize(view.Page)
 	for slot := 0; slot < coreservice.RankPageSize; slot++ {
 		xOffset, row := legacyRankSlotPosition(slot)
-		drawRankCenteredText(canvas, 73+xOffset, 146+row*74, strconv.Itoa(legacyRankNumber(view.Page, slot)), white, rankSize)
+		drawRankCenteredNumericText(canvas, 73+xOffset, 146+row*74, strconv.Itoa(legacyRankNumber(view.Page, slot)), white, rankSize)
 	}
 	for i, entry := range view.Entries {
 		xOffset, row := legacyRankSlotPosition(i)
 		nameY := 131 + row*74
 		xpY := 153 + row*74
 		drawRankText(canvas, 121+xOffset, nameY, truncateLegacyRankText(entry.DisplayName), white, 25)
-		drawRankText(canvas, 137+xOffset, xpY, coreservice.LegacyRankAmount(entry.TotalXP), white, 15)
+		drawRankNumericText(canvas, 137+xOffset, xpY, coreservice.LegacyRankAmount(entry.TotalXP), white, 15)
 	}
 }
 
@@ -209,15 +216,19 @@ func fillRankRect(img *image.RGBA, rect image.Rectangle, c color.Color) {
 }
 
 func drawRankText(img *image.RGBA, x, y int, text string, c color.RGBA, size int) {
-	drawRankAlignedText(img, x, y, text, c, size, false)
+	drawRankAlignedText(img, x, y, text, c, size, false, rankLanguageFont)
 }
 
-func drawRankCenteredText(img *image.RGBA, x, y int, text string, c color.RGBA, size int) {
-	drawRankAlignedText(img, x, y, text, c, size, true)
+func drawRankNumericText(img *image.RGBA, x, y int, text string, c color.RGBA, size int) {
+	drawRankAlignedText(img, x, y, text, c, size, false, rankFontFamilyForNumericText(text))
 }
 
-func drawRankAlignedText(img *image.RGBA, x, y int, text string, c color.RGBA, size int, centered bool) {
-	if face := rankFontFace(float64(size)); face != nil {
+func drawRankCenteredNumericText(img *image.RGBA, x, y int, text string, c color.RGBA, size int) {
+	drawRankAlignedText(img, x, y, text, c, size, true, rankFontFamilyForNumericText(text))
+}
+
+func drawRankAlignedText(img *image.RGBA, x, y int, text string, c color.RGBA, size int, centered bool, family rankFontFamily) {
+	if face := rankFontFace(family, float64(size)); face != nil {
 		defer face.Close()
 		if centered {
 			x -= font.MeasureString(face, text).Ceil() / 2
@@ -242,6 +253,15 @@ func drawRankAlignedText(img *image.RGBA, x, y int, text string, c color.RGBA, s
 	}
 }
 
+func rankFontFamilyForNumericText(text string) rankFontFamily {
+	for _, r := range text {
+		if r > 0x7f {
+			return rankLanguageFont
+		}
+	}
+	return rankNumericFont
+}
+
 func rankFallbackTextWidth(text string, scale int) int {
 	count := 0
 	for range text {
@@ -253,33 +273,53 @@ func rankFallbackTextWidth(text string, scale int) int {
 	return (count*7 - 2) * scale
 }
 
-var rankFont struct {
+var rankFonts = [2]struct {
 	once sync.Once
 	font *opentype.Font
-}
+}{}
 
-func rankFontFace(size float64) font.Face {
-	rankFont.once.Do(func() {
-		for _, path := range append(rankAssetCandidates("fonts/TaipeiSansTCBeta-Regular.ttf"), "./fonts/TaipeiSansTCBeta-Regular.ttf") {
-			data, err := os.ReadFile(path)
-			if err != nil {
-				continue
-			}
-			parsed, err := opentype.Parse(data)
-			if err == nil {
-				rankFont.font = parsed
-				return
+func rankFontFace(family rankFontFamily, size float64) font.Face {
+	cache := &rankFonts[family]
+	cache.once.Do(func() {
+		for _, relative := range rankFontCandidates(family) {
+			for _, path := range rankAssetCandidates(relative) {
+				data, err := os.ReadFile(path)
+				if err != nil {
+					continue
+				}
+				parsed, err := opentype.Parse(data)
+				if err == nil {
+					cache.font = parsed
+					return
+				}
 			}
 		}
 	})
-	if rankFont.font == nil {
+	if cache.font == nil && family == rankNumericFont {
+		return rankFontFace(rankLanguageFont, size)
+	}
+	if cache.font == nil {
 		return nil
 	}
-	face, err := opentype.NewFace(rankFont.font, &opentype.FaceOptions{Size: size, DPI: 72, Hinting: font.HintingFull})
+	face, err := opentype.NewFace(cache.font, &opentype.FaceOptions{Size: size, DPI: 72, Hinting: font.HintingFull})
 	if err != nil {
 		return nil
 	}
 	return face
+}
+
+func rankFontCandidates(family rankFontFamily) []string {
+	if family == rankNumericFont {
+		return []string{
+			"fonts/Comic-Sans-MS-copy-5-.ttf",
+			"fonts/language/TC.otf",
+			"fonts/TaipeiSansTCBeta-Regular.ttf",
+		}
+	}
+	return []string{
+		"fonts/language/TC.otf",
+		"fonts/TaipeiSansTCBeta-Regular.ttf",
+	}
 }
 
 func drawRankRune(img *image.RGBA, x, y int, r rune, c color.RGBA, scale int) {

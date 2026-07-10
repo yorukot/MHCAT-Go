@@ -188,6 +188,25 @@ func TestLegacyRankCanvasNumberLayout(t *testing.T) {
 	}
 }
 
+func TestRankFontFamilyForNumericText(t *testing.T) {
+	for value, want := range map[string]rankFontFamily{
+		"2020/01/02": rankNumericFont,
+		"1.3K":       rankNumericFont,
+		"10":         rankNumericFont,
+		"沒有資料!":      rankLanguageFont,
+	} {
+		if got := rankFontFamilyForNumericText(value); got != want {
+			t.Fatalf("rankFontFamilyForNumericText(%q) = %d, want %d", value, got, want)
+		}
+	}
+	if got := rankFontCandidates(rankLanguageFont); !reflect.DeepEqual(got, []string{"fonts/language/TC.otf", "fonts/TaipeiSansTCBeta-Regular.ttf"}) {
+		t.Fatalf("language font candidates = %#v", got)
+	}
+	if got := rankFontCandidates(rankNumericFont); len(got) == 0 || got[0] != "fonts/Comic-Sans-MS-copy-5-.ttf" {
+		t.Fatalf("numeric font candidates = %#v", got)
+	}
+}
+
 func TestRenderRankPNGIncludesSlotsOnEmptyPages(t *testing.T) {
 	view := rankCanvasView{
 		GuildName:      "Guild",
