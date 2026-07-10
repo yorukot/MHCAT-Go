@@ -223,7 +223,7 @@ func (m Module) hourSelectMessage(customID string, expiresAt time.Time, avatarUR
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title:       "<:cake:1065654305983570041> 生日系統祝福語設定",
-			Description: "**<:24hours:1022059604747747379> 請選取你的生日通知要在幾點發送**\n**<a:warn:1000814885506129990> 你必須在<t:" + strconv.FormatInt(expiresAt.Unix(), 10) + ":R>選取完畢(超過時間將會無法選取)**",
+			Description: "**<:24hours:1022059604747747379> 請選取你的生日通知要在幾點發送**\n**<a:warn:1000814885506129990> 你必須在<t:" + legacyBirthdayExpiryTimestamp(expiresAt) + ":R>選取完畢(超過時間將會無法選取)**",
 			Color:       m.legacyColor(),
 			Footer:      &responses.EmbedFooter{Text: "有問題都可以前往支援伺服器詢問", IconURL: avatarURL},
 		}},
@@ -243,7 +243,7 @@ func (m Module) minuteSelectMessage(customID string, expiresAt time.Time, avatar
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title:       "<:cake:1065654305983570041> 生日系統祝福語設定",
-			Description: "<:60minutes:1022059603153924156> **請選取你的生日通知要在幾分發送**\n**<a:warn:1000814885506129990> 你必須在<t:" + strconv.FormatInt(expiresAt.Unix(), 10) + ":R>選取完畢(超過時間將會無法選取)**",
+			Description: "<:60minutes:1022059603153924156> **請選取你的生日通知要在幾分發送**\n**<a:warn:1000814885506129990> 你必須在<t:" + legacyBirthdayExpiryTimestamp(expiresAt) + ":R>選取完畢(超過時間將會無法選取)**",
 			Color:       m.legacyColor(),
 			Footer:      &responses.EmbedFooter{Text: "有問題都可以前往支援伺服器詢問", IconURL: avatarURL},
 		}},
@@ -257,6 +257,10 @@ func (m Module) minuteSelectMessage(customID string, expiresAt time.Time, avatar
 		}}}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
+}
+
+func legacyBirthdayExpiryTimestamp(expiresAt time.Time) string {
+	return strconv.FormatInt(expiresAt.Add(500*time.Millisecond).Unix(), 10)
 }
 
 func (m Module) birthdayAddSuccessMessage(profile domain.BirthdayProfile, hour int, minute int) responses.Message {

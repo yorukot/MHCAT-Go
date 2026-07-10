@@ -195,6 +195,19 @@ func TestHandlerAddRendersLegacyHourSelect(t *testing.T) {
 	}
 }
 
+func TestHandlerAddRoundsLegacyExpiryTimestamp(t *testing.T) {
+	now := time.Unix(1700000000, 600*int64(time.Millisecond))
+	module := NewModuleWithClock(birthdayAddRepo(true), nil, birthdayFixedClock{now: now})
+	responder := fakediscord.NewResponder()
+
+	if err := module.Handler()(context.Background(), birthdayAddSlash(), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "<t:1700000301:R>") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func TestHourSelectUpdatesToMinuteSelect(t *testing.T) {
 	module := birthdayAddModule(birthdayAddRepo(true), nil)
 	start := fakediscord.NewResponder()
