@@ -2,7 +2,9 @@ package stats
 
 import (
 	"context"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -169,4 +171,56 @@ func TestLegacyStatsRenamedChannelName(t *testing.T) {
 	if got := legacyStatsRenamedChannelName("custom-name", "10", "12"); got != "12" {
 		t.Fatalf("missing old value rename = %q", got)
 	}
+}
+
+func TestRenameWorkerPreservesLegacyDelayedCadenceAndLifecycle(t *testing.T) {
+	baseRepo := fakemongo.NewStatsConfigRepository()
+	repo := &observingRenameRepository{
+		StatsConfigRepository: baseRepo,
+		listed:                make(chan struct{}),
+	}
+	discord := fakediscord.NewSideEffects()
+	worker := NewRenameWorker(RenameService{
+		Repository: repo,
+		Channels:   discord,
+		GuildStats: discord,
+		RoleStats:  discord,
+	}, 0, nil)
+	if worker.interval != LegacyStatsRenameInterval {
+		t.Fatalf("worker interval = %s, want default %s", worker.interval, LegacyStatsRenameInterval)
+	}
+	if LegacyStatsRenameInterval != 20*time.Minute {
+		t.Fatalf("legacy interval = %s", LegacyStatsRenameInterval)
+	}
+	worker.interval = time.Hour
+	if !worker.Start(context.Background()) {
+		t.Fatal("expected first worker start")
+	}
+	if worker.Start(context.Background()) {
+		t.Fatal("duplicate worker start should be rejected")
+	}
+	select {
+	case <-repo.listed:
+		t.Fatal("worker ran before its first interval")
+	case <-time.After(20 * time.Millisecond):
+	}
+	stopCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := worker.Stop(stopCtx); err != nil {
+		t.Fatalf("stop worker: %v", err)
+	}
+	if err := worker.Stop(stopCtx); err != nil {
+		t.Fatalf("stop inactive worker: %v", err)
+	}
+}
+
+type observingRenameRepository struct {
+	*fakemongo.StatsConfigRepository
+	once   sync.Once
+	listed chan struct{}
+}
+
+func (r *observingRenameRepository) ListStatsConfigs(ctx context.Context) ([]domain.StatsConfig, error) {
+	r.once.Do(func() { close(r.listed) })
+	return r.StatsConfigRepository.ListStatsConfigs(ctx)
 }
