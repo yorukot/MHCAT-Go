@@ -611,7 +611,7 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		}
 	}
 	if opts.BirthdayConfigRepository != nil {
-		birthdayModule := featurebirthday.NewModuleWithClockAndCachedUsers(opts.BirthdayConfigRepository, opts.BirthdayCachedUsers, opts.UsageTracker, clockOrSystem(opts.Clock))
+		birthdayModule := featurebirthday.NewModuleWithClockAndCachedUsers(opts.BirthdayConfigRepository, opts.BirthdayCachedUsers, clockOrSystem(opts.Clock))
 		if err := birthdayModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

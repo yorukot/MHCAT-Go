@@ -1716,6 +1716,42 @@ func TestBuildRuntimeRoutesBirthdayConfigOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeTracksEachBirthdaySlashAttemptOnce(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		UsageTracker:             tracker,
+		BirthdayConfigRepository: &fakemongo.BirthdayConfigRepository{},
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+
+	success := fakediscord.SlashInteractionWithOptions("生日系統", "祝福語設定", map[string]string{
+		"祝福語":        "{user} 生日快樂",
+		"頻道":         "channel-1",
+		"是否可以自行設定生日": "true",
+		"時區":         "+08:00",
+	})
+	success.Actor.PermissionBits = 8192
+	if err := dispatcher.Dispatch(context.Background(), success, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch success: %v", err)
+	}
+	denied := fakediscord.SlashInteractionWithOptions("生日系統", "祝福語設定", map[string]string{})
+	if err := dispatcher.Dispatch(context.Background(), denied, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch denial: %v", err)
+	}
+
+	if len(tracker.Events) != 2 {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for _, event := range tracker.Events {
+		if event.CommandName != "生日系統" {
+			t.Fatalf("usage event = %#v", event)
+		}
+	}
+}
+
 func TestBuildRuntimeRoutesBirthdayAddComponentsWithRepository(t *testing.T) {
 	repo := &fakemongo.BirthdayConfigRepository{Configs: map[string]domain.BirthdayConfig{
 		"guild-1": {

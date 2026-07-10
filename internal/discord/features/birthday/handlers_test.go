@@ -12,11 +12,10 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakebotinfo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestHandlerRequiresManageMessagesForConfig(t *testing.T) {
-	module := NewModule(&fakemongo.BirthdayConfigRepository{}, nil)
+	module := NewModule(&fakemongo.BirthdayConfigRepository{})
 	responder := fakediscord.NewResponder()
 	interaction := birthdayConfigSlash()
 	interaction.Actor.PermissionBits = 0
@@ -31,7 +30,7 @@ func TestHandlerRequiresManageMessagesForConfig(t *testing.T) {
 
 func TestHandlerAcceptsAdministratorForBirthdayConfig(t *testing.T) {
 	repo := &fakemongo.BirthdayConfigRepository{}
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := birthdayConfigSlash()
 	interaction.Actor.PermissionBits = 1 << 3
@@ -46,8 +45,7 @@ func TestHandlerAcceptsAdministratorForBirthdayConfig(t *testing.T) {
 
 func TestHandlerSavesBirthdayConfigAndRendersLegacySuccess(t *testing.T) {
 	repo := &fakemongo.BirthdayConfigRepository{}
-	usage := &fakeusage.Tracker{}
-	module := NewModule(repo, usage)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 
 	if err := module.Handler()(context.Background(), birthdayConfigSlash(), responder); err != nil {
@@ -73,14 +71,11 @@ func TestHandlerSavesBirthdayConfigAndRendersLegacySuccess(t *testing.T) {
 	if responder.Edits[0].AllowedMentions == nil {
 		t.Fatalf("allowed mentions not set: %#v", responder.Edits[0])
 	}
-	if len(usage.Events) != 1 || usage.Events[0].Feature != "birthday-config" || usage.Events[0].CommandName != BirthdayCommandName {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestHandlerAcceptsTypedBooleanCommandOption(t *testing.T) {
 	repo := &fakemongo.BirthdayConfigRepository{}
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := birthdayConfigSlash()
 	delete(interaction.Options, optionEveryoneCanSet)
@@ -102,7 +97,7 @@ func TestHandlerAcceptsTypedBooleanCommandOption(t *testing.T) {
 
 func TestHandlerPreservesBirthdayMessageWhitespace(t *testing.T) {
 	repo := &fakemongo.BirthdayConfigRepository{}
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := birthdayConfigSlash()
 	interaction.Options[optionMessage] = "   "
@@ -120,7 +115,7 @@ func TestHandlerPreservesBirthdayMessageWhitespace(t *testing.T) {
 }
 
 func TestHandlerAddMissingConfigUsesLegacyError(t *testing.T) {
-	module := NewModule(&fakemongo.BirthdayConfigRepository{}, nil)
+	module := NewModule(&fakemongo.BirthdayConfigRepository{})
 	responder := fakediscord.NewResponder()
 	interaction := birthdayAddSlash()
 
@@ -133,7 +128,7 @@ func TestHandlerAddMissingConfigUsesLegacyError(t *testing.T) {
 }
 
 func TestHandlerAddInvalidYearUsesLegacyError(t *testing.T) {
-	module := birthdayAddModule(birthdayAddRepo(true), nil)
+	module := birthdayAddModule(birthdayAddRepo(true))
 	responder := fakediscord.NewResponder()
 	interaction := birthdayAddSlash()
 	interaction.Options[optionBirthdayYear] = "2027"
@@ -148,7 +143,7 @@ func TestHandlerAddInvalidYearUsesLegacyError(t *testing.T) {
 
 func TestHandlerAddPreservesExplicitZeroYear(t *testing.T) {
 	repo := birthdayAddRepo(true)
-	module := birthdayAddModule(repo, nil)
+	module := birthdayAddModule(repo)
 	start := fakediscord.NewResponder()
 	interaction := birthdayAddSlash()
 	interaction.Options[optionBirthdayYear] = "0"
@@ -179,8 +174,7 @@ func TestHandlerAddPreservesExplicitZeroYear(t *testing.T) {
 }
 
 func TestHandlerAddRendersLegacyHourSelect(t *testing.T) {
-	usage := &fakeusage.Tracker{}
-	module := birthdayAddModule(birthdayAddRepo(true), usage)
+	module := birthdayAddModule(birthdayAddRepo(true))
 	responder := fakediscord.NewResponder()
 	interaction := birthdayAddSlash()
 
@@ -205,14 +199,11 @@ func TestHandlerAddRendersLegacyHourSelect(t *testing.T) {
 	if selectMenu.Options[0].Label != "1點" || selectMenu.Options[23].Label != "24點(0點)" || selectMenu.Options[23].Value != "0" {
 		t.Fatalf("options = %#v", selectMenu.Options)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].Feature != "birthday-config" {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestHandlerAddRoundsLegacyExpiryTimestamp(t *testing.T) {
 	now := time.Unix(1700000000, 600*int64(time.Millisecond))
-	module := NewModuleWithClock(birthdayAddRepo(true), nil, birthdayFixedClock{now: now})
+	module := NewModuleWithClock(birthdayAddRepo(true), birthdayFixedClock{now: now})
 	responder := fakediscord.NewResponder()
 
 	if err := module.Handler()(context.Background(), birthdayAddSlash(), responder); err != nil {
@@ -224,7 +215,7 @@ func TestHandlerAddRoundsLegacyExpiryTimestamp(t *testing.T) {
 }
 
 func TestHourSelectUpdatesToMinuteSelect(t *testing.T) {
-	module := birthdayAddModule(birthdayAddRepo(true), nil)
+	module := birthdayAddModule(birthdayAddRepo(true))
 	start := fakediscord.NewResponder()
 	if err := module.Handler()(context.Background(), birthdayAddSlash(), start); err != nil {
 		t.Fatalf("handler: %v", err)
@@ -256,7 +247,7 @@ func TestHourSelectUpdatesToMinuteSelect(t *testing.T) {
 
 func TestMinuteSelectSavesProfileAndRendersLegacySuccess(t *testing.T) {
 	repo := birthdayAddRepo(true)
-	module := birthdayAddModule(repo, nil)
+	module := birthdayAddModule(repo)
 	start := fakediscord.NewResponder()
 	if err := module.Handler()(context.Background(), birthdayAddSlash(), start); err != nil {
 		t.Fatalf("handler: %v", err)
@@ -292,7 +283,7 @@ func TestMinuteSelectSavesProfileAndRendersLegacySuccess(t *testing.T) {
 
 func TestBirthdayAddWrongActorCannotConsumeState(t *testing.T) {
 	repo := birthdayAddRepo(true)
-	module := birthdayAddModule(repo, nil)
+	module := birthdayAddModule(repo)
 	start := fakediscord.NewResponder()
 	if err := module.Handler()(context.Background(), birthdayAddSlash(), start); err != nil {
 		t.Fatalf("handler: %v", err)
@@ -314,7 +305,7 @@ func TestBirthdayAddWrongActorCannotConsumeState(t *testing.T) {
 }
 
 func TestHandlerReturnsStagedUnavailableForUnknownBirthdaySubcommand(t *testing.T) {
-	module := NewModule(&fakemongo.BirthdayConfigRepository{}, nil)
+	module := NewModule(&fakemongo.BirthdayConfigRepository{})
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(BirthdayCommandName, "未實作", map[string]string{})
 
@@ -328,7 +319,7 @@ func TestHandlerReturnsStagedUnavailableForUnknownBirthdaySubcommand(t *testing.
 
 func TestHandlerAllowAdminPersistsPreferenceAndRendersLegacySuccess(t *testing.T) {
 	repo := &fakemongo.BirthdayConfigRepository{}
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(BirthdayCommandName, subcommandAllowAdmin, map[string]string{
 		optionAllowAdmin: "false",
@@ -347,7 +338,7 @@ func TestHandlerAllowAdminPersistsPreferenceAndRendersLegacySuccess(t *testing.T
 }
 
 func TestHandlerDeleteRequiresManageMessages(t *testing.T) {
-	module := NewModule(&fakemongo.BirthdayConfigRepository{}, nil)
+	module := NewModule(&fakemongo.BirthdayConfigRepository{})
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(BirthdayCommandName, subcommandDelete, map[string]string{
 		optionUser: "user-2",
@@ -365,7 +356,7 @@ func TestHandlerDeleteProfileRendersLegacySuccess(t *testing.T) {
 	repo := &fakemongo.BirthdayConfigRepository{Profiles: map[string]domain.BirthdayProfile{
 		"guild-1/user-2": {GuildID: "guild-1", UserID: "user-2", AllowAdmin: true},
 	}}
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(BirthdayCommandName, subcommandDelete, map[string]string{
 		optionUser: "user-2",
@@ -388,7 +379,7 @@ func TestHandlerListProfilesRendersLegacyAttachment(t *testing.T) {
 	repo := &fakemongo.BirthdayConfigRepository{Profiles: map[string]domain.BirthdayProfile{
 		"guild-1/user-2": {GuildID: "guild-1", UserID: "user-2", BirthdayYear: &year, BirthdayMonth: &month, BirthdayDay: &day},
 	}}
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	module.color = func() int { return 0x123456 }
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(BirthdayCommandName, subcommandList, map[string]string{})
@@ -422,7 +413,7 @@ func TestHandlerListAttachmentUsesCachedLegacyUserTags(t *testing.T) {
 		"legacy":   {ID: "legacy", Username: "Yoru", Discriminator: "1234"},
 		"migrated": {ID: "migrated", Username: "yoru", Discriminator: "0"},
 	}}
-	module := NewModuleWithCachedUsers(repo, cachedUsers, nil)
+	module := NewModuleWithCachedUsers(repo, cachedUsers)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(BirthdayCommandName, subcommandList, map[string]string{})
 
@@ -442,7 +433,7 @@ func TestHandlerListAttachmentUsesCachedLegacyUserTags(t *testing.T) {
 }
 
 func TestHandlerListProfilesMissingDataUsesLegacyError(t *testing.T) {
-	module := NewModule(&fakemongo.BirthdayConfigRepository{}, nil)
+	module := NewModule(&fakemongo.BirthdayConfigRepository{})
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(BirthdayCommandName, subcommandList, map[string]string{})
 
@@ -476,11 +467,8 @@ func birthdayAddSlash() interactions.Interaction {
 	return interaction
 }
 
-func birthdayAddModule(repo *fakemongo.BirthdayConfigRepository, usage *fakeusage.Tracker) Module {
-	module := NewModuleWithClock(repo, nil, birthdayFixedClock{now: time.Unix(1700000000, 0)})
-	if usage != nil {
-		module = NewModuleWithClock(repo, usage, birthdayFixedClock{now: time.Unix(1700000000, 0)})
-	}
+func birthdayAddModule(repo *fakemongo.BirthdayConfigRepository) Module {
+	module := NewModuleWithClock(repo, birthdayFixedClock{now: time.Unix(1700000000, 0)})
 	module.color = func() int { return 0x123456 }
 	return module
 }

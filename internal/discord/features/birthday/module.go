@@ -20,25 +20,24 @@ type Module struct {
 	configService  coreservice.ConfigService
 	profileService coreservice.ProfileService
 	cachedUsers    ports.DiscordCachedUserInfoProvider
-	usage          ports.UsageTracker
 	clock          ports.Clock
 	pendingAdds    *birthdayAddStateStore
 	color          func() int
 }
 
-func NewModule(repo ports.BirthdayConfigRepository, usage ports.UsageTracker) Module {
-	return NewModuleWithClock(repo, usage, nil)
+func NewModule(repo ports.BirthdayConfigRepository) Module {
+	return NewModuleWithClock(repo, nil)
 }
 
-func NewModuleWithClock(repo ports.BirthdayConfigRepository, usage ports.UsageTracker, clock ports.Clock) Module {
-	return NewModuleWithClockAndCachedUsers(repo, nil, usage, clock)
+func NewModuleWithClock(repo ports.BirthdayConfigRepository, clock ports.Clock) Module {
+	return NewModuleWithClockAndCachedUsers(repo, nil, clock)
 }
 
-func NewModuleWithCachedUsers(repo ports.BirthdayConfigRepository, cachedUsers ports.DiscordCachedUserInfoProvider, usage ports.UsageTracker) Module {
-	return NewModuleWithClockAndCachedUsers(repo, cachedUsers, usage, nil)
+func NewModuleWithCachedUsers(repo ports.BirthdayConfigRepository, cachedUsers ports.DiscordCachedUserInfoProvider) Module {
+	return NewModuleWithClockAndCachedUsers(repo, cachedUsers, nil)
 }
 
-func NewModuleWithClockAndCachedUsers(repo ports.BirthdayConfigRepository, cachedUsers ports.DiscordCachedUserInfoProvider, usage ports.UsageTracker, clock ports.Clock) Module {
+func NewModuleWithClockAndCachedUsers(repo ports.BirthdayConfigRepository, cachedUsers ports.DiscordCachedUserInfoProvider, clock ports.Clock) Module {
 	if clock == nil {
 		clock = ports.SystemClock{}
 	}
@@ -46,7 +45,6 @@ func NewModuleWithClockAndCachedUsers(repo ports.BirthdayConfigRepository, cache
 		configService:  coreservice.NewConfigService(repo),
 		profileService: coreservice.NewProfileService(repo),
 		cachedUsers:    cachedUsers,
-		usage:          usage,
 		clock:          clock,
 		pendingAdds:    newBirthdayAddStateStore(),
 		color:          legacyRandomColor,

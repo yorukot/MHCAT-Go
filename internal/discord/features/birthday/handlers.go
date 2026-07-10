@@ -98,7 +98,7 @@ func (m Module) handleAdd(ctx context.Context, interaction interactions.Interact
 		m.pendingAdds.delete(stateID)
 		return err
 	}
-	return m.track(ctx, interaction)
+	return nil
 }
 
 func (m Module) HourSelectHandler() interactions.Handler {
@@ -175,10 +175,7 @@ func (m Module) handleConfig(ctx context.Context, interaction interactions.Inter
 	if err := m.configService.Save(ctx, config); err != nil {
 		return responder.EditOriginal(ctx, birthdayErrorFromError(err))
 	}
-	if err := responder.EditOriginal(ctx, configSuccessMessage(config)); err != nil {
-		return err
-	}
-	return m.track(ctx, interaction)
+	return responder.EditOriginal(ctx, configSuccessMessage(config))
 }
 
 func (m Module) handleDelete(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
@@ -189,10 +186,7 @@ func (m Module) handleDelete(ctx context.Context, interaction interactions.Inter
 	if err := m.profileService.Delete(ctx, interaction.Actor.GuildID, userID); err != nil {
 		return responder.EditOriginal(ctx, birthdayProfileErrorMessage(err, "沒有這位使用者的資料!"))
 	}
-	if err := responder.EditOriginal(ctx, deleteSuccessMessage(userID)); err != nil {
-		return err
-	}
-	return m.track(ctx, interaction)
+	return responder.EditOriginal(ctx, deleteSuccessMessage(userID))
 }
 
 func (m Module) handleAllowAdmin(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
@@ -203,10 +197,7 @@ func (m Module) handleAllowAdmin(ctx context.Context, interaction interactions.I
 	if err := m.profileService.SetAllowAdmin(ctx, interaction.Actor.GuildID, interaction.Actor.UserID, allow); err != nil {
 		return responder.EditOriginal(ctx, birthdayProfileErrorMessage(err, "很抱歉，出現了未知的錯誤，請重試!"))
 	}
-	if err := responder.EditOriginal(ctx, allowAdminSuccessMessage(allow)); err != nil {
-		return err
-	}
-	return m.track(ctx, interaction)
+	return responder.EditOriginal(ctx, allowAdminSuccessMessage(allow))
 }
 
 func (m Module) handleList(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
@@ -217,10 +208,7 @@ func (m Module) handleList(ctx context.Context, interaction interactions.Interac
 	if len(profiles) == 0 {
 		return responder.EditOriginal(ctx, birthdayErrorMessage("還沒有任何人有進行生日設置喔!", birthdayDateAddDocsPath))
 	}
-	if err := responder.EditOriginal(ctx, listMessage(profiles, m.cachedBirthdayUserTags(ctx, interaction.Actor.GuildID, profiles), m.legacyColor())); err != nil {
-		return err
-	}
-	return m.track(ctx, interaction)
+	return responder.EditOriginal(ctx, listMessage(profiles, m.cachedBirthdayUserTags(ctx, interaction.Actor.GuildID, profiles), m.legacyColor()))
 }
 
 func (m Module) hourSelectMessage(customID string, expiresAt time.Time, avatarURL string) responses.Message {
@@ -605,16 +593,4 @@ func boolOption(interaction interactions.Interaction, name string) (bool, bool) 
 		return false, false
 	}
 	return parsed, true
-}
-
-func (m Module) track(ctx context.Context, interaction interactions.Interaction) error {
-	if m.usage == nil {
-		return nil
-	}
-	return m.usage.TrackCommand(ctx, ports.UsageEvent{
-		CommandName: BirthdayCommandName,
-		UserID:      interaction.Actor.UserID,
-		GuildID:     interaction.Actor.GuildID,
-		Feature:     "birthday-config",
-	})
 }
