@@ -73,6 +73,12 @@ func TestCreateHandlerSendsLegacyPollUIAndSavesDocument(t *testing.T) {
 	if menu.Type != "select" || menu.Placeholder != "🔧投票發起人操作" || len(menu.Options) != 6 {
 		t.Fatalf("owner menu = %#v", menu)
 	}
+	if menu.Options[2].Label != "允許變更選項" {
+		t.Fatalf("initial change option = %#v", menu.Options[2])
+	}
+	if menu.Options[4].Label != "結束投票" || menu.Options[4].Description != "讓該投票變為無法再變更選項或投票(可再次開啟)" {
+		t.Fatalf("initial end option = %#v", menu.Options[4])
+	}
 	saved, err := repo.GetPoll(context.Background(), interaction.Actor.GuildID, sent.Ref.MessageID)
 	if err != nil {
 		t.Fatalf("get saved poll: %v", err)
@@ -245,6 +251,10 @@ func TestVoteHandlerAddsVoteAndRerendersPoll(t *testing.T) {
 	}
 	if !strings.Contains(sideEffects.Edited[0].Message.Embeds[0].Description, "`無法`改投其他選項") {
 		t.Fatalf("rerendered description = %q", sideEffects.Edited[0].Message.Embeds[0].Description)
+	}
+	menu := sideEffects.Edited[0].Message.Components[1].Components[0]
+	if menu.Options[2].Label != "可以變更選項" || menu.Options[4].Label != "終止投票" {
+		t.Fatalf("rerendered owner menu = %#v", menu.Options)
 	}
 	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "你成功投給`B`") {
 		t.Fatalf("vote response = %#v", responder.Edits)

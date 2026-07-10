@@ -16,7 +16,9 @@ func pollOutboundMessage(poll domain.Poll, memberCount int, color int) ports.Out
 }
 
 func initialPollOutboundMessage(poll domain.Poll, memberCount int, color int) ports.OutboundMessage {
-	return pollOutboundMessageWithChangeText(poll, memberCount, color, "不能")
+	message := pollOutboundMessageWithChangeText(poll, memberCount, color, "不能")
+	message.Components = initialPollOutboundComponents(poll)
+	return message
 }
 
 func pollOutboundMessageWithChangeText(poll domain.Poll, memberCount int, color int, change string) ports.OutboundMessage {
@@ -69,6 +71,14 @@ func anonymousText(poll domain.Poll) string {
 }
 
 func pollOutboundComponents(poll domain.Poll) []ports.OutboundComponentRow {
+	return pollOutboundComponentsWithOwnerMenu(poll, ownerMenuComponent(poll))
+}
+
+func initialPollOutboundComponents(poll domain.Poll) []ports.OutboundComponentRow {
+	return pollOutboundComponentsWithOwnerMenu(poll, initialOwnerMenuComponent(poll))
+}
+
+func pollOutboundComponentsWithOwnerMenu(poll domain.Poll, ownerMenu ports.OutboundComponent) []ports.OutboundComponentRow {
 	rows := make([]ports.OutboundComponentRow, 0, 5)
 	current := ports.OutboundComponentRow{}
 	for index, choice := range poll.Choices {
@@ -96,8 +106,16 @@ func pollOutboundComponents(poll domain.Poll) []ports.OutboundComponentRow {
 	}
 	current.Components = append(current.Components, resultButton)
 	rows = append(rows, current)
-	rows = append(rows, ports.OutboundComponentRow{Components: []ports.OutboundComponent{ownerMenuComponent(poll)}})
+	rows = append(rows, ports.OutboundComponentRow{Components: []ports.OutboundComponent{ownerMenu}})
 	return rows
+}
+
+func initialOwnerMenuComponent(poll domain.Poll) ports.OutboundComponent {
+	component := ownerMenuComponent(poll)
+	component.Options[2].Label = "允許變更選項"
+	component.Options[4].Label = "結束投票"
+	component.Options[4].Description = "讓該投票變為無法再變更選項或投票(可再次開啟)"
+	return component
 }
 
 func ownerMenuComponent(poll domain.Poll) ports.OutboundComponent {
