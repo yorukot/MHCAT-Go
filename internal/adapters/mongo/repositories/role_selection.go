@@ -12,6 +12,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	drivermongo "go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 const (
@@ -50,17 +51,24 @@ func (r *RoleSelectionRepository) SaveRoleReactionConfig(ctx context.Context, co
 		return err
 	}
 	document := documents.RoleReactionDocumentFromDomain(config)
-	filter := bson.D{{Key: "guild", Value: document.Guild}, {Key: "message", Value: document.Message}, {Key: "react", Value: document.React}}
-	if _, err := r.reactions.DeleteMany(ctx, filter); err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("replace role reaction config: %w", err))
+	filter := roleReactionConfigFilter(document.Guild, document.Message, document.React)
+	update, err := roleReactionConfigUpdate(document, false)
+	if err != nil {
+		return err
 	}
-	if _, err := r.reactions.InsertOne(ctx, bson.D{
-		{Key: "guild", Value: document.Guild},
-		{Key: "message", Value: document.Message},
-		{Key: "react", Value: document.React},
-		{Key: "role", Value: document.Role},
-	}); err != nil {
+	result, err := r.reactions.UpdateMany(ctx, filter, update)
+	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("save role reaction config: %w", err))
+	}
+	if result.MatchedCount > 0 {
+		return ctx.Err()
+	}
+	insertUpdate, err := roleReactionConfigUpdate(document, true)
+	if err != nil {
+		return err
+	}
+	if _, err := r.reactions.UpdateOne(ctx, filter, insertUpdate, options.UpdateOne().SetUpsert(true)); err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("upsert role reaction config: %w", err))
 	}
 	return ctx.Err()
 }
@@ -75,7 +83,7 @@ func (r *RoleSelectionRepository) DeleteRoleReactionConfig(ctx context.Context, 
 	if guildID == "" || messageID == "" || react == "" {
 		return domain.ErrInvalidRoleSelectionConfig
 	}
-	result, err := r.reactions.DeleteMany(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "message", Value: messageID}, {Key: "react", Value: react}})
+	result, err := r.reactions.DeleteMany(ctx, roleReactionConfigFilter(guildID, messageID, react))
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("delete role reaction config: %w", err))
 	}
@@ -96,7 +104,7 @@ func (r *RoleSelectionRepository) GetRoleReactionConfig(ctx context.Context, gui
 		return domain.RoleReactionConfig{}, domain.ErrInvalidRoleSelectionConfig
 	}
 	var document documents.RoleReactionReadDocument
-	if err := r.reactions.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "message", Value: messageID}, {Key: "react", Value: react}}).Decode(&document); err != nil {
+	if err := r.reactions.FindOne(ctx, roleReactionConfigFilter(guildID, messageID, react)).Decode(&document); err != nil {
 		if errors.Is(err, drivermongo.ErrNoDocuments) {
 			return domain.RoleReactionConfig{}, ports.ErrRoleReactionConfigMissing
 		}
@@ -122,16 +130,24 @@ func (r *RoleSelectionRepository) SaveRoleButtonConfigs(ctx context.Context, con
 			return err
 		}
 		document := documents.RoleButtonDocumentFromDomain(config)
-		filter := bson.D{{Key: "guild", Value: document.Guild}, {Key: "number", Value: document.Number}}
-		if _, err := r.buttons.DeleteMany(ctx, filter); err != nil {
-			return mhcatmongo.MapError(fmt.Errorf("replace role button config: %w", err))
+		filter := roleButtonConfigFilter(document.Guild, document.Number)
+		update, err := roleButtonConfigUpdate(document, false)
+		if err != nil {
+			return err
 		}
-		if _, err := r.buttons.InsertOne(ctx, bson.D{
-			{Key: "guild", Value: document.Guild},
-			{Key: "number", Value: document.Number},
-			{Key: "role", Value: document.Role},
-		}); err != nil {
+		result, err := r.buttons.UpdateMany(ctx, filter, update)
+		if err != nil {
 			return mhcatmongo.MapError(fmt.Errorf("save role button config: %w", err))
+		}
+		if result.MatchedCount > 0 {
+			continue
+		}
+		insertUpdate, err := roleButtonConfigUpdate(document, true)
+		if err != nil {
+			return err
+		}
+		if _, err := r.buttons.UpdateOne(ctx, filter, insertUpdate, options.UpdateOne().SetUpsert(true)); err != nil {
+			return mhcatmongo.MapError(fmt.Errorf("upsert role button config: %w", err))
 		}
 	}
 	return ctx.Err()
@@ -147,7 +163,7 @@ func (r *RoleSelectionRepository) GetRoleButtonConfig(ctx context.Context, guild
 		return domain.RoleButtonConfig{}, domain.ErrInvalidRoleSelectionConfig
 	}
 	var document documents.RoleButtonReadDocument
-	if err := r.buttons.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "number", Value: number}}).Decode(&document); err != nil {
+	if err := r.buttons.FindOne(ctx, roleButtonConfigFilter(guildID, number)).Decode(&document); err != nil {
 		if errors.Is(err, drivermongo.ErrNoDocuments) {
 			return domain.RoleButtonConfig{}, ports.ErrRoleButtonConfigMissing
 		}
@@ -161,6 +177,33 @@ func (r *RoleSelectionRepository) GetRoleButtonConfig(ctx context.Context, guild
 		return domain.RoleButtonConfig{}, err
 	}
 	return config, ctx.Err()
+}
+
+func roleReactionConfigFilter(guildID string, messageID string, react string) bson.D {
+	return bson.D{{Key: "guild", Value: guildID}, {Key: "message", Value: messageID}, {Key: "react", Value: react}}
+}
+
+func roleReactionConfigUpdate(document documents.RoleReactionDocument, upsert bool) (bson.D, error) {
+	builder := mhcatmongo.NewUpdate().Set("role", document.Role)
+	if upsert {
+		builder.SetOnInsert("guild", document.Guild).
+			SetOnInsert("message", document.Message).
+			SetOnInsert("react", document.React)
+	}
+	return builder.Build()
+}
+
+func roleButtonConfigFilter(guildID string, number string) bson.D {
+	return bson.D{{Key: "guild", Value: guildID}, {Key: "number", Value: number}}
+}
+
+func roleButtonConfigUpdate(document documents.RoleButtonDocument, upsert bool) (bson.D, error) {
+	builder := mhcatmongo.NewUpdate().Set("role", document.Role)
+	if upsert {
+		builder.SetOnInsert("guild", document.Guild).
+			SetOnInsert("number", document.Number)
+	}
+	return builder.Build()
 }
 
 var _ ports.RoleSelectionRepository = (*RoleSelectionRepository)(nil)

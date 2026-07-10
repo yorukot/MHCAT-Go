@@ -32,7 +32,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, ""),
 		catalogSpec("btns", "btn", "models/btn.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("btns_guild_number", []string{"guild", "number"}, "role button lookup"),
-		}, ""),
+		}, "Go aligns duplicate role mappings during explicit setup and creates no startup index; apply uniqueness only after a full duplicate audit and exclusive Node/Go setup ownership."),
 		catalogSpec("chats", "chat", "models/chat.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("chats_guild", []string{"guild"}, "autochat config singleton"),
 		}, "Message Content intent and chat feature rollout remain gated."),
@@ -97,7 +97,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Lottery creation is disabled in legacy; keep inactive behavior unless ADR changes it."),
 		catalogSpec("message_reactions", "message_reaction", "models/message_reaction.js", []string{"guild", "message", "react"}, []catalogIndex{
 			uniqueCatalogIndex("message_reactions_guild_message_react", []string{"guild", "message", "react"}, "reaction-role lookup"),
-		}, "Dashboard backup evidence mentioned singular `message_reaction`; live audit must report it as unknown if present."),
+		}, "Dashboard backup evidence mentioned singular `message_reaction`; live audit must report it as unknown if present. Go aligns duplicates during setup and removes them on explicit delete; create no index until a full duplicate audit and exclusive Node/Go setup ownership."),
 		catalogSpec("not_a_good_webs", "not_a_good_web", "models/not_a_good_web.js", []string{"web"}, []catalogIndex{
 			uniqueCatalogIndex("not_a_good_webs_web", []string{"web"}, "anti-scam URL lookup"),
 		}, "Normalize domains and escape regex before any schema/write changes."),

@@ -69,6 +69,27 @@ func TestDefaultCollectionCatalogUniqueIndexesRequireDuplicateAudit(t *testing.T
 	}
 }
 
+func TestRoleSelectionIndexesRemainExplicitlyAuditGated(t *testing.T) {
+	byName := CollectionCatalogByName(DefaultCollectionCatalog())
+	tests := []struct {
+		collection string
+		index      string
+	}{
+		{collection: "btns", index: "btns_guild_number"},
+		{collection: "message_reactions", index: "message_reactions_guild_message_react"},
+	}
+	for _, test := range tests {
+		spec := byName[test.collection]
+		if len(spec.PlannedIndexes) != 1 {
+			t.Fatalf("%s indexes = %#v", test.collection, spec.PlannedIndexes)
+		}
+		index := spec.PlannedIndexes[0]
+		if index.Name != test.index || !index.Unique || !index.RequiresDuplicateAudit {
+			t.Fatalf("%s index = %#v", test.collection, index)
+		}
+	}
+}
+
 func TestDefaultCollectionCatalogLookupMaps(t *testing.T) {
 	catalog := DefaultCollectionCatalog()
 	byName := CollectionCatalogByName(catalog)
