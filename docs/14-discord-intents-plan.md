@@ -23,7 +23,7 @@ Features that truly require Message Content if preserved as-is:
 
 - Text XP from arbitrary messages.
 - Chatbot/autochat prompt capture.
-- Anti-scam URL scanning.
+- Anti-scam URL scanning/deletion requires the explicit event gate, Gateway, Guild Messages, Message Content, and exclusive Node/Go ownership; see the [anti-scam parity contract](77-anti-scam.md).
 - Message create/update/delete logging with content.
 - Legacy announcement/chat message handlers. The Go bound announcement relay requires `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, Gateway, Guild Messages, Message Content, and exclusive Node/Go event ownership; see the [announcement parity contract](76-announcement.md).
 - XP reset full-server confirmation. The Go `/經驗值重製` slice is implemented only when `MHCAT_FEATURE_XP_RESET_ENABLED=true` and requires `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`.
@@ -95,6 +95,11 @@ Announcement bound relay: MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true
 Required flags: MHCAT_DISCORD_ENABLE_GATEWAY=true, MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true, MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 Default: disabled
 Ownership: stop/gate Node events/ann_message.js for the same bot/guild; follow docs/76-announcement.md
+
+Anti-scam deletion: MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED=true
+Required flags: MHCAT_DISCORD_ENABLE_GATEWAY=true, MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true, MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
+Default: disabled
+Ownership: stop/gate Node events/safe_server.js for the same bot/guild; follow docs/77-anti-scam.md
 
 XP reset confirmation: MHCAT_FEATURE_XP_RESET_ENABLED=true
 Required flags: MHCAT_DISCORD_ENABLE_GATEWAY=true, MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true, MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true

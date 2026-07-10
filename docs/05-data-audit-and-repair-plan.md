@@ -248,3 +248,17 @@ Audit before enabling any announcement owner:
 - clean duplicate/type/shared-writer findings before any reviewed `guilds_guild` or `ann_all_sets_guild_announcement` unique-index apply.
 
 Do not normalize raw values or repair malformed production rows merely to enable Go. Runtime reads are permissive, writes are typed patches, and unsupported relay colors leave originals unchanged. Follow the [announcement parity contract](76-announcement.md) for smoke and rollback.
+
+## Anti-Scam Rollout Audit
+
+Anti-scam runtime is parity-audited but disabled by default. No production normalization, repair, deduplication, backfill, or automatic index mutation is authorized.
+
+Audit before enabling any owner:
+
+- duplicate/missing/null/non-string `good_webs.guild` keys and Mongoose Boolean scalar drift in `open`;
+- duplicate, blank, missing, null, scalar-drift, and compound `not_a_good_webs.web` values;
+- raw URL variants, surrounding whitespace, regex metacharacters, overlong values, and catalog entries that match bot/warning content;
+- every external/dashboard catalog/config writer and exclusive Node/Go command/event ownership;
+- clean findings before any reviewed `good_webs_guild` or `not_a_good_webs_web` unique-index apply.
+
+Do not normalize catalog values merely to enable Go; raw values are behavioral data. Follow the [anti-scam parity contract](77-anti-scam.md) for staging and rollback.

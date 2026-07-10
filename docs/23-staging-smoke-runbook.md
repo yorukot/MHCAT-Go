@@ -471,6 +471,18 @@ For one-time `/公告發送` staging tests, pair `MHCAT_FEATURE_ANNOUNCEMENT_SEN
 
 Before either command test, stop the matching Node command/modal owner, audit duplicate and scalar-drift keys in `guilds` and `ann_all_sets`, and confirm shared dashboard writers preserve unrelated `guilds` fields. The canonical config/send/relay smoke and rollback sequence is in the [announcement parity contract](76-announcement.md).
 
+Optional anti-scam smoke flags:
+
+```bash
+export MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG=true
+export MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT=true
+export MHCAT_REPORT_WEBHOOK_URL=https://example.test/webhook
+```
+
+Enable only the families under test. Message deletion is event-only and separately requires `MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED=true`, Gateway, Guild Messages, and Message Content. Stop matching Node ownership, audit `good_webs`/`not_a_good_webs`, and use the canonical [anti-scam staging smoke](77-anti-scam.md#staging-smoke).
+
 Optional text-XP config smoke flags:
 
 ```bash
@@ -732,6 +744,8 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG=true`, confirm `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`, matching Node command ownership is stopped, duplicate/type/shared-writer audits are reviewed, and the staging database can safely patch `guilds` and `ann_all_sets`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_SEND=true`, confirm `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true`, matching Node command/modal ownership is stopped, and the six-second confirmation flow can send to a disposable channel.
 - If `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, confirm Gateway/Guild Messages/Message Content flags, stop Node `events/ann_message.js` ownership for the same bot/guild, review duplicate/type findings, and use a bound channel safe for send-before-delete tests. Follow [76-announcement.md](76-announcement.md).
+- If either anti-scam command-sync flag is enabled, confirm its matching runtime gate; report also requires a safe webhook. Stop matching Node commands and review duplicate/type/raw-URL/external-writer findings.
+- If `MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED=true`, confirm Gateway/Guild Messages/Message Content flags, stop Node `events/safe_server.js`, and use a disposable channel/catalog safe for deletion and bot-message tests. Follow [77-anti-scam.md](77-anti-scam.md).
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true`, confirm `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true` and the staging database can safely write `text_xp_channels`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true`, confirm `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true` and the staging database can safely write `voice_xp_channels`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true`, confirm `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`, the staging database can safely write `chat_roles`/`voice_roles`, and the test roles are below the bot's highest role.
@@ -1518,6 +1532,11 @@ If announcement relay was explicitly enabled:
 
 - execute the bound-relay cases in the canonical [announcement staging smoke](76-announcement.md#staging-smoke), including exact/legacy random colors, unsupported colors, send-before-delete failures, visible non-pinging tags, empty/attachment-only retention, ignored bot/DM/unconfigured messages, and exclusive Node/Go ownership;
 - preserve `guilds` and `ann_all_sets`, create no index or automatic repair, then disable the relay and intents according to the canonical rollback sequence.
+
+If anti-scam runtime was explicitly enabled:
+
+- execute the config/report/deletion cases in the canonical [anti-scam staging smoke](77-anti-scam.md#staging-smoke), including exact UI, pinned URL cases, webhook failures, scalar reads, raw catalog values, bot scanning, and delete/warning failures;
+- preserve `good_webs` and `not_a_good_webs`, create no index/normalization/repair, then disable commands, event gates, and intents according to the canonical rollback sequence.
 
 If join-role assignment was explicitly enabled:
 

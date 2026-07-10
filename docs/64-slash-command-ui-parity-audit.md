@@ -2,7 +2,7 @@
 
 Generated from the current local legacy `MHCAT/slashCommands` tree and the current Go command definitions.
 This is a static slash-command metadata audit for names, descriptions, options, and option flags; handler behavior remains covered by feature-specific tests and docs.
-Default permission discoverability and runtime permission responses are outside this generic audit; announcement permission behavior is locked in the [announcement parity contract](76-announcement.md).
+Default permission discoverability and runtime permission responses are outside this generic audit; announcement and anti-scam permission behavior is locked in their [announcement](76-announcement.md) and [anti-scam](77-anti-scam.md) contracts.
 Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown`.
 
 ## Summary

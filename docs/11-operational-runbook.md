@@ -68,6 +68,9 @@ Primary Go env vars:
 - `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED`
 - `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED`
 - `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED`
+- `MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED`
+- `MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED`
+- `MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED`
 - `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED`
 - `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED`
 - `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED`
@@ -170,6 +173,8 @@ scripts/staging/gateway-smoke.sh
 - Tickets follow the same pairing rule: `MHCAT_COMMAND_SYNC_INCLUDE_TICKETS=true` requires `MHCAT_FEATURE_TICKETS_ENABLED=true`; command inclusion remains staging-only, and any runtime rollout requires exclusive Node/Go ownership.
 - Announcement config and send commands are independently paired: `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG=true` requires `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`, and `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_SEND=true` requires `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true`. Bound relay is event-only and separately requires `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, Gateway, Guild Messages, and Message Content.
 - Before enabling an announcement family, stop or gate its Node command/modal/event owner for the same bot/guild. Audit duplicate and scalar-drift keys in `guilds`/`ann_all_sets`, confirm dashboard/shared writers preserve unrelated `guilds` fields, and do not create a startup index or automatic repair. Follow the [announcement parity contract](76-announcement.md).
+- Anti-scam toggle/report commands are independently paired with `MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG` and `MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT`; report also requires a safe `MHCAT_REPORT_WEBHOOK_URL` or legacy `REPORT_WEBHOOK`. Message deletion is event-only and requires its feature gate plus Gateway, Guild Messages, and Message Content.
+- Before enabling an anti-scam family, stop/gate the matching Node command or `events/safe_server.js`, audit both collections and external catalog writers, and do not normalize URLs or create indexes. Follow the [anti-scam parity contract](77-anti-scam.md).
 - Economy coin reset has an additional message confirmation requirement: `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true` requires `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`.
 - Role selection has an additional reaction-event requirement: `MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION=true` requires `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true`.
 - XP rank follows the same staging pairing rule: `MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK=true` requires `MHCAT_FEATURE_XP_RANK_ENABLED=true`.

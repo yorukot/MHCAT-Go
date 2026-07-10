@@ -205,3 +205,14 @@ Announcement compatibility is parity-audited across config, one-time send, confi
 | `ann_all_sets` | `guild`, `announcement_id`, `tag`, `color`, `title` | none | separate Mongoose-compatible String scalar DTO; raw whitespace/case remains exact | typed updates/deletes across duplicate exact matches, upsert only when absent | no | stop Go config/relay ownership before restoring Node; typed rows remain readable | confirm external writers before rollout |
 
 No startup index, repair, deduplication, or backfill is authorized. Candidate unique indexes remain blocked on duplicate keys, scalar drift, malformed values, shared writers, and exclusive ownership. Process-local confirmation state has no Mongo migration; wait six seconds during rollback. See the [announcement parity contract](76-announcement.md).
+
+## Anti-Scam Compatibility
+
+Anti-scam compatibility is parity-audited across config, report, and message deletion.
+
+| Collection | Legacy fields | New fields | Read strategy | Write strategy | Backfill needed | Rollback strategy | Dashboard impact |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `good_webs` | `guild`, `open` | none | exact guild lookup plus Mongoose-compatible Boolean scalar decode | typed `$set.open` across duplicate matches; upsert only when absent | no | stop Go config/deletion ownership before restoring Node; typed values remain readable | confirm external config writers |
+| `not_a_good_webs` | `web` | none | Mongoose-compatible String scalar decode; raw values preserved; compounds skipped | read-only | no | stop Go report/deletion ownership before restoring Node; preserve catalog exactly | confirm catalog ingestion/curation owner |
+
+No URL normalization, canonical field, repair, deduplication, or startup index is approved. Candidate indexes remain blocked on key/type/raw-variant audits and exclusive ownership. See the [anti-scam parity contract](77-anti-scam.md).

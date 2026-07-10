@@ -1,6 +1,6 @@
 # Anti-Scam Config, Report, and Message Delete Slices
 
-Status: config toggle, URL report command, and message-delete runtime parity-audited behind explicit gates.
+Status: historical implementation note, superseded by the canonical [anti-scam parity contract](77-anti-scam.md). All runtime and command-sync gates remain disabled by default.
 
 ## Legacy References
 
