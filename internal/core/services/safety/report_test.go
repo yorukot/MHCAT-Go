@@ -81,6 +81,13 @@ func (f *fakeScamURLCatalog) ContainsScamURL(ctx context.Context, rawURL string)
 	return f.Exists, nil
 }
 
+func (f *fakeScamURLCatalog) FindScamURLInContent(ctx context.Context, content string) (string, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return "", false, err
+	}
+	return "", false, nil
+}
+
 type fakeScamReportSender struct {
 	Sent []domain.ScamURLReport
 	Err  error

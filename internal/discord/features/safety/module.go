@@ -8,11 +8,14 @@ import (
 )
 
 type Module struct {
-	configService coreservice.ConfigService
-	reportService coreservice.ReportService
-	usage         ports.UsageTracker
-	configEnabled bool
-	reportEnabled bool
+	configService  coreservice.ConfigService
+	reportService  coreservice.ReportService
+	messageService coreservice.MessageService
+	messages       ports.DiscordMessagePort
+	usage          ports.UsageTracker
+	configEnabled  bool
+	reportEnabled  bool
+	messageEnabled bool
 }
 
 func NewModule(repo ports.AntiScamConfigRepository, usage ports.UsageTracker) Module {
@@ -38,6 +41,14 @@ func NewModuleWithReport(repo ports.AntiScamConfigRepository, catalog ports.Scam
 		usage:         usage,
 		configEnabled: repo != nil,
 		reportEnabled: catalog != nil && sender != nil,
+	}
+}
+
+func NewMessageDeleteModule(repo ports.AntiScamConfigRepository, catalog ports.ScamURLCatalog, messages ports.DiscordMessagePort) Module {
+	return Module{
+		messageService: coreservice.NewMessageService(repo, catalog),
+		messages:       messages,
+		messageEnabled: repo != nil && catalog != nil && messages != nil,
 	}
 }
 

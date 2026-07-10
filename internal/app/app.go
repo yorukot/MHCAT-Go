@@ -1008,17 +1008,21 @@ func antiScamConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositor
 }
 
 func scamURLCatalogRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.ScamURLCatalogRepository, error) {
+	return scamURLCatalogRepositoryFromMongoForFeature(mongoClient, "anti-scam report feature")
+}
+
+func scamURLCatalogRepositoryFromMongoForFeature(mongoClient MongoClient, featureLabel string) (*mongorepositories.ScamURLCatalogRepository, error) {
 	concrete, ok := mongoClient.(*mongoadapter.Client)
 	if !ok {
-		return nil, fmt.Errorf("anti-scam report feature requires default mongo client")
+		return nil, fmt.Errorf("%s requires default mongo client", featureLabel)
 	}
 	database, err := concrete.Database()
 	if err != nil {
-		return nil, fmt.Errorf("anti-scam report feature database: %w", err)
+		return nil, fmt.Errorf("%s database: %w", featureLabel, err)
 	}
 	repo, err := mongorepositories.NewScamURLCatalogRepositoryFromDatabase(database)
 	if err != nil {
-		return nil, fmt.Errorf("anti-scam report feature repository: %w", err)
+		return nil, fmt.Errorf("%s repository: %w", featureLabel, err)
 	}
 	return repo, nil
 }

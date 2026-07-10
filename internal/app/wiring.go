@@ -728,6 +728,21 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		}
 		featureannouncements.NewRelayModule(repo, sideEffects).RegisterEventRoutes(dispatcher)
 	}
+	if cfg.FeatureAntiScamMessageDeleteEnabled {
+		configRepo, err := antiScamConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		catalogRepo, err := scamURLCatalogRepositoryFromMongoForFeature(mongoClient, "anti-scam message delete feature")
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "anti-scam message delete feature")
+		if err != nil {
+			return nil, err
+		}
+		featuresafety.NewMessageDeleteModule(configRepo, catalogRepo, sideEffects).RegisterEventRoutes(dispatcher)
+	}
 	if cfg.FeatureAccountAgePolicyEnabled {
 		repo, err := accountAgeConfigRepositoryFromMongo(mongoClient)
 		if err != nil {

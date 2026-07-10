@@ -1,6 +1,6 @@
-# Anti-Scam Config and Report Slices
+# Anti-Scam Config, Report, and Message Delete Slices
 
-Status: config toggle and URL report command implemented behind explicit runtime and command-sync gates.
+Status: config toggle, URL report command, and message-delete runtime implemented behind explicit gates.
 
 ## Legacy References
 
@@ -16,12 +16,13 @@ These slices implement:
 
 - `/防詐騙網址`
 - `/詐騙網址回報`
+- `safe_server.js`-style MessageCreate scanning/deletion
 
 `/防詐騙網址` toggles the guild `good_webs.open` flag.
 
 `/詐騙網址回報` validates an HTTP or HTTPS URL, checks the existing `not_a_good_webs` catalog for a matching stored URL, and sends the legacy webhook report content when the URL has not already been reported. It does not insert into or mutate `not_a_good_webs`.
 
-These slices do not scan messages, delete messages, or send automatic scam warnings.
+The message-delete runtime reads `good_webs.open`; when enabled for the guild, it scans message content for existing `not_a_good_webs.web` values, deletes the matching message, and sends the legacy trashbin warning text.
 
 ## UI/UX Parity
 
@@ -66,7 +67,7 @@ Fields read:
 
 - `web`
 
-The report command reads this catalog only. Legacy queried with a user-controlled regex; Go escapes the reported URL with `regexp.QuoteMeta` before building the Mongo regex to avoid regex injection while preserving the legacy "stored URL contains reported URL" lookup direction. Go does not write new rows to `not_a_good_webs` in this slice.
+The report command reads this catalog only. Legacy queried with a user-controlled regex; Go escapes the reported URL with `regexp.QuoteMeta` before building the Mongo regex to avoid regex injection while preserving the legacy "stored URL contains reported URL" lookup direction. The message-delete runtime scans stored `web` values and checks whether the message content contains one. Go does not write new rows to `not_a_good_webs` in this slice.
 
 ## Gates
 
@@ -75,6 +76,10 @@ Runtime:
 ```bash
 MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED=true
 MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED=true
+MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
+MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 MHCAT_REPORT_WEBHOOK_URL=https://example.test/webhook
 ```
 
@@ -85,20 +90,15 @@ MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG=true
 MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_REPORT=true
 ```
 
-The legacy `REPORT_WEBHOOK` alias is also accepted for the report webhook URL. Runtime and command-sync flags must be paired in staging. `mhcat-staging-preflight` rejects anti-scam command sync when the matching runtime flag is not enabled, and rejects report runtime when neither webhook URL variable is set.
+The legacy `REPORT_WEBHOOK` alias is also accepted for the report webhook URL. Runtime and command-sync flags must be paired in staging. `mhcat-staging-preflight` rejects anti-scam command sync when the matching runtime flag is not enabled, and config validation rejects report runtime when neither webhook URL variable is set. Message deletion is runtime-only and has no command-sync flag.
 
 ## Not Implemented
 
 This slice does not implement:
 
 - writes to `not_a_good_webs`
-- `safe_server.js` message deletion
-- automatic scam URL message scanning
-- Gateway enablement
-- Guild Messages intent
-- Message Content intent
 
-Those paths require a separate safety review for message deletion permissions, mention behavior, rate limits, and rollout ownership.
+Gateway, Guild Messages intent, and Message Content intent remain disabled by default and must be enabled explicitly with `MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED=true`.
 
 ## Staging Checklist
 
@@ -112,4 +112,5 @@ Those paths require a separate safety review for message deletion permissions, m
 8. With `MHCAT_REPORT_WEBHOOK_URL` or `REPORT_WEBHOOK` pointed at a safe staging endpoint, run `/詐騙網址回報 網址:https://bad.example`.
 9. Verify the webhook receives the legacy report content and the interaction edits to the success embed.
 10. Seed `not_a_good_webs.web` with a matching staging URL and verify `/詐騙網址回報` returns `該網站已被回報過`.
-11. Confirm Go does not delete messages or write to `not_a_good_webs`.
+11. With `MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED=true` and gateway message-content flags enabled, keep `good_webs.open=true`, send a staging message containing the seeded URL, and verify Go deletes the message and sends `<:trashbin:995991389043163257> | 此消息包含詐騙或釣魚連結，以自動刪除!`.
+12. Confirm Go does not write to `not_a_good_webs`.

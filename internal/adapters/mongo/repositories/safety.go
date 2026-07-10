@@ -132,6 +132,35 @@ func (r *ScamURLCatalogRepository) ContainsScamURL(ctx context.Context, rawURL s
 	return strings.Contains(document.Web, rawURL), ctx.Err()
 }
 
+func (r *ScamURLCatalogRepository) FindScamURLInContent(ctx context.Context, content string) (string, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return "", false, err
+	}
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return "", false, nil
+	}
+	cursor, err := r.collection.Find(ctx, bson.D{})
+	if err != nil {
+		return "", false, mhcatmongo.MapError(fmt.Errorf("list scam URLs: %w", err))
+	}
+	defer cursor.Close(ctx)
+	for cursor.Next(ctx) {
+		var document documents.ScamURLDocument
+		if err := cursor.Decode(&document); err != nil {
+			return "", false, mhcatmongo.MapError(fmt.Errorf("decode scam URL: %w", err))
+		}
+		web := strings.TrimSpace(document.Web)
+		if web != "" && strings.Contains(content, web) {
+			return web, true, ctx.Err()
+		}
+	}
+	if err := cursor.Err(); err != nil {
+		return "", false, mhcatmongo.MapError(fmt.Errorf("iterate scam URLs: %w", err))
+	}
+	return "", false, ctx.Err()
+}
+
 func scamURLContainsFilter(rawURL string) bson.D {
 	return bson.D{{Key: "web", Value: bson.D{{Key: "$regex", Value: regexp.QuoteMeta(strings.TrimSpace(rawURL))}}}}
 }

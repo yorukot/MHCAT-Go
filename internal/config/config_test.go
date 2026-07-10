@@ -186,6 +186,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureAntiScamReportEnabled {
 		t.Fatal("anti-scam report feature must be disabled by default")
 	}
+	if cfg.FeatureAntiScamMessageDeleteEnabled {
+		t.Fatal("anti-scam message delete feature must be disabled by default")
+	}
 	if cfg.FeatureLoggingConfigEnabled {
 		t.Fatal("logging config feature must be disabled by default")
 	}
@@ -616,6 +619,38 @@ func TestFeatureAntiScamReportParsesWithLegacyWebhookAlias(t *testing.T) {
 	}
 	if cfg.ReportWebhookURL != "https://example.test/webhook" {
 		t.Fatalf("report webhook = %q", cfg.ReportWebhookURL)
+	}
+}
+
+func TestFeatureAntiScamMessageDeleteRequiresGatewayMessagesAndMessageContent(t *testing.T) {
+	base := map[string]string{
+		"MHCAT_DISCORD_TOKEN":                            "token",
+		"MHCAT_MONGODB_URI":                              "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                         "mhcat",
+		"MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED": "true",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":                   "true",
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":            "true",
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT":           "true",
+	}
+	cfg, err := LoadWithLookup(mapLookup(base))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureAntiScamMessageDeleteEnabled {
+		t.Fatal("expected anti-scam message delete feature to be enabled explicitly")
+	}
+
+	for key, want := range map[string]string{
+		"MHCAT_DISCORD_ENABLE_GATEWAY":         "MHCAT_DISCORD_ENABLE_GATEWAY=true",
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":  "MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true",
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT": "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true",
+	} {
+		env := copyMap(base)
+		env[key] = "false"
+		_, err := LoadWithLookup(mapLookup(env))
+		if err == nil || !errors.Is(err, ErrInvalidConfig) || !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected %s validation error, got %v", want, err)
+		}
 	}
 }
 
@@ -1600,4 +1635,12 @@ func mapLookup(values map[string]string) LookupFunc {
 		value, ok := values[key]
 		return value, ok
 	}
+}
+
+func copyMap(values map[string]string) map[string]string {
+	out := map[string]string{}
+	for key, value := range values {
+		out[key] = value
+	}
+	return out
 }

@@ -55,6 +55,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureAutoNotificationConfigEnabled: DefaultFeatureAutoNotificationConfigEnabled,
 		FeatureAntiScamConfigEnabled:         DefaultFeatureAntiScamConfigEnabled,
 		FeatureAntiScamReportEnabled:         DefaultFeatureAntiScamReportEnabled,
+		FeatureAntiScamMessageDeleteEnabled:  DefaultFeatureAntiScamMessageDeleteEnabled,
 		FeatureLoggingConfigEnabled:          DefaultFeatureLoggingConfigEnabled,
 		FeatureGachaPrizeListEnabled:         DefaultFeatureGachaPrizeListEnabled,
 		FeatureGachaDrawEnabled:              DefaultFeatureGachaDrawEnabled,
@@ -209,6 +210,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureAntiScamReportEnabled, err = getBool(lookup, "MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED", DefaultFeatureAntiScamReportEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureAntiScamMessageDeleteEnabled, err = getBool(lookup, "MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED", DefaultFeatureAntiScamMessageDeleteEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureLoggingConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_LOGGING_CONFIG_ENABLED", DefaultFeatureLoggingConfigEnabled); err != nil {

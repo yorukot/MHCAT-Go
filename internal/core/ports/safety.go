@@ -16,6 +16,7 @@ type AntiScamConfigRepository interface {
 
 type ScamURLCatalog interface {
 	ContainsScamURL(ctx context.Context, rawURL string) (bool, error)
+	FindScamURLInContent(ctx context.Context, content string) (string, bool, error)
 }
 
 type ScamReportSender interface {

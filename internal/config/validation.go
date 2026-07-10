@@ -156,6 +156,17 @@ func Validate(cfg Config) error {
 	if cfg.FeatureAntiScamReportEnabled && strings.TrimSpace(cfg.ReportWebhookURL) == "" {
 		return fmt.Errorf("%w: MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED requires MHCAT_REPORT_WEBHOOK_URL or REPORT_WEBHOOK", ErrInvalidConfig)
 	}
+	if cfg.FeatureAntiScamMessageDeleteEnabled {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordGuildMessagesIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED requires MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordMessageContentIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED requires MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true", ErrInvalidConfig)
+		}
+	}
 	if err := ValidateStagingGatewaySmoke(cfg.Staging, cfg.DiscordGatewaySmokeTest); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
 	}

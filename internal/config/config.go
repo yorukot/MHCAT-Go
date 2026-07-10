@@ -42,6 +42,7 @@ const (
 	DefaultFeatureAutoNotificationConfigEnabled = false
 	DefaultFeatureAntiScamConfigEnabled         = false
 	DefaultFeatureAntiScamReportEnabled         = false
+	DefaultFeatureAntiScamMessageDeleteEnabled  = false
 	DefaultFeatureLoggingConfigEnabled          = false
 	DefaultFeatureGachaPrizeListEnabled         = false
 	DefaultFeatureGachaDrawEnabled              = false
@@ -125,6 +126,7 @@ type Config struct {
 	FeatureAutoNotificationConfigEnabled bool
 	FeatureAntiScamConfigEnabled         bool
 	FeatureAntiScamReportEnabled         bool
+	FeatureAntiScamMessageDeleteEnabled  bool
 	FeatureLoggingConfigEnabled          bool
 	FeatureGachaPrizeListEnabled         bool
 	FeatureGachaDrawEnabled              bool
