@@ -366,7 +366,7 @@ export MHCAT_DISCORD_ENABLE_GATEWAY=true
 export MHCAT_DISCORD_VOICE_STATE_INTENT=true
 ```
 
-Use only an isolated staging database with disposable `voice_xps` rows. This event-only path has no command-sync flag and only marks `leavejoin` as users join or leave voice channels; it does not award XP or send announcements.
+Use only an isolated staging database with disposable `voice_xps` rows. This event-only path has no command-sync flag and marks `leavejoin` as users join or leave voice channels. The reusable voice tick side-effect path exists, but the default app runtime still does not start the legacy periodic XP loop.
 
 Optional XP reward-role config smoke flags:
 

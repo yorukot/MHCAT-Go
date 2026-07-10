@@ -202,6 +202,32 @@ func (r *VoiceXPConfigRepository) SaveVoiceXPConfig(ctx context.Context, config 
 	return ctx.Err()
 }
 
+func (r *VoiceXPConfigRepository) GetVoiceXPConfig(ctx context.Context, guildID string) (domain.VoiceXPConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.VoiceXPConfig{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return domain.VoiceXPConfig{}, domain.ErrInvalidVoiceXPConfig
+	}
+	var document documents.VoiceXPChannelDocument
+	err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document)
+	if errors.Is(err, drivermongo.ErrNoDocuments) {
+		return domain.VoiceXPConfig{}, ports.ErrVoiceXPConfigMissing
+	}
+	if err != nil {
+		return domain.VoiceXPConfig{}, mhcatmongo.MapError(fmt.Errorf("get voice xp config: %w", err))
+	}
+	config := document.ToDomain()
+	if strings.TrimSpace(config.GuildID) == "" {
+		config.GuildID = guildID
+	}
+	if err := config.Validate(); err != nil {
+		return domain.VoiceXPConfig{}, err
+	}
+	return config, ctx.Err()
+}
+
 func (r *TextXPConfigRepository) DeleteTextXPConfig(ctx context.Context, guildID string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -563,6 +589,7 @@ func voiceXPSessionUpdate(guildID string, userID string, state string) bson.D {
 
 var _ ports.TextXPConfigRepository = (*TextXPConfigRepository)(nil)
 var _ ports.VoiceXPConfigRepository = (*VoiceXPConfigRepository)(nil)
+var _ ports.VoiceXPConfigReader = (*VoiceXPConfigRepository)(nil)
 var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
 var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)
 var _ ports.XPAdminRepository = (*XPAdminRepository)(nil)

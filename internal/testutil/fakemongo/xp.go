@@ -97,6 +97,18 @@ func (r *VoiceXPConfigRepository) SaveVoiceXPConfig(ctx context.Context, config 
 	return nil
 }
 
+func (r *VoiceXPConfigRepository) GetVoiceXPConfig(ctx context.Context, guildID string) (domain.VoiceXPConfig, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.VoiceXPConfig{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	config, ok := r.Configs[guildID]
+	if !ok {
+		return domain.VoiceXPConfig{}, ports.ErrVoiceXPConfigMissing
+	}
+	return config, nil
+}
+
 func (r *VoiceXPConfigRepository) DeleteVoiceXPConfig(ctx context.Context, guildID string) error {
 	if err := r.ready(ctx); err != nil {
 		return err
@@ -396,6 +408,7 @@ func filterXPProfiles(profiles map[string]domain.XPProfile, guildID string) []do
 var _ ports.TextXPConfigRepository = (*TextXPConfigRepository)(nil)
 var _ ports.TextXPConfigReader = (*TextXPConfigRepository)(nil)
 var _ ports.VoiceXPConfigRepository = (*VoiceXPConfigRepository)(nil)
+var _ ports.VoiceXPConfigReader = (*VoiceXPConfigRepository)(nil)
 var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
 var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)
 var _ ports.XPAdminRepository = (*XPAdminRepository)(nil)

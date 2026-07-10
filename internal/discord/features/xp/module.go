@@ -64,7 +64,15 @@ type TextEventModule struct {
 }
 
 type VoiceEventModule struct {
-	service coreservice.VoiceSessionService
+	service     coreservice.VoiceSessionService
+	accrual     coreservice.VoiceAccrualService
+	configs     ports.VoiceXPConfigReader
+	messages    ports.DiscordMessagePort
+	channels    ports.DiscordChannelPort
+	direct      ports.DiscordDirectMessagePort
+	guilds      ports.DiscordInfoProvider
+	rewardRoles coreservice.VoiceRewardRoleService
+	coinRewards coreservice.VoiceCoinRewardService
 }
 
 func NewModule(repo ports.TextXPConfigRepository, messages ports.DiscordMessagePort, usage ports.UsageTracker) Module {
@@ -153,9 +161,37 @@ func (m TextEventModule) WithCoinRewards(repo ports.TextXPCoinRewardRepository) 
 }
 
 func NewVoiceEventModule(repo ports.VoiceXPSessionRepository) VoiceEventModule {
-	return VoiceEventModule{
+	module := VoiceEventModule{
 		service: coreservice.VoiceSessionService{Repository: repo},
 	}
+	if accrualRepo, ok := repo.(ports.VoiceXPAccrualRepository); ok {
+		module.accrual = coreservice.VoiceAccrualService{Repository: accrualRepo}
+	}
+	return module
+}
+
+func (m VoiceEventModule) WithAccrual(repo ports.VoiceXPAccrualRepository, configs ports.VoiceXPConfigReader, messages ports.DiscordMessagePort) VoiceEventModule {
+	m.accrual = coreservice.VoiceAccrualService{Repository: repo}
+	m.configs = configs
+	m.messages = messages
+	return m
+}
+
+func (m VoiceEventModule) WithAnnouncementFallbacks(channels ports.DiscordChannelPort, direct ports.DiscordDirectMessagePort, guilds ports.DiscordInfoProvider) VoiceEventModule {
+	m.channels = channels
+	m.direct = direct
+	m.guilds = guilds
+	return m
+}
+
+func (m VoiceEventModule) WithRewardRoles(repo ports.VoiceXPRewardRoleRepository, roles ports.DiscordRolePort) VoiceEventModule {
+	m.rewardRoles = coreservice.VoiceRewardRoleService{Repository: repo, RolePort: roles}
+	return m
+}
+
+func (m VoiceEventModule) WithCoinRewards(repo ports.VoiceXPCoinRewardRepository) VoiceEventModule {
+	m.coinRewards = coreservice.VoiceCoinRewardService{Repository: repo}
+	return m
 }
 
 func (m Module) Name() string {

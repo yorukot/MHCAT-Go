@@ -142,6 +142,14 @@ func (r *EconomyRepository) SaveEconomyConfig(ctx context.Context, config domain
 }
 
 func (r *EconomyRepository) ApplyTextXPCoinReward(ctx context.Context, guildID string, userID string, level int64) (domain.CoinBalance, error) {
+	return r.applyXPCoinReward(ctx, guildID, userID, level, "text", domain.LegacyTextXPCoinReward)
+}
+
+func (r *EconomyRepository) ApplyVoiceXPCoinReward(ctx context.Context, guildID string, userID string, level int64) (domain.CoinBalance, error) {
+	return r.applyXPCoinReward(ctx, guildID, userID, level, "voice", domain.LegacyVoiceXPCoinReward)
+}
+
+func (r *EconomyRepository) applyXPCoinReward(ctx context.Context, guildID string, userID string, level int64, label string, rewardForLevel func(int64, float64) int64) (domain.CoinBalance, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.CoinBalance{}, err
 	}
@@ -157,7 +165,7 @@ func (r *EconomyRepository) ApplyTextXPCoinReward(ctx context.Context, guildID s
 		}
 		config = domain.EconomyConfig{GuildID: guildID}
 	}
-	reward := domain.LegacyTextXPCoinReward(level, config.XPMultiple)
+	reward := rewardForLevel(level, config.XPMultiple)
 	current, err := r.GetCoinBalance(ctx, guildID, userID)
 	if err != nil {
 		if !errors.Is(err, ports.ErrCoinBalanceNotFound) {
@@ -170,7 +178,7 @@ func (r *EconomyRepository) ApplyTextXPCoinReward(ctx context.Context, guildID s
 			{Key: "coin", Value: balance.Coins},
 			{Key: "today", Value: balance.Today},
 		}); err != nil {
-			return domain.CoinBalance{}, mhcatmongo.MapError(fmt.Errorf("create text xp coin reward balance: %w", err))
+			return domain.CoinBalance{}, mhcatmongo.MapError(fmt.Errorf("create %s xp coin reward balance: %w", label, err))
 		}
 		return balance, ctx.Err()
 	}
@@ -181,7 +189,7 @@ func (r *EconomyRepository) ApplyTextXPCoinReward(ctx context.Context, guildID s
 		bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: current.Coins}}}},
 	)
 	if err != nil {
-		return domain.CoinBalance{}, mhcatmongo.MapError(fmt.Errorf("apply text xp coin reward: %w", err))
+		return domain.CoinBalance{}, mhcatmongo.MapError(fmt.Errorf("apply %s xp coin reward: %w", label, err))
 	}
 	if result.MatchedCount == 0 {
 		return domain.CoinBalance{}, ports.ErrCoinBalanceNotFound
@@ -805,3 +813,4 @@ func (r *EconomyRepository) shopReady(ctx context.Context) error {
 }
 
 var _ ports.TextXPCoinRewardRepository = (*EconomyRepository)(nil)
+var _ ports.VoiceXPCoinRewardRepository = (*EconomyRepository)(nil)

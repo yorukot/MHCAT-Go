@@ -550,7 +550,7 @@ MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true
 
 These commands write only legacy-compatible `text_xp_channels` config fields and require Manage Messages. They update duplicate rows for a guild and only upsert when no row exists. They do not enable Message Content intent, Guild Messages intent, text XP accrual, rank rendering, voice XP, automatic reward-role assignment/removal, or usage-counter writes.
 
-Text XP message accrual is event-only and has no command-sync flag. Test it only against disposable staging `text_xps` rows with `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`; it updates XP and level fields but does not send level-up announcements, grant coins, or apply reward roles.
+Text XP message accrual is event-only and has no command-sync flag. Test it only against disposable staging `text_xps`, `text_xp_channels`, `chat_roles`, `coins`, and `gift_changes` rows with `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`; it updates XP and level fields, sends configured/default level-up announcements and legacy fallbacks, applies configured `chat_roles`, and grants XP coin rewards after the configured announcement path succeeds.
 
 Config-only `/語音經驗設定` and `/語音經驗刪除` are available only when both staging command sync and runtime flags are explicitly enabled:
 
@@ -561,7 +561,7 @@ MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true
 
 These commands write only legacy-compatible `voice_xp_channels` config fields and require Manage Messages. They update duplicate rows for a guild, only upsert when no row exists, and clear `background` because the legacy command showed `背景` but did not save it. They do not enable Voice State intent, voice XP accrual, rank rendering, automatic reward-role assignment/removal, or usage-counter writes.
 
-Voice XP session tracking is event-only and has no command-sync flag. Test it only against disposable staging `voice_xps` rows with `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`; it marks `leavejoin` join/leave state but does not award XP or send level announcements.
+Voice XP session tracking is event-only and has no command-sync flag. Test it only against disposable staging `voice_xps` rows with `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`; it marks `leavejoin` join/leave state. The reusable voice tick side-effect path can award XP, send configured/default level announcements with owner DM fallbacks, apply `voice_roles`, and grant XP coin rewards, but the app still does not start the legacy periodic voice XP loop.
 
 Config-only `/聊天經驗身分組設定` and `/語音經驗身分組設定` are available only when both staging command sync and runtime flags are explicitly enabled:
 
