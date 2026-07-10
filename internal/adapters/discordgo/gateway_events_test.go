@@ -137,6 +137,40 @@ func TestReactionMemberFromStateResolvesRemoveEventBot(t *testing.T) {
 	}
 }
 
+func TestRememberReactionMemberMakesBotIdentityAvailableToRemoveEvent(t *testing.T) {
+	state := dgo.NewState()
+	if err := state.GuildAdd(&dgo.Guild{ID: "guild-1"}); err != nil {
+		t.Fatalf("seed guild state: %v", err)
+	}
+	session := &dgo.Session{State: state}
+	reaction := &dgo.MessageReaction{GuildID: "guild-1", UserID: "bot-2"}
+	member := &dgo.Member{User: &dgo.User{ID: "bot-2", Bot: true}}
+
+	remembered := rememberReactionMember(session, member, reaction)
+	if remembered == nil || remembered.GuildID != "guild-1" {
+		t.Fatalf("remembered member = %#v", remembered)
+	}
+	resolved := reactionMemberFromState(session, reaction)
+	if resolved == nil || resolved.User == nil || !resolved.User.Bot {
+		t.Fatalf("resolved member = %#v", resolved)
+	}
+	event := eventFromReaction(events.TypeReactionRemove, reaction, resolved)
+	if !event.IsBot {
+		t.Fatalf("event = %#v", event)
+	}
+}
+
+func TestReactionMemberFromStateLeavesUnknownRemoveIdentityUnresolved(t *testing.T) {
+	state := dgo.NewState()
+	if err := state.GuildAdd(&dgo.Guild{ID: "guild-1"}); err != nil {
+		t.Fatalf("seed guild state: %v", err)
+	}
+	member := reactionMemberFromState(&dgo.Session{State: state}, &dgo.MessageReaction{GuildID: "guild-1", UserID: "unknown"})
+	if member != nil {
+		t.Fatalf("member = %#v", member)
+	}
+}
+
 func TestEventFromMemberIncludesGuildNameFromState(t *testing.T) {
 	state := dgo.NewState()
 	bot := &dgo.User{ID: "bot-1", Username: "MHCAT", Avatar: "bot-avatar"}

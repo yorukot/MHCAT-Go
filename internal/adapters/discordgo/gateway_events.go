@@ -60,7 +60,7 @@ func (s *Session) RegisterGatewayEventHandlers(dispatcher *events.Dispatcher, op
 	if opts.MessageReactions {
 		removers = append(removers,
 			s.session.AddHandler(func(session *dgo.Session, event *dgo.MessageReactionAdd) {
-				member := event.Member
+				member := rememberReactionMember(session, event.Member, event.MessageReaction)
 				if member == nil {
 					member = reactionMemberFromState(session, event.MessageReaction)
 				}
@@ -272,6 +272,19 @@ func eventFromReaction(eventType events.Type, reaction *dgo.MessageReaction, mem
 		}
 	}
 	return event
+}
+
+func rememberReactionMember(session *dgo.Session, member *dgo.Member, reaction *dgo.MessageReaction) *dgo.Member {
+	if member == nil || member.User == nil || session == nil || session.State == nil {
+		return member
+	}
+	if member.GuildID == "" && reaction != nil {
+		member.GuildID = reaction.GuildID
+	}
+	if member.GuildID != "" {
+		_ = session.State.MemberAdd(member)
+	}
+	return member
 }
 
 func reactionMemberFromState(session *dgo.Session, reaction *dgo.MessageReaction) *dgo.Member {
