@@ -24,7 +24,7 @@ func TestEventFromMessage(t *testing.T) {
 	if event.Type != events.TypeMessageCreate || event.MessageID != "message-1" || event.UserID != "user-1" || !event.IsBot || !event.CreatedAt.Equal(timestamp) {
 		t.Fatalf("event = %#v", event)
 	}
-	if event.Username != "Yoru" || event.UserTag != "Yoru#1234" || event.AvatarURL == "" || event.BotUserID != "bot-1" || event.BotAvatarURL == "" {
+	if event.Username != "Yoru" || event.UserTag != "Yoru#1234" || event.AvatarURL == "" || event.AvatarIsDefault || event.BotUserID != "bot-1" || event.BotAvatarURL == "" {
 		t.Fatalf("author metadata = %#v", event)
 	}
 	if len(event.Attachments) != 1 || event.Attachments[0].URL != "https://example.test/file.png" {
@@ -32,6 +32,18 @@ func TestEventFromMessage(t *testing.T) {
 	}
 	if event.Member == nil || event.Member.UserID != "user-1" || len(event.Member.RoleIDs) != 1 || event.Member.RoleIDs[0] != "role-1" {
 		t.Fatalf("member metadata = %#v", event.Member)
+	}
+}
+
+func TestEventFromMessageMarksDefaultUserAvatar(t *testing.T) {
+	event := eventFromMessage(events.TypeMessageCreate, &dgo.Message{
+		ID:        "message-1",
+		GuildID:   "guild-1",
+		ChannelID: "channel-1",
+		Author:    &dgo.User{ID: "113779359301998592", Username: "Yoru", Discriminator: "0"},
+	}, nil)
+	if event.AvatarURL == "" || !event.AvatarIsDefault {
+		t.Fatalf("event = %#v", event)
 	}
 }
 

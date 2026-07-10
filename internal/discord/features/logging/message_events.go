@@ -3,6 +3,8 @@ package logging
 import (
 	"context"
 	"errors"
+	"net/url"
+	"path"
 	"strings"
 	"time"
 
@@ -162,10 +164,20 @@ func loggingEventUsername(event events.Event) string {
 }
 
 func loggingEventAvatarURL(event events.Event) string {
-	if strings.TrimSpace(event.AvatarURL) != "" {
-		return event.AvatarURL
+	raw := strings.TrimSpace(event.AvatarURL)
+	if raw == "" || event.AvatarIsDefault {
+		return loggingDefaultAvatarURL
 	}
-	return loggingDefaultAvatarURL
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	extension := path.Ext(parsed.Path)
+	switch strings.ToLower(extension) {
+	case ".gif", ".jpg", ".jpeg", ".webp":
+		parsed.Path = strings.TrimSuffix(parsed.Path, extension) + ".png"
+	}
+	return parsed.String()
 }
 
 func loggingCodeBlock(content string) string {

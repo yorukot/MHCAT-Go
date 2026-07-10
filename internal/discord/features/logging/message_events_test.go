@@ -164,3 +164,12 @@ func TestLoggingCodeBlockPreservesLegacySpacing(t *testing.T) {
 		t.Fatalf("content code block = %q", got)
 	}
 }
+
+func TestLoggingEventAvatarMatchesLegacyPNGAndFallback(t *testing.T) {
+	if got := loggingEventAvatarURL(events.Event{AvatarURL: "https://cdn.discordapp.com/avatars/user/hash.gif?size=1024"}); got != "https://cdn.discordapp.com/avatars/user/hash.png?size=1024" {
+		t.Fatalf("animated avatar = %q", got)
+	}
+	if got := loggingEventAvatarURL(events.Event{AvatarURL: "https://cdn.discordapp.com/embed/avatars/1.png", AvatarIsDefault: true}); got != loggingDefaultAvatarURL {
+		t.Fatalf("default avatar = %q", got)
+	}
+}

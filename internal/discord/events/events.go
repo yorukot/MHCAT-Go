@@ -48,26 +48,27 @@ func ContinueOnError(err error) error {
 }
 
 type Event struct {
-	Type          Type
-	ID            string
-	GuildID       string
-	GuildName     string
-	GuildIconURL  string
-	BotUserID     string
-	BotAvatarURL  string
-	ChannelID     string
-	MessageID     string
-	UserID        string
-	Username      string
-	Discriminator string
-	UserTag       string
-	AvatarURL     string
-	Content       string
-	OldContent    string
-	HasOldContent bool
-	IsBot         bool
-	CreatedAt     time.Time
-	Attachments   []Attachment
+	Type            Type
+	ID              string
+	GuildID         string
+	GuildName       string
+	GuildIconURL    string
+	BotUserID       string
+	BotAvatarURL    string
+	ChannelID       string
+	MessageID       string
+	UserID          string
+	Username        string
+	Discriminator   string
+	UserTag         string
+	AvatarURL       string
+	AvatarIsDefault bool
+	Content         string
+	OldContent      string
+	HasOldContent   bool
+	IsBot           bool
+	CreatedAt       time.Time
+	Attachments     []Attachment
 
 	Reaction      *Reaction
 	Member        *Member

@@ -121,6 +121,7 @@ func eventFromMessage(eventType events.Type, message *dgo.Message, bot *dgo.User
 		event.Username = message.Author.Username
 		event.UserTag = userTag(message.Author)
 		event.AvatarURL = message.Author.AvatarURL("")
+		event.AvatarIsDefault = message.Author.Avatar == ""
 		event.IsBot = message.Author.Bot
 	}
 	event.Attachments = attachmentsFromDiscord(message.Attachments)
@@ -147,6 +148,7 @@ func eventFromMessageUpdate(update *dgo.MessageUpdate, bot *dgo.User) events.Eve
 			event.Username = update.BeforeUpdate.Author.Username
 			event.UserTag = userTag(update.BeforeUpdate.Author)
 			event.AvatarURL = update.BeforeUpdate.Author.AvatarURL("")
+			event.AvatarIsDefault = update.BeforeUpdate.Author.Avatar == ""
 			event.IsBot = update.BeforeUpdate.Author.Bot
 		}
 	}
@@ -347,7 +349,10 @@ func eventFromVoiceState(voice *dgo.VoiceState, before *dgo.VoiceState, session 
 		event.IsBot = event.Member.IsBot
 		event.Username = event.Member.Username
 		event.UserTag = event.Member.UserTag
-		event.AvatarURL = event.Member.AvatarURL
+		if member != nil && member.User != nil {
+			event.AvatarURL = member.User.AvatarURL("")
+			event.AvatarIsDefault = member.User.Avatar == ""
+		}
 		if event.UserID == "" {
 			event.UserID = event.Member.UserID
 		}
