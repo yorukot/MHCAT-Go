@@ -188,7 +188,7 @@ func TestEventFromVoiceState(t *testing.T) {
 
 func TestEventFromVoiceStateFallsBackToCachedMemberOnLeave(t *testing.T) {
 	event := eventFromVoiceState(
-		&dgo.VoiceState{GuildID: "guild-1", UserID: "user-1"},
+		&dgo.VoiceState{GuildID: "guild-1", UserID: "user-1", Member: &dgo.Member{User: &dgo.User{ID: "user-1", Username: "New", Avatar: "new-avatar"}}},
 		&dgo.VoiceState{
 			GuildID:   "guild-1",
 			UserID:    "user-1",
@@ -197,7 +197,7 @@ func TestEventFromVoiceStateFallsBackToCachedMemberOnLeave(t *testing.T) {
 		},
 		nil,
 	)
-	if event.Username != "Yoru" || event.AvatarURL == "" || event.Member == nil || event.VoiceState.BeforeChannel != "old" {
+	if event.Username != "Yoru" || event.AvatarURL == "" || !strings.Contains(event.AvatarURL, "user-avatar") || event.Member == nil || event.VoiceState.BeforeChannel != "old" {
 		t.Fatalf("event = %#v", event)
 	}
 }

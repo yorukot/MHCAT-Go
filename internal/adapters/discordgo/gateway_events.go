@@ -345,6 +345,9 @@ func eventFromVoiceState(voice *dgo.VoiceState, before *dgo.VoiceState, session 
 		if member == nil {
 			member = before.Member
 		}
+		if voice != nil && voice.ChannelID == "" && before.ChannelID != "" && before.Member != nil {
+			member = before.Member
+		}
 	}
 	event.Member = memberFromDiscord(member)
 	if event.Member != nil {
