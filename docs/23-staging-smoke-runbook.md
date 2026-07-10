@@ -35,6 +35,16 @@ export MHCAT_COMMAND_SYNC_INCLUDE_TICKETS=true
 
 Set both together when testing ticket commands. Do not include ticket commands in command sync if the runtime feature flag is disabled, and stop every Node/extra-Go ticket owner first. Follow the canonical [ticket staging checklist](74-ticket.md#staging-smoke).
 
+Optional poll smoke flags:
+
+```bash
+export MHCAT_FEATURE_POLLS_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_POLLS=true
+export MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
+```
+
+Set the runtime and command-sync flags together only after stopping every Node/extra-Go poll owner. Enable the Guild Members privileged intent on the staging application as well as the env flag for exact member totals and export names. Follow the canonical [poll staging checklist](75-poll.md#staging-smoke), including its duplicate/type audit, legacy-message migration, failure compensation, concurrency, and rollback cases.
+
 Optional economy query smoke flags:
 
 ```bash
@@ -676,6 +686,7 @@ Do not paste real values into committed docs.
 - Confirm `MHCAT_COMMAND_SYNC_ALLOW_BULK_OVERWRITE=false`.
 - If `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`, confirm the Node `events/SlashCommands.js` counter owner is stopped, the target `all_use_counts` rows are disposable, and duplicate/null/blank command-name rows have been reviewed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TICKETS=true`, confirm `MHCAT_FEATURE_TICKETS_ENABLED=true`.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_POLLS=true`, confirm `MHCAT_FEATURE_POLLS_ENABLED=true`, `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`, the application Guild Members privileged intent is enabled, every Node/extra-Go poll owner is stopped, and duplicate/malformed `polls` rows have been reviewed without applying an index.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_QUERY=true`, confirm `MHCAT_FEATURE_ECONOMY_QUERY_ENABLED=true`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true`, confirm `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`, confirm `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true` and the database is isolated staging data.
@@ -769,6 +780,13 @@ For ticket staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_TICKETS=true`;
 - `MHCAT_FEATURE_TICKETS_ENABLED=true`;
 - plan includes managed `私人頻道設置` and `私人頻道刪除`;
+- plan still performs no create/update/delete during dry-run.
+
+For poll staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_POLLS=true`;
+- `MHCAT_FEATURE_POLLS_ENABLED=true`;
+- plan includes managed `投票創建`;
 - plan still performs no create/update/delete during dry-run.
 
 For economy query staging smoke, expected additionally:
@@ -1155,6 +1173,13 @@ Expected:
 If ticket inclusion is enabled, expected:
 
 - create/update managed `help`, `ping`, `info`, `私人頻道設置`, and `私人頻道刪除` only;
+- no command deletion;
+- no bulk overwrite;
+- no global command mutation.
+
+If poll inclusion is enabled, expected:
+
+- create/update managed `投票創建` only in addition to the utility commands;
 - no command deletion;
 - no bulk overwrite;
 - no global command mutation.
@@ -1578,6 +1603,10 @@ The canonical duplicate/type audit, stale-modal race, failure compensation, over
 - click `del` from the ticket channel;
 - verify the channel is deleted or the legacy denial embed appears when expected.
 
+If poll flags were enabled and command sync apply was reviewed:
+
+Run the complete canonical [poll staging checklist](75-poll.md#staging-smoke). Do not reduce it to a create-and-vote happy path: it covers exact validation/UI, old and versioned IDs, `poll_menu`/colon choices, atomic concurrency, exports, source refreshes, insertion rollback, ownership, and Node rollback constraints.
+
 If work command flags were enabled and command sync apply was reviewed:
 
 - `/打工系統 新增打工事項`;
@@ -1704,6 +1733,7 @@ Verify:
 - no command deletion happened;
 - no Mongo feature write happened unless an explicitly enabled feature below owns one.
   - Exception: ticket smoke writes the legacy-compatible `tickets` config only after successful modal submit.
+  - Exception: poll smoke inserts and atomically updates disposable staging `polls` rows; a forced failed insert must delete the exact public message it sent.
   - Exception: economy coin-admin smoke writes disposable staging `coins` rows only.
   - Exception: economy coin-reset smoke deletes or divides disposable staging `coins` rows only after the owner `^確認^` confirmation.
   - Exception: role-selection smoke writes staging `message_reactions` and `btns` rows only after setup commands.

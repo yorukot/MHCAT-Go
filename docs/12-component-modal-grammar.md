@@ -17,7 +17,7 @@ Status: Phase 1.5 Gate B input. Source evidence is local legacy code plus a read
 | Modal/Select | modal `<Date.valueOf()>`; inputs `cron_set*`; legacy selects `week_menu`, `hour_menu`, `min_menu`; Go selects `mhcat:v1:cron:<week|hour|minute>:state=<id>` | `slashCommands/自動通知/cron_set.js`, `events/modal.js`, Go notification wizard | legacy local collector; Go typed router | cron doc ID, cron expression, message/embed fields, week/hour/min values | Automatic notification | Medium | invalid cron opens a five-minute wizard; Go uses owner-scoped state IDs to avoid generic-ID collisions | `cron.modal.submit`, `cron.week/hour/min` |
 | Button/Modal | `lock_start`; `<channelId>anser`; input `anser` | `events/voice_create.js` | `events/voice_create.js`, `events/modal.js` | dynamic voice channel ID and password | Locked voice room | Medium | modal ID embeds channel ID; password compared to stored answer | `voice_lock.prompt/answer` |
 | Button/Modal | `<captcha>verification`; `<captcha>ver`; `mhcat:v1:verification:prompt:state=<stateID>`; `mhcat:v1:verification:answer:state=<stateID>` | `slashCommands/加入設置/verification.js`, `events/btn.js`, Go verification flow | `events/btn.js`, `events/modal.js`, Go typed router | legacy captcha answer; new state ID only | Verification | High for legacy; Low for new IDs | legacy embeds captcha answer directly in custom ID; Go-generated IDs do not | `verification.prompt/answer` |
-| Button/Select | `poll_<choice>`, `see_result`, `poll_menu`, `menu_choose` | `slashCommands/管理系統/poll.js`, `events/poll.js` | `events/poll.js` | choice text, owner menu values | Polls | High | choice text is user input; parsed with broad prefix/replace | `poll.vote/result/owner_menu/max_choices` |
+| Button/Select | `poll_<choice>`, `see_result`, `poll_menu`, `menu_choose`; `mhcat:v1:poll:*` | `slashCommands/管理系統/poll.js`, `events/poll.js`, Go poll renderer | `events/poll.js`, Go typed router | legacy raw choice/menu value; versioned choice index/action/message state | Polls | High in legacy; bounded in Go | legacy choices may contain `:`; `poll_menu` can mean choice `menu` or the owner select and is disambiguated by absent/present select values | `poll.vote/result/owner_menu/max_choices`; [parity contract](75-poll.md) |
 | Button | `[<userId>]{<page>}text_rank`, `[<userId>]text_rank {<page>}` | rank slash commands, `events/rank.js` | `events/rank.js` | user ID and page | Text rank pagination | Medium | `get_str()` extracts delimiters without strict validation | `rank.text.page` |
 | Button | `[<userId>]{<page>}voice_rank`, `[<userId>]voice_rank {<page>}` | voice rank command, `events/rank.js` | `events/rank.js` | user ID and page | Voice rank pagination | Medium | same parser; some disabled center buttons use `text_rank` IDs | `rank.voice.page` |
 | Button | `[<userId>]{<page>}coin_rank`, `[<userId>]coin_rank {<page>}` | coin rank command, `events/rank.js` | `events/rank.js` | user ID and page | Coin rank pagination | Medium | same parser | `rank.coin.page` |
@@ -161,7 +161,7 @@ High-risk legacy matching:
 
 - `events/btn.js` routes with `includes("sing")`, `includes("my-profile")`, `includes("add")`, `includes("delete")`, `includes("lotter")`, `includes("verification")`, `includes("teach21point")`, and `includes("thansize")`.
 - `events/poll.js` routes `poll_` IDs from raw user-provided choice text.
-- Go Poll Wave A accepts legacy `poll_<choiceText>` up to the legacy 80-character choice limit and counts custom ID length by characters for legacy compatibility. New Go-generated poll vote IDs do not embed raw choice text; they use bounded versioned IDs such as `mhcat:v1:poll:vote:i=0`.
+- Go accepts legacy `poll_<choiceText>` including `:`. Exact `poll_menu` with no selected values routes the legacy choice named `menu`; the same ID with a string-select value routes the owner menu. New Go-generated and rerendered poll components use bounded versioned IDs such as `mhcat:v1:poll:vote:i=0` and do not embed raw choice text.
 - `events/rank.js` routes by broad rank suffixes and uses delimiter extraction without validating missing delimiters.
 - `events/modal.js` routes by the first text input custom ID instead of the modal custom ID, and many modals use generic `nal`.
 - Several independent `interactionCreate` listeners can observe the same interaction.
@@ -193,6 +193,7 @@ Rationale:
 - Existing Discord messages may still contain legacy IDs, so the Go bot must decode legacy IDs during rollout.
 - Preserving broad `includes()` routing would preserve the highest collision and spoofing risks.
 - Fully replacing legacy IDs would break live tickets, polls, rank pages, verification prompts, shops, games, and setup modals already posted before rollout.
+- Go-created or Go-rerendered poll messages are not routable by unmodified legacy Node because it does not understand `mhcat:v1:poll:*`; poll rollback therefore requires continued Go routing, reviewed Node compatibility, or explicit retirement/recreation of affected messages.
 
 Go routing rules:
 

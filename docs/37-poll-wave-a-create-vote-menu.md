@@ -1,5 +1,7 @@
 # Poll Wave A: Create / Vote / Owner Menu
 
+Status: Historical implementation note. The current audited behavior, safety differences, staging procedure, and rollback contract are defined in [75-poll.md](75-poll.md), which supersedes this snapshot.
+
 ## Scope
 
 Implemented the first poll slice from legacy:

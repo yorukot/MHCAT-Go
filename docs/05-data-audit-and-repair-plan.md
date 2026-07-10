@@ -217,3 +217,19 @@ Additional audit before enabling ticket writes:
 - clean duplicate results before any reviewed `tickets_guild` unique-index apply.
 
 Do not rewrite mixed legacy scalars or deduplicate production rows merely to enable Go. Runtime reads preserve Mongoose-compatible values, explicit config deletion removes duplicate guild rows, and new creates do not overwrite an existing match. Follow the [ticket parity contract](74-ticket.md) for staging and rollback.
+
+## Poll Rollout Audit
+
+Poll runtime is parity-audited but remains disabled by default. No production repair/backfill, TTL, or automatic index mutation is authorized.
+
+Additional audit before enabling poll writes:
+
+- duplicate `polls` documents grouped by `{guild,messageid}`;
+- non-string/missing/empty `guild` and `messageid` keys;
+- Mongoose scalar drift in `question`, `create_member_id`, `many_choose`, and all four Boolean fields;
+- scalar, malformed, duplicate, empty, overlong, or non-string `choose_data` values;
+- malformed/non-string `{id,choise,time}` entries and oversized `join_member` arrays/documents;
+- Guild Members intent/member-list access, exclusive Node/Go ownership, and a reviewed plan for Go versioned component IDs before rollback;
+- clean duplicate/type/shape results before any reviewed `polls_guild_message` unique-index apply.
+
+Do not rewrite loose arrays or deduplicate production rows merely to enable Go. Runtime reads are permissive, writes preserve the legacy field shape, and no channel ID exists for automatic bulk message rewrites. Follow the [poll parity contract](75-poll.md) for staging and rollback.

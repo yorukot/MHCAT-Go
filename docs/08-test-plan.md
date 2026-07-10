@@ -67,7 +67,7 @@ Status: Phase 1 consolidated. Legacy has only a live Discord login smoke test; t
   - sign-in and coin lookup/rank
   - text/voice XP lookup/rank
   - warning add/list/remove
-  - poll create/vote/result
+  - poll create/vote/result/owner/export, including initial-versus-rerender text and component migration
   - verification
   - ticket setup/panel/open/close
   - reaction-role setup/delete/events and button-role modal/add/remove
@@ -82,7 +82,7 @@ Status: Phase 1 consolidated. Legacy has only a live Discord login smoke test; t
 - Custom ID table.
 - Sample embeds/components for high-risk commands.
 - Welcome/leave/announcement/ticket messages.
-- Poll result/export output.
+- Poll exact initial UI, fixed messages, UTF-16 validation, JavaScript percentage rounding, result/export output, Mongoose scalar reads, atomic predicates, and rollback compensation; canonical commands are in [75-poll.md](75-poll.md#parity-tests).
 - Rank/profile/sign images with seeded inputs where deterministic rendering is feasible.
 
 ## Context and Timeout Tests

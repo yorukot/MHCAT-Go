@@ -184,3 +184,13 @@ Ticket config compatibility is parity-audited through the gated setup/delete/ope
 | `tickets` | `guild`, `ticket_channel`, `admin_id`, `everyone_id` | none beyond ordinary Mongo `_id` | Mongoose-compatible String scalar decoding; malformed compound/null values stay unusable | create-if-absent `$setOnInsert`; exact `{_id,guild}` failure rollback; explicit guild delete removes duplicates | no | stop all Go ticket routes before restoring Node; typed strings and legacy `tic`/`del` IDs remain readable | none known; confirm before rollout |
 
 Go writes only after valid versioned modal input, never overwrites an existing guild row, and creates no startup index. Candidate `tickets_guild` remains blocked on duplicate/malformed-value audit and exclusive ownership. See the [ticket parity contract](74-ticket.md) for write ordering, compensation, migration, and rollback.
+
+## Poll Compatibility
+
+Poll compatibility is parity-audited through the gated create/vote/result/owner runtime.
+
+| Collection | Legacy fields | New fields | Read strategy | Write strategy | Backfill needed | Rollback strategy | Dashboard impact |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `polls` | `guild`, `messageid`, `question`, `create_member_id`, `many_choose`, `can_change_choose`, `can_see_result`, `end`, `anonymous`, `choose_data`, `join_member` | none | separate Mongoose-compatible scalar/loose-array read DTO; malformed Mixed entries are skipped | typed insert plus targeted conditional `$push`/`$pull` and atomic toggle pipelines; no full replacement | no | stop all Go poll routes before restoring Node; typed rows are readable, but Go-rendered versioned component IDs require a separate message rollback plan | dashboard backup already exports `polls`; preserve collection and fields |
+
+Raw question/choice whitespace and misspelled `join_member[].choise` remain exact. Candidate `polls_guild_message` remains blocked on duplicate/key/scalar/array audit and exclusive ownership; no startup or TTL index is created. See the [poll parity contract](75-poll.md) for component migration, atomic predicates, staging, and rollback.

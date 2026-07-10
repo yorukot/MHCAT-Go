@@ -41,7 +41,7 @@ This module currently provides:
 - sanitized production Mongo read-only audit notes.
 - Platform Wave B collection-name contract tests for legacy Mongoose compatibility.
 - parity-audited ticket setup/delete/open/close flow with Mongo compatibility, exact legacy routes/UI, failure compensation, and a disabled-by-default ownership gate; see the [ticket parity contract](docs/74-ticket.md).
-- poll BSON compatibility, repository contract foundation, and gated create/vote/owner-menu/result/chart/export handlers.
+- parity-audited poll create/vote/owner-menu/result/export flow with exact legacy UI, Mongoose-compatible reads, atomic writes, failure compensation, and a disabled-by-default ownership gate; see the [poll parity contract](docs/75-poll.md).
 - economy `coins`/`gift_changes`/XP/work BSON compatibility, read-only query repository, gated `/代幣查詢` handler, gated `/代幣排行榜` PNG leaderboard, gated `my-profile` profile PNG, gated `/簽到` sign-in write slice, gated `coin-related-settings` config write slice, gated `/代幣增加` admin coin write slice, gated `/剪刀石頭布` game write slice, and gated `/代幣重製` owner-only reset slice.
 - gated `打工系統` command schema, legacy dashboard-redirect UI for `新增打工事項`, legacy-style `打工介面` list/detail/start UI, and admin setup/delete/energy flows with explicit work repository writes.
 - gated read-only `/警告紀錄` warning-history lookup with legacy embed text and safer permission/member-cache handling.
@@ -797,13 +797,13 @@ Remaining rollout work:
 
 ## Poll Slice
 
-Poll Wave A/B implements the low-risk poll runtime foundation behind explicit flags:
+The poll flow is parity-audited behind explicit flags:
 
 - `投票創建` command definition and handler.
 - Legacy-style public poll embed, choice buttons, result button, and owner select menu.
 - Versioned Go-generated custom IDs for new poll components, while legacy `poll_<choice>`, `see_result`, and `poll_menu` still decode for live old messages.
-- `polls` BSON compatibility with legacy fields, including `join_member[].choise`.
-- Repository-level vote add/remove semantics to avoid the old full-array overwrite race.
+- Mongoose-compatible `polls` reads and rollback-compatible typed writes, including `join_member[].choise`.
+- Atomic vote add/remove and owner-toggle semantics, cancellation-safe creation rollback, and centralized slash-only usage tracking.
 - Owner toggles for public result, change choice, anonymous, end/reopen, and max-choice selection.
 - Result embeds with `file.jpg` chart and `discord.txt` export.
 - Owner-menu Excel export as `poll_info.xlsx`, with anonymous export still blocked like legacy.
@@ -824,10 +824,12 @@ MHCAT_COMMAND_SYNC_INCLUDE_POLLS=true
 
 The command-sync CLI rejects poll inclusion outside staging guild scope. Deletion and bulk overwrite remain disabled unless their separate explicit unsafe flags are used, and staging still rejects them.
 
+Exact UTF-16 validation, raw whitespace, initial/dynamic labels, colors, percentage rounding, legacy component migration, Mongo/index policy, exclusive ownership, smoke, and rollback constraints are recorded in the [poll parity contract](docs/75-poll.md).
+
 Remaining rollout work:
 
 - Production poll command sync.
-- Staging smoke for the full poll create/vote/result/export/menu flow.
+- Live staging smoke using the canonical poll checklist.
 
 ## Utility Feature Tests
 

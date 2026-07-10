@@ -1,5 +1,7 @@
 # Poll Wave B: Result Chart and Export
 
+Status: Historical implementation note. The current audited behavior, deterministic artifact differences, staging procedure, and rollback contract are defined in [75-poll.md](75-poll.md), which supersedes this snapshot.
+
 ## Scope
 
 Implemented the second poll parity slice:

@@ -7,7 +7,7 @@ Status: Phase 1.5 Gate B input. Legacy evidence: `MHCAT/index.js` enables Guilds
 | Intent | Legacy feature requiring it | Can remove? | Replacement | Risk if removed | Go default |
 | --- | --- | --- | --- | --- | --- |
 | `Guilds` | Slash commands, guild/channel/role metadata, Ready/GuildCreate, most interaction features | No | None | Bot cannot operate core guild interactions | Enabled in dev and prod |
-| `GuildMembers` | Welcome/leave messages, join roles, account-age checks, member remove logging, some role/member fetch paths; slash `/驗證` uses interaction member data plus REST role/nickname side effects and does not require member-event handling by itself | Partially | Use interaction member data and REST fetch-on-demand for command paths; keep intent for join/leave/account-age event features | Join/leave automation, account-age policy, and member remove logging stop working | Disabled by default; enable with `ENABLE_GUILD_MEMBERS_INTENT=true` for parity event features |
+| `GuildMembers` | Welcome/leave messages, join roles, account-age checks, member remove logging, poll non-bot totals/export names, and some role/member fetch paths; slash `/驗證` uses interaction member data plus REST role/nickname side effects and does not require member-event handling by itself | Partially | Use interaction member data and REST fetch-on-demand for command paths; keep intent for join/leave/account-age event features and exact poll member parity | Join/leave automation, account-age policy, and member remove logging stop; polls fall back to zero/current voter totals and missing-member export labels | Disabled by default; enable with `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true` for parity features |
 | `GuildMessages` | Text XP, chatbot, anti-scam, announcement message listeners, XP reset `^確認^` confirmation, legacy prefix/restart message, message logging | Partially | Convert operator commands to slash; use interactions/components/modals for new flows; keep only for message-event features | Text XP, chatbot, anti-scam, XP reset confirmation, and message logging stop working | Disabled by default; enable when message-event features are enabled |
 | `GuildMessageReactions` | Legacy reaction roles | Partially | Prefer buttons/selects for new features; keep the intent only for the parity-audited role-selection ownership slice | Reaction role add/remove stops; setup/button commands are intentionally not split onto a separate gate | Disabled by default; `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true` requires `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true` |
 | `GuildVoiceStates` | Voice XP, dynamic voice rooms, voice lock, voice join/leave state | No for those features | None; REST cannot replace voice state events | Voice XP and dynamic voice channels stop working | Disabled by default; enable with `ENABLE_VOICE_STATE_INTENT=true` for voice features |
@@ -62,6 +62,7 @@ Decision:
 - Use event payloads for join/leave where available.
 - Use REST fetch-on-demand with context timeouts and rate-limit handling for command paths.
 - Add a bounded cache only where measurements justify it.
+- Poll creation/rerenders use guild-member listing for exact non-bot participation totals, and result/export paths use bulk member lookup for exact tags. With no usable member access, the runtime remains responsive but degrades to zero/current unique-voter totals and `使用者已退出伺服器!` labels.
 
 ### Dev and Production Defaults
 
@@ -128,6 +129,18 @@ Default: disabled
 
 See the [ticket parity contract](74-ticket.md) before staging or production ownership changes.
 
+Current poll interaction flow:
+
+```txt
+Poll runtime: MHCAT_FEATURE_POLLS_ENABLED=true
+Message Content intent: not required
+Guild Members intent: required for exact non-bot totals and bulk export names; enable the application privileged intent and MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
+Ownership: /投票創建, all mhcat:v1:poll:* components, and legacy poll_<choice>/see_result/poll_menu/menu_choose routes stay under this one gate
+Default: disabled
+```
+
+Do not overlap Node and Go poll owners. See the [poll parity contract](75-poll.md) before staging, migration, or rollback.
+
 Current approved reaction-role exception:
 
 ```txt
@@ -163,3 +176,4 @@ Startup validation must reject impossible combinations, for example:
 - Message Content disabled behavior tests.
 - Owner-only restart command permission tests.
 - Fetch-on-demand timeout and rate-limit tests.
+- Poll member-list success/fallback and export-name tests.

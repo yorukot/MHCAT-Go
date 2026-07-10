@@ -306,6 +306,15 @@ MHCAT_FEATURE_TICKETS_ENABLED=true
 
 This one runtime gate owns both commands, ticket-shaped `nal` submissions, and exact `tic`/`del` buttons. Stop corresponding Node handlers and extra Go owners, audit `tickets` duplicates/malformed IDs, and do not create `tickets_guild` during enablement. Follow the [ticket parity contract](74-ticket.md) for exact smoke and rollback steps.
 
+Parity-audited `/投票創建` and all poll components are available only when both staging command sync and runtime flags are explicitly enabled:
+
+```bash
+MHCAT_COMMAND_SYNC_INCLUDE_POLLS=true
+MHCAT_FEATURE_POLLS_ENABLED=true
+```
+
+This one runtime gate owns the slash command, every `mhcat:v1:poll:*` component, and all legacy `poll_<choice>`, `see_result`, `poll_menu`, and `menu_choose` routes. Stop `slashCommands/管理系統/poll.js`, `events/poll.js`, and every extra Go poll owner for the same bot/guild before enablement; pairing the flags does not make shared ownership safe. Exact non-bot participation totals and export member names also require the application Guild Members privileged intent plus `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`; poll routing itself requires no Message Content intent. Preserve `polls`, create no startup index, and follow the [poll parity contract](75-poll.md) for audit, staging smoke, versioned-message rollback, and ownership transfer.
+
 Read-only `/代幣查詢` is available only when both staging command sync and runtime flags are explicitly enabled:
 
 ```bash
