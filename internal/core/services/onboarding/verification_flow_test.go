@@ -75,8 +75,18 @@ func TestVerificationFlowCompleteRejectsWrongAnswerAndOwnerNickname(t *testing.T
 	if err := service.Complete(context.Background(), "guild", "user", "state", "9999", "Yoru"); !errors.Is(err, ErrVerificationAnswerMismatch) {
 		t.Fatalf("wrong answer error = %v", err)
 	}
+	if err := service.Complete(context.Background(), "guild", "user", "state", " 1234 ", "Yoru"); !errors.Is(err, ErrVerificationAnswerMismatch) {
+		t.Fatalf("whitespace answer error = %v", err)
+	}
 	if err := service.Complete(context.Background(), "guild", "user", "state", "1234", "Yoru"); !errors.Is(err, ErrVerificationOwnerNickname) {
 		t.Fatalf("owner nickname error = %v", err)
+	}
+}
+
+func TestVerificationFlowLegacyAnswerComparisonPreservesWhitespace(t *testing.T) {
+	service := VerificationFlowService{}
+	if err := service.CompleteLegacy(context.Background(), "guild", "user", "AB12", " AB12 ", "Yoru"); !errors.Is(err, ErrVerificationAnswerMismatch) {
+		t.Fatalf("whitespace answer error = %v", err)
 	}
 }
 

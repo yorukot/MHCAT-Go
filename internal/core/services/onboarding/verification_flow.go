@@ -107,7 +107,6 @@ func (s VerificationFlowService) Complete(ctx context.Context, guildID string, u
 	guildID = strings.TrimSpace(guildID)
 	userID = strings.TrimSpace(userID)
 	stateID = strings.TrimSpace(stateID)
-	answer = strings.TrimSpace(answer)
 	if guildID == "" || userID == "" || stateID == "" || answer == "" {
 		return domain.ErrInvalidVerificationChallenge
 	}
@@ -118,7 +117,7 @@ func (s VerificationFlowService) Complete(ctx context.Context, guildID string, u
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(challenge.GuildID) != guildID || strings.TrimSpace(challenge.UserID) != userID || strings.TrimSpace(challenge.Answer) != answer {
+	if strings.TrimSpace(challenge.GuildID) != guildID || strings.TrimSpace(challenge.UserID) != userID || challenge.Answer != answer {
 		return ErrVerificationAnswerMismatch
 	}
 	if err := s.completeConfigured(ctx, guildID, userID, username); err != nil {
@@ -131,8 +130,6 @@ func (s VerificationFlowService) Complete(ctx context.Context, guildID string, u
 func (s VerificationFlowService) CompleteLegacy(ctx context.Context, guildID string, userID string, expectedAnswer string, answer string, username string) error {
 	guildID = strings.TrimSpace(guildID)
 	userID = strings.TrimSpace(userID)
-	expectedAnswer = strings.TrimSpace(expectedAnswer)
-	answer = strings.TrimSpace(answer)
 	if guildID == "" || userID == "" || expectedAnswer == "" || answer == "" {
 		return domain.ErrInvalidVerificationChallenge
 	}

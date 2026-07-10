@@ -158,6 +158,14 @@ func TestVerificationLegacyAnswerAndWrongAnswer(t *testing.T) {
 	if title := responder.Edits[0].Embeds[0].Title; title != "你的驗證碼輸入錯誤，請重試(如果看不清楚的話可以重打指令)" {
 		t.Fatalf("wrong answer response = %#v", responder.Edits)
 	}
+	interaction.ModalFields[0].Value = " AB12 "
+	responder = fakediscord.NewResponder()
+	if err := module.VerificationAnswerHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("whitespace answer handler: %v", err)
+	}
+	if title := responder.Edits[0].Embeds[0].Title; title != "你的驗證碼輸入錯誤，請重試(如果看不清楚的話可以重打指令)" {
+		t.Fatalf("whitespace answer response = %#v", responder.Edits)
+	}
 
 	interaction.ModalFields[0].Value = "AB12"
 	responder = fakediscord.NewResponder()

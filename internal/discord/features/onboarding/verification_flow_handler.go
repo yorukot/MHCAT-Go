@@ -244,7 +244,7 @@ func legacyVerificationExpectedAnswer(interaction interactions.Interaction) stri
 func firstModalValue(interaction interactions.Interaction) string {
 	for _, field := range interaction.ModalFields {
 		if field.CustomID == verificationAnswerInputID || strings.HasSuffix(field.CustomID, "ver") || field.Value != "" {
-			return strings.TrimSpace(field.Value)
+			return field.Value
 		}
 	}
 	return ""
