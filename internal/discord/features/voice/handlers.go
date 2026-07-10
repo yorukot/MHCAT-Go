@@ -447,7 +447,13 @@ func voiceLockAnswerWrongMessage(guildID string, channelID string) responses.Mes
 }
 
 func voiceLockAnswerMissingMessage() responses.Message {
-	return voiceErrorMessage("很抱歉，該包廂可能已被刪除!")
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "很抱歉，該包廂可能已被刪除!",
+			Color: voiceErrorColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
 }
 
 func voiceLockPromptUnavailableMessage() responses.Message {

@@ -323,6 +323,21 @@ func TestLockAnswerHandlerWrongPasswordUsesLegacyError(t *testing.T) {
 	}
 }
 
+func TestLockAnswerHandlerMissingRoomUsesLegacyPlainError(t *testing.T) {
+	module := NewLockModule(fakemongo.NewVoiceRoomLockRepository(), nil)
+	responder := fakediscord.NewResponder()
+	if err := module.AnswerHandler()(context.Background(), voiceLockAnswerInteraction("secret"), responder); err != nil {
+		t.Fatalf("answer handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	embed := responder.Edits[0].Embeds[0]
+	if embed.Title != "很抱歉，該包廂可能已被刪除!" || embed.Color != voiceErrorColor || len(responder.Edits[0].Components) != 0 {
+		t.Fatalf("embed=%#v components=%#v", embed, responder.Edits[0].Components)
+	}
+}
+
 func TestLockModuleRoutesLegacyAnswerModal(t *testing.T) {
 	repo := fakemongo.NewVoiceRoomLockRepository()
 	repo.Locks["guild-1\x00123456789012345678"] = domain.VoiceRoomLock{
