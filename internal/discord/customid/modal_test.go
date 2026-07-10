@@ -87,3 +87,18 @@ func TestLegacyVerificationModalContract(t *testing.T) {
 		})
 	}
 }
+
+func TestLegacyRoleButtonModalAcceptsJavaScriptRandomNumberShape(t *testing.T) {
+	for _, field := range []string{
+		"roleaddcontent2026071101341234567890.1234567",
+		"roleaddcontent2026071101341e-8",
+	} {
+		parsed, err := customid.ParseModal("nal", []customid.ModalField{{CustomID: field, Value: "panel"}})
+		if err != nil {
+			t.Fatalf("parse %q: %v", field, err)
+		}
+		if parsed.Feature != "role_button" || parsed.Action != "modal_submit" || !parsed.Legacy {
+			t.Fatalf("parsed %q = %#v", field, parsed)
+		}
+	}
+}

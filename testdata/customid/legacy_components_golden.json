@@ -74,7 +74,7 @@
   {
     "name": "role add",
     "kind": "component",
-    "raw": "202401011230123456add",
+    "raw": "202401011230123456.789add",
     "want": { "feature": "role_button", "action": "add", "version": "legacy", "legacy": true },
     "confidence": "high",
     "notes": "events/btn.js:649"

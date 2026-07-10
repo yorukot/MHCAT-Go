@@ -131,3 +131,21 @@ func TestLegacyVerificationComponentContract(t *testing.T) {
 		})
 	}
 }
+
+func TestLegacyRoleButtonAcceptsJavaScriptRandomNumberShape(t *testing.T) {
+	for _, tc := range []struct {
+		raw    string
+		action string
+	}{
+		{raw: "2026071101341234567890.1234567add", action: "add"},
+		{raw: "2026071101341e-8delete", action: "remove"},
+	} {
+		parsed, err := customid.ParseComponent(tc.raw)
+		if err != nil {
+			t.Fatalf("parse %q: %v", tc.raw, err)
+		}
+		if parsed.Feature != "role_button" || parsed.Action != tc.action || !parsed.Legacy {
+			t.Fatalf("parsed %q = %#v", tc.raw, parsed)
+		}
+	}
+}

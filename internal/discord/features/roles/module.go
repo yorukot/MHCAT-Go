@@ -3,6 +3,9 @@ package roles
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -92,6 +95,22 @@ func (m Module) track(ctx context.Context, interaction interactions.Interaction,
 }
 
 func legacyRoleButtonID() string {
-	now := time.Now().UTC().Add(8 * time.Hour)
-	return fmt.Sprintf("%s%d", now.Format("200601021504"), now.UnixNano()%10000000000)
+	return legacyRoleButtonIDAt(time.Now(), rand.Float64())
+}
+
+func legacyRoleButtonIDAt(now time.Time, random float64) string {
+	now = now.UTC().Add(8 * time.Hour)
+	return fmt.Sprintf("%s%s", now.Format("200601021504"), legacyRoleButtonRandomNumber(random*10000000000))
+}
+
+func legacyRoleButtonRandomNumber(value float64) string {
+	if value == 0 {
+		return "0"
+	}
+	if value >= 1e-6 {
+		return strconv.FormatFloat(value, 'f', -1, 64)
+	}
+	mantissa, exponentText, _ := strings.Cut(strconv.FormatFloat(value, 'e', -1, 64), "e")
+	exponent, _ := strconv.Atoi(exponentText)
+	return mantissa + "e" + strconv.Itoa(exponent)
 }

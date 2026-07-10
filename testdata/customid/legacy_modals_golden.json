@@ -39,7 +39,7 @@
     "name": "role button modal",
     "kind": "modal",
     "raw": "nal",
-    "fields": [{ "custom_id": "roleaddcontent202401011230123456", "value": "choose role" }],
+    "fields": [{ "custom_id": "roleaddcontent202401011230123456.789", "value": "choose role" }],
     "want": { "feature": "role_button", "action": "modal_submit", "version": "legacy", "legacy": true },
     "confidence": "high",
     "notes": "events/modal.js:680"

@@ -73,7 +73,7 @@ func TestButtonSetupShowsLegacyModalAndStoresButtonConfigs(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	discord := fakediscord.NewSideEffects()
 	discord.AssignableRoles["guild-1/role-1"] = true
-	module := NewModuleWithIDGenerator(repo, discord, discord, discord, discord, discord, nil, func() string { return "2026070901011234" })
+	module := NewModuleWithIDGenerator(repo, discord, discord, discord, discord, discord, nil, func() string { return "2026070901011234.567" })
 	interaction := fakediscord.SlashInteractionWithOptions(RoleButtonCommandName, "", map[string]string{"身分組": "role-1"})
 	interaction.Actor.PermissionBits = permissionManageMessages
 	responder := fakediscord.NewResponder()
@@ -85,13 +85,13 @@ func TestButtonSetupShowsLegacyModalAndStoresButtonConfigs(t *testing.T) {
 		t.Fatalf("modals = %#v", responder.Modals)
 	}
 	input := responder.Modals[0].Rows[0].Inputs[0]
-	if input.CustomID != "roleaddcontent2026070901011234" || input.Label != "請輸入身分訊息內文" || input.Style != responses.TextInputStyleParagraph || input.Required {
+	if input.CustomID != "roleaddcontent2026070901011234.567" || input.Label != "請輸入身分訊息內文" || input.Style != responses.TextInputStyleParagraph || input.Required {
 		t.Fatalf("modal input = %#v", input)
 	}
-	if _, ok := repo.Buttons["guild-1/2026070901011234add"]; !ok {
+	if _, ok := repo.Buttons["guild-1/2026070901011234.567add"]; !ok {
 		t.Fatalf("add button config missing: %#v", repo.Buttons)
 	}
-	if _, ok := repo.Buttons["guild-1/2026070901011234delete"]; !ok {
+	if _, ok := repo.Buttons["guild-1/2026070901011234.567delete"]; !ok {
 		t.Fatalf("delete button config missing: %#v", repo.Buttons)
 	}
 }
@@ -103,7 +103,7 @@ func TestButtonModalSendsLegacyPanel(t *testing.T) {
 	interaction := fakediscord.ModalInteraction(interactions.ModalKey{})
 	interaction.ChannelID = "channel-1"
 	interaction.BotDisplayColor = 0x123456
-	interaction.ModalFields = []customid.ModalField{{CustomID: "roleaddcontent2026070901011234", Value: "點按鈕領身分"}}
+	interaction.ModalFields = []customid.ModalField{{CustomID: "roleaddcontent2026070901011234.567", Value: "點按鈕領身分"}}
 	responder := fakediscord.NewResponder()
 
 	if err := module.ButtonModalHandler()(context.Background(), interaction, responder); err != nil {
@@ -119,7 +119,7 @@ func TestButtonModalSendsLegacyPanel(t *testing.T) {
 	if panel.Embeds[0].Title != "選取身分組" || panel.Embeds[0].Description != "點按鈕領身分" || panel.Embeds[0].Color != 0x123456 {
 		t.Fatalf("panel = %#v", panel)
 	}
-	if panel.Components[0].Components[0].CustomID != "2026070901011234add" || panel.Components[0].Components[1].CustomID != "2026070901011234delete" {
+	if panel.Components[0].Components[0].CustomID != "2026070901011234.567add" || panel.Components[0].Components[1].CustomID != "2026070901011234.567delete" {
 		t.Fatalf("components = %#v", panel.Components)
 	}
 }
