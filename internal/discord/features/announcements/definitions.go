@@ -14,8 +14,6 @@ const (
 	optionTag     = "標註"
 	optionColor   = "顏色"
 	optionTitle   = "標題"
-
-	manageMessagesPermission = "8192"
 )
 
 func Definitions() []commands.Definition {
@@ -32,12 +30,11 @@ func SendDefinitions() []commands.Definition {
 
 func ConfigDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     ConfigCommandName,
-		Description:              "設定公告在哪發送",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		DocsURL:                  "https://docsmhcat.yorukot.meocs/ann_set",
-		Ownership:                commands.ManagedOwnership("announcement-config", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        ConfigCommandName,
+		Description: "設定公告在哪發送",
+		DocsURL:     "https://docsmhcat.yorukot.meocs/ann_set",
+		Ownership:   commands.ManagedOwnership("announcement-config", commands.ScopeGuild),
 		Options: []commands.Option{
 			{
 				Type:        commands.OptionTypeSubCommand,
@@ -103,8 +100,4 @@ func channelOption() commands.Option {
 		Required:     true,
 		ChannelTypes: []int{0, 5},
 	}
-}
-
-func stringPtr(value string) *string {
-	return &value
 }

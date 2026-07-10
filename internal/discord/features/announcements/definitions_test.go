@@ -11,8 +11,8 @@ func TestConfigDefinitionMatchesLegacyShape(t *testing.T) {
 	if definition.Name != ConfigCommandName || definition.Description != "設定公告在哪發送" {
 		t.Fatalf("definition = %#v", definition)
 	}
-	if definition.DefaultMemberPermissions == nil || *definition.DefaultMemberPermissions != "8192" {
-		t.Fatalf("permissions = %#v", definition.DefaultMemberPermissions)
+	if definition.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy config command must remain publicly discoverable: %#v", definition.DefaultMemberPermissions)
 	}
 	if definition.DocsURL != "https://docsmhcat.yorukot.meocs/ann_set" {
 		t.Fatalf("docs URL changed: %q", definition.DocsURL)

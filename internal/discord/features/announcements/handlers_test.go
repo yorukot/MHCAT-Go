@@ -106,7 +106,7 @@ func TestConfigHandlerRejectsPermissionAndInvalidColor(t *testing.T) {
 	if err := module.ConfigHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你需要有`訊息管理`才能使用此指令") {
+	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你需要有`undefined`才能使用此指令") || responder.Edits[0].Embeds[0].Color != 0xED4245 {
 		t.Fatalf("permission response = %#v", responder.Edits)
 	}
 
@@ -120,7 +120,7 @@ func TestConfigHandlerRejectsPermissionAndInvalidColor(t *testing.T) {
 	if err := module.ConfigHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你傳送的並不是顏色(色碼)") {
+	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你傳送的並不是顏色(色碼)") || responder.Edits[0].Embeds[0].Color != 0xED4245 {
 		t.Fatalf("color response = %#v", responder.Edits)
 	}
 }

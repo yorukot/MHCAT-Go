@@ -42,7 +42,7 @@ func TestSendHandlerRequiresManageMessages(t *testing.T) {
 	if err := module.SendHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Replies) != 1 || !strings.Contains(responder.Replies[0].Embeds[0].Title, "你需要有`訊息管理`才能使用此指令") {
+	if len(responder.Replies) != 1 || !responder.Replies[0].Ephemeral || !strings.Contains(responder.Replies[0].Embeds[0].Title, "你需要有`訊息管理`才能使用此指令") || responder.Replies[0].Embeds[0].Color != 0xED4245 {
 		t.Fatalf("permission response = %#v", responder.Replies)
 	}
 }
@@ -116,7 +116,7 @@ func TestSendModalRejectsInvalidColor(t *testing.T) {
 	if err := module.SendModalHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || responder.Edits[0].Embeds[0].Title != "你傳送的並不是顏色(色碼)" {
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || responder.Edits[0].Embeds[0].Title != "你傳送的並不是顏色(色碼)" || responder.Edits[0].Embeds[0].Color != 0xED4245 {
 		t.Fatalf("color response = %#v", responder.Edits)
 	}
 }

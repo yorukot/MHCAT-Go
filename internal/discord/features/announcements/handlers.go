@@ -14,7 +14,7 @@ import (
 const (
 	permissionManageMessages = int64(8192)
 	legacySuccessColor       = 0x53FF53
-	legacyErrorColor         = 0xEA0000
+	legacyErrorColor         = 0xED4245
 )
 
 func (m Module) ConfigHandler() interactions.Handler {
@@ -23,7 +23,7 @@ func (m Module) ConfigHandler() interactions.Handler {
 			return err
 		}
 		if !interaction.Actor.HasPermission(permissionManageMessages) {
-			return responder.EditOriginal(ctx, announcementErrorMessage("你需要有`訊息管理`才能使用此指令"))
+			return responder.EditOriginal(ctx, announcementErrorMessage("你需要有`undefined`才能使用此指令"))
 		}
 		switch interaction.Subcommand {
 		case subcommandOnce:

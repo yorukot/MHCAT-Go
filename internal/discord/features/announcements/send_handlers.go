@@ -31,7 +31,9 @@ const (
 func (m Module) SendHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
 		if !interaction.Actor.HasPermission(permissionManageMessages) {
-			return responder.Reply(ctx, announcementErrorMessage("你需要有`訊息管理`才能使用此指令"))
+			message := announcementErrorMessage("你需要有`訊息管理`才能使用此指令")
+			message.Ephemeral = true
+			return responder.Reply(ctx, message)
 		}
 		modalID, err := customid.Encode(customid.InteractionKindModal, announcementFeature, sendModalAction, customid.EmptyPayload())
 		if err != nil {
