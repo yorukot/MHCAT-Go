@@ -14,12 +14,12 @@ Implemented:
 - staging command-sync/runtime pairing gates;
 - `guildMemberAdd` role assignment from existing `join_roles` rows when explicitly enabled.
 
-Not implemented:
+Separate feature gates:
 
 - Guild Members intent enablement by default;
-- welcome/leave message emitters;
+- welcome/leave message emitters use their own delivery flags documented in [53-welcome-message-config.md](53-welcome-message-config.md);
 - verification/captcha is not enabled by this join-role slice; `/驗證` is a separate verification-flow gate;
-- account-age kick;
+- account-age kick/log behavior uses its own policy flag documented in [60-account-age-protection.md](60-account-age-protection.md);
 - usage-counter Mongo writes.
 
 ## Flags
@@ -70,7 +70,17 @@ Assignment reads all matching `{guild}` rows and applies the legacy `give_to_who
 - `all_bot`: assign only to bots;
 - `all_member`: assign only to non-bot members.
 
-Go attempts all matching role assignments and returns a joined error if one or more role adds fail. This intentionally avoids the legacy behavior where one missing/unassignable role could stop later matching roles.
+Missing/falsy `give_to_who` values default to `all_user`, matching Node. Unknown nonempty stored values are preserved and skipped; they are not normalized into universal role grants. Rows are read in Mongo natural order and reversed before assignment to reproduce the legacy reverse loop.
+
+Before each applicable assignment, Go checks that the role still exists and remains below the bot's highest role. Missing roles are skipped. An unassignable role sends the guild owner the exact legacy warning:
+
+```text
+很抱歉，我沒有權限給他加入的成員身分組
+麻煩請將我的身份組位階調高!
+身分組:<@roleID>
+```
+
+Go awaits role adds, attempts later matching rows after a missing/unassignable/add failure, and returns joined failures for event logging. This intentionally fixes the legacy order-dependent `return` behavior, where a nonmatching audience or one bad role could suppress valid older rows. Best-effort assignment failures use the event dispatcher's continue-and-report path so they do not suppress independent member-add features.
 
 No index is created by app startup. The planned unique `{guild:1, role:1}` index still requires a duplicate audit.
 
@@ -85,8 +95,8 @@ No index is created by app startup. The planned unique `{guild:1, role:1}` index
 7. Test with a role below the bot's highest role.
 8. To test member-add role assignment, also set `MHCAT_FEATURE_JOIN_ROLE_ASSIGNMENT_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`.
 9. Join with a staging member and bot account if testing `all_member`/`all_bot`.
-10. Confirm welcome messages and account-age kick are not expected from the Go bot in this slice. If `/驗證` is also being tested, enable the separate verification-flow flags and follow the verification runbook.
+10. Enable welcome delivery, account-age policy, or `/驗證` only through their separate flags and runbooks when those side effects are part of the same staging smoke.
 
-## Next Work
+## Remaining Work
 
-Implement welcome/join-message event sending or account-age kick as separate slices after reviewing `welcome.js`, template mention policy, dashboard-shared collections, and Guild Members intent rollout. `/驗證` captcha/role/nickname is handled by the separate verification-flow gate.
+Production enablement and unique-index creation remain gated on staging smoke and duplicate audits. The join-role, welcome/leave, account-age, and verification runtimes remain independently disabled by default.

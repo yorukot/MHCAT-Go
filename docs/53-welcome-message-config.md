@@ -69,8 +69,10 @@ Preserved legacy behavior:
 - embed title comes from `title` without placeholder replacement;
 - embed description comes from `message_content`;
 - placeholders `(MEMBERNAME)`, `(ID)`, `{ID}`, and `{MEMBERNAME}` are replaced once in the description, matching the legacy `String.replace` order;
+- raw usernames, including leading/trailing spaces, are retained, and replacement values preserve JavaScript handling for `$$`, `$&`, ``$` ``, and `$'`;
+- nonempty all-space titles and message bodies remain configured values, matching JavaScript truthiness;
 - embed color uses the stored color or `Random`;
-- the leaving member avatar is used as the thumbnail;
+- the leaving member's guild-specific display avatar is used as the thumbnail when available;
 - the embed timestamp is set.
 
 Safety behavior:
@@ -78,6 +80,7 @@ Safety behavior:
 - missing or incomplete `leave_messages` config is a no-op;
 - allowed mentions are suppressed;
 - the event path performs no Mongo writes and registers no slash commands.
+- delivery failures continue to later independent event handlers while still being returned for gateway logging.
 
 ## Welcome Delivery
 
@@ -95,9 +98,11 @@ Preserved legacy behavior:
 - embed author name is `🪂 歡迎加入 <guild name>`;
 - author icon uses guild icon, with bot avatar fallback;
 - description replaces one occurrence each of `(MEMBERNAME)`, `{MEMBERNAME}`, `{membername}`, `(TAG)`, `{TAG}`, and `{tag}` in legacy order;
+- raw usernames and JavaScript replacement-string tokens are preserved;
+- nonempty all-space message bodies are delivered;
 - `{TAG}` and `(TAG)` render as `<@userID>`;
-- thumbnail is the joining member avatar;
-- color uses stored hex/CSS color, or random only when stored color is exactly `RANDOM`;
+- thumbnail is the joining member's guild-specific display avatar when available;
+- color uses the pinned Discord.js 14.25.1 color table or six-digit hex; exact `Random` and `RANDOM` values randomize;
 - `img` is used as the embed image when present;
 - timestamp is set.
 
@@ -107,6 +112,7 @@ Safety behavior:
 - only the joining user mention is allowed for legacy tag placeholders; everyone and role mentions remain suppressed;
 - account-age policy registers before welcome delivery and stops propagation after a kick;
 - welcome delivery is registered before join-role assignment so role-assignment failures do not suppress the welcome embed, matching legacy's non-awaited role callback.
+- welcome read/send failures continue to join-role assignment and remain visible to gateway error logging.
 
 Special MHCAT welcome:
 
@@ -122,12 +128,12 @@ MHCAT_LEGACY_WELCOME_SPECIAL_BUG_CHANNEL_ID=<bug-report-channel-id>
 MHCAT_LEGACY_WELCOME_SPECIAL_SUPPORT_CHANNEL_ID=<support-channel-id>
 ```
 
-All seven values must be set together. This preserves the special legacy welcome UI without hardcoding private guild/channel IDs in Go.
+All seven values must be set together. This preserves the special legacy welcome UI without hardcoding private guild/channel IDs in Go. The special author icon uses the bot's guild-specific display avatar when cached, and the member tag intentionally keeps the legacy manual `username#discriminator` form, including `username#0` for migrated usernames.
 
 ## Intentionally Not Implemented
 
 - join-message modal/config write flow, because the current legacy slash command redirects to dashboard.
-- verification/captcha is not enabled by this welcome-message slice; `/驗證` is controlled by the separate verification-flow gate. Account-age kick remains separate.
+- verification/captcha and account-age policy remain separately gated from welcome delivery.
 - production index creation.
 
 ## Known Legacy Bugs Preserved
@@ -135,6 +141,7 @@ All seven values must be set together. This preserves the special legacy welcome
 - `/加入訊息設置` dashboard URL is malformed: `https://mhcat.yorukot.meguilds/<guild>/welcome`.
 - join command docs URL is malformed: `https://docsmhcat.yorukot.meocs/join_message`.
 - leave-message option/label wording says “加入訊息”.
+- colors accepted by `validate-color` but rejected by Discord.js were historically written before preview construction failed; Go rejects those unusable values before writing.
 
 ## Next Step
 

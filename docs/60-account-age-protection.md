@@ -44,7 +44,7 @@ Fields:
 - `hours`: string number of seconds.
 - `channel`: nullable Discord channel ID string.
 
-Missing and BSON `null` channel values decode as no log channel. String channel IDs are preserved. A missing, BSON `null`, malformed, zero, or negative `hours` value is treated as an inactive legacy gate for member joins, matching the legacy `Number(data.hours)` comparison: the member is not kicked and later join-role/welcome handlers continue. Database transport errors are still surfaced rather than being mistaken for malformed data.
+Missing and BSON `null` channel values decode as no log channel. String channel IDs are preserved. A missing, BSON `null`, malformed, zero, or negative `hours` value is treated as an inactive legacy gate for member joins, matching the legacy `Number(data.hours)` comparison: the member is not kicked and later join-role/welcome handlers continue. Database transport errors are still surfaced rather than being mistaken for malformed data, but use the event dispatcher's continue-and-report path so independent welcome/join-role handlers still run.
 
 No index is created by app startup. The candidate `{guild:1}` index remains duplicate-audit gated.
 
@@ -59,6 +59,8 @@ Intentional bug fix: if the kick fails, the Go implementation does not send the 
 Guild-name lookup is best effort; if it fails after the gateway event already provided account creation time, the DM falls back to the guild ID rather than bypassing the gate.
 
 Allowed mentions are suppressed in command, DM, and log responses. This prevents a crafted guild name or migrated data from producing an unintended mention.
+
+Member-event avatars use guild-specific display avatars when Discord provides them, matching `member.displayAvatarURL()` in the legacy runtime.
 
 ## Verification Coverage
 
