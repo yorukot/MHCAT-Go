@@ -120,6 +120,29 @@ func TestLookupRankUsernameUsesLegacyMissingText(t *testing.T) {
 	}
 }
 
+func TestTruncateLegacyRankText(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "ASCII boundary", value: "1234567890123456789012345678901234", want: "1234567890123456789012345678901234"},
+		{name: "ASCII truncation", value: "12345678901234567890123456789012345", want: "123456789012345678901234567890123"},
+		{name: "wide boundary", value: "一二三四五六七八九十一二三四五六七", want: "一二三四五六七八九十一二三四五六七"},
+		{name: "wide truncation", value: "一二三四五六七八九十一二三四五六七八", want: "一二三四五六七八九十一二三四五六"},
+		{name: "mixed prefix", value: "123456789012345678901234567890123界", want: "123456789012345678901234567890123"},
+		{name: "emoji UTF-16 width", value: "1234567890123456789012345678901😀", want: "1234567890123456"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := truncateLegacyRankText(test.value); got != test.want {
+				t.Fatalf("truncateLegacyRankText(%q) = %q, want %q", test.value, got, test.want)
+			}
+		})
+	}
+}
+
 func rankComponentRows(viewerID string, kind string, page int, totalPages int, targetPage string) []responses.ComponentRow {
 	button := func(customID string, label string, emoji string, style responses.ButtonStyle, disabled bool) responses.Component {
 		return responses.Component{Type: responses.ComponentTypeButton, CustomID: customID, Label: label, Emoji: emoji, Style: style, Disabled: disabled}

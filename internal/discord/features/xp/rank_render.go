@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"unicode/utf16"
 
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/xp"
 	"golang.org/x/image/font"
@@ -78,7 +79,7 @@ func drawGeneratedRankBackground(canvas *image.RGBA) {
 func drawRankHeader(canvas *image.RGBA, view rankCanvasView) {
 	fillRankRect(canvas, image.Rect(33, 10, 103, 80), color.RGBA{R: 88, G: 101, B: 242, A: 255})
 	drawRankText(canvas, 45, 55, "M", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 3)
-	guildName := truncateRankRunes(view.GuildName, 33)
+	guildName := truncateLegacyRankText(view.GuildName)
 	if guildName == "" {
 		guildName = "MHCAT"
 	}
@@ -111,7 +112,7 @@ func drawRankRows(canvas *image.RGBA, view rankCanvasView) {
 			rankScale = 2
 		}
 		drawRankText(canvas, 55+xOffset, rankY, strconv.Itoa(entry.Rank), color.RGBA{R: 255, G: 255, B: 255, A: 255}, rankScale)
-		drawRankText(canvas, 121+xOffset, nameY, truncateRankRunes(entry.DisplayName, 33), color.RGBA{R: 255, G: 255, B: 255, A: 255}, 2)
+		drawRankText(canvas, 121+xOffset, nameY, truncateLegacyRankText(entry.DisplayName), color.RGBA{R: 255, G: 255, B: 255, A: 255}, 2)
 		drawRankText(canvas, 137+xOffset, xpY, coreservice.LegacyRankAmount(entry.TotalXP), color.RGBA{R: 226, G: 230, B: 240, A: 255}, 2)
 	}
 }
@@ -192,12 +193,28 @@ func rankAssetCandidates(relative string) []string {
 	}
 }
 
-func truncateRankRunes(value string, max int) string {
-	runes := []rune(value)
-	if len(runes) <= max {
+func truncateLegacyRankText(value string) string {
+	units := utf16.Encode([]rune(value))
+	if legacyRankTextWidth(units) <= 34 {
 		return value
 	}
-	return string(runes[:max])
+	limit := 33
+	prefixEnd := min(limit, len(units))
+	if legacyRankTextWidth(units[:prefixEnd]) > 34 {
+		limit = 16
+	}
+	return string(utf16.Decode(units[:min(limit, len(units))]))
+}
+
+func legacyRankTextWidth(units []uint16) int {
+	width := 0
+	for _, unit := range units {
+		width++
+		if unit > 0xff {
+			width++
+		}
+	}
+	return width
 }
 
 var rankFont5x7 = map[rune][7]byte{
