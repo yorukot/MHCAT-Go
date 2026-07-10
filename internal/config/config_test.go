@@ -183,6 +183,12 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureAutoChatFallbackEnabled {
 		t.Fatal("autochat fallback feature must be disabled by default")
 	}
+	if cfg.FeatureAutoChatPaidHandoffEnabled {
+		t.Fatal("paid autochat feature must be disabled by default")
+	}
+	if cfg.AutoChatPaidOwnershipConfirmed {
+		t.Fatal("paid autochat ownership must be unconfirmed by default")
+	}
 	if cfg.FeatureAutoNotificationConfigEnabled {
 		t.Fatal("auto-notification config feature must be disabled by default")
 	}
@@ -683,6 +689,40 @@ func TestFeatureAutoChatFallbackRequiresGatewayMessagesAndMessageContent(t *test
 		"MHCAT_DISCORD_ENABLE_GATEWAY":         "MHCAT_DISCORD_ENABLE_GATEWAY=true",
 		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":  "MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true",
 		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT": "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true",
+	} {
+		env := copyMap(base)
+		env[key] = "false"
+		_, err := LoadWithLookup(mapLookup(env))
+		if err == nil || !errors.Is(err, ErrInvalidConfig) || !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected %s validation error, got %v", want, err)
+		}
+	}
+}
+
+func TestFeatureAutoChatPaidRequiresGatewayMessagesContentAndOwnership(t *testing.T) {
+	base := map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_MONGODB_URI":                           "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                      "mhcat",
+		"MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED": "true",
+		"MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED":     "true",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":                "true",
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":         "true",
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT":        "true",
+	}
+	cfg, err := LoadWithLookup(mapLookup(base))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureAutoChatPaidHandoffEnabled || !cfg.AutoChatPaidOwnershipConfirmed {
+		t.Fatalf("paid autochat config = %#v", cfg)
+	}
+
+	for key, want := range map[string]string{
+		"MHCAT_DISCORD_ENABLE_GATEWAY":            "MHCAT_DISCORD_ENABLE_GATEWAY=true",
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":     "MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true",
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT":    "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true",
+		"MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED": "MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true",
 	} {
 		env := copyMap(base)
 		env[key] = "false"

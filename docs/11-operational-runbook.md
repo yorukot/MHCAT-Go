@@ -44,6 +44,8 @@ Primary Go env vars:
 - `MHCAT_FEATURE_REDEEM_ENABLED`
 - `MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED`
 - `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED`
+- `MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED`
+- `MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED`
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED`
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED`
 - `MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED`
@@ -461,7 +463,19 @@ MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
 MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 ```
 
-This gate registers no slash commands and performs no Mongo writes. It reads `chats.channel` and `chatgpt_gets.price`, replies from the bundled legacy corpus for a missing, negative, or malformed balance, and preserves the legacy silent state for zero/nonnegative balances. The paid `chatgpts` worker handoff is not implemented. Keep Node and Go MessageCreate ownership exclusive and see `docs/62-autochat-config.md` before staging.
+This gate registers no slash commands and performs no Mongo writes. It reads `chats.channel` and `chatgpt_gets.price`, replies from the bundled legacy corpus for a missing, negative, or malformed balance, and preserves the legacy silent state for zero/nonnegative balances.
+
+The event-only paid auto-chat handoff requires an additional ownership acknowledgment:
+
+```bash
+MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED=true
+MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
+MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
+```
+
+This path writes `chatgpts`, debits `chatgpt_gets.price`, and uses a Mongo transaction so request publication and charging commit together. Before setting the ownership acknowledgment, confirm a replica-set/sharded Mongo deployment, clean singleton duplicate audits, the compatible external worker, and that Node `events/Chatbot.js` is stopped for the target guilds. The bot-side handoff preserves the legacy ten-second guard/read, 40-second conversation reset, exact handoff fields, and input/output mention warnings. See `docs/62-autochat-config.md` for smoke and rollback steps.
 
 Auto-notification setup/list/delete commands are available only when both staging command sync and runtime flags are explicitly enabled:
 

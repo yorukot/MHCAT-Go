@@ -133,6 +133,7 @@ func buildReport(lookup lookupFunc) []checkResult {
 		autoChatConfigCommandSync(lookup),
 		autoChatConfigRuntimePairing(lookup),
 		autoChatFallbackRuntimeReadiness(lookup),
+		autoChatPaidRuntimeReadiness(lookup),
 		autoNotificationConfigCommandSync(lookup),
 		autoNotificationConfigRuntimePairing(lookup),
 		autoNotificationDeliveryRuntimeReadiness(lookup),
@@ -265,6 +266,10 @@ func messageContentIntent(lookup lookupFunc) checkResult {
 	if err != nil {
 		return checkResult{Name: "message-content-intent", Status: statusFail, Message: err.Error()}
 	}
+	autoChatPaidEnabled, err := boolValue(lookup, "MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED")
+	if err != nil {
+		return checkResult{Name: "message-content-intent", Status: statusFail, Message: err.Error()}
+	}
 	xpResetEnabled, err := boolValue(lookup, "MHCAT_FEATURE_XP_RESET_ENABLED")
 	if err != nil {
 		return checkResult{Name: "message-content-intent", Status: statusFail, Message: err.Error()}
@@ -282,13 +287,16 @@ func messageContentIntent(lookup lookupFunc) checkResult {
 	if autoChatFallbackEnabled {
 		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for the autochat local fallback only"}
 	}
+	if autoChatPaidEnabled {
+		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for the paid autochat handoff only"}
+	}
 	if xpResetEnabled {
 		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for XP reset confirmation only"}
 	}
 	if coinResetEnabled {
 		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for economy coin reset confirmation only"}
 	}
-	return checkResult{Name: "message-content-intent", Status: statusFail, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT must be false unless MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true, MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true, MHCAT_FEATURE_XP_RESET_ENABLED=true, or MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true"}
+	return checkResult{Name: "message-content-intent", Status: statusFail, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT must be false unless MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true, MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true, MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED=true, MHCAT_FEATURE_XP_RESET_ENABLED=true, or MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true"}
 }
 
 func ticketCommandSync(lookup lookupFunc) checkResult {
@@ -1112,6 +1120,50 @@ func autoChatFallbackRuntimeReadiness(lookup lookupFunc) checkResult {
 		return checkResult{Name: "autochat-fallback-runtime-readiness", Status: statusFail, Message: "autochat local fallback requires " + strings.Join(missing, ", ")}
 	}
 	return checkResult{Name: "autochat-fallback-runtime-readiness", Status: statusPass, Message: "autochat local fallback gateway and privileged intent gates are explicit"}
+}
+
+func autoChatPaidRuntimeReadiness(lookup lookupFunc) checkResult {
+	const name = "autochat-paid-runtime-readiness"
+	enabled, err := boolValue(lookup, "MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED")
+	if err != nil {
+		return checkResult{Name: name, Status: statusFail, Message: err.Error()}
+	}
+	if !enabled {
+		return checkResult{Name: name, Status: statusSkipped, Message: "paid autochat handoff runtime is disabled"}
+	}
+	gatewayEnabled, err := boolValue(lookup, "MHCAT_DISCORD_ENABLE_GATEWAY")
+	if err != nil {
+		return checkResult{Name: name, Status: statusFail, Message: err.Error()}
+	}
+	guildMessages, err := boolValue(lookup, "MHCAT_DISCORD_GUILD_MESSAGES_INTENT")
+	if err != nil {
+		return checkResult{Name: name, Status: statusFail, Message: err.Error()}
+	}
+	messageContent, err := boolValue(lookup, "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT")
+	if err != nil {
+		return checkResult{Name: name, Status: statusFail, Message: err.Error()}
+	}
+	ownershipConfirmed, err := boolValue(lookup, "MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED")
+	if err != nil {
+		return checkResult{Name: name, Status: statusFail, Message: err.Error()}
+	}
+	var missing []string
+	if !gatewayEnabled {
+		missing = append(missing, "MHCAT_DISCORD_ENABLE_GATEWAY=true")
+	}
+	if !guildMessages {
+		missing = append(missing, "MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true")
+	}
+	if !messageContent {
+		missing = append(missing, "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true")
+	}
+	if !ownershipConfirmed {
+		missing = append(missing, "MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true")
+	}
+	if len(missing) > 0 {
+		return checkResult{Name: name, Status: statusFail, Message: "paid autochat handoff requires " + strings.Join(missing, ", ")}
+	}
+	return checkResult{Name: name, Status: statusWarn, Message: "paid autochat will write chatgpts and debit chatgpt_gets in Mongo transactions; confirm a replica set, the external worker contract, and exclusive Go MessageCreate ownership"}
 }
 
 func autoNotificationConfigCommandSync(lookup lookupFunc) checkResult {

@@ -53,6 +53,7 @@ This module currently provides:
 - gated `/翻譯` utility command with legacy loading/final embed shape and safe external-provider error handling.
 - gated `/兌換` redeem-code command with legacy ephemeral success/error embeds and rollback-compatible `codes`/`chatgpt_gets` writes.
 - gated auto-chat local fallback MessageCreate runtime with the legacy response corpus, `說出` replies, typing delay, and read-only `chats`/`chatgpt_gets` gating.
+- gated paid auto-chat MessageCreate handoff with transactional `chatgpt_gets` debit plus rollback-compatible `chatgpts` publication, legacy cooldown/reset timing, and mention-safe worker replies.
 - gated `automatic-notification`, `/自動通知列表`, and `/自動通知刪除` setup/list/delete commands plus a separately gated lease-backed recurring delivery worker for legacy `cron_sets` rows.
 - gated `/set-log-channel` logging-configuration command and `loggin_create`-compatible select route; event log emitters remain disabled.
 - gated read-only `/扭蛋獎池查詢` prize-pool query with legacy embed text and rollback-compatible `gifts`/`gift_changes` reads.
@@ -168,7 +169,7 @@ Implemented event features:
 
 Not implemented yet:
 
-- remaining economy game/shop writes, rank cards, gift delivery, lottery creation/panel generation, announcement relay attachment handling/tag pings, recurring work scheduler ownership, the paid ChatGPT handoff worker, and dashboard.
+- remaining economy game/shop writes, rank cards, gift delivery, lottery creation/panel generation, announcement relay attachment handling/tag pings, production scheduler ownership, external ChatGPT worker confirmation/deployment, and dashboard.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete and daily-reset ownership is assigned exclusively to the lease-backed one-shot or recurring Go path after Node cron is stopped.
 
@@ -184,7 +185,9 @@ Auto-notification setup/list/delete and delivery are independent, disabled-by-de
 
 `/兌換` is disabled by default and is available only when paired with `MHCAT_FEATURE_REDEEM_ENABLED=true` and `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true` in staging command sync. It consumes legacy `codes` rows, credits `chatgpt_gets.price`, enforces the legacy 7-day expiry check, and does not itself enable either auto-chat runtime.
 
-The local auto-chat fallback is independently disabled by default. `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true` requires gateway, Guild Messages, and Message Content flags; it reads the configured `chats` channel and `chatgpt_gets.price`, then replies from the bundled legacy corpus only for missing, negative, or malformed balances. Zero/nonnegative balances remain silent because the external `chatgpts` worker contract is not implemented.
+The local auto-chat fallback is independently disabled by default. `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true` requires gateway, Guild Messages, and Message Content flags; it reads the configured `chats` channel and `chatgpt_gets.price`, then replies from the bundled legacy corpus only for missing, negative, or malformed balances. Zero/nonnegative balances remain silent.
+
+The paid auto-chat handoff is separately disabled by default. It requires `MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED=true`, `MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true`, gateway, Guild Messages, Message Content, a transaction-capable Mongo deployment, and the compatible external worker. It atomically debits `chatgpt_gets.price` and publishes the legacy `chatgpts` request, then reads the worker response after ten seconds. Do not set the ownership acknowledgment until the Node MessageCreate handler is stopped and worker/schema/duplicate audits are complete; see `docs/62-autochat-config.md`.
 
 Because `/info user` and `/info guild` changed the local command definition shape, staging or production Discord command definitions must be updated through `mhcat-command-sync`; bot startup still does not sync commands.
 
@@ -231,6 +234,10 @@ Safe defaults:
 - `MHCAT_FEATURE_TRANSLATE_ENABLED=false`
 - `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=false`
 - `MHCAT_FEATURE_REDEEM_ENABLED=false`
+- `MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=false`
+- `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=false`
+- `MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED=false`
+- `MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=false`
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=false`
 - `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=false`

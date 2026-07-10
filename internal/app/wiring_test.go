@@ -54,6 +54,15 @@ func TestAutoChatFallbackEventRuntimeRequiresDefaultAdapters(t *testing.T) {
 	}
 }
 
+func TestAutoChatPaidEventRuntimeRequiresDefaultAdapters(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.FeatureAutoChatPaidHandoffEnabled = true
+	cfg.AutoChatPaidOwnershipConfirmed = true
+	if _, err := defaultEventRuntimeFactory(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil); err == nil {
+		t.Fatal("expected paid autochat to reject non-default adapters")
+	}
+}
+
 func TestAutoNotificationDeliveryEventRuntimeRequiresDefaultAdapters(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.FeatureAutoNotificationDelivery = true

@@ -112,6 +112,46 @@ func TestPreflightRejectsAutoChatFallbackWithoutRequiredGatewayFlags(t *testing.
 	}
 }
 
+func TestPreflightAcceptsPaidAutoChatOnlyWithExplicitOwnership(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED"] = "true"
+	env["MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_DISCORD_GUILD_MESSAGES_INTENT"] = "true"
+	env["MHCAT_DISCORD_MESSAGE_CONTENT_INTENT"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "message-content-intent status=pass") || !strings.Contains(stdout, "autochat-paid-runtime-readiness status=warn") || !strings.Contains(stdout, "Mongo transactions") {
+		t.Fatalf("expected paid autochat readiness warning, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightRejectsPaidAutoChatWithoutRequiredGates(t *testing.T) {
+	for key, want := range map[string]string{
+		"MHCAT_DISCORD_ENABLE_GATEWAY":            "MHCAT_DISCORD_ENABLE_GATEWAY=true",
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":     "MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true",
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT":    "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true",
+		"MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED": "MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true",
+	} {
+		env := validEnv()
+		env["MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED"] = "true"
+		env["MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED"] = "true"
+		env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+		env["MHCAT_DISCORD_GUILD_MESSAGES_INTENT"] = "true"
+		env["MHCAT_DISCORD_MESSAGE_CONTENT_INTENT"] = "true"
+		env[key] = "false"
+		code, stdout, _ := runPreflight(t, nil, env)
+		if code == 0 {
+			t.Fatalf("expected %s to fail", key)
+		}
+		if !strings.Contains(stdout, "autochat-paid-runtime-readiness status=fail") || !strings.Contains(stdout, want) {
+			t.Fatalf("expected paid autochat readiness failure %q, stdout=%q", want, stdout)
+		}
+	}
+}
+
 func TestPreflightAcceptsMessageContentForXPReset(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_FEATURE_XP_RESET_ENABLED"] = "true"

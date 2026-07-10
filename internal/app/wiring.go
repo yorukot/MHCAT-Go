@@ -1019,6 +1019,21 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		}
 	}
 	// Keep delayed chat replies behind all other MessageCreate handlers.
+	if cfg.FeatureAutoChatPaidHandoffEnabled {
+		configRepo, balanceRepo, handoffRepo, err := autoChatPaidRepositoriesFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "paid autochat feature")
+		if err != nil {
+			return nil, err
+		}
+		module, err := featureautochat.NewPaidRuntimeModule(configRepo, balanceRepo, handoffRepo, sideEffects, sideEffects, clockOrSystem(nil))
+		if err != nil {
+			return nil, err
+		}
+		module.RegisterEventRoutes(dispatcher)
+	}
 	if cfg.FeatureAutoChatFallbackEnabled {
 		configRepo, balanceRepo, err := autoChatFallbackRepositoriesFromMongo(mongoClient)
 		if err != nil {

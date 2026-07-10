@@ -54,6 +54,8 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureRedeemEnabled:                 DefaultFeatureRedeemEnabled,
 		FeatureAutoChatConfigEnabled:         DefaultFeatureAutoChatConfigEnabled,
 		FeatureAutoChatFallbackEnabled:       DefaultFeatureAutoChatFallbackEnabled,
+		FeatureAutoChatPaidHandoffEnabled:    DefaultFeatureAutoChatPaidHandoffEnabled,
+		AutoChatPaidOwnershipConfirmed:       DefaultAutoChatPaidOwnershipConfirmed,
 		FeatureAutoNotificationConfigEnabled: DefaultFeatureAutoNotificationConfigEnabled,
 		FeatureAutoNotificationDelivery:      DefaultFeatureAutoNotificationDelivery,
 		FeatureDailyResetSchedulerEnabled:    DefaultFeatureDailyResetSchedulerEnabled,
@@ -225,6 +227,12 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureAutoChatFallbackEnabled, err = getBool(lookup, "MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED", DefaultFeatureAutoChatFallbackEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureAutoChatPaidHandoffEnabled, err = getBool(lookup, "MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED", DefaultFeatureAutoChatPaidHandoffEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.AutoChatPaidOwnershipConfirmed, err = getBool(lookup, "MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED", DefaultAutoChatPaidOwnershipConfirmed); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureAutoNotificationConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED", DefaultFeatureAutoNotificationConfigEnabled); err != nil {

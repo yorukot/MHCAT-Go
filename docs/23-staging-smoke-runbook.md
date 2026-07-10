@@ -260,6 +260,18 @@ export MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 
 This event-only path registers no commands and writes no Mongo data. Configure a disposable staging `chats` channel first, seed no `chatgpt_gets` row or a negative/malformed `price`, and verify a human `你好` message receives the legacy local reply. Also verify `price: 0` and positive prices remain silent. Do not run the Node and Go Chatbot handlers against the same guild during this smoke test.
 
+Optional paid auto-chat handoff smoke flags:
+
+```bash
+export MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED=true
+export MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
+export MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
+```
+
+Set the ownership acknowledgment only after confirming a transaction-capable replica-set/sharded staging Mongo deployment, exactly one row per guild in `chats`/`chatgpts`/`chatgpt_gets`, a compatible external worker, and no concurrent Node `events/Chatbot.js` owner. Seed a disposable positive numeric balance, verify one prompt produces one debit and one response after ten seconds, verify an immediate second prompt is not charged, and inspect conversation-ID preservation/reset plus mention warnings. The local fallback can be enabled at the same time to exercise negative/missing balances; zero remains silent.
+
 Optional auto-notification config smoke flags:
 
 ```bash
@@ -653,7 +665,7 @@ Do not paste real values into committed docs.
 - Confirm token belongs to a staging Discord application.
 - Confirm staging guild is not production.
 - Confirm `MHCAT_COMMAND_SYNC_SCOPE` is unset or set to `guild`.
-- Confirm `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT` is unset or `false`, unless testing bound announcement relay with `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, the local auto-chat fallback with `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true`, economy coin reset confirmation with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, or XP reset confirmation with `MHCAT_FEATURE_XP_RESET_ENABLED=true`.
+- Confirm `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT` is unset or `false`, unless testing bound announcement relay, local/paid auto-chat, economy coin reset confirmation, or XP reset confirmation behind the corresponding explicit feature gate.
 - Confirm `MHCAT_COMMAND_SYNC_ALLOW_DELETE=false`.
 - Confirm `MHCAT_COMMAND_SYNC_ALLOW_BULK_OVERWRITE=false`.
 - If `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`, confirm the Node `events/SlashCommands.js` counter owner is stopped, the target `all_use_counts` rows are disposable, and duplicate/null/blank command-name rows have been reviewed.
@@ -679,6 +691,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true` and the staging database has only disposable `codes` fixtures for `/兌換`.
 - If `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true`, confirm gateway, Guild Messages, and Message Content are enabled; `chats.channel` targets a disposable staging channel; `chatgpt_gets` fixtures are safe; and the Node Chatbot handler is not concurrently active for that guild.
+- If `MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED=true`, confirm `MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true`, transaction-capable Mongo, clean singleton duplicate audits, a compatible external worker, disposable `chatgpts`/`chatgpt_gets` rows, and exclusive Go MessageCreate ownership.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database/channel targets are disposable for auto-notification setup/list/delete.
 - If `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true`, confirm Gateway and scheduler leases are enabled, the lease owner is unique, the Node `handler/cron.js` owner is stopped, and every active staging `cron_sets` target/payload is safe to send.
 - If `MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED=true`, confirm the daily-reset write/Gateway/lease gates are enabled, lease TTL exceeds reset plus lease timeout, Node `handler/cron.js` is stopped, owners are unique, and every staging `coins`/`gift_changes`/`work_sets`/`work_users` row is disposable.

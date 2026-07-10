@@ -72,6 +72,20 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED requires MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureAutoChatPaidHandoffEnabled {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordGuildMessagesIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED requires MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordMessageContentIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED requires MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true", ErrInvalidConfig)
+		}
+		if !cfg.AutoChatPaidOwnershipConfirmed {
+			return fmt.Errorf("%w: MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED requires MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true", ErrInvalidConfig)
+		}
+	}
 	if cfg.FeatureAutoNotificationDelivery {
 		if !cfg.DiscordEnableGateway {
 			return fmt.Errorf("%w: MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)

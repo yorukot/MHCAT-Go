@@ -41,10 +41,10 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Preserve misspelled legacy field `leavel`."),
 		catalogSpec("chatgpts", "chatgpt", "models/chatgpt.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("chatgpts_guild", []string{"guild"}, "ChatGPT handoff state lookup"),
-		}, "Potential external worker collection; additive and rollback-compatible changes only."),
+		}, "Paid handoff writes exact legacy fields in a transaction; external worker and singleton ownership must be confirmed before enablement."),
 		catalogSpec("chatgpt_gets", "chatgpt_get", "models/chatgpt_get.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("chatgpt_gets_guild", []string{"guild"}, "ChatGPT pricing/config lookup"),
-		}, "Potential external worker collection; audit before writes."),
+		}, "Redeem credits and paid handoff debits share this collection; audit duplicates and worker ownership before writes."),
 		catalogSpec("codes", "code", "models/code.js", []string{"code"}, []catalogIndex{
 			uniqueCatalogIndex("codes_code", []string{"code"}, "redeem code lookup"),
 		}, ""),

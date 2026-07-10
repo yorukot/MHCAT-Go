@@ -41,6 +41,8 @@ const (
 	DefaultFeatureRedeemEnabled                 = false
 	DefaultFeatureAutoChatConfigEnabled         = false
 	DefaultFeatureAutoChatFallbackEnabled       = false
+	DefaultFeatureAutoChatPaidHandoffEnabled    = false
+	DefaultAutoChatPaidOwnershipConfirmed       = false
 	DefaultFeatureAutoNotificationConfigEnabled = false
 	DefaultFeatureAutoNotificationDelivery      = false
 	DefaultFeatureDailyResetSchedulerEnabled    = false
@@ -136,6 +138,8 @@ type Config struct {
 	FeatureRedeemEnabled                 bool
 	FeatureAutoChatConfigEnabled         bool
 	FeatureAutoChatFallbackEnabled       bool
+	FeatureAutoChatPaidHandoffEnabled    bool
+	AutoChatPaidOwnershipConfirmed       bool
 	FeatureAutoNotificationConfigEnabled bool
 	FeatureAutoNotificationDelivery      bool
 	FeatureDailyResetSchedulerEnabled    bool

@@ -988,6 +988,34 @@ func autoChatFallbackRepositoriesFromMongo(mongoClient MongoClient) (*mongorepos
 	return configRepo, balanceRepo, nil
 }
 
+func autoChatPaidRepositoriesFromMongo(mongoClient MongoClient) (*mongorepositories.AutoChatConfigRepository, *mongorepositories.BalanceRepository, *mongorepositories.AutoChatPaidRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, nil, nil, fmt.Errorf("paid autochat feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("paid autochat feature database: %w", err)
+	}
+	configRepo, err := mongorepositories.NewAutoChatConfigRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("paid autochat config repository: %w", err)
+	}
+	balanceRepo, err := mongorepositories.NewBalanceRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("paid autochat balance repository: %w", err)
+	}
+	transactions, err := mongoadapter.NewTransactionRunner(concrete)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("paid autochat transaction runner: %w", err)
+	}
+	handoffRepo, err := mongorepositories.NewAutoChatPaidRepositoryFromDatabase(database, transactions)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("paid autochat handoff repository: %w", err)
+	}
+	return configRepo, balanceRepo, handoffRepo, nil
+}
+
 func autoNotificationScheduleRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.AutoNotificationScheduleRepository, error) {
 	return autoNotificationScheduleRepositoryFromMongoForFeature(mongoClient, "auto-notification config feature")
 }
