@@ -44,7 +44,6 @@ func (s ConfigService) Save(ctx context.Context, config domain.VoiceRoomConfig) 
 	config.GuildID = strings.TrimSpace(config.GuildID)
 	config.TriggerChannelID = strings.TrimSpace(config.TriggerChannelID)
 	config.ParentID = strings.TrimSpace(config.ParentID)
-	config.Name = strings.TrimSpace(config.Name)
 	if err := config.Validate(); err != nil {
 		return err
 	}
@@ -94,7 +93,6 @@ func (s RoomService) TriggerConfig(ctx context.Context, guildID string, channelI
 	config.GuildID = strings.TrimSpace(config.GuildID)
 	config.TriggerChannelID = strings.TrimSpace(config.TriggerChannelID)
 	config.ParentID = strings.TrimSpace(config.ParentID)
-	config.Name = strings.TrimSpace(config.Name)
 	return config, true, nil
 }
 

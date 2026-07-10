@@ -34,7 +34,7 @@ type VoiceRoomState struct {
 func (c VoiceRoomConfig) Validate() error {
 	if strings.TrimSpace(c.GuildID) == "" ||
 		strings.TrimSpace(c.TriggerChannelID) == "" ||
-		strings.TrimSpace(c.Name) == "" {
+		c.Name == "" {
 		return ErrInvalidVoiceRoomConfig
 	}
 	if c.Limit < 0 || c.Limit > 99 {

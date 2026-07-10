@@ -33,6 +33,24 @@ func TestSetHandlerSavesVoiceRoomConfig(t *testing.T) {
 	assertEmbed(t, responder, legacyDoneEmoji+" | 成功進行設定", legacyVoiceEmoji+" 你成功對語音包廂進行`設定`")
 }
 
+func TestSetHandlerPreservesLegacyRoomNameText(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomConfigRepository()
+	module := NewModule(repo, nil)
+	interaction := voiceSetInteraction()
+	interaction.CommandOptions[optionRoomName] = interactions.CommandOptionValue{
+		Type:   interactions.CommandOptionString,
+		String: "  {name}-{name}  ",
+	}
+	responder := fakediscord.NewResponder()
+	if err := module.SetHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("set handler: %v", err)
+	}
+	saved, ok := repo.Last()
+	if !ok || saved.Name != "  {name}-{name}  " {
+		t.Fatalf("saved config = %#v, ok = %t", saved, ok)
+	}
+}
+
 func TestSetHandlerRejectsInvalidLimit(t *testing.T) {
 	repo := fakemongo.NewVoiceRoomConfigRepository()
 	module := NewModule(repo, nil)
@@ -562,6 +580,12 @@ func TestRoomEventHandlerKeepsOccupiedTrackedRoom(t *testing.T) {
 	}
 	if len(sideEffects.Deleted) != 0 || len(states.Deleted) != 0 {
 		t.Fatalf("deleted channels=%#v states=%#v", sideEffects.Deleted, states.Deleted)
+	}
+}
+
+func TestVoiceRoomDynamicNameMatchesLegacyFirstReplacement(t *testing.T) {
+	if got := voiceRoomDynamicName("  {name}-{name}  ", "Yoru", "user-1"); got != "  Yoru-{name}  " {
+		t.Fatalf("dynamic room name = %q", got)
 	}
 }
 

@@ -50,7 +50,7 @@ func (m Module) SetHandler() interactions.Handler {
 			GuildID:          interaction.Actor.GuildID,
 			TriggerChannelID: triggerID,
 			ParentID:         trigger.ChannelParentID,
-			Name:             firstOption(interaction, optionRoomName),
+			Name:             rawOption(interaction, optionRoomName),
 			Limit:            limit,
 			Lock:             boolOption(interaction, optionOwnerLock),
 		}
@@ -225,7 +225,7 @@ func (m RoomEventModule) VoiceStateHandler() events.Handler {
 		if userID == "" {
 			userID = strings.TrimSpace(event.UserID)
 		}
-		username := strings.TrimSpace(event.UserTag)
+		username := event.UserTag
 		isBot := event.IsBot
 		if event.Member != nil {
 			isBot = event.Member.IsBot
@@ -233,9 +233,9 @@ func (m RoomEventModule) VoiceStateHandler() events.Handler {
 				userID = strings.TrimSpace(event.Member.UserID)
 			}
 			if event.Member.Username != "" {
-				username = strings.TrimSpace(event.Member.Username)
+				username = event.Member.Username
 			} else if event.Member.UserTag != "" {
-				username = strings.TrimSpace(event.Member.UserTag)
+				username = event.Member.UserTag
 			}
 		}
 		if guildID == "" || channelID == beforeChannelID {
@@ -491,8 +491,8 @@ func voiceRoomLockableOwnerMessage() ports.OutboundMessage {
 }
 
 func voiceRoomDynamicName(template string, username string, userID string) string {
-	name := strings.TrimSpace(template)
-	replacement := strings.TrimSpace(username)
+	name := template
+	replacement := username
 	if replacement == "" {
 		replacement = strings.TrimSpace(userID)
 	}
@@ -502,7 +502,7 @@ func voiceRoomDynamicName(template string, username string, userID string) strin
 	if name == "" {
 		return replacement
 	}
-	return strings.ReplaceAll(name, "{name}", replacement)
+	return strings.Replace(name, "{name}", replacement, 1)
 }
 
 func upsertOwnerOverwrite(overwrites []ports.PermissionOverwrite, userID string) []ports.PermissionOverwrite {
@@ -542,6 +542,13 @@ func firstOption(interaction interactions.Interaction, name string) string {
 		return strings.TrimSpace(option.String)
 	}
 	return ""
+}
+
+func rawOption(interaction interactions.Interaction, name string) string {
+	if option, ok := interaction.CommandOptions[name]; ok {
+		return option.String
+	}
+	return interaction.Options[name]
 }
 
 func voiceLockAnswerChannelID(customID string) string {

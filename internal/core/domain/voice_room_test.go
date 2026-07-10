@@ -27,9 +27,15 @@ func TestVoiceRoomConfigValidate(t *testing.T) {
 	}
 
 	invalid = valid
-	invalid.Name = " "
+	invalid.Name = ""
 	if err := invalid.Validate(); !errors.Is(err, domain.ErrInvalidVoiceRoomConfig) {
 		t.Fatalf("expected invalid name error, got %v", err)
+	}
+
+	whitespaceName := valid
+	whitespaceName.Name = "  "
+	if err := whitespaceName.Validate(); err != nil {
+		t.Fatalf("legacy accepts whitespace-only room names: %v", err)
 	}
 }
 

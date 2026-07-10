@@ -11,7 +11,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
 
-func TestConfigServiceSaveTrimsAndStoresVoiceRoomConfig(t *testing.T) {
+func TestConfigServiceSaveNormalizesIDsAndPreservesVoiceRoomName(t *testing.T) {
 	repo := fakemongo.NewVoiceRoomConfigRepository()
 	service := coreservice.NewConfigService(repo)
 	err := service.Save(context.Background(), domain.VoiceRoomConfig{
@@ -29,7 +29,7 @@ func TestConfigServiceSaveTrimsAndStoresVoiceRoomConfig(t *testing.T) {
 	if !ok {
 		t.Fatal("expected saved config")
 	}
-	if saved.GuildID != "guild-1" || saved.TriggerChannelID != "voice-1" || saved.ParentID != "category-1" || saved.Name != "{name} 的包廂" || saved.Limit != 12 || !saved.Lock {
+	if saved.GuildID != "guild-1" || saved.TriggerChannelID != "voice-1" || saved.ParentID != "category-1" || saved.Name != " {name} 的包廂 " || saved.Limit != 12 || !saved.Lock {
 		t.Fatalf("saved config = %#v", saved)
 	}
 }
@@ -62,7 +62,7 @@ func TestRoomServiceTriggerConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("trigger config: %v", err)
 	}
-	if !ok || config.Name != "{name} room" || config.ParentID != "parent-1" || !config.Lock {
+	if !ok || config.Name != " {name} room " || config.ParentID != "parent-1" || !config.Lock {
 		t.Fatalf("config=%#v ok=%t", config, ok)
 	}
 	if _, ok, err := service.TriggerConfig(context.Background(), "guild-1", "missing"); err != nil || ok {
