@@ -108,6 +108,41 @@ func TestRenameStatsRoleChannelsUpdatesRoleNumber(t *testing.T) {
 	}
 }
 
+func TestRenameStatsRoleChannelsTreatsDeletedRoleAsZero(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	if err := repo.SaveStatsRoleConfig(context.Background(), domain.StatsRoleConfig{
+		GuildID:     "guild-1",
+		ChannelID:   "role-channel",
+		ChannelName: "4",
+		RoleID:      "deleted-role",
+	}); err != nil {
+		t.Fatalf("save role config: %v", err)
+	}
+	discord := fakediscord.NewSideEffects()
+	discord.Channels = append(discord.Channels, ports.ChannelRef{GuildID: "guild-1", ChannelID: "role-channel", Name: "VIP: 4"})
+	roles := roleStatsReaderFunc(func(context.Context, string, string) (domain.StatsRoleSnapshot, error) {
+		return domain.StatsRoleSnapshot{RoleID: "deleted-role"}, nil
+	})
+	service := RenameService{Repository: repo, Channels: discord, GuildStats: discord, RoleStats: roles}
+
+	result, err := service.RunOnce(context.Background())
+	if err != nil {
+		t.Fatalf("rename role stats: %v", err)
+	}
+	if result.ChannelsRenamed != 1 || result.CountersUpdated != 1 || discord.Channels[0].Name != "VIP: 0" {
+		t.Fatalf("result=%#v channels=%#v", result, discord.Channels)
+	}
+	if saved := repo.RoleConfigs["guild-1/deleted-role"]; saved.ChannelName != "0" {
+		t.Fatalf("saved role config = %#v", saved)
+	}
+}
+
+type roleStatsReaderFunc func(context.Context, string, string) (domain.StatsRoleSnapshot, error)
+
+func (f roleStatsReaderFunc) RoleStats(ctx context.Context, guildID string, roleID string) (domain.StatsRoleSnapshot, error) {
+	return f(ctx, guildID, roleID)
+}
+
 func TestRenameStatsSkipsMissingChannelsWithoutUpdatingCounter(t *testing.T) {
 	repo := fakemongo.NewStatsConfigRepository()
 	repo.Put(domain.StatsConfig{GuildID: "guild-1", MemberNumberID: "missing-channel", MemberNumberName: "10"})

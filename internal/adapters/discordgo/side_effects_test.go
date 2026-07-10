@@ -166,6 +166,13 @@ func TestRoleStatsUsesLegacyGuildMemberCache(t *testing.T) {
 	if everyone.RoleName != "@everyone" || everyone.MemberCount != 3 {
 		t.Fatalf("everyone stats = %#v", everyone)
 	}
+	missing, err := client.RoleStats(context.Background(), "guild-1", "missing-role")
+	if err != nil {
+		t.Fatalf("missing role stats: %v", err)
+	}
+	if missing.RoleID != "missing-role" || missing.RoleName != "" || missing.MemberCount != 0 {
+		t.Fatalf("missing role stats = %#v", missing)
+	}
 }
 
 func TestAuditLogEntriesFromDiscordIncludesActorIdentity(t *testing.T) {

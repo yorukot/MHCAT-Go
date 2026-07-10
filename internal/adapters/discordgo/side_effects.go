@@ -304,7 +304,7 @@ func (c SideEffectClient) RoleStats(ctx context.Context, guildID string, roleID 
 		}
 	}
 	if !roleFound {
-		return domain.StatsRoleSnapshot{}, ports.ErrDiscordRoleMissing
+		return domain.StatsRoleSnapshot{RoleID: roleID}, ctx.Err()
 	}
 	count := 0
 	for _, member := range guild.Members {
