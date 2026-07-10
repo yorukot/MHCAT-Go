@@ -75,3 +75,49 @@ func TestBirthdayProfileDocumentPreservesNullDateFields(t *testing.T) {
 		t.Fatalf("document = %#v", document)
 	}
 }
+
+func TestBirthdayDocumentsDecodeLegacyBSONScalarShapes(t *testing.T) {
+	configPayload, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: "guild-1"},
+		{Key: "msg", Value: "happy"},
+		{Key: "utc", Value: "+08:00"},
+		{Key: "channel", Value: "channel-1"},
+		{Key: "everyone_can_set_birthday_date", Value: int32(1)},
+		{Key: "role", Value: nil},
+	})
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	var config BirthdayConfigDocument
+	if err := bson.Unmarshal(configPayload, &config); err != nil {
+		t.Fatalf("unmarshal config: %v", err)
+	}
+	if !config.EveryoneCanSetBirthdayDate || config.Role != nil {
+		t.Fatalf("config = %#v", config)
+	}
+
+	profilePayload, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: "guild-1"},
+		{Key: "user", Value: "user-1"},
+		{Key: "birthday_year", Value: float64(2000)},
+		{Key: "birthday_month", Value: int32(2)},
+		{Key: "birthday_day", Value: int64(29)},
+		{Key: "send_msg_hour", Value: true},
+		{Key: "send_msg_min", Value: nil},
+		{Key: "allow", Value: float64(1)},
+	})
+	if err != nil {
+		t.Fatalf("marshal profile: %v", err)
+	}
+	var profile BirthdayProfileDocument
+	if err := bson.Unmarshal(profilePayload, &profile); err != nil {
+		t.Fatalf("unmarshal profile: %v", err)
+	}
+	if profile.BirthdayYear == nil || *profile.BirthdayYear != 2000 ||
+		profile.BirthdayMonth == nil || *profile.BirthdayMonth != 2 ||
+		profile.BirthdayDay == nil || *profile.BirthdayDay != 29 ||
+		profile.SendHour == nil || *profile.SendHour != 1 ||
+		profile.SendMinute != nil || !profile.Allow {
+		t.Fatalf("profile = %#v", profile)
+	}
+}
