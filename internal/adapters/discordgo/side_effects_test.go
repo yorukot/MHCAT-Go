@@ -235,6 +235,21 @@ func TestAuditLogEntriesFromDiscordIncludesActorIdentity(t *testing.T) {
 	}
 }
 
+func TestAuditLogEntriesFromDiscordLeavesDefaultAvatarEmpty(t *testing.T) {
+	action := dgo.AuditLogActionChannelUpdate
+	entries := auditLogEntriesFromDiscord(&dgo.GuildAuditLog{
+		Users: []*dgo.User{{ID: "moderator-1", Username: "Mio"}},
+		AuditLogEntries: []*dgo.AuditLogEntry{{
+			ID:         "audit-1",
+			UserID:     "moderator-1",
+			ActionType: &action,
+		}},
+	})
+	if len(entries) != 1 || entries[0].AvatarURL != "" {
+		t.Fatalf("entries = %#v", entries)
+	}
+}
+
 func TestOutboundMessageConversionIncludesEmbedsAndButtons(t *testing.T) {
 	embeds := outboundEmbeds([]ports.OutboundEmbed{{
 		Title:         "__**私人頻道**__",

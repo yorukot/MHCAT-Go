@@ -280,8 +280,9 @@ func loggingAuditUsername(entry ports.AuditLogEntry) string {
 }
 
 func loggingAuditAvatarURL(entry ports.AuditLogEntry) string {
-	if strings.TrimSpace(entry.AvatarURL) != "" {
-		return entry.AvatarURL
+	raw := strings.TrimSpace(entry.AvatarURL)
+	if raw != "" {
+		return loggingPNGAvatarURL(raw)
 	}
 	return loggingDefaultAvatarURL
 }

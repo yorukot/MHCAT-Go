@@ -168,6 +168,10 @@ func loggingEventAvatarURL(event events.Event) string {
 	if raw == "" || event.AvatarIsDefault {
 		return loggingDefaultAvatarURL
 	}
+	return loggingPNGAvatarURL(raw)
+}
+
+func loggingPNGAvatarURL(raw string) string {
 	parsed, err := url.Parse(raw)
 	if err != nil {
 		return raw

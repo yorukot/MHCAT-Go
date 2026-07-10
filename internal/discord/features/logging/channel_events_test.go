@@ -178,3 +178,12 @@ func TestChannelEventModuleRegistersRoutes(t *testing.T) {
 		t.Fatal("expected channel logging handler")
 	}
 }
+
+func TestLoggingAuditAvatarMatchesLegacyPNGAndFallback(t *testing.T) {
+	if got := loggingAuditAvatarURL(ports.AuditLogEntry{AvatarURL: "https://cdn.discordapp.com/avatars/user/hash.gif"}); got != "https://cdn.discordapp.com/avatars/user/hash.png" {
+		t.Fatalf("animated avatar = %q", got)
+	}
+	if got := loggingAuditAvatarURL(ports.AuditLogEntry{}); got != loggingDefaultAvatarURL {
+		t.Fatalf("default avatar = %q", got)
+	}
+}

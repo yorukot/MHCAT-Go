@@ -753,7 +753,9 @@ func auditLogEntriesFromDiscord(logs *dgo.GuildAuditLog) []ports.AuditLogEntry {
 		if user := usersByID[entry.UserID]; user != nil {
 			out.Username = user.Username
 			out.UserTag = userTag(user)
-			out.AvatarURL = user.AvatarURL("")
+			if user.Avatar != "" {
+				out.AvatarURL = user.AvatarURL("")
+			}
 		}
 		entries = append(entries, out)
 	}
