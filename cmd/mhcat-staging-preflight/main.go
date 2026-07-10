@@ -144,6 +144,7 @@ func buildReport(lookup lookupFunc) []checkResult {
 		antiScamConfigRuntimePairing(lookup),
 		antiScamReportCommandSync(lookup),
 		antiScamReportRuntimePairing(lookup),
+		antiScamMessageDeleteRuntimeReadiness(lookup),
 		loggingConfigCommandSync(lookup),
 		loggingConfigRuntimePairing(lookup),
 		gachaPrizeListCommandSync(lookup),
@@ -279,6 +280,10 @@ func messageContentIntent(lookup lookupFunc) checkResult {
 	if err != nil {
 		return checkResult{Name: "message-content-intent", Status: statusFail, Message: err.Error()}
 	}
+	antiScamMessageDeleteEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED")
+	if err != nil {
+		return checkResult{Name: "message-content-intent", Status: statusFail, Message: err.Error()}
+	}
 	if !messageContent {
 		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is disabled"}
 	}
@@ -297,7 +302,10 @@ func messageContentIntent(lookup lookupFunc) checkResult {
 	if coinResetEnabled {
 		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for economy coin reset confirmation only"}
 	}
-	return checkResult{Name: "message-content-intent", Status: statusFail, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT must be false unless MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true, MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true, MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED=true, MHCAT_FEATURE_XP_RESET_ENABLED=true, or MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true"}
+	if antiScamMessageDeleteEnabled {
+		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for anti-scam message deletion only"}
+	}
+	return checkResult{Name: "message-content-intent", Status: statusFail, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT must be false unless MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true, MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true, MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED=true, MHCAT_FEATURE_XP_RESET_ENABLED=true, MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true, or MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED=true"}
 }
 
 func ticketCommandSync(lookup lookupFunc) checkResult {
@@ -1418,6 +1426,42 @@ func antiScamReportRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "anti-scam-report-runtime-pairing", Status: statusWarn, Message: "anti-scam report runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "anti-scam-report-runtime-pairing", Status: statusSkipped, Message: "anti-scam report runtime and command sync include are disabled"}
+}
+
+func antiScamMessageDeleteRuntimeReadiness(lookup lookupFunc) checkResult {
+	enabled, err := boolValue(lookup, "MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED")
+	if err != nil {
+		return checkResult{Name: "anti-scam-message-delete-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !enabled {
+		return checkResult{Name: "anti-scam-message-delete-runtime-readiness", Status: statusSkipped, Message: "anti-scam message deletion runtime is disabled"}
+	}
+	gatewayEnabled, err := boolValue(lookup, "MHCAT_DISCORD_ENABLE_GATEWAY")
+	if err != nil {
+		return checkResult{Name: "anti-scam-message-delete-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	guildMessages, err := boolValue(lookup, "MHCAT_DISCORD_GUILD_MESSAGES_INTENT")
+	if err != nil {
+		return checkResult{Name: "anti-scam-message-delete-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	messageContent, err := boolValue(lookup, "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT")
+	if err != nil {
+		return checkResult{Name: "anti-scam-message-delete-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	var missing []string
+	if !gatewayEnabled {
+		missing = append(missing, "MHCAT_DISCORD_ENABLE_GATEWAY=true")
+	}
+	if !guildMessages {
+		missing = append(missing, "MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true")
+	}
+	if !messageContent {
+		missing = append(missing, "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true")
+	}
+	if len(missing) > 0 {
+		return checkResult{Name: "anti-scam-message-delete-runtime-readiness", Status: statusFail, Message: "anti-scam message deletion requires " + strings.Join(missing, ", ")}
+	}
+	return checkResult{Name: "anti-scam-message-delete-runtime-readiness", Status: statusPass, Message: "anti-scam message deletion gateway and privileged intent gates are explicit"}
 }
 
 func loggingConfigCommandSync(lookup lookupFunc) checkResult {

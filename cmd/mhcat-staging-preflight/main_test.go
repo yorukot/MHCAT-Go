@@ -75,6 +75,45 @@ func TestPreflightAcceptsMessageContentOnlyForAnnouncementRelay(t *testing.T) {
 	}
 }
 
+func TestPreflightAcceptsMessageContentForAntiScamDeletion(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_DISCORD_GUILD_MESSAGES_INTENT"] = "true"
+	env["MHCAT_DISCORD_MESSAGE_CONTENT_INTENT"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "message-content-intent status=pass") || !strings.Contains(stdout, "anti-scam-message-delete-runtime-readiness status=pass") {
+		t.Fatalf("expected anti-scam message content pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightRejectsAntiScamDeletionWithoutRequiredGatewayFlags(t *testing.T) {
+	for key, want := range map[string]string{
+		"MHCAT_DISCORD_ENABLE_GATEWAY":         "MHCAT_DISCORD_ENABLE_GATEWAY=true",
+		"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":  "MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true",
+		"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT": "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true",
+	} {
+		t.Run(key, func(t *testing.T) {
+			env := validEnv()
+			env["MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED"] = "true"
+			env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+			env["MHCAT_DISCORD_GUILD_MESSAGES_INTENT"] = "true"
+			env["MHCAT_DISCORD_MESSAGE_CONTENT_INTENT"] = "true"
+			env[key] = "false"
+			code, stdout, _ := runPreflight(t, nil, env)
+			if code == 0 {
+				t.Fatalf("expected %s to fail", key)
+			}
+			if !strings.Contains(stdout, "anti-scam-message-delete-runtime-readiness status=fail") || !strings.Contains(stdout, want) {
+				t.Fatalf("expected anti-scam readiness failure %q, stdout=%q", want, stdout)
+			}
+		})
+	}
+}
+
 func TestPreflightAcceptsMessageContentForAutoChatFallback(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED"] = "true"
