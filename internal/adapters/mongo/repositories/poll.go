@@ -129,34 +129,55 @@ func (r *PollRepository) TogglePoll(ctx context.Context, guildID string, message
 	if err := ctx.Err(); err != nil {
 		return domain.Poll{}, err
 	}
-	poll, err := r.GetPoll(ctx, guildID, messageID)
-	if err != nil {
-		return domain.Poll{}, err
-	}
-	update := bson.D{}
+	field := ""
+	oneWay := false
 	switch toggle {
 	case domain.PollTogglePublicResult:
-		update = bson.D{{Key: "$set", Value: bson.D{{Key: "can_see_result", Value: !poll.CanSeeResult}}}}
+		field = "can_see_result"
 	case domain.PollToggleChangeChoice:
-		update = bson.D{{Key: "$set", Value: bson.D{{Key: "can_change_choose", Value: !poll.CanChangeChoice}}}}
+		field = "can_change_choose"
 	case domain.PollToggleAnonymous:
-		if poll.Anonymous {
-			return domain.Poll{}, ports.ErrPollAnonymousLocked
-		}
-		update = bson.D{{Key: "$set", Value: bson.D{{Key: "anonymous", Value: true}}}}
+		field = "anonymous"
+		oneWay = true
 	case domain.PollToggleEnd:
-		update = bson.D{{Key: "$set", Value: bson.D{{Key: "end", Value: !poll.Ended}}}}
+		field = "end"
 	default:
 		return domain.Poll{}, domain.ErrInvalidPoll
 	}
-	result, err := r.collection.UpdateOne(ctx, pollKeyFilter(guildID, messageID), update)
-	if err != nil {
+	filter := pollKeyFilter(guildID, messageID)
+	if oneWay {
+		filter = append(filter, bson.E{Key: field, Value: bson.D{{Key: "$nin", Value: pollMongooseTrueValues()}}})
+	}
+	var document documents.PollReadDocument
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+	err := r.collection.FindOneAndUpdate(ctx, filter, pollTogglePipeline(field, oneWay), opts).Decode(&document)
+	if err == nil {
+		return document.ToDomain(), ctx.Err()
+	}
+	mapped := mhcatmongo.MapError(err)
+	if !mhcatmongo.ErrorIs(mapped, mhcatmongo.ErrorKindNotFound) {
 		return domain.Poll{}, mhcatmongo.MapError(fmt.Errorf("toggle poll: %w", err))
 	}
-	if result.MatchedCount == 0 {
-		return domain.Poll{}, ports.ErrPollNotFound
+	if oneWay {
+		poll, getErr := r.GetPoll(ctx, guildID, messageID)
+		if getErr != nil {
+			return domain.Poll{}, getErr
+		}
+		if poll.Anonymous {
+			return domain.Poll{}, ports.ErrPollAnonymousLocked
+		}
 	}
-	return r.GetPoll(ctx, guildID, messageID)
+	return domain.Poll{}, ports.ErrPollNotFound
+}
+
+func pollTogglePipeline(field string, oneWay bool) drivermongo.Pipeline {
+	value := any(true)
+	if !oneWay {
+		value = bson.D{{Key: "$not", Value: bson.A{
+			bson.D{{Key: "$in", Value: bson.A{"$" + field, pollMongooseTrueValues()}}},
+		}}}
+	}
+	return drivermongo.Pipeline{bson.D{{Key: "$set", Value: bson.D{{Key: field, Value: value}}}}}
 }
 
 func (r *PollRepository) SetMaxChoices(ctx context.Context, guildID string, messageID string, maxChoices int) (domain.Poll, error) {

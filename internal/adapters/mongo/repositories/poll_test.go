@@ -61,6 +61,26 @@ func TestPollVoteFiltersUseMongooseScalarGuards(t *testing.T) {
 	}
 }
 
+func TestPollTogglePipelineAtomicallyFlipsMongooseBoolean(t *testing.T) {
+	pipeline := pollTogglePipeline("can_see_result", false)
+	if len(pipeline) != 1 {
+		t.Fatalf("pipeline = %#v", pipeline)
+	}
+	set := documentValue(t, pipeline[0], "$set")
+	flip := documentValue(t, set, "can_see_result")
+	notArguments := pollTestBSONArray(t, documentValue(t, flip, "$not"))
+	inArguments := pollTestBSONArray(t, documentValue(t, notArguments[0], "$in"))
+	if inArguments[0] != "$can_see_result" || !reflect.DeepEqual(inArguments[1], pollMongooseTrueValues()) {
+		t.Fatalf("flip expression = %#v", flip)
+	}
+
+	oneWay := pollTogglePipeline("anonymous", true)
+	oneWaySet := documentValue(t, oneWay[0], "$set")
+	if got := documentValue(t, oneWaySet, "anonymous"); got != true {
+		t.Fatalf("anonymous update = %#v", got)
+	}
+}
+
 func pollTestBSONArray(t *testing.T, value any) bson.A {
 	t.Helper()
 	array, ok := value.(bson.A)
