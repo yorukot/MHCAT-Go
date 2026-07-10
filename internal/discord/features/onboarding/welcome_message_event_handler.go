@@ -16,6 +16,7 @@ func (m Module) WelcomeMessageDeliveryHandler() events.Handler {
 		member := event.Member
 		userID := strings.TrimSpace(event.UserID)
 		username := event.Username
+		discriminator := event.Discriminator
 		userTag := strings.TrimSpace(event.UserTag)
 		avatarURL := strings.TrimSpace(event.AvatarURL)
 		if member != nil {
@@ -24,6 +25,9 @@ func (m Module) WelcomeMessageDeliveryHandler() events.Handler {
 			}
 			if member.Username != "" {
 				username = member.Username
+			}
+			if member.Discriminator != "" {
+				discriminator = member.Discriminator
 			}
 			if member.UserTag != "" {
 				userTag = member.UserTag
@@ -36,16 +40,17 @@ func (m Module) WelcomeMessageDeliveryHandler() events.Handler {
 			return nil
 		}
 		return m.welcomeService.SendOnJoin(ctx, coreservice.WelcomeMemberEvent{
-			GuildID:      event.GuildID,
-			GuildName:    event.GuildName,
-			GuildIconURL: event.GuildIconURL,
-			BotUserID:    event.BotUserID,
-			BotAvatarURL: event.BotAvatarURL,
-			UserID:       userID,
-			Username:     username,
-			UserTag:      userTag,
-			AvatarURL:    avatarURL,
-			Now:          event.CreatedAt,
+			GuildID:       event.GuildID,
+			GuildName:     event.GuildName,
+			GuildIconURL:  event.GuildIconURL,
+			BotUserID:     event.BotUserID,
+			BotAvatarURL:  event.BotAvatarURL,
+			UserID:        userID,
+			Username:      username,
+			Discriminator: discriminator,
+			UserTag:       userTag,
+			AvatarURL:     avatarURL,
+			Now:           event.CreatedAt,
 		})
 	}
 }

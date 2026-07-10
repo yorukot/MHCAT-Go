@@ -40,6 +40,7 @@ type Event struct {
 	MessageID     string
 	UserID        string
 	Username      string
+	Discriminator string
 	UserTag       string
 	AvatarURL     string
 	Content       string
@@ -67,6 +68,7 @@ type Reaction struct {
 type Member struct {
 	UserID           string
 	Username         string
+	Discriminator    string
 	UserTag          string
 	RoleIDs          []string
 	JoinedAt         time.Time

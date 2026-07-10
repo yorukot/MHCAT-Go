@@ -108,13 +108,15 @@ func TestWelcomeMessageDeliverySpecialLegacyEmbed(t *testing.T) {
 	}
 
 	err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{
-		GuildID:      "special-guild",
-		BotUserID:    "special-bot",
-		BotAvatarURL: "https://example.test/bot.png",
-		UserID:       "user-1",
-		UserTag:      "Yoru#0001",
-		AvatarURL:    "https://example.test/avatar.png",
-		Now:          now,
+		GuildID:       "special-guild",
+		BotUserID:     "special-bot",
+		BotAvatarURL:  "https://example.test/bot.png",
+		UserID:        "user-1",
+		Username:      "Yoru",
+		Discriminator: "0001",
+		UserTag:       "Yoru#0001",
+		AvatarURL:     "https://example.test/avatar.png",
+		Now:           now,
 	})
 	if err != nil {
 		t.Fatalf("send: %v", err)
@@ -134,6 +136,18 @@ func TestWelcomeMessageDeliverySpecialLegacyEmbed(t *testing.T) {
 		embed.ImageURL != "https://i.imgur.com/cLCPRNq.png" ||
 		embed.Color == 0 {
 		t.Fatalf("embed = %#v", embed)
+	}
+}
+
+func TestSpecialWelcomePreservesLegacyMigratedUsernameTag(t *testing.T) {
+	description := specialWelcomeDescription(WelcomeMemberEvent{
+		UserID:        "user-1",
+		Username:      "yoru",
+		Discriminator: "0",
+		UserTag:       "yoru",
+	}, SpecialWelcomeConfig{})
+	if !strings.Contains(description, "歡迎 __yoru#0__ 的加入!") {
+		t.Fatalf("description = %q", description)
 	}
 }
 

@@ -29,16 +29,17 @@ type SpecialWelcomeConfig struct {
 }
 
 type WelcomeMemberEvent struct {
-	GuildID      string
-	GuildName    string
-	GuildIconURL string
-	BotUserID    string
-	BotAvatarURL string
-	UserID       string
-	Username     string
-	UserTag      string
-	AvatarURL    string
-	Now          time.Time
+	GuildID       string
+	GuildName     string
+	GuildIconURL  string
+	BotUserID     string
+	BotAvatarURL  string
+	UserID        string
+	Username      string
+	Discriminator string
+	UserTag       string
+	AvatarURL     string
+	Now           time.Time
 }
 
 func (s WelcomeMessageDeliveryService) SendOnJoin(ctx context.Context, event WelcomeMemberEvent) error {
@@ -138,8 +139,11 @@ func replaceWelcomeMessagePlaceholders(value string, event WelcomeMemberEvent) s
 
 func specialWelcomeDescription(event WelcomeMemberEvent, special SpecialWelcomeConfig) string {
 	tag := strings.TrimSpace(event.UserTag)
+	if event.Username != "" && event.Discriminator != "" {
+		tag = event.Username + "#" + event.Discriminator
+	}
 	if tag == "" {
-		tag = strings.TrimSpace(event.Username)
+		tag = event.Username
 	}
 	if tag == "" {
 		tag = strings.TrimSpace(event.UserID)

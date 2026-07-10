@@ -366,6 +366,7 @@ func memberFromDiscord(member *dgo.Member) *events.Member {
 	return &events.Member{
 		UserID:           member.User.ID,
 		Username:         member.User.Username,
+		Discriminator:    member.User.Discriminator,
 		UserTag:          userTag(member.User),
 		RoleIDs:          append([]string(nil), member.Roles...),
 		JoinedAt:         member.JoinedAt,

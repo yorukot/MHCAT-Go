@@ -110,9 +110,9 @@ func TestEventFromMemberIncludesGuildNameFromState(t *testing.T) {
 		t.Fatalf("guild add: %v", err)
 	}
 	state.User = &dgo.User{ID: "bot-1", Username: "MHCAT", Avatar: "bot-avatar"}
-	member := &dgo.Member{GuildID: "guild-1", User: &dgo.User{ID: "113779359301998592", Username: "Yoru"}}
+	member := &dgo.Member{GuildID: "guild-1", User: &dgo.User{ID: "113779359301998592", Username: "Yoru", Discriminator: "0"}}
 	event := eventFromMember(events.TypeMemberAdd, member, guildFromState(&dgo.Session{State: state}, member), botFromState(&dgo.Session{State: state}))
-	if event.GuildID != "guild-1" || event.GuildName != "測試伺服器" || event.BotUserID != "bot-1" || event.BotAvatarURL == "" || event.Member == nil || event.Member.AccountCreatedAt.IsZero() {
+	if event.GuildID != "guild-1" || event.GuildName != "測試伺服器" || event.BotUserID != "bot-1" || event.BotAvatarURL == "" || event.Member == nil || event.Member.AccountCreatedAt.IsZero() || event.Member.Discriminator != "0" {
 		t.Fatalf("event = %#v", event)
 	}
 }
