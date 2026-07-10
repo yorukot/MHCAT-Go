@@ -20,6 +20,9 @@ var autoNotificationCronParser = robfigcron.NewParser(
 )
 
 func validateDirectCron(value string, now time.Time) directCronValidation {
+	if !coreservice.ValidLegacyAutoNotificationCron(value) {
+		return directCronInvalid
+	}
 	value = coreservice.NormalizeLegacyAutoNotificationCron(value)
 	schedule, err := autoNotificationCronParser.Parse(value)
 	if err != nil {

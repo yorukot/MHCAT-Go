@@ -21,6 +21,10 @@ func TestValidateDirectCron(t *testing.T) {
 		{name: "five minute step", value: "*/5 * * * *", want: directCronTooFrequent},
 		{name: "cancel starts wizard", value: "cancel", want: directCronInvalid},
 		{name: "localized cancel starts wizard", value: "取消", want: directCronInvalid},
+		{name: "named weekday starts wizard", value: "0 9 * * MON", want: directCronInvalid},
+		{name: "named month starts wizard", value: "0 9 * JAN 1", want: directCronInvalid},
+		{name: "descriptor starts wizard", value: "@daily", want: directCronInvalid},
+		{name: "six fields start wizard", value: "0 0 0 * * *", want: directCronInvalid},
 		{name: "out of range", value: "0 25 * * *", want: directCronInvalid},
 	} {
 		t.Run(test.name, func(t *testing.T) {

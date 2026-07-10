@@ -23,3 +23,25 @@ func TestNormalizeLegacyAutoNotificationCronWeekdaySeven(t *testing.T) {
 		})
 	}
 }
+
+func TestValidLegacyAutoNotificationCronMatchesNumericValidator(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		want  bool
+	}{
+		{value: "*/30 * * * *", want: true},
+		{value: "0,15,30,45 0-23/2 1,31 1-12 0-7", want: true},
+		{value: "  */30   * * * *  ", want: true},
+		{value: "0 9 * * MON"},
+		{value: "0 9 * JAN 1"},
+		{value: "@daily"},
+		{value: "0 0 0 * * *"},
+		{value: "*/ * * * *"},
+		{value: "0 25 * * *"},
+		{value: "0 9 * * 1-0"},
+	} {
+		if got := ValidLegacyAutoNotificationCron(test.value); got != test.want {
+			t.Fatalf("ValidLegacyAutoNotificationCron(%q) = %v, want %v", test.value, got, test.want)
+		}
+	}
+}

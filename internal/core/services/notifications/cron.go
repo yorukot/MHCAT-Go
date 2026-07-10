@@ -5,6 +5,67 @@ import (
 	"strings"
 )
 
+func ValidLegacyAutoNotificationCron(value string) bool {
+	fields := strings.Fields(value)
+	if len(fields) != 5 {
+		return false
+	}
+	bounds := [][2]int{{0, 59}, {0, 23}, {1, 31}, {1, 12}, {0, 7}}
+	for index, field := range fields {
+		if !validLegacyAutoNotificationCronField(field, bounds[index][0], bounds[index][1]) {
+			return false
+		}
+	}
+	return true
+}
+
+func validLegacyAutoNotificationCronField(value string, minimum int, maximum int) bool {
+	for _, condition := range strings.Split(value, ",") {
+		parts := strings.Split(condition, "/")
+		if len(parts) == 0 || len(parts) > 2 || parts[0] == "" {
+			return false
+		}
+		if len(parts) == 2 {
+			step, ok := legacyAutoNotificationCronInteger(parts[1])
+			if !ok || step <= 0 {
+				return false
+			}
+		}
+		if parts[0] == "*" {
+			continue
+		}
+		if startText, endText, ranged := strings.Cut(parts[0], "-"); ranged {
+			if strings.Contains(endText, "-") {
+				return false
+			}
+			start, startOK := legacyAutoNotificationCronInteger(startText)
+			end, endOK := legacyAutoNotificationCronInteger(endText)
+			if !startOK || !endOK || start < minimum || start > end || end > maximum {
+				return false
+			}
+			continue
+		}
+		parsed, ok := legacyAutoNotificationCronInteger(parts[0])
+		if !ok || parsed < minimum || parsed > maximum {
+			return false
+		}
+	}
+	return true
+}
+
+func legacyAutoNotificationCronInteger(value string) (int, bool) {
+	if value == "" {
+		return 0, false
+	}
+	for _, character := range value {
+		if character < '0' || character > '9' {
+			return 0, false
+		}
+	}
+	parsed, err := strconv.Atoi(value)
+	return parsed, err == nil
+}
+
 // NormalizeLegacyAutoNotificationCron maps the validator's Sunday value 7
 // into the 0-6 range accepted by both robfig/cron and the legacy scheduler.
 func NormalizeLegacyAutoNotificationCron(value string) string {
