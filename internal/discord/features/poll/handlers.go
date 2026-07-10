@@ -346,7 +346,7 @@ func pollErrorMessageWithReason(content string, reason string) responses.Message
 func pollDoneMessage(content string) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
-			Title: "<a:green_tick:994529015652163614> | " + content,
+			Title: "<a:green_tick:994529015652163614>" + content,
 			Color: pollSuccessColor,
 		}},
 	}

@@ -317,7 +317,7 @@ func TestOwnerMenuTogglesPublicResultAndRerenders(t *testing.T) {
 	if !poll.CanSeeResult {
 		t.Fatalf("poll = %#v", poll)
 	}
-	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "成功將投票結果設為公開") {
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:green_tick:994529015652163614>成功將投票結果設為公開!" {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 	if len(sideEffects.Edited) != 1 || sideEffects.Edited[0].Message.Components[1].Components[0].Options[0].Label != "隱藏投票結果" {
