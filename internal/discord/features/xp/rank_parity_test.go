@@ -3,6 +3,11 @@ package xp
 import (
 	"bytes"
 	"context"
+	"image"
+	"image/color"
+	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strconv"
 	"testing"
@@ -201,6 +206,56 @@ func TestRenderRankPNGIncludesSlotsOnEmptyPages(t *testing.T) {
 	}
 	if bytes.Equal(first, second) {
 		t.Fatal("empty rank pages rendered identically")
+	}
+}
+
+func TestDrawRankGuildIconUsesProvidedImage(t *testing.T) {
+	icon := image.NewRGBA(image.Rect(0, 0, 4, 4))
+	for y := 0; y < 4; y++ {
+		for x := 0; x < 4; x++ {
+			icon.Set(x, y, color.RGBA{R: 220, G: 20, B: 30, A: 255})
+		}
+	}
+	var data bytes.Buffer
+	if err := png.Encode(&data, icon); err != nil {
+		t.Fatalf("encode icon: %v", err)
+	}
+	canvas := image.NewRGBA(image.Rect(0, 0, 120, 90))
+	drawRankGuildIcon(canvas, data.Bytes())
+	center := color.RGBAModel.Convert(canvas.At(68, 45)).(color.RGBA)
+	if center.R < 200 || center.G > 40 || center.B > 50 || center.A != 255 {
+		t.Fatalf("center pixel = %#v", center)
+	}
+	corner := color.RGBAModel.Convert(canvas.At(33, 10)).(color.RGBA)
+	if corner.A != 0 {
+		t.Fatalf("rounded corner pixel = %#v", corner)
+	}
+}
+
+func TestFetchRankGuildIconReadsSuccessfulResponse(t *testing.T) {
+	payload := []byte("icon bytes")
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write(payload)
+	}))
+	defer server.Close()
+
+	if got := fetchRankGuildIcon(context.Background(), server.URL); !bytes.Equal(got, payload) {
+		t.Fatalf("fetchRankGuildIcon() = %q, want %q", got, payload)
+	}
+}
+
+func TestFetchRankGuildIconRejectsInvalidAndOversizedResponses(t *testing.T) {
+	if got := fetchRankGuildIcon(context.Background(), "file:///tmp/icon.png"); got != nil {
+		t.Fatalf("invalid URL returned %d bytes", len(got))
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write(make([]byte, (2<<20)+1))
+	}))
+	defer server.Close()
+	if got := fetchRankGuildIcon(context.Background(), server.URL); got != nil {
+		t.Fatalf("oversized response returned %d bytes", len(got))
 	}
 }
 

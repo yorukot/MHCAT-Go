@@ -1,8 +1,11 @@
 package xp
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"path"
 	"regexp"
@@ -153,6 +156,7 @@ func (m RankModule) rankMessage(ctx context.Context, interaction interactions.In
 	image, err := renderRankPNG(rankCanvasView{
 		GuildName:      guild.Name,
 		GuildCreatedAt: guild.CreatedAt,
+		GuildIconData:  fetchRankGuildIcon(ctx, guild.IconURL),
 		ViewerRankText: viewerRankText,
 		Title:          rankCanvasTitle(kind),
 		Page:           result.Page,
@@ -261,12 +265,56 @@ func legacyRankAvatarURL(raw string) string {
 	if strings.Contains(parsed.Path, "/embed/avatars/") {
 		return rankDefaultAvatar
 	}
+	return legacyRankPNGURL(raw)
+}
+
+func legacyRankPNGURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host != "cdn.discordapp.com" && host != "media.discordapp.net" {
+		return raw
+	}
 	if strings.EqualFold(path.Ext(parsed.Path), ".gif") {
 		parsed.Path = strings.TrimSuffix(parsed.Path, path.Ext(parsed.Path)) + ".png"
 		parsed.RawPath = ""
 		return parsed.String()
 	}
 	return raw
+}
+
+func fetchRankGuildIcon(ctx context.Context, iconURL string) []byte {
+	iconURL = legacyRankPNGURL(iconURL)
+	parsed, err := url.Parse(iconURL)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return nil
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	request, err := http.NewRequestWithContext(reqCtx, http.MethodGet, iconURL, nil)
+	if err != nil {
+		return nil
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil
+	}
+	defer response.Body.Close()
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return nil
+	}
+	const maxIconBytes = 2 << 20
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, io.LimitReader(response.Body, maxIconBytes+1)); err != nil || buf.Len() > maxIconBytes {
+		return nil
+	}
+	return buf.Bytes()
 }
 
 func rankMissingUserMessage() responses.Message {

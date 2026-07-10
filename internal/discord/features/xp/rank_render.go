@@ -14,6 +14,7 @@ import (
 	"unicode/utf16"
 
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/xp"
+	xdraw "golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
@@ -28,6 +29,7 @@ type rankCanvasEntry struct {
 type rankCanvasView struct {
 	GuildName      string
 	GuildCreatedAt time.Time
+	GuildIconData  []byte
 	ViewerRankText string
 	Title          string
 	Page           int
@@ -78,8 +80,7 @@ func drawGeneratedRankBackground(canvas *image.RGBA) {
 }
 
 func drawRankHeader(canvas *image.RGBA, view rankCanvasView) {
-	fillRankRect(canvas, image.Rect(33, 10, 103, 80), color.RGBA{R: 88, G: 101, B: 242, A: 255})
-	drawRankText(canvas, 45, 55, "M", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 30)
+	drawRankGuildIcon(canvas, view.GuildIconData)
 	guildName := truncateLegacyRankText(view.GuildName)
 	if guildName == "" {
 		guildName = "MHCAT"
@@ -93,6 +94,77 @@ func drawRankHeader(canvas *image.RGBA, view rankCanvasView) {
 	drawRankText(canvas, 118, 74, view.Title, color.RGBA{R: 168, G: 168, B: 168, A: 255}, 20)
 	drawRankCenteredText(canvas, 710, 70, view.ViewerRankText, headerColor, 30)
 	drawRankText(canvas, 790, 70, createdAt.Format("2006/01/02"), headerColor, 30)
+}
+
+func drawRankGuildIcon(canvas *image.RGBA, data []byte) {
+	icon := decodeRankImage(data)
+	if icon == nil {
+		icon = legacyRankFallbackIcon()
+	}
+	if icon == nil {
+		fillRankRect(canvas, image.Rect(33, 10, 103, 80), color.RGBA{R: 88, G: 101, B: 242, A: 255})
+		drawRankText(canvas, 45, 55, "M", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 30)
+		return
+	}
+	large := image.NewRGBA(image.Rect(0, 0, 128, 128))
+	xdraw.CatmullRom.Scale(large, large.Bounds(), icon, icon.Bounds(), draw.Over, nil)
+	rounded := image.NewRGBA(large.Bounds())
+	for y := 0; y < large.Bounds().Dy(); y++ {
+		for x := 0; x < large.Bounds().Dx(); x++ {
+			if insideLegacyRankIcon(x, y, 128, 128, 40) {
+				rounded.Set(x, y, large.At(x, y))
+			}
+		}
+	}
+	small := image.NewRGBA(image.Rect(0, 0, 70, 70))
+	xdraw.CatmullRom.Scale(small, small.Bounds(), rounded, rounded.Bounds(), draw.Over, nil)
+	draw.Draw(canvas, image.Rect(33, 10, 103, 80), small, image.Point{}, draw.Over)
+}
+
+func decodeRankImage(data []byte) image.Image {
+	if len(data) == 0 {
+		return nil
+	}
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil
+	}
+	return img
+}
+
+func legacyRankFallbackIcon() image.Image {
+	for _, path := range rankAssetCandidates("asset/blue_discord.png") {
+		file, err := os.Open(path)
+		if err != nil {
+			continue
+		}
+		img, _, err := image.Decode(file)
+		_ = file.Close()
+		if err == nil {
+			return img
+		}
+	}
+	return nil
+}
+
+func insideLegacyRankIcon(x int, y int, width int, height int, radius int) bool {
+	if x >= radius && x < width-radius {
+		return true
+	}
+	if y >= radius && y < height-radius {
+		return true
+	}
+	cx := radius
+	if x >= width-radius {
+		cx = width - radius - 1
+	}
+	cy := radius
+	if y >= height-radius {
+		cy = height - radius - 1
+	}
+	dx := x - cx
+	dy := y - cy
+	return dx*dx+dy*dy <= radius*radius
 }
 
 func drawRankRows(canvas *image.RGBA, view rankCanvasView) {
