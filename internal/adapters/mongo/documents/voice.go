@@ -101,7 +101,7 @@ func VoiceRoomLockDocumentFromDomain(lock domain.VoiceRoomLock) VoiceRoomLockDoc
 		LockAnswer:   password,
 		Owner:        lock.OwnerID,
 		TextChannel:  textChannel,
-		AllowedUsers: append([]string(nil), lock.AllowedUserIDs...),
+		AllowedUsers: append([]string{}, lock.AllowedUserIDs...),
 	}
 }
 

@@ -168,6 +168,29 @@ func TestVoiceRoomLockDocumentUsesNullForEmptyPassword(t *testing.T) {
 	}
 }
 
+func TestVoiceRoomLockDocumentWritesEmptyAllowedUsersAsBSONArray(t *testing.T) {
+	document := documents.VoiceRoomLockDocumentFromDomain(domain.VoiceRoomLock{
+		GuildID:   "guild-1",
+		ChannelID: "voice-1",
+		OwnerID:   "owner-1",
+	})
+	if document.AllowedUsers == nil || len(document.AllowedUsers) != 0 {
+		t.Fatalf("allowed users = %#v", document.AllowedUsers)
+	}
+	raw, err := bson.Marshal(document)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	array, ok := bson.Raw(raw).Lookup("ok_people").ArrayOK()
+	if !ok {
+		t.Fatalf("ok_people is not an array: %v", bson.Raw(raw).Lookup("ok_people").Type)
+	}
+	values, err := array.Values()
+	if err != nil || len(values) != 0 {
+		t.Fatalf("ok_people values=%#v err=%v", values, err)
+	}
+}
+
 func TestVoiceRoomLockDocumentUsesNullForEmptyTextChannel(t *testing.T) {
 	document := documents.VoiceRoomLockDocumentFromDomain(domain.VoiceRoomLock{
 		GuildID:   "guild-1",
