@@ -145,7 +145,14 @@ func (m Module) ResultHandler() interactions.Handler {
 		if len(poll.Votes) == 0 {
 			return responder.EditOriginal(ctx, pollErrorMessage("還沒有人參與投票!"))
 		}
-		return responder.EditOriginal(ctx, pollResultMessage(ctx, poll, m.members, m.nextPollColor()))
+		if err := responder.EditOriginal(ctx, pollResultMessage(ctx, poll, m.members, m.nextPollColor())); err != nil {
+			return err
+		}
+		if m.messages != nil && interaction.ChannelID != "" && interaction.MessageID != "" {
+			count := m.memberCount(ctx, interaction.Actor.GuildID, poll.UniqueVoterCount())
+			_ = m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: interaction.MessageID}, pollOutboundMessage(poll, count, m.nextPollColor()))
+		}
+		return nil
 	}
 }
 

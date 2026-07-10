@@ -395,7 +395,9 @@ func TestResultHandlerReturnsLegacyTextFields(t *testing.T) {
 	repo := seededPollRepo(t)
 	_, _ = repo.TogglePoll(context.Background(), "guild-1", "message-1", domain.PollTogglePublicResult)
 	_, _ = repo.Vote(context.Background(), "guild-1", "message-1", "user-1", "A", "1")
-	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), nil, nil)
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.NonBotMembers = 4
+	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, nil)
 	module.randomColor = func() int { return pollTestRandomColor }
 	responder := fakediscord.NewResponder()
 
@@ -416,6 +418,9 @@ func TestResultHandlerReturnsLegacyTextFields(t *testing.T) {
 	}
 	if len(responder.Edits[0].Files) != 2 || responder.Edits[0].Files[0].Name != "file.jpg" || responder.Edits[0].Files[1].Name != "discord.txt" {
 		t.Fatalf("result files = %#v", responder.Edits[0].Files)
+	}
+	if len(sideEffects.Edited) != 1 || !strings.Contains(sideEffects.Edited[0].Message.Embeds[0].Description, "總投票人數:`1` / `4`") {
+		t.Fatalf("refreshed poll = %#v", sideEffects.Edited)
 	}
 }
 
