@@ -51,6 +51,25 @@ func TestShopAddRequiresManageMessages(t *testing.T) {
 	}
 }
 
+func TestShopAddUsesLegacyUTF16NameLength(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	module := NewShopModule(repo, nil, nil, nil, nil, nil, shopFixedClock{now: time.UnixMilli(1_710_000_000_000)})
+	interaction := shopAddInteraction()
+	interaction.Actor.PermissionBits = shopManageMessagesBit
+	interaction.Options[shopOptionName] = strings.Repeat("\U0001F600", 8)
+	responder := fakediscord.NewResponder()
+
+	if err := module.ShopHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("shop add: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "商品名請少於15字") {
+		t.Fatalf("response = %#v", responder.Edits)
+	}
+	if _, err := repo.GetShopItem(context.Background(), "guild-1", 1_710_000_000_000); !errors.Is(err, ports.ErrShopItemMissing) {
+		t.Fatalf("overlong item was created: %v", err)
+	}
+}
+
 func TestShopListRendersLegacyFieldsAndButtons(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 50, Description: "role reward", Count: 1})

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -43,6 +44,26 @@ func TestShopServiceRejectsInvalidItem(t *testing.T) {
 	})
 	if !errors.Is(err, domain.ErrInvalidShopItem) {
 		t.Fatalf("expected ErrInvalidShopItem, got %v", err)
+	}
+}
+
+func TestShopServiceUsesLegacyUTF16NameLength(t *testing.T) {
+	service := ShopService{Repository: &shopServiceRepo{}}
+	item := domain.ShopItem{
+		GuildID:     "guild-1",
+		CommodityID: 1,
+		Name:        strings.Repeat("\U0001F600", 8),
+		NeedCoins:   10,
+		Description: "desc",
+		Count:       1,
+	}
+
+	if _, err := service.Create(context.Background(), item); !errors.Is(err, domain.ErrInvalidShopItem) {
+		t.Fatalf("expected eight emoji to exceed 15 UTF-16 units, got %v", err)
+	}
+	item.Name = strings.Repeat("\U0001F600", 7) + "a"
+	if _, err := service.Create(context.Background(), item); err != nil {
+		t.Fatalf("expected 15 UTF-16 units to be accepted, got %v", err)
 	}
 }
 

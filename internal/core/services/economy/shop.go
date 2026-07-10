@@ -3,13 +3,18 @@ package economy
 import (
 	"context"
 	"strings"
+	"unicode/utf16"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 )
 
 const MaxLegacyShopItems = 25
-const MaxLegacyShopNameRunes = 15
+const MaxLegacyShopNameLength = 15
+
+func LegacyShopNameLength(name string) int {
+	return len(utf16.Encode([]rune(name)))
+}
 
 type ShopService struct {
 	Repository ports.EconomyShopRepository
@@ -52,7 +57,7 @@ func (s ShopService) Create(ctx context.Context, item domain.ShopItem) (domain.S
 	if err := item.Validate(); err != nil {
 		return domain.ShopItem{}, err
 	}
-	if len([]rune(item.Name)) > MaxLegacyShopNameRunes {
+	if LegacyShopNameLength(item.Name) > MaxLegacyShopNameLength {
 		return domain.ShopItem{}, domain.ErrInvalidShopItem
 	}
 	items, err := s.Repository.ListShopItems(ctx, item.GuildID)

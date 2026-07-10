@@ -67,7 +67,7 @@ func (m Module) handleShopAdd(ctx context.Context, interaction interactions.Inte
 		return responder.EditOriginal(ctx, shopErrorMessage("你需要有`查詢跟購買大家都可用，剩下皆須訊息管理`才能使用此指令", shopAddDocsPath))
 	}
 	name := strings.TrimSpace(interaction.Options[shopOptionName])
-	if len([]rune(name)) > coreeconomy.MaxLegacyShopNameRunes {
+	if coreeconomy.LegacyShopNameLength(name) > coreeconomy.MaxLegacyShopNameLength {
 		return responder.EditOriginal(ctx, shopErrorMessage("商品名請少於15字!", shopAddDocsPath))
 	}
 	price, ok := integerOption(interaction, shopOptionPrice)
