@@ -124,7 +124,7 @@ func replaceLeaveMessageDescriptionPlaceholders(value string, event LeaveMemberE
 }
 
 func leaveMessageDeliveryColor(value string) int {
-	if strings.EqualFold(strings.TrimSpace(value), "Random") {
+	if legacyRandomColor(value) {
 		return randomLeaveMessageColor()
 	}
 	if parsed, ok := domain.ParseLegacyColorValue(value); ok {

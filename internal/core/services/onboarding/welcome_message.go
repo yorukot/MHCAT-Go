@@ -180,13 +180,17 @@ func welcomeTimestamp(event WelcomeMemberEvent) time.Time {
 }
 
 func welcomeMessageColor(value string) int {
-	if strings.TrimSpace(value) == "RANDOM" {
+	if legacyRandomColor(value) {
 		return randomWelcomeMessageColor()
 	}
 	if parsed, ok := domain.ParseLegacyColorValue(value); ok {
 		return parsed
 	}
 	return 0xED4245
+}
+
+func legacyRandomColor(value string) bool {
+	return value == "Random" || value == "RANDOM"
 }
 
 func randomWelcomeMessageColor() int {

@@ -192,3 +192,16 @@ func TestWelcomeMessagePlaceholdersPreserveJavaScriptReplacementTokens(t *testin
 		})
 	}
 }
+
+func TestLegacyRandomColorNames(t *testing.T) {
+	for _, value := range []string{"Random", "RANDOM"} {
+		if !legacyRandomColor(value) {
+			t.Fatalf("expected %q to be random", value)
+		}
+	}
+	for _, value := range []string{"random", " Random ", "red"} {
+		if legacyRandomColor(value) {
+			t.Fatalf("did not expect %q to be random", value)
+		}
+	}
+}
