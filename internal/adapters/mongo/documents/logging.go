@@ -1,6 +1,9 @@
 package documents
 
-import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+import (
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"go.mongodb.org/mongo-driver/v2/bson"
+)
 
 type LoggingConfigDocument struct {
 	Guild             string `bson:"guild" json:"guild"`
@@ -9,6 +12,15 @@ type LoggingConfigDocument struct {
 	MessageDelete     bool   `bson:"message_delete" json:"message_delete"`
 	ChannelUpdate     bool   `bson:"channel_update" json:"channel_update"`
 	MemberVoiceUpdate bool   `bson:"member_voice_update" json:"member_voice_update"`
+}
+
+type LoggingConfigReadDocument struct {
+	Guild             string        `bson:"guild" json:"guild"`
+	ChannelID         bson.RawValue `bson:"channel_id" json:"channel_id"`
+	MessageUpdate     bson.RawValue `bson:"message_update" json:"message_update"`
+	MessageDelete     bson.RawValue `bson:"message_delete" json:"message_delete"`
+	ChannelUpdate     bson.RawValue `bson:"channel_update" json:"channel_update"`
+	MemberVoiceUpdate bson.RawValue `bson:"member_voice_update" json:"member_voice_update"`
 }
 
 func LoggingConfigDocumentFromDomain(config domain.LoggingConfig) LoggingConfigDocument {
@@ -30,5 +42,17 @@ func (d LoggingConfigDocument) ToDomain() domain.LoggingConfig {
 		MessageDelete:     d.MessageDelete,
 		ChannelUpdate:     d.ChannelUpdate,
 		MemberVoiceUpdate: d.MemberVoiceUpdate,
+	}
+}
+
+func (d LoggingConfigReadDocument) ToDomain() domain.LoggingConfig {
+	channelID, _ := legacyMongooseString(d.ChannelID)
+	return domain.LoggingConfig{
+		GuildID:           d.Guild,
+		ChannelID:         channelID,
+		MessageUpdate:     legacyMongooseBoolean(d.MessageUpdate),
+		MessageDelete:     legacyMongooseBoolean(d.MessageDelete),
+		ChannelUpdate:     legacyMongooseBoolean(d.ChannelUpdate),
+		MemberVoiceUpdate: legacyMongooseBoolean(d.MemberVoiceUpdate),
 	}
 }

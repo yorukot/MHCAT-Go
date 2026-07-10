@@ -86,7 +86,7 @@ func (r *LoggingConfigRepository) GetLoggingConfig(ctx context.Context, guildID 
 	if err := ctx.Err(); err != nil {
 		return domain.LoggingConfig{}, err
 	}
-	var document documents.LoggingConfigDocument
+	var document documents.LoggingConfigReadDocument
 	err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document)
 	if err != nil {
 		if err == drivermongo.ErrNoDocuments {
