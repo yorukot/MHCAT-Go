@@ -124,13 +124,9 @@ func (s CreateService) createOptional(ctx context.Context, req CreateRequest, ex
 	if existing.HasOptionalChannel(option) {
 		return domain.StatsConfig{}, domain.ErrStatsChannelAlreadyExists
 	}
-	parentID := ""
-	if existing.ParentID != "" {
-		if _, err := s.Channels.FindChannelByID(ctx, req.GuildID, existing.ParentID); err == nil {
-			parentID = existing.ParentID
-		} else if !errors.Is(err, ports.ErrChannelNotFound) {
-			return domain.StatsConfig{}, err
-		}
+	parentID, err := statsParentID(ctx, s.Channels, req.GuildID, existing.ParentID)
+	if err != nil {
+		return domain.StatsConfig{}, err
 	}
 	displayValue := optionalStatsValue(option, snapshot)
 	storedValue := displayValue
@@ -146,6 +142,18 @@ func (s CreateService) createOptional(ctx context.Context, req CreateRequest, ex
 		return domain.StatsConfig{}, err
 	}
 	return s.Repository.AddStatsConfigChannel(ctx, req.GuildID, option, created.ChannelID, storedValue)
+}
+
+func statsParentID(ctx context.Context, channels ports.DiscordChannelPort, guildID string, configuredParentID string) (string, error) {
+	if configuredParentID == "" {
+		return "", nil
+	}
+	if _, err := channels.FindCachedChannelByID(ctx, guildID, configuredParentID); err == nil {
+		return configuredParentID, nil
+	} else if !errors.Is(err, ports.ErrChannelNotFound) {
+		return "", err
+	}
+	return "", nil
 }
 
 func statsChannelRequest(req CreateRequest, parentID string, channelType int, name string) ports.ChannelCreateRequest {

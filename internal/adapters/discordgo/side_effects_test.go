@@ -2,6 +2,7 @@ package discordgo
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -105,6 +106,31 @@ func TestGuildStatsUsesLegacyGuildCaches(t *testing.T) {
 	}
 	if snapshot.ChannelCount != 3 || snapshot.TextChannelCount != 0 || snapshot.VoiceChannelCount != 0 {
 		t.Fatalf("channel counts = %#v", snapshot)
+	}
+}
+
+func TestFindCachedChannelByIDDoesNotFallBackToREST(t *testing.T) {
+	state := dgo.NewState()
+	if err := state.GuildAdd(&dgo.Guild{
+		ID: "guild-1",
+		Channels: []*dgo.Channel{
+			{ID: "channel-1", GuildID: "guild-1", Name: "stats", Type: dgo.ChannelTypeGuildCategory},
+		},
+	}); err != nil {
+		t.Fatalf("seed guild state: %v", err)
+	}
+	client := SideEffectClient{Session: &Session{session: &dgo.Session{State: state}}}
+
+	channel, err := client.FindCachedChannelByID(context.Background(), "guild-1", "channel-1")
+	if err != nil {
+		t.Fatalf("find cached channel: %v", err)
+	}
+	if channel.ChannelID != "channel-1" || channel.GuildID != "guild-1" || channel.Type != int(dgo.ChannelTypeGuildCategory) {
+		t.Fatalf("channel = %#v", channel)
+	}
+	_, err = client.FindCachedChannelByID(context.Background(), "guild-1", "missing")
+	if !errors.Is(err, ports.ErrChannelNotFound) {
+		t.Fatalf("missing channel error = %v", err)
 	}
 }
 

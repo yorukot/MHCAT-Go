@@ -131,6 +131,10 @@ func (s *SideEffects) FindChannelByID(ctx context.Context, guildID string, chann
 	return ports.ChannelRef{}, ports.ErrChannelNotFound
 }
 
+func (s *SideEffects) FindCachedChannelByID(ctx context.Context, guildID string, channelID string) (ports.ChannelRef, error) {
+	return s.FindChannelByID(ctx, guildID, channelID)
+}
+
 func (s *SideEffects) FindChannelByName(ctx context.Context, guildID string, name string, channelType int) (ports.ChannelRef, error) {
 	if err := s.ready(ctx); err != nil {
 		return ports.ChannelRef{}, err

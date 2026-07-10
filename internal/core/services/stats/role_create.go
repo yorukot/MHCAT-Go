@@ -2,7 +2,6 @@ package stats
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"strings"
 
@@ -60,13 +59,9 @@ func (s RoleCreateService) Create(ctx context.Context, req RoleCreateRequest) (d
 		return domain.StatsRoleConfig{}, ports.ErrDiscordRoleMissing
 	}
 
-	parentID := ""
-	if statsConfig.ParentID != "" {
-		if _, err := s.Channels.FindChannelByID(ctx, req.GuildID, statsConfig.ParentID); err == nil {
-			parentID = statsConfig.ParentID
-		} else if !errors.Is(err, ports.ErrChannelNotFound) {
-			return domain.StatsRoleConfig{}, err
-		}
+	parentID, err := statsParentID(ctx, s.Channels, req.GuildID, statsConfig.ParentID)
+	if err != nil {
+		return domain.StatsRoleConfig{}, err
 	}
 
 	channelType := discordChannelTypeGuildText

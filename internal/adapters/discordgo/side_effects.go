@@ -213,6 +213,30 @@ func (c SideEffectClient) FindChannelByID(ctx context.Context, guildID string, c
 	return channelRefFromDiscord(channel), ctx.Err()
 }
 
+func (c SideEffectClient) FindCachedChannelByID(ctx context.Context, guildID string, channelID string) (ports.ChannelRef, error) {
+	if err := ctx.Err(); err != nil {
+		return ports.ChannelRef{}, err
+	}
+	session, err := c.session()
+	if err != nil {
+		return ports.ChannelRef{}, err
+	}
+	if session.State == nil {
+		return ports.ChannelRef{}, fmt.Errorf("discord state is not configured")
+	}
+	channel, err := session.State.Channel(channelID)
+	if err != nil {
+		if errors.Is(err, dgo.ErrStateNotFound) {
+			return ports.ChannelRef{}, ports.ErrChannelNotFound
+		}
+		return ports.ChannelRef{}, fmt.Errorf("load cached discord channel: %w", err)
+	}
+	if channel == nil || channel.ID == "" || channel.GuildID != guildID {
+		return ports.ChannelRef{}, ports.ErrChannelNotFound
+	}
+	return channelRefFromDiscord(channel), ctx.Err()
+}
+
 func (c SideEffectClient) GuildStats(ctx context.Context, guildID string) (domain.StatsSnapshot, error) {
 	session, err := c.session()
 	if err != nil {
