@@ -611,7 +611,7 @@ func TestPreflightAcceptsEconomyGameCommandSyncWithRuntimeFlag(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
 	}
-	if !strings.Contains(stdout, "economy-game-command-sync status=pass") || !strings.Contains(stdout, "economy-game-runtime-pairing status=pass") {
+	if !strings.Contains(stdout, "economy-game-command-sync status=pass") || !strings.Contains(stdout, "economy-game-runtime-pairing status=pass") || !strings.Contains(stdout, "economy-game-runtime-safety status=warn") {
 		t.Fatalf("expected economy game pass checks, stdout=%q", stdout)
 	}
 }

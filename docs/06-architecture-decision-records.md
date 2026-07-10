@@ -357,3 +357,14 @@ Blocked without audit/ADR:
 - Risks: Process-local game sessions still do not survive restart, duplicate logical balance rows remain an ownership/audit concern, and Node does not participate in the Go transaction boundary. An unknown commit result must fail closed rather than be blindly retried by application code.
 - Rollback: Disable the Go economy-game runtime and command sync before restoring Node ownership. No data migration rollback is required because only existing `coins.coin` fields are written.
 - Tests: transaction-runner guard tests and replica-set Mongo integration tests for reserve/settle lifecycle, forced second-player rollback in both phases, and concurrent reservation exclusion.
+
+## ADR-030 Economy Game Timeout Ownership
+
+- Status: Accepted.
+- Context: Accepted knowledge and blackjack games reserve both wagers, but the first Go handler only pruned stale sessions when a later component arrived. A stopped game could therefore retain both wagers indefinitely and leave active buttons visible. Timer callbacks and component handlers can also reach terminal settlement concurrently.
+- Decision: Give each active process-local game a strict legacy deadline and monotonically increasing turn generation. Serialize state-changing components and timeout callbacks through session claims. Settle knowledge and blackjack forfeits according to the legacy response/turn state, delete the session before editing Discord, and remove all components in the timeout edit. Register the timer manager with interaction-runtime shutdown so pending timers are canceled and active callbacks finish before dependencies close.
+- Options considered: passive expiry only; one goroutine per collector without ownership; persist complete game state in Mongo; process-local generation timers plus serialized claims.
+- Consequences: Stopped games settle and update visibly during normal process uptime, stale timers cannot settle a newer turn, and a terminal button race produces one settlement. Knowledge uses the actual strict 21st interval tick and blackjack the strict 31st tick while preserving their legacy 15/30-second visible timestamps.
+- Risks: Active state remains process-local and is lost on restart. Unknown transaction outcomes fail closed and require operator inspection rather than automatic retry. Discord edit failure after successful settlement is logged but not retried.
+- Rollback: Disable Go command sync/runtime, stop the process, inspect accepted unfinished games, reconcile both players as one pair, and only then restore Node ownership. No schema rollback is required.
+- Tests: deterministic timeout/payout/message tests, no-answer pot behavior, terminal-action race tests, fail-closed settlement tests, timer generation/cancellation tests, interaction-dispatcher shutdown tests, and race-detector coverage.

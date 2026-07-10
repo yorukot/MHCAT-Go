@@ -60,6 +60,7 @@ type RuntimeOptions struct {
 	EconomyCoinResetGuildInfo     ports.DiscordInfoProvider
 	EconomyRPSRepository          ports.EconomyRockPaperScissorsRepository
 	EconomyGameRepository         ports.EconomyCoinGameRepository
+	EconomyGameMessagePort        ports.DiscordMessagePort
 	EconomyShopRepository         ports.EconomyShopRepository
 	EconomyShopDirectMessage      ports.DiscordDirectMessagePort
 	EconomyShopRolePort           ports.DiscordRolePort
@@ -359,6 +360,7 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		interactions.Logging(opts.Logger),
 	)
 	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
+	runtimeShutdowns := []discordruntime.ShutdownFunc{}
 	// Runtime usage belongs to the slash middleware; route-level tracking would double count.
 	opts.UsageTracker = nil
 
@@ -428,10 +430,17 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		}
 	}
 	if opts.EconomyGameRepository != nil {
-		gameModule := featureeconomy.NewCoinGameModule(opts.EconomyGameRepository, concreteDiscord, opts.UsageTracker, clockOrSystem(opts.Clock))
+		gameModule := featureeconomy.NewCoinGameModuleWithMessages(
+			opts.EconomyGameRepository,
+			concreteDiscord,
+			opts.EconomyGameMessagePort,
+			opts.UsageTracker,
+			clockOrSystem(opts.Clock),
+		).WithLogger(opts.Logger)
 		if err := gameModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
+		runtimeShutdowns = append(runtimeShutdowns, gameModule.StopCoinGameLifecycle)
 	}
 	if opts.EconomyShopRepository != nil {
 		shopModule := featureeconomy.NewShopModule(
@@ -722,7 +731,14 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 			return nil, err
 		}
 	}
-	return discordruntime.NewDispatcher(router, opts.Logger)
+	dispatcher, err := discordruntime.NewDispatcher(router, opts.Logger)
+	if err != nil {
+		return nil, err
+	}
+	for _, shutdown := range runtimeShutdowns {
+		dispatcher.RegisterShutdown(shutdown)
+	}
+	return dispatcher, nil
 }
 
 func verificationFlowRuntimeEnabled(opts RuntimeOptions) bool {

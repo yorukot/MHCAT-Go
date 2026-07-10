@@ -1,7 +1,9 @@
 package economy
 
 import (
+	"context"
 	"crypto/rand"
+	"log/slog"
 	"math/big"
 	"sync"
 	"time"
@@ -35,10 +37,12 @@ type Module struct {
 	clock         ports.Clock
 	confirmations *coinResetConfirmationStore
 	gameSessions  *coinGameSessionStore
+	gameTimeouts  coinGameTimeoutScheduler
 	shopSessions  *shopSessionStore
 	color         func() int
 	rpsChoice     func() domain.RockPaperScissorsChoice
 	gameRandInt   func(int) int
+	logger        *slog.Logger
 	defs          []commands.Definition
 	feature       string
 	queryEnabled  bool
@@ -165,21 +169,42 @@ func NewRockPaperScissorsModule(repo ports.EconomyRockPaperScissorsRepository, d
 }
 
 func NewCoinGameModule(repo ports.EconomyCoinGameRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker, clock ports.Clock) Module {
+	return NewCoinGameModuleWithMessages(repo, discordInfo, nil, usage, clock)
+}
+
+func NewCoinGameModuleWithMessages(repo ports.EconomyCoinGameRepository, discordInfo ports.DiscordInfoProvider, messages ports.DiscordMessagePort, usage ports.UsageTracker, clock ports.Clock) Module {
 	if clock == nil {
 		clock = ports.SystemClock{}
 	}
 	return Module{
 		game:         coreeconomy.CoinGameService{Repository: repo},
 		discord:      discordInfo,
+		messages:     messages,
 		usage:        usage,
 		clock:        clock,
 		gameSessions: newCoinGameSessionStore(clock),
+		gameTimeouts: newCoinGameTimeoutManager(clock),
 		color:        legacyRandomColor,
 		rpsChoice:    legacyRandomRockPaperScissorsChoice,
 		gameRandInt:  legacyRandomInt,
+		logger:       slog.Default(),
 		defs:         CoinGameDefinitions(),
 		feature:      "economy-game",
 	}
+}
+
+func (m Module) WithLogger(logger *slog.Logger) Module {
+	if logger != nil {
+		m.logger = logger
+	}
+	return m
+}
+
+func (m Module) StopCoinGameLifecycle(ctx context.Context) error {
+	if m.gameTimeouts == nil {
+		return nil
+	}
+	return m.gameTimeouts.Stop(ctx)
 }
 
 func NewShopModule(repo ports.EconomyShopRepository, discordInfo ports.DiscordInfoProvider, roleInspector ports.DiscordRoleInspector, roles ports.DiscordRolePort, direct ports.DiscordDirectMessagePort, usage ports.UsageTracker, clock ports.Clock) Module {

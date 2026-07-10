@@ -53,6 +53,7 @@ type App struct {
 	discord                   DiscordSession
 	removeInteractionHandler  func()
 	removeGatewayEventHandler func()
+	runtimeDispatcher         *discordruntime.Dispatcher
 	eventDispatcher           *discordevents.Dispatcher
 
 	shutdownOnce sync.Once
@@ -161,6 +162,7 @@ func (a *App) Start(ctx context.Context) error {
 			eventDispatcher, err = a.eventFactory(a.cfg, a.logger, discordSession, mongoClient)
 			if err != nil {
 				removeHandler()
+				_ = dispatcher.Shutdown(context.Background())
 				_ = mongoClient.Disconnect(context.Background())
 				_ = discordSession.Close()
 				return fmt.Errorf("create gateway event dispatcher: %w", err)
@@ -176,6 +178,7 @@ func (a *App) Start(ctx context.Context) error {
 		if err := openWithTimeout(ctx, discordSession, a.cfg.DiscordGatewayConnectTimeout); err != nil {
 			removeHandler()
 			removeEventHandler()
+			_ = dispatcher.Shutdown(context.Background())
 			if eventDispatcher != nil {
 				_ = eventDispatcher.Shutdown(context.Background())
 			}
@@ -189,6 +192,7 @@ func (a *App) Start(ctx context.Context) error {
 	a.discord = discordSession
 	a.removeInteractionHandler = removeHandler
 	a.removeGatewayEventHandler = removeEventHandler
+	a.runtimeDispatcher = dispatcher
 	a.eventDispatcher = eventDispatcher
 	a.mu.Unlock()
 
@@ -201,6 +205,7 @@ func (a *App) Shutdown(ctx context.Context) error {
 		a.mu.Lock()
 		mongoClient := a.mongo
 		discordSession := a.discord
+		runtimeDispatcher := a.runtimeDispatcher
 		eventDispatcher := a.eventDispatcher
 		a.mu.Unlock()
 
@@ -212,11 +217,18 @@ func (a *App) Shutdown(ctx context.Context) error {
 			if a.removeGatewayEventHandler != nil {
 				a.removeGatewayEventHandler()
 			}
-			if eventDispatcher != nil {
-				if err := eventDispatcher.Shutdown(ctx); err != nil {
-					errs = append(errs, err)
-				}
+		}
+		if runtimeDispatcher != nil {
+			if err := runtimeDispatcher.Shutdown(ctx); err != nil {
+				errs = append(errs, err)
 			}
+		}
+		if eventDispatcher != nil {
+			if err := eventDispatcher.Shutdown(ctx); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		if discordSession != nil {
 			if err := discordSession.Close(); err != nil {
 				errs = append(errs, err)
 			}
@@ -369,7 +381,12 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 			if err := economyRepo.SetCoinGameTransactionRunner(transactions); err != nil {
 				return nil, fmt.Errorf("configure economy game transactions: %w", err)
 			}
+			sideEffects, err := messageSideEffectsFromSession(session, "economy game feature")
+			if err != nil {
+				return nil, err
+			}
 			opts.EconomyGameRepository = economyRepo
+			opts.EconomyGameMessagePort = sideEffects
 		}
 		if cfg.FeatureEconomyShopEnabled {
 			sideEffects, err := messageSideEffectsFromSession(session, "economy shop feature")

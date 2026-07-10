@@ -2,18 +2,25 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 )
 
 type Handler func(context.Context, interactions.Interaction, responses.Responder) error
+type ShutdownFunc func(context.Context) error
 
 type Dispatcher struct {
-	router *interactions.Router
-	logger *slog.Logger
+	router       *interactions.Router
+	logger       *slog.Logger
+	mu           sync.RWMutex
+	shutdowns    []ShutdownFunc
+	shutdownOnce sync.Once
+	shutdownErr  error
 }
 
 func NewDispatcher(router *interactions.Router, logger *slog.Logger) (*Dispatcher, error) {
@@ -25,6 +32,37 @@ func NewDispatcher(router *interactions.Router, logger *slog.Logger) (*Dispatche
 
 func (d *Dispatcher) Handler() Handler {
 	return d.Dispatch
+}
+
+func (d *Dispatcher) RegisterShutdown(fn ShutdownFunc) {
+	if d == nil || fn == nil {
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.shutdowns = append(d.shutdowns, fn)
+}
+
+func (d *Dispatcher) Shutdown(ctx context.Context) error {
+	if d == nil {
+		return nil
+	}
+	d.shutdownOnce.Do(func() {
+		d.mu.RLock()
+		shutdowns := append([]ShutdownFunc(nil), d.shutdowns...)
+		d.mu.RUnlock()
+		var errs []error
+		for index := len(shutdowns) - 1; index >= 0; index-- {
+			if shutdowns[index] == nil {
+				continue
+			}
+			if err := shutdowns[index](ctx); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		d.shutdownErr = errors.Join(errs...)
+	})
+	return d.shutdownErr
 }
 
 func (d *Dispatcher) Dispatch(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {

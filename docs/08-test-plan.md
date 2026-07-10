@@ -102,7 +102,7 @@ Run `go test -race ./...` when implementation exists. Race-prone flows:
 
 - concurrent sign-in
 - XP updates
-- coin games
+- coin-game component/timeout claims, timer generations, and two-player transaction conflicts
 - gacha/shop inventory
 - poll votes
 - lottery joins

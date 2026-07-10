@@ -106,6 +106,7 @@ func buildReport(lookup lookupFunc) []checkResult {
 		economyRPSRuntimePairing(lookup),
 		economyGameCommandSync(lookup),
 		economyGameRuntimePairing(lookup),
+		economyGameRuntimeSafety(lookup),
 		economyShopCommandSync(lookup),
 		economyShopRuntimePairing(lookup),
 		economyProfileCommandSync(lookup),
@@ -679,6 +680,21 @@ func economyGameRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "economy-game-runtime-pairing", Status: statusWarn, Message: "economy game runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "economy-game-runtime-pairing", Status: statusSkipped, Message: "economy game runtime and command sync include are disabled"}
+}
+
+func economyGameRuntimeSafety(lookup lookupFunc) checkResult {
+	gameEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ECONOMY_GAME_ENABLED")
+	if err != nil {
+		return checkResult{Name: "economy-game-runtime-safety", Status: statusFail, Message: err.Error()}
+	}
+	if !gameEnabled {
+		return checkResult{Name: "economy-game-runtime-safety", Status: statusSkipped, Message: "economy game runtime is disabled"}
+	}
+	return checkResult{
+		Name:    "economy-game-runtime-safety",
+		Status:  statusWarn,
+		Message: "economy game reserve/settlement requires replica-set or sharded Mongo; active sessions are process-local, so confirm exclusive Node/Go ownership and restart reconciliation",
+	}
 }
 
 func economyShopRuntimePairing(lookup lookupFunc) checkResult {

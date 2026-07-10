@@ -139,7 +139,7 @@ export MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME=true
 ```
 
-Set both together only in an isolated staging database when testing `/代幣遊戲`. This path writes two-player `coins` wagers transactionally and uses process-local component session state, so use disposable balances on a transaction-capable replica set or sharded cluster only. Verify that a forced or observed failed settlement does not leave one player's balance changed; do not manually retry an unknown commit result.
+Set both together only in an isolated staging database when testing `/代幣遊戲`. This path writes two-player `coins` wagers transactionally and uses process-local component session state, so use disposable balances on a transaction-capable replica set or sharded cluster only. Verify knowledge and blackjack timeout payouts, removed components, and graceful shutdown as described in `docs/67-economy-game-lifecycle.md`. A failed settlement must not leave one player's balance changed; do not manually retry an unknown commit result.
 
 Optional economy shop smoke flags:
 
@@ -677,7 +677,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, the tester is the staging guild owner, and the staging database has only disposable `coins` rows for the reset target.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`, confirm `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`, the database is isolated staging data, and all target `coins` rows are disposable.
-- If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME=true`, confirm `MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true`, the database is isolated staging data, and all target `coins` rows are disposable.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME=true`, confirm `MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true`, Mongo supports transactions, Node game ownership is stopped, the database is isolated staging data, and all target `coins` rows are disposable; include knowledge and blackjack timeout cases.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP=true`, confirm `MHCAT_FEATURE_ECONOMY_SHOP_ENABLED=true`, the database is isolated staging data, all target `ghps`/`coins` rows are disposable, and test roles are below the bot's highest role.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE=true`, confirm `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`, confirm `MHCAT_FEATURE_WORK_ENABLED=true` and that the test accepts the partial work command surface.
@@ -821,8 +821,10 @@ For economy game staging smoke, expected additionally:
 
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME=true`;
 - `MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true`;
+- preflight reports `economy-game-runtime-safety status=warn` for the manual topology/ownership/restart review;
 - plan includes managed `代幣遊戲`;
-- plan still performs no create/update/delete during dry-run.
+- plan still performs no create/update/delete during dry-run;
+- live smoke uses transaction-capable Mongo and verifies both knowledge and blackjack timeout forfeits remove components and settle once.
 
 For economy shop staging smoke, expected additionally:
 

@@ -67,3 +67,30 @@ func TestDispatcherContextCancellationPropagates(t *testing.T) {
 		t.Fatalf("expected deadline exceeded, got %v", err)
 	}
 }
+
+func TestDispatcherShutdownHooksRunInReverseAndOnlyOnce(t *testing.T) {
+	dispatcher, err := discordruntime.NewDispatcher(interactions.NewRouter(), nil)
+	if err != nil {
+		t.Fatalf("dispatcher: %v", err)
+	}
+	var calls []int
+	dispatcher.RegisterShutdown(func(context.Context) error {
+		calls = append(calls, 1)
+		return errors.New("first")
+	})
+	dispatcher.RegisterShutdown(func(context.Context) error {
+		calls = append(calls, 2)
+		return errors.New("second")
+	})
+
+	shutdownErr := dispatcher.Shutdown(context.Background())
+	if shutdownErr == nil || !strings.Contains(shutdownErr.Error(), "first") || !strings.Contains(shutdownErr.Error(), "second") {
+		t.Fatalf("shutdown error = %v", shutdownErr)
+	}
+	if err := dispatcher.Shutdown(context.Background()); err == nil {
+		t.Fatal("second shutdown should return the stored error")
+	}
+	if len(calls) != 2 || calls[0] != 2 || calls[1] != 1 {
+		t.Fatalf("shutdown calls = %v", calls)
+	}
+}
