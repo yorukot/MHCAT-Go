@@ -117,6 +117,17 @@ Account-age kick: `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true` is a separate 
 Default: disabled
 ```
 
+Current ticket interaction flow:
+
+```txt
+Ticket runtime: MHCAT_FEATURE_TICKETS_ENABLED=true
+Privileged intents: none; slash/modal/button payloads plus Discord REST provide the required data
+Ownership: setup/delete commands, ticket-shaped nal submits, tic, and del stay under this one gate
+Default: disabled
+```
+
+See the [ticket parity contract](74-ticket.md) before staging or production ownership changes.
+
 Current approved reaction-role exception:
 
 ```txt

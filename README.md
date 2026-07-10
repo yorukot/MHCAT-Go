@@ -40,7 +40,7 @@ This module currently provides:
 - local MongoDB Compose service for host-side smoke/audit runs.
 - sanitized production Mongo read-only audit notes.
 - Platform Wave B collection-name contract tests for legacy Mongoose compatibility.
-- ticket config BSON compatibility and repository contract foundation.
+- parity-audited ticket setup/delete/open/close flow with Mongo compatibility, exact legacy routes/UI, failure compensation, and a disabled-by-default ownership gate; see the [ticket parity contract](docs/74-ticket.md).
 - poll BSON compatibility, repository contract foundation, and gated create/vote/owner-menu/result/chart/export handlers.
 - economy `coins`/`gift_changes`/XP/work BSON compatibility, read-only query repository, gated `/代幣查詢` handler, gated `/代幣排行榜` PNG leaderboard, gated `my-profile` profile PNG, gated `/簽到` sign-in write slice, gated `coin-related-settings` config write slice, gated `/代幣增加` admin coin write slice, gated `/剪刀石頭布` game write slice, and gated `/代幣重製` owner-only reset slice.
 - gated `打工系統` command schema, legacy dashboard-redirect UI for `新增打工事項`, legacy-style `打工介面` list/detail/start UI, and admin setup/delete/energy flows with explicit work repository writes.
@@ -760,15 +760,16 @@ The typed parser/router is used by help/info refresh, ticket, poll, sign/profile
 
 ## Ticket Slice
 
-The current ticket slice implements the legacy private-channel setup/open/close flow behind explicit wiring:
+The ticket slice is parity-audited as a disabled-by-default private-channel setup/open/close flow behind explicit wiring:
 
 - `私人頻道設置` command definition and handler.
 - `私人頻道刪除` command definition and handler.
 - Legacy setup modal title and field labels.
 - Ticket panel embed with legacy `tic` open button.
-- `tickets` config is saved only after valid modal submit, fixing the legacy premature-write bug.
+- `tickets` config is saved only after valid modal submit, with stale-modal rejection and identity-scoped rollback when panel delivery fails.
 - `tic` creates a private text channel with legacy permission overwrites and welcome UI.
-- `del` deletes the ticket channel when the actor is allowed to close it.
+- Failed welcome delivery removes the newly created channel so retry is not blocked.
+- `del` deletes the ticket channel for its user-ID owner or an actor with Manage Messages.
 
 Ticket runtime routes can be enabled with:
 
@@ -787,10 +788,12 @@ MHCAT_COMMAND_SYNC_INCLUDE_TICKETS=true
 
 The command-sync CLI rejects ticket inclusion outside staging guild scope. Deletion and bulk overwrite remain disabled unless their separate explicit unsafe flags are used, and staging still rejects them.
 
+Exact UI, color handling, Mongoose scalar compatibility, duplicate/index policy, Node/Go ownership, staging smoke, and rollback are recorded in the [ticket parity contract](docs/74-ticket.md).
+
 Remaining rollout work:
 
 - Production ticket command sync.
-- Staging smoke for the full ticket setup/open/close flow.
+- Live staging smoke using the canonical ticket checklist.
 
 ## Poll Slice
 

@@ -1,6 +1,6 @@
 # Ticket Setup/Delete UI Parity Slice
 
-Status: implemented behind explicit ticket repository wiring. Legacy source was not modified.
+Status: historical slice note, superseded by the canonical [ticket parity contract](74-ticket.md). Legacy source was not modified.
 
 ## Scope
 
@@ -37,20 +37,19 @@ The modal submit path requires a `DiscordMessagePort` because legacy behavior se
 
 ## Command Sync
 
-Ticket command definitions exist in `internal/discord/features/ticket`, but they are not added to the default managed `help/ping/info` staging registry yet.
+Ticket command definitions exist in `internal/discord/features/ticket` and can be included in the staging guild registry only with `MHCAT_COMMAND_SYNC_INCLUDE_TICKETS=true` plus the paired runtime gate.
 
 Before syncing ticket commands to a staging guild:
 
-1. Wire a ticket repository into runtime.
-2. Add ticket definitions to an explicit staging allowlist.
-3. Run command sync dry-run.
-4. Apply only guild-scoped staging commands.
+1. Stop all Node and extra Go ticket owners.
+2. Audit duplicate/malformed `tickets` rows and stale Discord IDs.
+3. Enable the paired runtime and staging command-sync flags.
+4. Run command sync dry-run and apply only reviewed guild-scoped commands.
 
 ## Remaining Work
 
-- Add ticket definitions to a controlled staging command-sync allowlist before any staging apply.
-- Run staging smoke for setup modal, panel send, `tic`, and `del`.
-- Run staging smoke for CSS named colors plus 3/6-digit hex values if operators rely on named ticket panel colors.
+- Run the canonical staging smoke for setup modal, stale submit, panel compensation, `tic`, welcome compensation, and `del`.
+- Test only exact 6-digit hash-prefixed hex and supported case-sensitive Discord color names; the broader CSS/3-digit validator set does not survive discord.js `setColor`.
 
 ## Tests
 
@@ -63,7 +62,7 @@ Added tests cover:
 - Valid versioned modal submit saves `tickets` config, sends the panel to the channel, and edits the deferred reply with `<a:green_tick:994529015652163614> | 成功創建私人頻道`.
 - Legacy `nal` modal submit sends the same panel and success edit without needing the versioned setup payload.
 - Invalid color edits the legacy error and does not save.
-- CSS/HTML named colors such as `aqua`, `rebeccapurple`, and `darkslategray` are accepted, matching the legacy `validateHTMLColorName` path.
+- Successful legacy color inputs are the validator/discord.js intersection: exact `#RRGGBB` and supported case-sensitive Discord names such as `Aqua`; lowercase/CSS-only names and 3-digit hex are rejected.
 - Missing Manage Messages returns the legacy permission-denied embed.
 - Existing config returns the legacy duplicate setup embed and does not overwrite the config.
 - Delete success and missing-config legacy messages.

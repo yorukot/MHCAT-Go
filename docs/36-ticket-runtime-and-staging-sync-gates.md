@@ -1,6 +1,6 @@
 # Ticket Runtime and Staging Sync Gates
 
-Status: implemented. Legacy source was not modified.
+Status: implemented and incorporated into the canonical [ticket parity contract](74-ticket.md). Legacy source was not modified.
 
 ## Runtime Gate
 
@@ -56,9 +56,5 @@ Deletion and bulk overwrite remain rejected by staging safety checks.
 
 - Run staging command-sync dry-run with ticket inclusion.
 - Run staging command-sync apply only after reviewing the plan.
-- Run a real staging guild smoke test:
-  - `私人頻道設置`
-  - modal submit
-  - `tic`
-  - `del`
-- Decide whether the missing bot-user permission overwrite matters in guilds where the bot lacks administrator/manage-channel visibility.
+- Run the full [ticket staging checklist](74-ticket.md#staging-smoke), including exclusive ownership, duplicate/type audit, stale submits, compensation, overwrites, `tic`, and `del`.
+- The runtime bot overwrite uses interaction `ApplicationID`; no unresolved bot-user identity decision remains.

@@ -33,7 +33,7 @@ export MHCAT_FEATURE_TICKETS_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_TICKETS=true
 ```
 
-Set both together when testing ticket commands. Do not include ticket commands in command sync if the runtime feature flag is disabled.
+Set both together when testing ticket commands. Do not include ticket commands in command sync if the runtime feature flag is disabled, and stop every Node/extra-Go ticket owner first. Follow the canonical [ticket staging checklist](74-ticket.md#staging-smoke).
 
 Optional economy query smoke flags:
 
@@ -1567,6 +1567,8 @@ The canonical checklist, including duplicate/type audit, custom-emoji deletion, 
 - verify unassignable roles and missing reaction config return legacy red errors.
 
 If ticket flags were enabled and command sync apply was reviewed:
+
+The canonical duplicate/type audit, stale-modal race, failure compensation, overwrite, owner-close, usage, and rollback checks are in the [ticket parity contract](74-ticket.md#staging-smoke). The minimum shared smoke remains:
 
 - `/私人頻道設置`
 - submit the setup modal with a safe test title/content/color;

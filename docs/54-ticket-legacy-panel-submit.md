@@ -1,6 +1,6 @@
 # Ticket Legacy Panel Submit Compatibility
 
-Status: implemented behind the existing ticket feature/runtime gates. Legacy source was not modified.
+Status: implemented behind the existing ticket feature/runtime gates and superseded by the canonical [ticket parity contract](74-ticket.md). Legacy source was not modified.
 
 ## Scope
 
@@ -18,7 +18,7 @@ This follow-up closes the ticket `nal` modal gap found during welcome-message re
 - Panel button custom ID: `tic`
 - Panel button label: `🎫 點我創建客服頻道!`
 - Invalid color title: `你傳送的並不是顏色(色碼)`
-- Color validation accepts 3/6-digit hex and CSS/HTML named colors used by the legacy `validate-color` path.
+- Color validation accepts only the successful validator/discord.js intersection: exact 6-digit hash-prefixed hex and supported case-sensitive Discord names. See [ticket color parity](55-ticket-color-parity.md).
 - Success title: `<a:green_tick:994529015652163614> | 成功創建私人頻道`
 
 ## Intentional Difference

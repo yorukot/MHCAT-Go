@@ -1,5 +1,7 @@
 # Ticket Config Repository Foundation
 
+Status: historical foundation note. The implemented runtime and current repository semantics are specified by the canonical [ticket parity contract](74-ticket.md).
+
 ## Gate C Review
 
 - Legacy `MHCAT/` source remained read-only.
@@ -40,7 +42,7 @@
   - `admin_id`
   - `everyone_id`
 - Mongo adapter uses the corrected collection name `tickets`.
-- Save uses a targeted upsert with `$set` and `$setOnInsert`; no full-document replacement.
+- Current create uses `$setOnInsert` only, never overwrites an existing guild match, and returns an `_id`-scoped receipt for failure rollback; no full-document replacement.
 - Delete returns `ports.ErrTicketConfigNotFound` when no config exists.
 - Reads decode missing fields safely; writes validate all required fields.
 
@@ -49,10 +51,12 @@
 - Legacy BSON fixture decode test.
 - Domain/document round-trip test.
 - Missing-field decode safety test.
-- Fake repository contract test for save, update, get, delete, not-found, validation, and context cancellation.
+- Fake repository contract tests now cover create conflict, identity-scoped rollback, stale receipt safety, explicit delete, not-found, validation, and context cancellation.
 - Mongo adapter constructor and collection-name tests.
 
-## Intentional Non-Implementation
+## Historical Non-Implementation
+
+The following list described this foundation wave and is now complete behind the disabled-by-default ticket gate:
 
 - No `/私人頻道設置` command handler.
 - No `/私人頻道刪除` command handler.
@@ -63,9 +67,9 @@
 - No runtime wiring to this repository.
 - No production Mongo write occurred.
 
-## Next Recommended Step
+## Completed Follow-Up
 
-Implement ticket setup UI parity behind tests:
+Ticket setup UI, panel/open/close side effects, runtime/sync gates, parity/race tests, ownership rules, staging smoke, and rollback are complete in the [ticket parity contract](74-ticket.md). The foundation recommendations were:
 
 - register only local command definitions, not Discord sync;
 - preserve legacy command names/options;

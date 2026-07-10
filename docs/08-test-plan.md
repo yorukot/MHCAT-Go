@@ -69,7 +69,7 @@ Status: Phase 1 consolidated. Legacy has only a live Discord login smoke test; t
   - warning add/list/remove
   - poll create/vote/result
   - verification
-  - ticket open/delete
+  - ticket setup/panel/open/close
   - reaction-role setup/delete/events and button-role modal/add/remove
   - voice room create/lock/delete
   - cron notification setup/list/delete
@@ -110,6 +110,7 @@ Run `go test -race ./...` when implementation exists. Race-prone flows:
 - work completion
 - scheduler reload
 - command registration diff
+- concurrent ticket setup and identity-scoped failure rollback
 
 ## Benchmark Tests
 
@@ -141,6 +142,7 @@ Run `go test -race ./...` when implementation exists. Race-prone flows:
 - Canary guild feature ownership confirmed before enabling writes.
 - Rollback drill proves Node can read Go-written documents.
 - Role-selection smoke follows the duplicate/type audit, one-owner, bot-removal, stale-button, and exact-once usage checks in [the parity contract](73-role-selection.md).
+- Ticket smoke follows the duplicate/type audit, one-owner, stale-modal, failure-compensation, overwrite, owner-close, and usage checks in the [ticket parity contract](74-ticket.md).
 
 ## Required Checks By Wave
 

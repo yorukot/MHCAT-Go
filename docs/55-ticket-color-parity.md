@@ -1,6 +1,6 @@
 # Ticket Color Parity Follow-up
 
-Status: corrected after executable dependency audit. Legacy source was not modified.
+Status: corrected after executable dependency audit and incorporated into the canonical [ticket parity contract](74-ticket.md). Legacy source was not modified.
 
 ## Legacy Evidence
 

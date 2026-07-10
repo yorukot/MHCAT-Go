@@ -1,6 +1,6 @@
 # Ticket Open/Close Side-Effect Slice
 
-Status: implemented behind explicit side-effect wiring. Legacy source was not modified.
+Status: historical slice note, superseded by the canonical [ticket parity contract](74-ticket.md). Legacy source was not modified.
 
 ## Scope
 
@@ -12,6 +12,7 @@ This slice implements the legacy ticket component actions:
 - Deleted setup config returns the legacy warning text and deletes the stale panel message when the source message ID is available.
 - The created channel receives the legacy welcome embed and `del` button.
 - The opener receives the legacy ephemeral success embed.
+- Failed welcome delivery removes the newly created channel so retry is not blocked.
 
 ## Legacy UI Preserved
 
@@ -68,7 +69,7 @@ They require:
 - `TicketConfigRepository`
 - `DiscordChannelPort`
 - `DiscordMessagePort`
-- optional bot user ID for a bot permission overwrite
+- interaction application ID for the bot overwrite, with configured bot user ID only as a fallback outside normal runtime interactions
 
 Default `cmd/mhcat-bot` startup keeps this flag false. Ticket commands should not be synced to a staging guild unless the same environment has ticket runtime enabled.
 
@@ -91,6 +92,6 @@ Added tests cover:
 
 ## Remaining Work
 
-- Add a staging command-sync allowlist for ticket commands only when runtime side effects are enabled in that environment.
-- Run a staging guild smoke test for setup, modal submit, `tic`, and `del`.
-- Decide whether full legacy message-history close semantics must be emulated or the safer permission rule is accepted as an intentional behavior fix.
+- Run the canonical staging guild smoke only after exclusive ownership and duplicate/type audit.
+- The exact user-ID channel owner rule is accepted as the intentional fix for legacy's effectively broken message-history condition.
+- Bot/everyone overwrite identities and failed-welcome cleanup are covered by focused parity tests.

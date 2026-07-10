@@ -98,7 +98,7 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | `text_xps` | `text_xps_guild_member` | `{guild:1,member:1}` | candidate | no | no | text XP lookup/update | duplicate XP docs | audit before unique; explicit apply |
 | `text_xps` | `text_xps_guild_rank` | `{guild:1,leavel:-1,xp:-1}` | no | no | no | text XP rank | mixed string/number sort risk | apply only after type audit |
 | `text_xp_channels` | `text_xp_channels_guild` | `{guild:1}` | candidate | no | no | text XP announcement config and `聊天經驗設定`/`聊天經驗刪除` lookup | singleton duplicates | audit, dry-run, explicit apply; no startup index creation |
-| `tickets` | `tickets_guild` | `{guild:1}` | candidate | no | no | ticket panel config | singleton duplicates | audit, dry-run, explicit apply |
+| `tickets` | `tickets_guild` | `{guild:1}` | candidate | no | no | ticket panel config | singleton duplicates and malformed scalar IDs | require exclusive ownership plus clean duplicate/type audit, dry-run, and explicit apply; never create at startup; see [ticket parity contract](74-ticket.md) |
 | `verifications` | `verifications_guild` | `{guild:1}` | candidate | no | no | verification config | singleton duplicates | audit, dry-run, explicit apply |
 | `voice_channels` | `voice_channels_guild_trigger` | `{guild:1,ticket_channel:1}` | candidate | no | no | dynamic voice trigger config | duplicate trigger channels | audit, dry-run, explicit apply |
 | `voice_channel_ids` | `voice_channel_ids_guild_channel` | `{guild:1,channel_id:1}` | candidate | no | no | dynamic voice channel state | stale/duplicate state | audit, dry-run, explicit apply |

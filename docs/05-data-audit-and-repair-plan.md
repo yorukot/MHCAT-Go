@@ -204,13 +204,16 @@ Platform Wave B expands the default Go collection catalog from the earlier high-
 
 No repair/backfill command was added in Platform Wave B. No automatic production mutation is authorized.
 
-## Ticket Config Repository Foundation Note
+## Ticket Config Rollout Audit
 
-Ticket config repository code was added after Platform Wave B, but it is not wired to runtime handlers. No production repair/backfill is needed for this foundation step.
+Ticket runtime is parity-audited but remains disabled by default. No production repair/backfill or automatic index mutation is authorized.
 
 Additional audit before enabling ticket writes:
 
 - duplicate `tickets` documents grouped by `guild`;
-- missing/empty `ticket_channel`, `admin_id`, and `everyone_id`;
+- non-string/missing/empty `guild`, `ticket_channel`, `admin_id`, and `everyone_id` values;
 - stale category/role IDs in staging guilds;
-- dashboard/external usage confirmation if a future dashboard ticket panel exists.
+- dashboard/external usage confirmation and exclusive Node/Go ticket ownership;
+- clean duplicate results before any reviewed `tickets_guild` unique-index apply.
+
+Do not rewrite mixed legacy scalars or deduplicate production rows merely to enable Go. Runtime reads preserve Mongoose-compatible values, explicit config deletion removes duplicate guild rows, and new creates do not overwrite an existing match. Follow the [ticket parity contract](74-ticket.md) for staging and rollback.

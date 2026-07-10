@@ -175,12 +175,12 @@ Compatibility impact:
 - Field-level BSON strictness is still incomplete; feature waves must add document structs, legacy fixtures, and mixed-type decode tests before writes.
 - Node.js rollback compatibility is unchanged because Platform Wave B performs no feature data writes, repairs, or index creation by default.
 
-## Ticket Config Repository Foundation
+## Ticket Config Compatibility
 
-Ticket config compatibility now has a narrow BSON document and repository foundation.
+Ticket config compatibility is parity-audited through the gated setup/delete/open/close runtime.
 
 | Collection | Legacy fields | New fields | Read strategy | Write strategy | Backfill needed | Rollback strategy | Dashboard impact |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `tickets` | `guild`, `ticket_channel`, `admin_id`, `everyone_id` | none | decode exact legacy fields; tolerate missing fields on BSON decode | targeted `$set` for config fields plus `$setOnInsert` for `guild`; no full replacement | no | Node.js continues reading the same fields; stop Go handlers if enabled later | none known |
+| `tickets` | `guild`, `ticket_channel`, `admin_id`, `everyone_id` | none beyond ordinary Mongo `_id` | Mongoose-compatible String scalar decoding; malformed compound/null values stay unusable | create-if-absent `$setOnInsert`; exact `{_id,guild}` failure rollback; explicit guild delete removes duplicates | no | stop all Go ticket routes before restoring Node; typed strings and legacy `tic`/`del` IDs remain readable | none known; confirm before rollout |
 
-Runtime ticket handlers are not implemented yet. The future setup handler must save config only after modal input validates, fixing the legacy premature-write behavior.
+Go writes only after valid versioned modal input, never overwrites an existing guild row, and creates no startup index. Candidate `tickets_guild` remains blocked on duplicate/malformed-value audit and exclusive ownership. See the [ticket parity contract](74-ticket.md) for write ordering, compensation, migration, and rollback.
