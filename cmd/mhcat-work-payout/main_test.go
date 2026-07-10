@@ -223,10 +223,10 @@ func TestWorkPayoutRepositoryErrorFails(t *testing.T) {
 
 func TestLegacyRoundedUnixMatchesNodeMathRoundSeconds(t *testing.T) {
 	base := time.Unix(100, 0)
-	if got := legacyRoundedUnix(base.Add(400 * time.Millisecond)); got != 100 {
+	if got := domain.LegacyRoundedWorkPayoutUnix(base.Add(400 * time.Millisecond)); got != 100 {
 		t.Fatalf("round .4s = %d", got)
 	}
-	if got := legacyRoundedUnix(base.Add(600 * time.Millisecond)); got != 101 {
+	if got := domain.LegacyRoundedWorkPayoutUnix(base.Add(600 * time.Millisecond)); got != 101 {
 		t.Fatalf("round .6s = %d", got)
 	}
 }

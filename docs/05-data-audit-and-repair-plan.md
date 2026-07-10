@@ -94,7 +94,7 @@ No repair/backfill command is authorized at Gate B. Repair tooling may be added 
 
 ## Work Payout Audit Checklist
 
-Before running `mhcat-work-payout --apply`, perform audit-only checks:
+Before running `mhcat-work-payout --apply` or enabling the recurring worker, perform audit-only checks:
 
 | Audit | Problem | Detection | Write behavior | Automatic repair |
 | --- | --- | --- | --- | --- |
@@ -109,7 +109,7 @@ Before running `mhcat-work-payout --apply`, perform audit-only checks:
 | Duplicate voice XP channel config | Multiple `voice_xp_channels` rows for one guild can make future voice XP announcement behavior ambiguous | group `voice_xp_channels` by `guild` with count > 1 | none | no; Go config writes update/delete all duplicates until audit/unique-index work is approved |
 | Voice XP config stale background | Legacy command exposes `背景` but does not save it; old duplicate rows may retain mixed `background` values | sample `voice_xp_channels.background` presence/type by guild | none | no; Go set unsets `background` on matched duplicate rows |
 | Duplicate join role config | Multiple `join_roles` rows for the same `{guild,role}` can block the future unique index and make member-add role assignment repeat work | group `join_roles` by `{guild,role}` with count > 1 | none | no; Go delete removes duplicate `{guild,role}` rows only when an operator deletes that specific config |
-| Due non-idle rows | Large backlog can exceed one lease window | count `work_users` where `state != "待業中"` and `end_time < now` | none | no |
+| Due non-idle rows | Large backlog can exceed one CLI/worker lease window | count `work_users` where `state != "待業中"` and `end_time < now` | none | no; the recurring worker resumes remaining idempotent rows on the next minute tick |
 | Mixed numeric types | the atomic payout pipeline fails if existing `coins.coin` is non-numeric; loose `end_time` or `get_coin` can differ from legacy Mongoose casting | sample field types for `coins.coin`, `work_users.end_time`, `work_users.get_coin` | none | no |
 | Payout marker shape | malformed or externally modified `coins.mhcat_work_payouts` entries can block safe token comparison | sample object types and require marker values to contain string `token` plus numeric `end_time` | none | no; fail closed and inspect before repair |
 | Suspicious rewards | Zero or negative `get_coin` is legacy-compatible but may indicate bad data | sample due rows where normalized `get_coin <= 0` | none | no |

@@ -47,6 +47,7 @@ Primary Go env vars:
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED`
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED`
 - `MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED`
+- `MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED`
 - `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED`
 - `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED`
 - `MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED`
@@ -829,7 +830,7 @@ Every Go replica schedules `0 0 * * *` at fixed UTC+8 named `Asia/Taipei`, but o
 
 ## Work Payout
 
-The Go refactor provides a one-shot payout command for completed legacy work jobs in `MHCAT/handler/gift.js`. It is not wired into `cmd/mhcat-bot` and it is not a recurring scheduler.
+The Go refactor provides a one-shot payout command and a separately gated recurring worker for completed legacy work jobs in `MHCAT/handler/gift.js`.
 
 Preview only:
 
@@ -846,13 +847,29 @@ MHCAT_SCHEDULER_LEASE_OWNER=staging-worker \
 go run ./cmd/mhcat-work-payout --apply
 ```
 
-The command conditionally increments `coins.coin` and writes the latest per-work-row token under `coins.mhcat_work_payouts` in one atomic update. A retry after the coin commit reports `idempotent_replays` and does not increment again. Missing balances use a deterministic ObjectID; duplicate `{guild,member}` coin rows fail before credit. The command resets only the exact due `work_users` snapshot to `待業中`. It does not create indexes, repair documents, sync commands, send Discord messages, or write from bot startup.
+The command conditionally increments `coins.coin` and writes the latest per-work-row token under `coins.mhcat_work_payouts` in one atomic update. A retry after the coin commit reports `idempotent_replays` and does not increment again. Missing balances use a deterministic ObjectID; duplicate `{guild,member}` coin rows fail before credit. The command resets only the exact due `work_users` snapshot to `待業中`. It does not create indexes, repair documents, sync commands, or send Discord messages.
 
 If another process holds the configured scheduler lease, apply mode skips the payout and exits with code `2`. Do not run production apply until duplicate and marker-shape audit results are reviewed and Node.js is no longer owning the same minute payout loop. On rollback, stop Go, confirm lease release/expiry, then restore Node; leave marker fields in place.
 
+Recurring staging ownership requires:
+
+```bash
+MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_JOBS_WORK_PAYOUT_ENABLED=true
+MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME=work-payout
+MHCAT_JOBS_WORK_PAYOUT_TIMEOUT=60s
+MHCAT_SCHEDULER_LEASE_ENABLED=true
+MHCAT_SCHEDULER_LEASE_OWNER=staging-worker
+MHCAT_SCHEDULER_LEASE_TTL=2m
+MHCAT_SCHEDULER_LEASE_TIMEOUT=10s
+```
+
+Every replica schedules `* * * * *` at fixed `Asia/Taipei`; only the per-tick lease holder writes. The worker skips a local overlapping callback, releases after success/failure/shutdown, and shares the configured lease with CLI apply. It performs no Discord API call, but Gateway provides its current process lifecycle. `MHCAT_JOBS_WORK_PAYOUT_DRY_RUN` is CLI-only and does not make the recurring worker read-only. Stop Node `handler/gift.js`, use unique owner names, audit duplicates/marker shapes, and run an isolated two-replica minute-tick smoke before production.
+
 ## Work Command Runtime
 
-The `打工系統` command is disabled by default. The current Go runtime preserves the legacy `新增打工事項` dashboard redirect UI and a legacy-style `打工介面` flow that can list jobs, show the captcha modal, render role-filtered job buttons, show job detail, start a job, show the busy override prompt, and cancel the prompt. It also implements legacy-style `打工系統設定`, `打工事項刪除`, `增加個人精力`, and `增加全體精力` behind explicit admin repository wiring and Manage Messages checks. Recurring jobs remain intentionally unimplemented.
+The `打工系統` command is disabled by default. The current Go runtime preserves the legacy `新增打工事項` dashboard redirect UI and a legacy-style `打工介面` flow that can list jobs, show the captcha modal, render role-filtered job buttons, show job detail, start a job, show the busy override prompt, and cancel the prompt. It also implements legacy-style `打工系統設定`, `打工事項刪除`, `增加個人精力`, and `增加全體精力` behind explicit admin repository wiring and Manage Messages checks. Completed-work payout is independently gated from this command runtime.
 
 To smoke this partial command in staging only:
 
@@ -865,7 +882,7 @@ Run `mhcat-staging-preflight` before command sync. It rejects `MHCAT_COMMAND_SYN
 
 ## Scheduler Lease
 
-The scheduler lease foundation is wired into bot startup for separately gated automatic-notification delivery and daily reset workers. Work payout still has no recurring bot-startup loop.
+The scheduler lease foundation is wired into bot startup for separately gated automatic-notification delivery, daily reset, and work payout workers.
 
 - Collection: `mhcat_scheduler_locks`.
 - Identity: `_id` equals `lock_name`.
@@ -873,7 +890,7 @@ The scheduler lease foundation is wired into bot startup for separately gated au
 - Expiry: UTC `expires_at`.
 - Release behavior: marks the lease expired and clears owner; it does not delete the document.
 
-The automatic-notification worker continuously owns `auto-notification-delivery`, renews before expiry, removes cron entries after lease loss, and releases on graceful shutdown. Daily-reset CLI apply and each midnight worker tick acquire/release `daily-reset`; contenders perform no writes. Neither lease coordinates with Node, so `handler/cron.js` must remain disabled while Go owns either path. Work payout now has crash-safe repository idempotency; its future recurring loop still needs a separate gate, lease lifecycle, and shutdown tests.
+The automatic-notification worker continuously owns `auto-notification-delivery`, renews before expiry, removes cron entries after lease loss, and releases on graceful shutdown. Daily-reset CLI apply and each midnight worker tick acquire/release `daily-reset`. Work-payout CLI apply and each minute tick acquire/release the configured payout lease. Contenders perform no writes. Leases do not coordinate with Node, so each corresponding Node owner must be disabled before Go ownership.
 
 Read-only status:
 

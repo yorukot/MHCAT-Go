@@ -32,7 +32,7 @@ Status: Platform Wave B. The default Go index plan is now derived from the full 
 | `voice_xps` | `{guild:1, member:1}` | candidate after audit | no | no | voice XP lookup/update | voice state event | duplicate active sessions | dry-run duplicate audit first | drop after disabling Go writes |
 | `voice_xps` | `{guild:1}` | no | no | no | voice rank list | voice rank command | large scan remains possible | apply after audit | safe to drop |
 | `work_users` | `{guild:1, user:1}` | candidate after audit | no | no | work state lookup/update | work interface/job completion | duplicate rows are independently marked/paid but may represent bad legacy state | audit first; required before considering unique | drop after feature disabled |
-| `work_users` | `{state:1, end_time:1}` | no | partial possible for active jobs | no | due job scan | minute work completion loop and `mhcat-work-payout` one-shot | type drift in `end_time`; broad scan until index exists | explicit apply only after scheduler ownership review | safe to drop |
+| `work_users` | `{state:1, end_time:1}` | no | partial possible for active jobs | no | due job scan | minute work completion loop and Go one-shot/recurring payout | type drift in `end_time`; broad scan until index exists | explicit apply only after scheduler ownership review | safe to drop |
 | `cron_sets` | `{guild:1, id:1}` | candidate after audit | no | no | schedule lookup/delete | cron list/delete | duplicate schedules | audit first | drop after scheduler disabled |
 | `polls` | `{guild:1, messageid:1}` | candidate after audit | no | no | component vote/result lookup | poll buttons | duplicate poll docs | audit first | drop after poll disabled |
 | `message_reactions` | `{guild:1, message:1, react:1}` | candidate after audit | no | no | reaction-role lookup | reaction add/remove | emoji normalization | audit first | safe to drop |
@@ -112,7 +112,7 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | `work_sets` | `work_sets_guild` | `{guild:1}` | candidate | no | no | work config | singleton duplicates | audit, dry-run, explicit apply |
 | `work_somethings` | `work_somethings_guild_name` | `{guild:1,name:1}` | candidate | no | no | dashboard/bot work job lookup | duplicate names per guild | do not create dashboard `guild` unique; audit first |
 | `work_users` | `work_users_guild_user` | `{guild:1,user:1}` | candidate | no | no | user work state lookup | duplicate jobs/payments | audit before unique; explicit apply |
-| `work_users` | `work_users_state_end_time` | `{state:1,end_time:1}` | no | optional active-job partial after audit | no | due job scan for `mhcat-work-payout` | type drift in `end_time`; changed partial semantics risk | explicit apply only after scheduler ownership review |
+| `work_users` | `work_users_state_end_time` | `{state:1,end_time:1}` | no | optional active-job partial after audit | no | due job scan for one-shot and recurring work payout | type drift in `end_time`; changed partial semantics risk | explicit apply only after scheduler ownership review |
 
 ## Bootstrap Behavior
 

@@ -192,6 +192,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureDailyResetSchedulerEnabled {
 		t.Fatal("daily reset scheduler feature must be disabled by default")
 	}
+	if cfg.FeatureWorkPayoutSchedulerEnabled {
+		t.Fatal("work payout scheduler feature must be disabled by default")
+	}
 	if cfg.FeatureAntiScamConfigEnabled {
 		t.Fatal("anti-scam config feature must be disabled by default")
 	}
@@ -329,6 +332,12 @@ func TestDefaultsAreSafe(t *testing.T) {
 	}
 	if cfg.JobsDailyResetTimeout != DefaultDailyResetTimeout {
 		t.Fatalf("unexpected daily reset timeout: %v", cfg.JobsDailyResetTimeout)
+	}
+	if cfg.JobsWorkPayoutEnabled {
+		t.Fatal("work payout job gate must be disabled by default")
+	}
+	if cfg.JobsWorkPayoutTimeout != DefaultWorkPayoutTimeout || cfg.JobsWorkPayoutLeaseName != DefaultWorkPayoutLeaseName {
+		t.Fatalf("unexpected work payout config: timeout=%v lease=%q", cfg.JobsWorkPayoutTimeout, cfg.JobsWorkPayoutLeaseName)
 	}
 	if cfg.DiscordGatewaySmokeTimeout != 30*time.Second {
 		t.Fatalf("unexpected gateway smoke timeout: %v", cfg.DiscordGatewaySmokeTimeout)
@@ -1347,6 +1356,101 @@ func TestFeatureDailyResetSchedulerRequiresLeaseWindowLongerThanOperations(t *te
 		"MHCAT_SCHEDULER_LEASE_TIMEOUT":               "10s",
 	}))
 	if err == nil || !strings.Contains(err.Error(), "greater than MHCAT_JOBS_DAILY_RESET_TIMEOUT plus MHCAT_SCHEDULER_LEASE_TIMEOUT") {
+		t.Fatalf("expected unsafe lease window error, got %v", err)
+	}
+}
+
+func TestFeatureWorkPayoutSchedulerConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_MONGODB_URI":                           "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                      "mhcat",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":                "true",
+		"MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED": "true",
+		"MHCAT_JOBS_WORK_PAYOUT_ENABLED":              "true",
+		"MHCAT_JOBS_WORK_PAYOUT_TIMEOUT":              "45s",
+		"MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME":           "work-payout-staging",
+		"MHCAT_SCHEDULER_LEASE_ENABLED":               "true",
+		"MHCAT_SCHEDULER_LEASE_OWNER":                 "worker-a",
+		"MHCAT_SCHEDULER_LEASE_TTL":                   "3m",
+		"MHCAT_SCHEDULER_LEASE_TIMEOUT":               "8s",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureWorkPayoutSchedulerEnabled || !cfg.JobsWorkPayoutEnabled || cfg.JobsWorkPayoutTimeout != 45*time.Second || cfg.JobsWorkPayoutLeaseName != "work-payout-staging" || cfg.SchedulerLeaseOwner != "worker-a" {
+		t.Fatalf("work payout scheduler config = %#v", cfg)
+	}
+}
+
+func TestFeatureWorkPayoutSchedulerRequiresRuntimeOwnership(t *testing.T) {
+	base := map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_MONGODB_URI":                           "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                      "mhcat",
+		"MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED": "true",
+	}
+	tests := []struct {
+		name    string
+		values  map[string]string
+		wantKey string
+	}{
+		{name: "gateway", values: map[string]string{}, wantKey: "MHCAT_DISCORD_ENABLE_GATEWAY"},
+		{name: "job gate", values: map[string]string{"MHCAT_DISCORD_ENABLE_GATEWAY": "true"}, wantKey: "MHCAT_JOBS_WORK_PAYOUT_ENABLED"},
+		{name: "lease gate", values: map[string]string{"MHCAT_DISCORD_ENABLE_GATEWAY": "true", "MHCAT_JOBS_WORK_PAYOUT_ENABLED": "true"}, wantKey: "MHCAT_SCHEDULER_LEASE_ENABLED"},
+		{name: "owner", values: map[string]string{"MHCAT_DISCORD_ENABLE_GATEWAY": "true", "MHCAT_JOBS_WORK_PAYOUT_ENABLED": "true", "MHCAT_SCHEDULER_LEASE_ENABLED": "true"}, wantKey: "MHCAT_SCHEDULER_LEASE_OWNER"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			values := make(map[string]string, len(base)+len(test.values))
+			for key, value := range base {
+				values[key] = value
+			}
+			for key, value := range test.values {
+				values[key] = value
+			}
+			_, err := LoadWithLookup(mapLookup(values))
+			if err == nil || !strings.Contains(err.Error(), test.wantKey) {
+				t.Fatalf("expected %s error, got %v", test.wantKey, err)
+			}
+		})
+	}
+}
+
+func TestFeatureWorkPayoutSchedulerRequiresLeaseName(t *testing.T) {
+	_, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_MONGODB_URI":                           "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                      "mhcat",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":                "true",
+		"MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED": "true",
+		"MHCAT_JOBS_WORK_PAYOUT_ENABLED":              "true",
+		"MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME":           " ",
+		"MHCAT_SCHEDULER_LEASE_ENABLED":               "true",
+		"MHCAT_SCHEDULER_LEASE_OWNER":                 "worker-a",
+		"MHCAT_SCHEDULER_LEASE_TTL":                   "3m",
+		"MHCAT_SCHEDULER_LEASE_TIMEOUT":               "8s",
+	}))
+	if err == nil || !strings.Contains(err.Error(), "MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME") {
+		t.Fatalf("expected lease-name error, got %v", err)
+	}
+}
+
+func TestFeatureWorkPayoutSchedulerRequiresLeaseWindowLongerThanOperations(t *testing.T) {
+	_, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                         "token",
+		"MHCAT_MONGODB_URI":                           "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                      "mhcat",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":                "true",
+		"MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED": "true",
+		"MHCAT_JOBS_WORK_PAYOUT_ENABLED":              "true",
+		"MHCAT_JOBS_WORK_PAYOUT_TIMEOUT":              "60s",
+		"MHCAT_SCHEDULER_LEASE_ENABLED":               "true",
+		"MHCAT_SCHEDULER_LEASE_OWNER":                 "worker-a",
+		"MHCAT_SCHEDULER_LEASE_TTL":                   "70s",
+		"MHCAT_SCHEDULER_LEASE_TIMEOUT":               "10s",
+	}))
+	if err == nil || !strings.Contains(err.Error(), "greater than MHCAT_JOBS_WORK_PAYOUT_TIMEOUT plus MHCAT_SCHEDULER_LEASE_TIMEOUT") {
 		t.Fatalf("expected unsafe lease window error, got %v", err)
 	}
 }

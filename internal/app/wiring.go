@@ -1093,6 +1093,35 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 			logger.Info("daily reset scheduler started", "lease", coreeconomy.DailyResetSchedulerLeaseName, "cron", coreeconomy.DailyResetSchedulerCronSpec, "timezone", coreeconomy.DailyResetSchedulerLocationName)
 		}
 	}
+	if cfg.FeatureWorkPayoutSchedulerEnabled {
+		const feature = "work payout scheduler feature"
+		repo, err := workPayoutRepositoryFromMongo(mongoClient, feature)
+		if err != nil {
+			return nil, err
+		}
+		leases, err := schedulerLeaseStoreFromMongo(mongoClient, feature)
+		if err != nil {
+			return nil, err
+		}
+		worker, err := coreeconomy.NewWorkPayoutWorker(
+			repo,
+			leases,
+			cfg.JobsWorkPayoutLeaseName,
+			cfg.SchedulerLeaseOwner,
+			cfg.SchedulerLeaseTTL,
+			cfg.SchedulerLeaseTimeout,
+			cfg.JobsWorkPayoutTimeout,
+			logger,
+		)
+		if err != nil {
+			return nil, err
+		}
+		worker.Start(context.Background())
+		dispatcher.RegisterShutdown(worker.Stop)
+		if logger != nil {
+			logger.Info("work payout scheduler started", "lease", cfg.JobsWorkPayoutLeaseName, "cron", coreeconomy.WorkPayoutSchedulerCronSpec, "timezone", coreeconomy.WorkPayoutSchedulerLocationName)
+		}
+	}
 	return dispatcher, nil
 }
 

@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -79,7 +78,7 @@ func runWithFactory(ctx context.Context, args []string, lookup config.LookupFunc
 	}()
 
 	now := time.Now().UTC()
-	nowUnix := legacyRoundedUnix(now)
+	nowUnix := domain.LegacyRoundedWorkPayoutUnix(now)
 	report, err := runWorkPayout(operationCtx, repository, leaseStore, cfg, now, nowUnix)
 	if err != nil {
 		fmt.Fprintf(stderr, "work payout error: %v\n", err)
@@ -226,10 +225,6 @@ func formatWorkPayoutReport(writer io.Writer, report workPayoutReport, format st
 		report.Result.SkippedInvalidJobs,
 	)
 	return err
-}
-
-func legacyRoundedUnix(now time.Time) int64 {
-	return int64(math.Round(float64(now.UnixNano()) / float64(time.Second)))
 }
 
 func aliasAttrs(fields map[string]string) []any {

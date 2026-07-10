@@ -77,6 +77,19 @@ func TestDailyResetSchedulerEventRuntimeRequiresDefaultAdapters(t *testing.T) {
 	}
 }
 
+func TestWorkPayoutSchedulerEventRuntimeRequiresDefaultAdapters(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.FeatureWorkPayoutSchedulerEnabled = true
+	cfg.JobsWorkPayoutTimeout = config.DefaultWorkPayoutTimeout
+	cfg.JobsWorkPayoutLeaseName = config.DefaultWorkPayoutLeaseName
+	cfg.SchedulerLeaseOwner = "worker-a"
+	cfg.SchedulerLeaseTTL = config.DefaultSchedulerLeaseTTL
+	cfg.SchedulerLeaseTimeout = config.DefaultSchedulerLeaseTimeout
+	if _, err := defaultEventRuntimeFactory(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil); err == nil {
+		t.Fatal("expected work payout scheduler to reject non-default adapters")
+	}
+}
+
 func TestBuildRuntimeRoutesHelpDetail(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

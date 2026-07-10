@@ -137,6 +137,7 @@ func buildReport(lookup lookupFunc) []checkResult {
 		autoNotificationConfigRuntimePairing(lookup),
 		autoNotificationDeliveryRuntimeReadiness(lookup),
 		dailyResetSchedulerRuntimeReadiness(lookup),
+		workPayoutSchedulerRuntimeReadiness(lookup),
 		antiScamConfigCommandSync(lookup),
 		antiScamConfigRuntimePairing(lookup),
 		antiScamReportCommandSync(lookup),
@@ -1223,6 +1224,61 @@ func dailyResetSchedulerRuntimeReadiness(lookup lookupFunc) checkResult {
 		Name:    name,
 		Status:  statusWarn,
 		Message: "scheduler runs at 00:00 Asia/Taipei, writes coins.today and work_users.energi, and acquires daily-reset in mhcat_scheduler_locks; use a unique per-process owner and disable Node handler/cron.js before staging",
+	}
+}
+
+func workPayoutSchedulerRuntimeReadiness(lookup lookupFunc) checkResult {
+	const name = "work-payout-scheduler-runtime-readiness"
+	enabled, err := boolValue(lookup, "MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED")
+	if err != nil {
+		return checkResult{Name: name, Status: statusFail, Message: err.Error()}
+	}
+	if !enabled {
+		return checkResult{Name: name, Status: statusSkipped, Message: "work payout scheduler runtime is disabled"}
+	}
+	for _, requirement := range []string{
+		"MHCAT_DISCORD_ENABLE_GATEWAY",
+		"MHCAT_JOBS_WORK_PAYOUT_ENABLED",
+		"MHCAT_SCHEDULER_LEASE_ENABLED",
+	} {
+		value, err := boolValue(lookup, requirement)
+		if err != nil {
+			return checkResult{Name: name, Status: statusFail, Message: err.Error()}
+		}
+		if !value {
+			return checkResult{Name: name, Status: statusFail, Message: "MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED=true requires " + requirement + "=true"}
+		}
+	}
+	owner, _ := lookup("MHCAT_SCHEDULER_LEASE_OWNER")
+	if strings.TrimSpace(owner) == "" {
+		return checkResult{Name: name, Status: statusFail, Message: "MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED=true requires MHCAT_SCHEDULER_LEASE_OWNER"}
+	}
+	leaseName, ok := lookup("MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME")
+	if ok && strings.TrimSpace(leaseName) == "" {
+		return checkResult{Name: name, Status: statusFail, Message: "MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME is required"}
+	}
+	payoutTimeout, err := durationValue(lookup, "MHCAT_JOBS_WORK_PAYOUT_TIMEOUT", config.DefaultWorkPayoutTimeout)
+	if err != nil || payoutTimeout <= 0 {
+		return checkResult{Name: name, Status: statusFail, Message: positiveDurationMessage("MHCAT_JOBS_WORK_PAYOUT_TIMEOUT", err)}
+	}
+	leaseTimeout, err := durationValue(lookup, "MHCAT_SCHEDULER_LEASE_TIMEOUT", config.DefaultSchedulerLeaseTimeout)
+	if err != nil || leaseTimeout <= 0 {
+		return checkResult{Name: name, Status: statusFail, Message: positiveDurationMessage("MHCAT_SCHEDULER_LEASE_TIMEOUT", err)}
+	}
+	leaseTTL, err := durationValue(lookup, "MHCAT_SCHEDULER_LEASE_TTL", config.DefaultSchedulerLeaseTTL)
+	if err != nil || leaseTTL <= 0 {
+		return checkResult{Name: name, Status: statusFail, Message: positiveDurationMessage("MHCAT_SCHEDULER_LEASE_TTL", err)}
+	}
+	if leaseTTL <= payoutTimeout || leaseTTL-payoutTimeout <= leaseTimeout {
+		return checkResult{Name: name, Status: statusFail, Message: "MHCAT_SCHEDULER_LEASE_TTL must be greater than MHCAT_JOBS_WORK_PAYOUT_TIMEOUT plus MHCAT_SCHEDULER_LEASE_TIMEOUT"}
+	}
+	if strings.TrimSpace(leaseName) == "" {
+		leaseName = config.DefaultWorkPayoutLeaseName
+	}
+	return checkResult{
+		Name:    name,
+		Status:  statusWarn,
+		Message: "scheduler runs every minute, writes coins/work_users with atomic payout markers, and acquires " + leaseName + " in mhcat_scheduler_locks; use a unique per-process owner, audit duplicate balances, and disable Node handler/gift.js before staging",
 	}
 }
 

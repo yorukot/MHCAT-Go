@@ -239,6 +239,39 @@ func TestDailyResetSchedulerFeatureRequiresDefaultRuntimeAdapters(t *testing.T) 
 	}
 }
 
+func TestWorkPayoutSchedulerFeatureRequiresDefaultRuntimeAdapters(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.DiscordEnableGateway = true
+	cfg.FeatureWorkPayoutSchedulerEnabled = true
+	cfg.JobsWorkPayoutEnabled = true
+	cfg.JobsWorkPayoutTimeout = config.DefaultWorkPayoutTimeout
+	cfg.JobsWorkPayoutLeaseName = config.DefaultWorkPayoutLeaseName
+	cfg.SchedulerLeaseEnabled = true
+	cfg.SchedulerLeaseOwner = "worker-a"
+	cfg.SchedulerLeaseTTL = config.DefaultSchedulerLeaseTTL
+	cfg.SchedulerLeaseTimeout = config.DefaultSchedulerLeaseTimeout
+	mongo := &fakeMongo{}
+	discord := &fakeDiscord{}
+	application, err := New(
+		cfg,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		WithMongoFactory(func(config.Config) (MongoClient, error) { return mongo, nil }),
+		WithDiscordFactory(func(config.Config) (DiscordSession, error) { return discord, nil }),
+	)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	if err := application.Start(context.Background()); err == nil {
+		t.Fatal("expected work payout scheduler to reject fake runtime adapters")
+	}
+	if mongo.connects != 1 || mongo.disconnects != 1 {
+		t.Fatalf("mongo should be cleaned up after scheduler wiring failure: connects=%d disconnects=%d", mongo.connects, mongo.disconnects)
+	}
+	if discord.closes != 1 {
+		t.Fatalf("discord session should be closed after scheduler wiring failure, got %d", discord.closes)
+	}
+}
+
 func TestLotteryComponentsFeatureRequiresDefaultRuntimeAdapters(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.DiscordEnableGateway = true

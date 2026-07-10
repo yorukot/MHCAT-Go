@@ -1,6 +1,10 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+	"math"
+	"time"
+)
 
 var ErrInvalidWorkPayout = errors.New("invalid work payout")
 var ErrWorkPayoutStateConflict = errors.New("work payout state conflict")
@@ -17,4 +21,8 @@ type WorkPayoutResult struct {
 	StateMatched       int64
 	StateModified      int64
 	SkippedInvalidJobs int64
+}
+
+func LegacyRoundedWorkPayoutUnix(now time.Time) int64 {
+	return int64(math.Round(float64(now.UnixNano()) / float64(time.Second)))
 }

@@ -1,6 +1,6 @@
-# Work Payout One-Shot Tool
+# Work Payout Tool and Recurring Worker
 
-Status: implemented as a dry-run-first operational command, not a recurring bot-startup scheduler.
+Status: implemented as a dry-run-first operational command plus a separately gated every-minute bot worker.
 
 ## Legacy Behavior
 
@@ -27,6 +27,7 @@ The Go refactor adds:
 - `internal/adapters/mongo/repositories.WorkPayoutRepository`
 - `internal/core/ports.WorkPayoutRepository`
 - `internal/core/domain.WorkPayoutResult`
+- `internal/core/services/economy.WorkPayoutWorker`
 
 Default command behavior is dry-run:
 
@@ -43,7 +44,31 @@ MHCAT_SCHEDULER_LEASE_OWNER=staging-worker
 go run ./cmd/mhcat-work-payout --apply
 ```
 
-`--dry-run=false` is rejected. The write path can only be entered through `--apply`.
+For the CLI, `--dry-run=false` is rejected and writes require `--apply`. Recurring writes use the independent worker gate below.
+
+## Recurring Worker
+
+The recurring path is disabled by default and requires all of:
+
+```bash
+MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_JOBS_WORK_PAYOUT_ENABLED=true
+MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME=work-payout
+MHCAT_JOBS_WORK_PAYOUT_TIMEOUT=60s
+MHCAT_SCHEDULER_LEASE_ENABLED=true
+MHCAT_SCHEDULER_LEASE_OWNER=staging-worker
+MHCAT_SCHEDULER_LEASE_TTL=2m
+MHCAT_SCHEDULER_LEASE_TIMEOUT=10s
+```
+
+Every Go replica schedules `* * * * *` at fixed UTC+8 named `Asia/Taipei`. Each tick uses the legacy rounded Unix timestamp, acquires the configured payout lease, scans all currently due rows, and releases the lease after success or failure. A local callback is skipped while the previous callback is still active, preventing one process from re-acquiring its own lease with a new fence. Different processes still require unique owner names.
+
+The worker does not run immediately at startup; the next minute tick processes the full due backlog. It makes no Discord API call and needs no privileged intent, but Gateway is currently required for its app lifecycle and graceful shutdown registration.
+
+`MHCAT_JOBS_WORK_PAYOUT_DRY_RUN` controls the CLI only. The recurring worker is always a write path, which is why it has the separate `MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED` gate. The lease TTL must be greater than payout timeout plus lease-operation timeout.
+
+The CLI and recurring worker use the same `MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME`. If they overlap, only one owner writes; a contending CLI exits `2`, while a contending worker tick logs a skip.
 
 ## Intentional Compatibility Fixes
 
@@ -55,7 +80,7 @@ Due payout rows must have Mongo's guaranteed `_id`, non-empty `guild`, non-empty
 
 ## Lease Safety
 
-Apply mode acquires `mhcat_scheduler_locks` with the configured lease name before any payout writes. If another owner holds the lease, the command prints a skip report and exits with code `2`.
+One-shot apply and each recurring tick acquire `mhcat_scheduler_locks` with the configured lease name before any payout writes. If another owner holds the lease, the command prints a skip report and exits with code `2`; the worker logs and waits for the next tick.
 
 Dry-run does not acquire a lease and performs no writes.
 
@@ -78,11 +103,11 @@ The final state update matches the exact `_id`, guild, user, state, end time, an
 
 This protection applies to Go payout attempts. Legacy Node does not read or write the marker, so Node and Go ownership must still be exclusive.
 
-The command also acquires a lease once and does not renew it. Apply validation requires the lease TTL to be greater than the command timeout, but very large backlogs should still be handled in bounded operational batches before this becomes a recurring scheduler.
+Each invocation acquires a lease once and does not renew it. Worker validation requires the lease TTL to exceed payout timeout plus lease-operation timeout. Very large backlogs can time out and continue on the next minute tick; completed rows remain safe because payout markers are idempotent.
 
 ## Safety
 
-- The tool does not run from `cmd/mhcat-bot`.
+- The one-shot tool does not run from `cmd/mhcat-bot`; the recurring worker starts there only behind its explicit feature flag.
 - The tool does not sync Discord commands.
 - The tool does not create Mongo indexes.
 - The tool does not repair or backfill documents.
@@ -93,25 +118,25 @@ The command also acquires a lease once and does not renew it. Apply validation r
 
 ## Production Preconditions
 
-Before production apply:
+Before production apply or recurring enablement:
 
 - Run `cmd/mhcat-mongo-audit`.
 - Confirm duplicate risks for `coins.guild/member`, `work_users.guild/user`, and `gift_changes.guild`.
 - Audit due rows for mixed/non-numeric `coin`, `end_time`, and `get_coin`, and for zero/negative rewards.
-- Confirm Node.js bot and Go tool are not both trying to own the payout loop.
+- Confirm legacy Node and every Go payout owner are not overlapping; owner names must be unique per Go process.
 - Confirm the additive marker field and rollback behavior below are acceptable to all `coins` consumers.
 - Capture backup/restore point or at least an operational rollback plan.
-- Run against staging data first and compare sample balances/state changes manually.
+- Run against staging data first, observe at least two minute ticks and a two-replica contention case, and compare sample balances/state changes manually.
 
 ## Remaining Work
 
-- Recurring scheduler or worker process.
 - Production runbook for Node-to-Go job ownership handoff.
 - Optional unique indexes after duplicate audits.
+- Live isolated two-replica minute-tick smoke.
 
 ## Rollback
 
-1. Stop or disable every Go work-payout owner and confirm the configured lease is released or expired.
+1. Set `MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED=false`, stop every Go work-payout owner, and confirm the configured lease is released or expired.
 2. Restore the Node minute-loop owner only after Go can no longer write payouts.
 3. Leave `coins.mhcat_work_payouts` in place. Legacy Mongoose and dashboard readers ignore the additive field, while preserving it allows a later Go rollout to recognize prior jobs.
 4. Do not unset markers while a due work row may already have been credited but not reset. Removing that marker can make the next Go retry credit it again.

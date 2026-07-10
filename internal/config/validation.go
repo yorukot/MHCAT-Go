@@ -115,6 +115,35 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_SCHEDULER_LEASE_TTL must be greater than MHCAT_JOBS_DAILY_RESET_TIMEOUT plus MHCAT_SCHEDULER_LEASE_TIMEOUT", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureWorkPayoutSchedulerEnabled {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+		if !cfg.JobsWorkPayoutEnabled {
+			return fmt.Errorf("%w: MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED requires MHCAT_JOBS_WORK_PAYOUT_ENABLED=true", ErrInvalidConfig)
+		}
+		if !cfg.SchedulerLeaseEnabled {
+			return fmt.Errorf("%w: MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED requires MHCAT_SCHEDULER_LEASE_ENABLED=true", ErrInvalidConfig)
+		}
+		if strings.TrimSpace(cfg.SchedulerLeaseOwner) == "" {
+			return fmt.Errorf("%w: MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED requires MHCAT_SCHEDULER_LEASE_OWNER", ErrInvalidConfig)
+		}
+		if strings.TrimSpace(cfg.JobsWorkPayoutLeaseName) == "" {
+			return fmt.Errorf("%w: MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME is required", ErrInvalidConfig)
+		}
+		if cfg.JobsWorkPayoutTimeout <= 0 {
+			return fmt.Errorf("%w: MHCAT_JOBS_WORK_PAYOUT_TIMEOUT must be positive", ErrInvalidConfig)
+		}
+		if cfg.SchedulerLeaseTTL <= 0 {
+			return fmt.Errorf("%w: MHCAT_SCHEDULER_LEASE_TTL must be positive", ErrInvalidConfig)
+		}
+		if cfg.SchedulerLeaseTimeout <= 0 {
+			return fmt.Errorf("%w: MHCAT_SCHEDULER_LEASE_TIMEOUT must be positive", ErrInvalidConfig)
+		}
+		if cfg.SchedulerLeaseTTL <= cfg.JobsWorkPayoutTimeout || cfg.SchedulerLeaseTTL-cfg.JobsWorkPayoutTimeout <= cfg.SchedulerLeaseTimeout {
+			return fmt.Errorf("%w: MHCAT_SCHEDULER_LEASE_TTL must be greater than MHCAT_JOBS_WORK_PAYOUT_TIMEOUT plus MHCAT_SCHEDULER_LEASE_TIMEOUT", ErrInvalidConfig)
+		}
+	}
 	if cfg.FeatureXPResetEnabled {
 		if !cfg.DiscordEnableGateway {
 			return fmt.Errorf("%w: MHCAT_FEATURE_XP_RESET_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)

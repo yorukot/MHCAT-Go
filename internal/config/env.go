@@ -57,6 +57,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureAutoNotificationConfigEnabled: DefaultFeatureAutoNotificationConfigEnabled,
 		FeatureAutoNotificationDelivery:      DefaultFeatureAutoNotificationDelivery,
 		FeatureDailyResetSchedulerEnabled:    DefaultFeatureDailyResetSchedulerEnabled,
+		FeatureWorkPayoutSchedulerEnabled:    DefaultFeatureWorkPayoutSchedulerEnabled,
 		FeatureAntiScamConfigEnabled:         DefaultFeatureAntiScamConfigEnabled,
 		FeatureAntiScamReportEnabled:         DefaultFeatureAntiScamReportEnabled,
 		FeatureAntiScamMessageDeleteEnabled:  DefaultFeatureAntiScamMessageDeleteEnabled,
@@ -103,6 +104,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureRoleSelectionEnabled:          DefaultFeatureRoleSelectionEnabled,
 		JobsDailyResetEnabled:                DefaultJobsDailyResetEnabled,
 		JobsDailyResetTimeout:                DefaultDailyResetTimeout,
+		JobsWorkPayoutEnabled:                DefaultJobsWorkPayoutEnabled,
+		JobsWorkPayoutTimeout:                DefaultWorkPayoutTimeout,
+		JobsWorkPayoutLeaseName:              DefaultWorkPayoutLeaseName,
 		SchedulerLeaseEnabled:                DefaultSchedulerLeaseEnabled,
 		SchedulerLeaseTTL:                    DefaultSchedulerLeaseTTL,
 		SchedulerLeaseTimeout:                DefaultSchedulerLeaseTimeout,
@@ -230,6 +234,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureDailyResetSchedulerEnabled, err = getBool(lookup, "MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED", DefaultFeatureDailyResetSchedulerEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureWorkPayoutSchedulerEnabled, err = getBool(lookup, "MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED", DefaultFeatureWorkPayoutSchedulerEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureAntiScamConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED", DefaultFeatureAntiScamConfigEnabled); err != nil {
@@ -370,6 +377,13 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 	if cfg.JobsDailyResetTimeout, err = getDuration(lookup, "MHCAT_JOBS_DAILY_RESET_TIMEOUT", DefaultDailyResetTimeout); err != nil {
 		return Config{}, err
 	}
+	if cfg.JobsWorkPayoutEnabled, err = getBool(lookup, "MHCAT_JOBS_WORK_PAYOUT_ENABLED", DefaultJobsWorkPayoutEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.JobsWorkPayoutTimeout, err = getDuration(lookup, "MHCAT_JOBS_WORK_PAYOUT_TIMEOUT", DefaultWorkPayoutTimeout); err != nil {
+		return Config{}, err
+	}
+	cfg.JobsWorkPayoutLeaseName = getString(lookup, "MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME", DefaultWorkPayoutLeaseName)
 	if cfg.SchedulerLeaseEnabled, err = getBool(lookup, "MHCAT_SCHEDULER_LEASE_ENABLED", DefaultSchedulerLeaseEnabled); err != nil {
 		return Config{}, err
 	}

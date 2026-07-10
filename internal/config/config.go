@@ -44,6 +44,7 @@ const (
 	DefaultFeatureAutoNotificationConfigEnabled = false
 	DefaultFeatureAutoNotificationDelivery      = false
 	DefaultFeatureDailyResetSchedulerEnabled    = false
+	DefaultFeatureWorkPayoutSchedulerEnabled    = false
 	DefaultFeatureAntiScamConfigEnabled         = false
 	DefaultFeatureAntiScamReportEnabled         = false
 	DefaultFeatureAntiScamMessageDeleteEnabled  = false
@@ -89,6 +90,7 @@ const (
 	DefaultFeatureAccountAgePolicyEnabled       = false
 	DefaultFeatureRoleSelectionEnabled          = false
 	DefaultJobsDailyResetEnabled                = false
+	DefaultJobsWorkPayoutEnabled                = false
 	DefaultMongoConnectTimeout                  = 10 * time.Second
 	DefaultMongoPingTimeout                     = 5 * time.Second
 	DefaultShutdownTimeout                      = 10 * time.Second
@@ -137,6 +139,7 @@ type Config struct {
 	FeatureAutoNotificationConfigEnabled bool
 	FeatureAutoNotificationDelivery      bool
 	FeatureDailyResetSchedulerEnabled    bool
+	FeatureWorkPayoutSchedulerEnabled    bool
 	FeatureAntiScamConfigEnabled         bool
 	FeatureAntiScamReportEnabled         bool
 	FeatureAntiScamMessageDeleteEnabled  bool
@@ -183,6 +186,9 @@ type Config struct {
 	FeatureRoleSelectionEnabled          bool
 	JobsDailyResetEnabled                bool
 	JobsDailyResetTimeout                time.Duration
+	JobsWorkPayoutEnabled                bool
+	JobsWorkPayoutTimeout                time.Duration
+	JobsWorkPayoutLeaseName              string
 	SchedulerLeaseEnabled                bool
 	SchedulerLeaseOwner                  string
 	SchedulerLeaseTTL                    time.Duration

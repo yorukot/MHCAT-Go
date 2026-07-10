@@ -123,7 +123,7 @@ Status: Platform Wave B. The Go typed catalog now covers all 47 legacy Mongoose 
 | `warndb.js` | `warndb` | `warndbs` | `time`, `guild`, `user`, `content` | warning docs by guild/user | none | `{guild:1,user:1}` | content array shape | warnings repository |
 | `work_set.js` | `work_set` | `work_sets` | `guild`, `get_energy`, `max_energy`, `captcha` | guild work config | none | `{guild:1}` | energy numeric drift | work config |
 | `work_something.js` | `work_something` | `work_somethings` | `guild`, `name`, `time`, `energy`, `coin`, `role` | work task by guild/name | none | `{guild:1,name:1}` | task name as ID | work task catalog |
-| `work_user.js` | `work_user` | `work_users` | `guild`, `user`, `state`, `end_time`, `energi`, `get_coin` | work user by guild/user; active jobs by state/end_time; completed-work payout by non-idle state and `end_time`; `_id` gives each duplicate row an independent marker | payout resets the exact job snapshot to `待業中`; lease-backed daily reset increments/clamps `energi` | `{guild:1,user:1}`, `{state:1,end_time:1}` | misspelled `energi`; duplicate work settings can repeat energy increments; Node does not honor Go payout markers | work user state, recurring daily reset, and crash-idempotent one-shot payout |
+| `work_user.js` | `work_user` | `work_users` | `guild`, `user`, `state`, `end_time`, `energi`, `get_coin` | work user by guild/user; active jobs by state/end_time; completed-work payout by non-idle state and `end_time`; `_id` gives each duplicate row an independent marker | payout resets the exact job snapshot to `待業中`; lease-backed daily reset increments/clamps `energi` | `{guild:1,user:1}`, `{state:1,end_time:1}` | misspelled `energi`; duplicate work settings can repeat energy increments; Node does not honor Go payout markers | work user state, recurring daily reset, and crash-idempotent one-shot/recurring payout |
 
 Work interface/start/admin repository status:
 
@@ -223,7 +223,7 @@ These collections are Go operational infrastructure, not legacy Mongoose model c
 
 | Collection | Purpose | Fields | Indexes | Compatibility notes |
 | --- | --- | --- | --- | --- |
-| `mhcat_scheduler_locks` | single-owner lease primitive used by automatic notifications, daily-reset CLI/worker, and one-shot work payout | `_id` equal to `lock_name`, `lock_name`, `owner`, `fence`, `expires_at`, `created_at`, `updated_at` | default Mongo `_id` only | no Node dependency; no backfill; graceful completion releases held leases and crashes rely on natural expiry for rollback |
+| `mhcat_scheduler_locks` | single-owner lease primitive used by automatic notifications, daily-reset CLI/worker, and work-payout CLI/worker | `_id` equal to `lock_name`, `lock_name`, `owner`, `fence`, `expires_at`, `created_at`, `updated_at` | default Mongo `_id` only | no Node dependency; no backfill; graceful completion releases held leases and crashes rely on natural expiry for rollback |
 
 ## Warning History Repository Status
 

@@ -1,6 +1,6 @@
 # Scheduler Lease Foundation
 
-Status: implemented as shared infrastructure. Automatic-notification delivery, daily-reset CLI apply/recurring execution, and work-payout one-shot apply use it.
+Status: implemented as shared infrastructure. Automatic-notification delivery, daily-reset CLI/worker, and work-payout CLI/worker use it.
 
 ## Purpose
 
@@ -15,6 +15,7 @@ Legacy MHCAT runs scheduler work inside the bot process with shard-0 checks. Tha
 - `cmd/mhcat-scheduler-lease`
 - `internal/core/services/notifications.DeliveryWorker`, using lease name `auto-notification-delivery`
 - `internal/core/services/economy.DailyResetWorker`, using lease name `daily-reset`
+- `internal/core/services/economy.WorkPayoutWorker`, using the configured work-payout lease name
 
 The Mongo collection is:
 
@@ -50,12 +51,13 @@ Release:
 
 ## Safety Boundaries
 
-- `cmd/mhcat-bot` uses the lease store for separately gated automatic-notification delivery and daily reset workers.
+- `cmd/mhcat-bot` uses the lease store for separately gated automatic-notification delivery, daily reset, and work payout workers.
 - `cmd/mhcat-economy-reset --apply` acquires `daily-reset`; dry-run remains lease-free.
 - `cmd/mhcat-work-payout --apply` uses the lease to prevent multiple Go operators from owning the payout run at the same time; atomic per-job coin markers make a crash retry balance-idempotent.
 - The automatic-notification worker schedules and sends only while it holds `auto-notification-delivery`, reconciles at most every 30 seconds, and releases the lease during graceful shutdown.
 - The daily worker acquires/releases `daily-reset` around each midnight run; it does not hold the lease all day.
-- Leases do not coordinate with legacy Node, so `handler/cron.js` must be disabled before Go notification or reset ownership starts.
+- The work-payout worker acquires/releases its configured lease around each minute tick, shares that lease with CLI apply, and skips overlapping callbacks in the same process.
+- Leases do not coordinate with legacy Node, so the corresponding Node scheduler owner must be disabled before Go ownership starts.
 - No command sync, Mongo index creation, or feature repair is performed by lease infrastructure.
 - The diagnostic CLI defaults to read-only `status`.
 - CLI write actions require `MHCAT_SCHEDULER_LEASE_ENABLED=true` and `--apply`.
@@ -90,16 +92,15 @@ Current consumers:
 
 - persisted automatic notifications from `MHCAT/handler/cron.js`, restored in Go behind `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true`.
 - economy daily reset from `MHCAT/handler/cron.js`, restored in Go behind `MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED=true`; CLI apply shares the same lease.
-- one-shot work payout apply.
+- work payout one-shot apply and recurring every-minute execution, sharing the configured lease.
 
 Future scheduler/job slices should use this lease before writes:
 
-- recurring work payout when the separately gated background worker is added;
 - birthday/lottery scheduler decisions if those inactive legacy paths are restored by ADR.
 
 ## Open Decisions
 
 - Lease owner naming for production processes.
 - Whether future recurring jobs run in `cmd/mhcat-bot` or a dedicated worker binary.
-- Job-specific lease TTL and renewal cadence beyond current notification/reset consumers.
+- Job-specific lease TTL and renewal cadence beyond current notification/reset/payout consumers.
 - Metrics/logging for lease contention and missed ticks.

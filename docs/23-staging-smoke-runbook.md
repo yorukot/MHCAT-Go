@@ -77,6 +77,22 @@ export MHCAT_JOBS_DAILY_RESET_TIMEOUT=60s
 
 This path has no command-sync flag. It writes `coins.today`, `work_users.energi`, and `mhcat_scheduler_locks` across the staging database at `00:00 Asia/Taipei`. Stop Node `handler/cron.js`, use only disposable economy/work fixtures, and give each Go replica a unique owner. The one-shot `mhcat-economy-reset --apply` uses the same `daily-reset` lease; its dry-run remains lease-free.
 
+Optional recurring work-payout smoke flags:
+
+```bash
+export MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED=true
+export MHCAT_JOBS_WORK_PAYOUT_ENABLED=true
+export MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME=work-payout-staging
+export MHCAT_JOBS_WORK_PAYOUT_TIMEOUT=60s
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_SCHEDULER_LEASE_ENABLED=true
+export MHCAT_SCHEDULER_LEASE_OWNER=staging-payout-bot-a
+export MHCAT_SCHEDULER_LEASE_TTL=2m
+export MHCAT_SCHEDULER_LEASE_TIMEOUT=10s
+```
+
+This path has no command-sync flag. It writes due `coins`/`work_users` rows and `mhcat_scheduler_locks` every minute. `MHCAT_JOBS_WORK_PAYOUT_DRY_RUN` does not apply to the worker. Stop Node `handler/gift.js`, use disposable fixtures, audit duplicate balances and marker shapes, and give every Go replica a unique owner. CLI apply must use the same lease name.
+
 Optional economy coin-admin smoke flags:
 
 ```bash
@@ -666,6 +682,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database/channel targets are disposable for auto-notification setup/list/delete.
 - If `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true`, confirm Gateway and scheduler leases are enabled, the lease owner is unique, the Node `handler/cron.js` owner is stopped, and every active staging `cron_sets` target/payload is safe to send.
 - If `MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED=true`, confirm the daily-reset write/Gateway/lease gates are enabled, lease TTL exceeds reset plus lease timeout, Node `handler/cron.js` is stopped, owners are unique, and every staging `coins`/`gift_changes`/`work_sets`/`work_users` row is disposable.
+- If `MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED=true`, confirm the payout write/Gateway/lease gates are enabled, CLI and worker lease names match, lease TTL exceeds payout plus lease timeout, Node `handler/gift.js` is stopped, owners are unique, duplicate/marker audits are clean, and every due staging `coins`/`work_users` row is disposable.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`, confirm `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true` and the selected log channel is staging-only.
 - If `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, and `loggings.channel_id` points to a staging-only log channel.
 - If `MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `loggings.channel_id` points to a staging-only log channel.

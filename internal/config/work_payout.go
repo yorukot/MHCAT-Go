@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	DefaultWorkPayoutEnabled   = false
+	DefaultWorkPayoutEnabled   = DefaultJobsWorkPayoutEnabled
 	DefaultWorkPayoutDryRun    = true
 	DefaultWorkPayoutTimeout   = 60 * time.Second
 	DefaultWorkPayoutLeaseName = "work-payout"

@@ -111,7 +111,7 @@ Required changed-schema plan format:
 
 ## Work Payout Compatibility
 
-`mhcat-work-payout` adds one rollback-compatible marker field to paid `coins` rows. It does not require a backfill or a new collection:
+`mhcat-work-payout` and the separately gated recurring worker share the same repository, configured lease, and rollback-compatible marker field on paid `coins` rows. Neither path requires a backfill or a new collection:
 
 | Collection | Legacy fields | New fields | Read strategy | Write strategy | Backfill needed | Rollback strategy | Dashboard impact |
 | --- | --- | --- | --- | --- | --- | --- | --- |

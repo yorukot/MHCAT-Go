@@ -324,3 +324,14 @@ Blocked without audit/ADR:
 - Risks: Node does not honor markers and must not overlap Go ownership. Duplicate coin rows stop the affected run until audited. Deleting/recreating work rows can leave historical marker keys. A same-row job version must have a later `end_time`; equal-time different tokens fail closed.
 - Rollback: Stop Go payout owners, release or expire the lease, and restore Node ownership. Leave additive markers in place because legacy Mongoose ignores them and removing an in-flight marker can re-enable a duplicate Go retry. No backfill is required.
 - Tests: deterministic token/filter/pipeline tests plus Mongo integration coverage for crash retry, concurrent same-token owners, stale ordering, missing coin upsert, malformed/duplicate coin rejection, and duplicate work rows.
+
+## ADR-027 Recurring Work Payout Ownership
+
+- Status: Accepted.
+- Context: Legacy scans completed work every minute under a shard-0 check. ADR-026 makes Go retries idempotent, but recurring execution still needs explicit rollout ownership and must coordinate with the one-shot operator command.
+- Decision: Add a disabled-by-default `* * * * *` worker in `cmd/mhcat-bot`. Each tick acquires/releases `MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME`, which is also used by CLI apply, and invokes the shared repository with the legacy rounded Unix timestamp. The worker has an independent feature gate, requires Gateway for app lifecycle, validates that lease TTL exceeds payout plus lease-operation timeouts, skips local overlap, and cancels/releases on shutdown.
+- Options considered: keep operator-only payout; continuously hold the payout lease; add a dedicated worker binary; add a per-tick worker to the existing app lifecycle.
+- Consequences: Due backlog resumes at the next minute boundary, CLI and recurring writes cannot intentionally overlap under distinct owners, and no Discord API or privileged intent is needed. The dry-run CLI flag does not apply to recurring writes.
+- Risks: Legacy Node ignores the lease and markers. Reusing one owner name across Go replicas weakens lease exclusion. A very large backlog may span ticks, and malformed or duplicate coin rows fail the run closed until audited.
+- Rollback: Disable the recurring feature, stop Go owners, confirm lease release/expiry, then restore Node ownership. Preserve payout markers.
+- Tests: fake-time cron schedule, rounded timestamp, lease contention/release, local overlap, timeout validation, cancellation/shutdown, config parsing, app wiring, staging preflight, race tests, and ADR-026 Mongo idempotency integration coverage.

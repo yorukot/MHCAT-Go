@@ -1040,6 +1040,22 @@ func dailyResetRepositoryFromMongo(mongoClient MongoClient, feature string) (*mo
 	return repository, nil
 }
 
+func workPayoutRepositoryFromMongo(mongoClient MongoClient, feature string) (*mongorepositories.WorkPayoutRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("%s requires default mongo client", feature)
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("%s database: %w", feature, err)
+	}
+	repository, err := mongorepositories.NewWorkPayoutRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("%s repository: %w", feature, err)
+	}
+	return repository, nil
+}
+
 func balanceRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.BalanceRepository, error) {
 	concrete, ok := mongoClient.(*mongoadapter.Client)
 	if !ok {

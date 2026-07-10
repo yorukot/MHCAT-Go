@@ -1167,6 +1167,66 @@ func TestPreflightRejectsDailyResetSchedulerUnsafeLeaseWindow(t *testing.T) {
 	}
 }
 
+func TestPreflightRejectsWorkPayoutSchedulerWithoutJobGate(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatalf("expected scheduler without job gate to fail, stdout=%q", stdout)
+	}
+	if !strings.Contains(stdout, "work-payout-scheduler-runtime-readiness status=fail") || !strings.Contains(stdout, "MHCAT_JOBS_WORK_PAYOUT_ENABLED") {
+		t.Fatalf("expected work payout job gate failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenWorkPayoutSchedulerEnabled(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_JOBS_WORK_PAYOUT_ENABLED"] = "true"
+	env["MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME"] = "work-payout-staging"
+	env["MHCAT_SCHEDULER_LEASE_ENABLED"] = "true"
+	env["MHCAT_SCHEDULER_LEASE_OWNER"] = "worker-a"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "work-payout-scheduler-runtime-readiness status=warn") || !strings.Contains(stdout, "atomic payout markers") || !strings.Contains(stdout, "work-payout-staging") || !strings.Contains(stdout, "handler/gift.js") {
+		t.Fatalf("expected work payout ownership warning, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightRejectsWorkPayoutSchedulerUnsafeLeaseWindow(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_JOBS_WORK_PAYOUT_ENABLED"] = "true"
+	env["MHCAT_SCHEDULER_LEASE_ENABLED"] = "true"
+	env["MHCAT_SCHEDULER_LEASE_OWNER"] = "worker-a"
+	env["MHCAT_JOBS_WORK_PAYOUT_TIMEOUT"] = "60s"
+	env["MHCAT_SCHEDULER_LEASE_TIMEOUT"] = "10s"
+	env["MHCAT_SCHEDULER_LEASE_TTL"] = "70s"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 || !strings.Contains(stdout, "greater than MHCAT_JOBS_WORK_PAYOUT_TIMEOUT") {
+		t.Fatalf("expected unsafe lease window failure, code=%d stdout=%q", code, stdout)
+	}
+}
+
+func TestPreflightRejectsWorkPayoutSchedulerBlankLeaseName(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_JOBS_WORK_PAYOUT_ENABLED"] = "true"
+	env["MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME"] = " "
+	env["MHCAT_SCHEDULER_LEASE_ENABLED"] = "true"
+	env["MHCAT_SCHEDULER_LEASE_OWNER"] = "worker-a"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 || !strings.Contains(stdout, "MHCAT_JOBS_WORK_PAYOUT_LEASE_NAME is required") {
+		t.Fatalf("expected blank lease-name failure, code=%d stdout=%q", code, stdout)
+	}
+}
+
 func TestPreflightRejectsAntiScamConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG"] = "true"
