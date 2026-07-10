@@ -85,7 +85,7 @@ func TestFallbackServicePreservesBalanceAndChannelGates(t *testing.T) {
 }
 
 func TestFallbackServiceUsesLocalRepliesForNegativeOrMalformedBalance(t *testing.T) {
-	for _, amount := range []string{"-0.01", "not-a-number", "NaN"} {
+	for _, amount := range []string{"-0.01", "not-a-number", "NaN", "undefined"} {
 		t.Run(amount, func(t *testing.T) {
 			configs := fakemongo.NewAutoChatConfigRepository()
 			configs.Configs["guild-1"] = domain.AutoChatConfig{GuildID: "guild-1", ChannelID: "channel-1"}

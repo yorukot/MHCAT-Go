@@ -21,7 +21,10 @@ func (d BalanceDocument) ToDomain() domain.Balance {
 }
 
 func legacyPriceString(value bson.RawValue) string {
-	if value.Type == 0 || value.Type == bson.TypeNull || value.Type == bson.TypeUndefined {
+	if value.Type == 0 || value.Type == bson.TypeUndefined {
+		return "undefined"
+	}
+	if value.Type == bson.TypeNull {
 		return "0"
 	}
 	if text, ok := value.StringValueOK(); ok {
@@ -37,5 +40,20 @@ func legacyPriceString(value bson.RawValue) string {
 	if parsed, ok := value.AsInt64OK(); ok {
 		return strconv.FormatInt(parsed, 10)
 	}
-	return "0"
+	if parsed, ok := value.BooleanOK(); ok {
+		if parsed {
+			return "1"
+		}
+		return "0"
+	}
+	if parsed, ok := value.DateTimeOK(); ok {
+		return strconv.FormatInt(parsed, 10)
+	}
+	if parsed, ok := value.Decimal128OK(); ok {
+		amount, err := strconv.ParseFloat(parsed.String(), 64)
+		if err == nil {
+			return strconv.FormatFloat(amount, 'f', -1, 64)
+		}
+	}
+	return "undefined"
 }
