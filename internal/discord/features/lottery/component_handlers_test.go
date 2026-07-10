@@ -99,7 +99,7 @@ func TestLotterySearchHandlerRendersParticipantsExportAndOwnerControls(t *testin
 		t.Fatalf("files = %#v", message.Files)
 	}
 	file := string(message.Files[0].Data)
-	if !strings.Contains(file, "Owner#0001(id:user-1)|參加時間:2023/11/15 06:13:20 [台北標準時間]") || !strings.Contains(file, "使用者已退出伺服器!(id:user-2)|參加時間:legacy time") {
+	if !strings.Contains(file, "Owner#0001(id:user-1)|參加時間:2023/11/15\u200906:13:20 [台北標準時間]") || !strings.Contains(file, "使用者已退出伺服器!(id:user-2)|參加時間:legacy time") {
 		t.Fatalf("file = %q", file)
 	}
 }
