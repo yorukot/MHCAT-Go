@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func TestJoinRoleDocumentRoundTrip(t *testing.T) {
@@ -74,5 +75,46 @@ func TestLeaveMessageDocumentNullFieldsDecodeEmpty(t *testing.T) {
 	back := LeaveMessageDocument{Guild: "guild", Channel: "channel"}.ToDomain()
 	if back.MessageContent != "" || back.Title != "" || back.Color != "" {
 		t.Fatalf("domain = %#v", back)
+	}
+}
+
+func TestVerificationDocumentDecodesLegacyRenameShapes(t *testing.T) {
+	tests := []struct {
+		name       string
+		document   bson.D
+		wantRename string
+	}{
+		{
+			name:       "missing name",
+			document:   bson.D{{Key: "guild", Value: "guild"}, {Key: "role", Value: "role"}},
+			wantRename: "",
+		},
+		{
+			name:       "null name",
+			document:   bson.D{{Key: "guild", Value: "guild"}, {Key: "role", Value: "role"}, {Key: "name", Value: nil}},
+			wantRename: "",
+		},
+		{
+			name:       "string name",
+			document:   bson.D{{Key: "guild", Value: "guild"}, {Key: "role", Value: "role"}, {Key: "name", Value: "  {name} | MHCAT  "}},
+			wantRename: "  {name} | MHCAT  ",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded, err := bson.Marshal(tc.document)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			var document VerificationDocument
+			if err := bson.Unmarshal(encoded, &document); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			config := document.ToDomain()
+			if config.GuildID != "guild" || config.RoleID != "role" || config.RenameTemplate != tc.wantRename {
+				t.Fatalf("config = %#v", config)
+			}
+		})
 	}
 }

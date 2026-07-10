@@ -107,3 +107,27 @@ func TestLegacyKnowledgeAnswerRoutesKnownUnicodeAndASCIIAnswers(t *testing.T) {
 		}
 	}
 }
+
+func TestLegacyVerificationComponentContract(t *testing.T) {
+	parsed, err := customid.ParseComponent("ABCDEFverification")
+	if err != nil {
+		t.Fatalf("parse legacy verification component: %v", err)
+	}
+	if parsed.Feature != "verification" || parsed.Action != "prompt" || !parsed.Legacy {
+		t.Fatalf("parsed = %#v", parsed)
+	}
+
+	for _, raw := range []string{
+		"verification",
+		"ABCDEFVerification",
+		"ABC-DEFverification",
+		strings.Repeat("A", 17) + "verification",
+		"ABCDEFverificationtail",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if parsed, err := customid.ParseComponent(raw); err == nil {
+				t.Fatalf("malformed verification id routed as %#v", parsed)
+			}
+		})
+	}
+}

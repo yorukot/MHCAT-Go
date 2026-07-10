@@ -56,3 +56,34 @@ func TestLegacyModalUnknownFirstField(t *testing.T) {
 		t.Fatalf("expected ErrUnknownLegacyID, got %v", err)
 	}
 }
+
+func TestLegacyVerificationModalContract(t *testing.T) {
+	raw := "ABCDEFver"
+	parsed, err := customid.ParseModal(raw, []customid.ModalField{{CustomID: raw, Value: "ABCDEF"}})
+	if err != nil {
+		t.Fatalf("parse legacy verification modal: %v", err)
+	}
+	if parsed.Feature != "verification" || parsed.Action != "answer" || !parsed.Legacy {
+		t.Fatalf("parsed = %#v", parsed)
+	}
+
+	tests := []struct {
+		name  string
+		raw   string
+		field string
+	}{
+		{name: "missing answer", raw: "ver", field: "ver"},
+		{name: "wrong suffix case", raw: "ABCDEFVer", field: "ABCDEFVer"},
+		{name: "punctuation", raw: "ABC-DEFver", field: "ABC-DEFver"},
+		{name: "answer too long", raw: "ABCDEFGHIJKLMNOPQver", field: "ABCDEFGHIJKLMNOPQver"},
+		{name: "field mismatch", raw: "ABCDEFver", field: "ABCDEGver"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := customid.ParseModal(tc.raw, []customid.ModalField{{CustomID: tc.field}})
+			if !errors.Is(err, customid.ErrUnknownLegacyID) {
+				t.Fatalf("expected ErrUnknownLegacyID, got %v", err)
+			}
+		})
+	}
+}
