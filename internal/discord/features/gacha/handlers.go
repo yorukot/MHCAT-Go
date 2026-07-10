@@ -235,9 +235,11 @@ func (m Module) handleDrawError(ctx context.Context, responder responses.Respond
 
 func (m Module) sendDrawSideEffects(ctx context.Context, interaction interactions.Interaction, result domain.GachaDrawResult) {
 	if m.messages != nil && strings.TrimSpace(result.NotificationChannelID) != "" {
-		nonAir := result.NonAirPrizes()
-		if len(nonAir) > 0 {
-			_, _ = m.messages.SendMessage(ctx, result.NotificationChannelID, legacyGachaWinnerMessage(interaction.Actor.UserID, nonAir, m.color()))
+		for _, prize := range result.Prizes {
+			if prize.Air {
+				continue
+			}
+			_, _ = m.messages.SendMessage(ctx, result.NotificationChannelID, legacyGachaWinnerMessage(interaction.Actor.UserID, prize, m.color()))
 		}
 	}
 	if m.direct != nil {
@@ -342,15 +344,11 @@ func legacyGachaDrawResultMessage(result domain.GachaDrawResult, avatarURL strin
 	}
 }
 
-func legacyGachaWinnerMessage(userID string, prizes []domain.GachaDrawPrizeResult, color int) ports.OutboundMessage {
-	names := make([]string, 0, len(prizes))
-	for _, prize := range prizes {
-		names = append(names, prize.Name)
-	}
+func legacyGachaWinnerMessage(userID string, prize domain.GachaDrawPrizeResult, color int) ports.OutboundMessage {
 	return ports.OutboundMessage{
 		Embeds: []ports.OutboundEmbed{{
 			Title:       "<:celebration:997374188060946495> **有人中獎了!**",
-			Description: fmt.Sprintf("<:id:985950321975128094> **中獎人:** <@%s>\n<a:gift:954018543211532289> **中獎禮物:**```%s```", userID, strings.Join(names, "\n")),
+			Description: fmt.Sprintf("<:id:985950321975128094> **中獎人:** <@%s>\n<a:gift:954018543211532289> **中獎禮物:**```%s```", userID, prize.Name),
 			Color:       color,
 		}},
 		AllowedMentions: ports.AllowedMentions{UserIDs: []string{userID}},

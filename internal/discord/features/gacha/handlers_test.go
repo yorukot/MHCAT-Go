@@ -191,10 +191,11 @@ func TestDrawRendersLegacyResultAndSendsSideEffects(t *testing.T) {
 func TestDrawChoiceUsesPaidCostAndActualResultCount(t *testing.T) {
 	repo := fakemongo.NewGachaRepository()
 	repo.Balances["guild-1/user-1"] = domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 2000}
-	repo.Configs["guild-1"] = domain.EconomyConfig{GuildID: "guild-1", GachaCost: 100}
+	repo.Configs["guild-1"] = domain.EconomyConfig{GuildID: "guild-1", GachaCost: 100, ChannelID: "notify-channel"}
 	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 100, Count: 20}}
 	repo.PrizeConfigs["guild-1"] = []domain.GachaPrizeConfig{{GuildID: "guild-1", Name: "大獎", Chance: 100, AutoDelete: true, Count: 20}}
-	module := NewDrawModule(repo, nil, nil, nil)
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewDrawModule(repo, sideEffects, nil, nil)
 	module.drawService.Random = func() float64 { return 0 }
 	module.color = func() int { return 0 }
 	module.drawWait = func(context.Context, time.Duration) error { return nil }
@@ -210,6 +211,14 @@ func TestDrawChoiceUsesPaidCostAndActualResultCount(t *testing.T) {
 	}
 	if repo.Balances["guild-1/user-1"].Coins != 1000 {
 		t.Fatalf("balance should charge 10 paid draws: %#v", repo.Balances["guild-1/user-1"])
+	}
+	if len(sideEffects.Sent) != 11 {
+		t.Fatalf("winner notifications = %#v", sideEffects.Sent)
+	}
+	for _, sent := range sideEffects.Sent {
+		if sent.ChannelID != "notify-channel" || strings.Count(sent.Message.Embeds[0].Description, "大獎") != 1 {
+			t.Fatalf("winner notification = %#v", sent)
+		}
 	}
 }
 
