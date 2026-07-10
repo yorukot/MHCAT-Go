@@ -119,3 +119,36 @@ func TestAccountAgeGateAllowsLaterHandlersForOldEnoughMember(t *testing.T) {
 		t.Fatalf("kicked = %#v", sideEffects.Kicked)
 	}
 }
+
+func TestAccountAgeGateAllowsLaterHandlersForInvalidLegacyConfig(t *testing.T) {
+	now := time.Unix(2_000_000, 0)
+	repo := fakemongo.NewAccountAgeConfigRepository()
+	repo.Configs["guild-1"] = domain.AccountAgeConfig{GuildID: "guild-1"}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{now: now})
+	dispatcher := discordevents.NewDispatcher(nil)
+	module.RegisterEventRoutes(dispatcher)
+	laterCalled := false
+	dispatcher.Register(discordevents.TypeMemberAdd, func(ctx context.Context, event discordevents.Event) error {
+		laterCalled = true
+		return nil
+	})
+
+	err := dispatcher.Dispatch(context.Background(), discordevents.Event{
+		Type:    discordevents.TypeMemberAdd,
+		GuildID: "guild-1",
+		Member: &discordevents.Member{
+			UserID:           "user-1",
+			AccountCreatedAt: now.Add(-time.Minute),
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if !laterCalled {
+		t.Fatal("invalid legacy threshold should not block later member-add handlers")
+	}
+	if len(sideEffects.Kicked) != 0 {
+		t.Fatalf("kicked = %#v", sideEffects.Kicked)
+	}
+}

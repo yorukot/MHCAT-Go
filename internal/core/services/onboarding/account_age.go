@@ -105,10 +105,16 @@ func (s AccountAgePolicyService) GateMemberAdd(ctx context.Context, event Accoun
 	if errors.Is(err, ports.ErrAccountAgeConfigMissing) {
 		return result, nil
 	}
+	if errors.Is(err, domain.ErrInvalidAccountAgeConfig) {
+		return result, nil
+	}
 	if err != nil {
 		return result, err
 	}
 	if err := config.Validate(); err != nil {
+		if errors.Is(err, domain.ErrInvalidAccountAgeConfig) {
+			return result, nil
+		}
 		return result, err
 	}
 	event, err = s.enrichMemberEvent(ctx, event)

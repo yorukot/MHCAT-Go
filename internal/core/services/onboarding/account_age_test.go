@@ -185,3 +185,27 @@ func TestAccountAgePolicyAllowsOldEnoughMember(t *testing.T) {
 		t.Fatalf("result=%#v sideEffects=%#v", result, sideEffects)
 	}
 }
+
+func TestAccountAgePolicyIgnoresInvalidLegacyConfig(t *testing.T) {
+	now := time.Unix(2_000_000, 0)
+	repo := fakemongo.NewAccountAgeConfigRepository()
+	repo.Configs["guild-1"] = domain.AccountAgeConfig{GuildID: "guild-1"}
+	sideEffects := fakediscord.NewSideEffects()
+	service := AccountAgePolicyService{
+		Repository: repo,
+		Members:    sideEffects,
+		Clock:      accountAgeClock{now: now},
+	}
+
+	result, err := service.GateMemberAdd(context.Background(), AccountAgeMemberEvent{
+		GuildID:          "guild-1",
+		UserID:           "user-1",
+		AccountCreatedAt: now.Add(-time.Minute),
+	})
+	if err != nil {
+		t.Fatalf("gate: %v", err)
+	}
+	if result.Matched || len(sideEffects.Kicked) != 0 {
+		t.Fatalf("result=%#v kicks=%#v", result, sideEffects.Kicked)
+	}
+}
