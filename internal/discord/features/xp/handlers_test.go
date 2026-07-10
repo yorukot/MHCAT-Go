@@ -766,7 +766,7 @@ func TestResetConfirmationDeletesGuildProfiles(t *testing.T) {
 	if _, ok := repo.VoiceProfiles["guild-2/user-3"]; !ok {
 		t.Fatal("other guild voice profile was deleted")
 	}
-	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != deleteEmoji+"成功刪除伺服器內所有語音經驗" {
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != deleteEmoji+"成功刪除伺服器內所有語音經驗" || sideEffects.Sent[0].Message.Embeds[0].Color != 0x53FF53 {
 		t.Fatalf("success response = %#v", sideEffects.Sent)
 	}
 }
@@ -830,7 +830,7 @@ func TestResetConfirmationEmptyTextGuildReportsLegacySuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("confirm handler: %v", err)
 	}
-	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != deleteEmoji+"成功刪除伺服器內所有聊天經驗" {
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != deleteEmoji+"成功刪除伺服器內所有聊天經驗" || sideEffects.Sent[0].Message.Embeds[0].Color != 0x53FF53 {
 		t.Fatalf("success response = %#v", sideEffects.Sent)
 	}
 }

@@ -17,6 +17,7 @@ import (
 const (
 	xpResetWarningContent = ":warning: | 一但刪除，___**將無法復原**___，如確定要還原請於60秒內輸入`^確認^`(只有一次機會)!!!"
 	xpResetConfirmContent = "^確認^"
+	xpResetSuccessColor   = 0x53FF53
 )
 
 var defaultResetConfirmationStore = newResetConfirmationStore(ports.SystemClock{}, time.Minute)
@@ -193,7 +194,7 @@ func xpResetGuildSuccessOutbound(kind resetKind) ports.OutboundMessage {
 	return ports.OutboundMessage{
 		Embeds: []ports.OutboundEmbed{{
 			Title: deleteEmoji + "成功刪除伺服器內所有" + label + "經驗",
-			Color: textXPSuccessColor,
+			Color: xpResetSuccessColor,
 		}},
 		AllowedMentions: ports.AllowedMentions{},
 	}
