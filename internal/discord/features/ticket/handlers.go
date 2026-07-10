@@ -130,8 +130,8 @@ func (m Module) submitTicketPanel(ctx context.Context, interaction interactions.
 	if !ok {
 		return responder.EditOriginal(ctx, ticketEditErrorMessage("你傳送的並不是顏色(色碼)"))
 	}
-	title := strings.TrimSpace(fields["tickettitle"])
-	content := strings.TrimSpace(fields["ticketcontent"])
+	title := fields["tickettitle"]
+	content := fields["ticketcontent"]
 	if title == "" || content == "" {
 		return responder.EditOriginal(ctx, ticketEditErrorMessage("請完整填寫私人頻道標題與內文。"))
 	}

@@ -192,12 +192,12 @@ func TestSetupModalRejectsInvalidColorWithoutSavingConfig(t *testing.T) {
 	}
 }
 
-func TestLegacyPanelSubmitSendsPanelAndEditsSuccess(t *testing.T) {
+func TestLegacyPanelSubmitPreservesRawPanelTextAndEditsSuccess(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
 	usage := &fakeusage.Tracker{}
 	module := NewModuleWithSideEffects(nil, usage, nil, sideEffects, "")
 	responder := fakediscord.NewResponder()
-	interaction := legacyTicketModalInteraction("#00ff00", "建立私人頻道", "按下按鈕創建客服頻道")
+	interaction := legacyTicketModalInteraction("#00ff00", "  建立私人頻道  ", "  按下按鈕創建客服頻道  ")
 
 	if err := module.LegacyPanelSubmitHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("legacy panel submit: %v", err)
@@ -212,7 +212,7 @@ func TestLegacyPanelSubmitSendsPanelAndEditsSuccess(t *testing.T) {
 		t.Fatalf("sent messages = %#v", sideEffects.Sent)
 	}
 	sent := sideEffects.Sent[0].Message
-	if len(sent.Embeds) != 1 || sent.Embeds[0].Title != "建立私人頻道" || sent.Embeds[0].Description != "按下按鈕創建客服頻道" || sent.Embeds[0].Color != 0x00ff00 {
+	if len(sent.Embeds) != 1 || sent.Embeds[0].Title != "  建立私人頻道  " || sent.Embeds[0].Description != "  按下按鈕創建客服頻道  " || sent.Embeds[0].Color != 0x00ff00 {
 		t.Fatalf("panel embed = %#v", sent.Embeds)
 	}
 	if len(sent.Components) != 1 || sent.Components[0].Components[0].CustomID != "tic" {
