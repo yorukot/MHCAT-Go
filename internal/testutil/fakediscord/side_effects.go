@@ -41,6 +41,7 @@ type SideEffects struct {
 	MemberTagValues   map[string]string
 	AssignableRoles   map[string]bool
 	MissingRoles      map[string]bool
+	CachedEmojiIDs    map[string]bool
 	ModerationAllowed map[string]bool
 	Err               error
 	KickErr           error
@@ -114,7 +115,7 @@ type BanAction struct {
 }
 
 func NewSideEffects() *SideEffects {
-	return &SideEffects{RoleNames: map[string]string{}, RoleMemberCounts: map[string]int{}, VoiceMembers: map[string]int{}, MemberTagValues: map[string]string{}, AssignableRoles: map[string]bool{}, MissingRoles: map[string]bool{}, ModerationAllowed: map[string]bool{}, nextChannel: 1, nextMessage: 1}
+	return &SideEffects{RoleNames: map[string]string{}, RoleMemberCounts: map[string]int{}, VoiceMembers: map[string]int{}, MemberTagValues: map[string]string{}, AssignableRoles: map[string]bool{}, MissingRoles: map[string]bool{}, CachedEmojiIDs: map[string]bool{}, ModerationAllowed: map[string]bool{}, nextChannel: 1, nextMessage: 1}
 }
 
 func (s *SideEffects) FindChannelByID(ctx context.Context, guildID string, channelID string) (ports.ChannelRef, error) {
@@ -386,6 +387,15 @@ func (s *SideEffects) AddReaction(ctx context.Context, channelID string, message
 	defer s.mu.Unlock()
 	s.Reactions = append(s.Reactions, ReactionAdd{ChannelID: channelID, MessageID: messageID, Emoji: emoji})
 	return nil
+}
+
+func (s *SideEffects) CachedEmojiExists(ctx context.Context, emojiID string) (bool, error) {
+	if err := s.ready(ctx); err != nil {
+		return false, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.CachedEmojiIDs[emojiID], nil
 }
 
 func (s *SideEffects) AddRole(ctx context.Context, guildID string, userID string, roleID string) error {

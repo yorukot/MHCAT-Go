@@ -96,6 +96,36 @@ func (c SideEffectClient) AddReaction(ctx context.Context, channelID string, mes
 	return ctx.Err()
 }
 
+func (c SideEffectClient) CachedEmojiExists(ctx context.Context, emojiID string) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	emojiID = strings.TrimSpace(emojiID)
+	if emojiID == "" {
+		return false, nil
+	}
+	session, err := c.session()
+	if err != nil {
+		return false, err
+	}
+	if session.State == nil {
+		return false, errors.New("discord emoji cache is unavailable")
+	}
+	session.State.RLock()
+	defer session.State.RUnlock()
+	for _, guild := range session.State.Guilds {
+		if guild == nil {
+			continue
+		}
+		for _, emoji := range guild.Emojis {
+			if emoji != nil && emoji.ID == emojiID {
+				return true, ctx.Err()
+			}
+		}
+	}
+	return false, ctx.Err()
+}
+
 func (c SideEffectClient) CleanupMessages(ctx context.Context, req ports.MessageCleanupRequest) (int, error) {
 	session, err := c.session()
 	if err != nil {

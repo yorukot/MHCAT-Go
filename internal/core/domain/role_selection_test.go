@@ -33,7 +33,7 @@ func TestNormalizeLegacyReaction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NormalizeLegacyReaction custom: %v", err)
 	}
-	if reaction.Stored != "123456789012345678" || reaction.API != "mhcat:123456789012345678" {
+	if reaction.Stored != "123456789012345678" || reaction.API != "mhcat:123456789012345678" || reaction.CustomEmojiID != "123456789012345678" {
 		t.Fatalf("custom reaction = %#v", reaction)
 	}
 	reaction, err = NormalizeLegacyReaction("✅")
@@ -42,5 +42,28 @@ func TestNormalizeLegacyReaction(t *testing.T) {
 	}
 	if reaction.Stored != "✅" || reaction.API != "✅" {
 		t.Fatalf("unicode reaction = %#v", reaction)
+	}
+}
+
+func TestIsLegacyUnicodeEmojiMatchesJavaScriptRanges(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{name: "unicode emoji", raw: "✅", want: true},
+		{name: "unanchored", raw: "hello✅world", want: true},
+		{name: "keycap", raw: "1️⃣", want: true},
+		{name: "supplementary non emoji", raw: "𐍈", want: true},
+		{name: "malformed class bracket", raw: "[", want: true},
+		{name: "custom mention", raw: "<:mhcat:123456789012345678>", want: false},
+		{name: "plain text", raw: "not-an-emoji", want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := IsLegacyUnicodeEmoji(test.raw); got != test.want {
+				t.Fatalf("IsLegacyUnicodeEmoji(%q) = %t, want %t", test.raw, got, test.want)
+			}
+		})
 	}
 }

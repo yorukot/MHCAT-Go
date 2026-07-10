@@ -15,6 +15,7 @@ func TestConfigureReactionSavesLegacyConfigAndAddsReaction(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	discord := fakediscord.NewSideEffects()
 	discord.AssignableRoles["guild-1/role-1"] = true
+	discord.CachedEmojiIDs["123456789012345678"] = true
 	service := SelectionService{Repository: repo, RoleInspector: discord, Reactions: discord}
 
 	config, err := service.ConfigureReaction(context.Background(), ReactionSetCommand{
@@ -140,5 +141,36 @@ func TestConfigureReactionChecksRoleBeforeMessageURL(t *testing.T) {
 	})
 	if !errors.Is(err, ports.ErrDiscordRoleNotAssignable) {
 		t.Fatalf("expected role hierarchy error before URL validation, got %v", err)
+	}
+}
+
+func TestConfigureReactionRejectsInvalidLegacyEmoji(t *testing.T) {
+	tests := []struct {
+		name  string
+		emoji string
+	}{
+		{name: "plain text", emoji: "not-an-emoji"},
+		{name: "uncached custom emoji", emoji: "<:mhcat:123456789012345678>"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewRoleSelectionRepository()
+			discord := fakediscord.NewSideEffects()
+			discord.AssignableRoles["guild-1/role-1"] = true
+			service := SelectionService{Repository: repo, RoleInspector: discord, Reactions: discord}
+
+			_, err := service.ConfigureReaction(context.Background(), ReactionSetCommand{
+				GuildID:    "guild-1",
+				MessageURL: "https://discord.com/channels/guild-1/channel-1/message-1",
+				RoleID:     "role-1",
+				Emoji:      test.emoji,
+			})
+			if !errors.Is(err, domain.ErrInvalidRoleSelectionEmoji) {
+				t.Fatalf("expected invalid emoji, got %v", err)
+			}
+			if len(discord.Reactions) != 0 || len(repo.Reactions) != 0 {
+				t.Fatalf("invalid emoji side effects: reactions=%#v configs=%#v", discord.Reactions, repo.Reactions)
+			}
+		})
 	}
 }

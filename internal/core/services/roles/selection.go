@@ -89,6 +89,17 @@ func (s SelectionService) ConfigureReaction(ctx context.Context, command Reactio
 	if err != nil {
 		return domain.RoleReactionConfig{}, err
 	}
+	if reaction.CustomEmojiID != "" {
+		exists, err := s.Reactions.CachedEmojiExists(ctx, reaction.CustomEmojiID)
+		if err != nil {
+			return domain.RoleReactionConfig{}, err
+		}
+		if !exists {
+			return domain.RoleReactionConfig{}, domain.ErrInvalidRoleSelectionEmoji
+		}
+	} else if !domain.IsLegacyUnicodeEmoji(command.Emoji) {
+		return domain.RoleReactionConfig{}, domain.ErrInvalidRoleSelectionEmoji
+	}
 	if err := s.Reactions.AddReaction(ctx, target.ChannelID, target.MessageID, reaction.API); err != nil {
 		return domain.RoleReactionConfig{}, err
 	}

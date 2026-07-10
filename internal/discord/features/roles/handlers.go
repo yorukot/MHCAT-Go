@@ -244,6 +244,8 @@ func roleSelectionButtonError(err error, remove bool) responses.Message {
 
 func roleSelectionErrorFromError(err error, fallback string) responses.Message {
 	switch {
+	case errors.Is(err, domain.ErrInvalidRoleSelectionEmoji):
+		return roleSelectionErrorMessage("你必須輸入正確的表情符號!(表情符號所在伺服器我必須在裡面!)")
 	case errors.Is(err, domain.ErrInvalidRoleSelectionConfig):
 		return roleSelectionErrorMessage("你輸入的不是一個訊息連結")
 	case errors.Is(err, ports.ErrDiscordRoleNotAssignable), errors.Is(err, ports.ErrDiscordRoleMissing):

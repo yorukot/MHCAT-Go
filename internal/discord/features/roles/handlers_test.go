@@ -67,6 +67,31 @@ func TestReactionSetHandlerReportsRoleHierarchyBeforeInvalidURL(t *testing.T) {
 	}
 }
 
+func TestReactionSetHandlerReportsLegacyInvalidEmoji(t *testing.T) {
+	repo := fakemongo.NewRoleSelectionRepository()
+	discord := fakediscord.NewSideEffects()
+	discord.AssignableRoles["guild-1/role-1"] = true
+	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+	interaction := fakediscord.SlashInteractionWithOptions(RoleReactionSetCommandName, "", map[string]string{
+		"訊息url": "https://discord.com/channels/guild-1/channel-1/message-1",
+		"身分組":   "role-1",
+		"表情符號":  "not-an-emoji",
+	})
+	interaction.Actor.PermissionBits = permissionManageMessages
+	responder := fakediscord.NewResponder()
+
+	if err := module.ReactionSetHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	want := roleSelectionErrorPrefix + "你必須輸入正確的表情符號!(表情符號所在伺服器我必須在裡面!)"
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != want {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(discord.Reactions) != 0 || len(repo.Reactions) != 0 {
+		t.Fatalf("invalid emoji side effects: reactions=%#v configs=%#v", discord.Reactions, repo.Reactions)
+	}
+}
+
 func TestReactionDeleteHandlerDeletesConfig(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	repo.Reactions["guild-1/message-1/✅"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "✅", RoleID: "role-1"}

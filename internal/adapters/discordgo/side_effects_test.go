@@ -26,6 +26,26 @@ func TestSideEffectClientRequiresSession(t *testing.T) {
 	}
 }
 
+func TestCachedEmojiExistsUsesGlobalDiscordState(t *testing.T) {
+	state := dgo.NewState()
+	if err := state.GuildAdd(&dgo.Guild{ID: "guild-1"}); err != nil {
+		t.Fatalf("seed first guild: %v", err)
+	}
+	if err := state.GuildAdd(&dgo.Guild{ID: "guild-2", Emojis: []*dgo.Emoji{{ID: "emoji-2"}}}); err != nil {
+		t.Fatalf("seed second guild: %v", err)
+	}
+	client := SideEffectClient{Session: &Session{session: &dgo.Session{State: state}}}
+
+	exists, err := client.CachedEmojiExists(context.Background(), " emoji-2 ")
+	if err != nil || !exists {
+		t.Fatalf("cached emoji: exists=%t err=%v", exists, err)
+	}
+	exists, err = client.CachedEmojiExists(context.Background(), "missing")
+	if err != nil || exists {
+		t.Fatalf("missing emoji: exists=%t err=%v", exists, err)
+	}
+}
+
 func TestOutboundMessageSendIncludesReplyReference(t *testing.T) {
 	send := outboundMessageSend(" channel-1 ", ports.OutboundMessage{
 		Content:          "hello",

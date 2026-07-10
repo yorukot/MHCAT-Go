@@ -138,6 +138,7 @@ type DiscordTypingPort interface {
 
 type DiscordReactionPort interface {
 	AddReaction(ctx context.Context, channelID string, messageID string, emoji string) error
+	CachedEmojiExists(ctx context.Context, emojiID string) (bool, error)
 }
 
 type DiscordMessageCleaner interface {
