@@ -342,7 +342,8 @@ func TestOwnerMenuRejectsNonCreator(t *testing.T) {
 
 func TestOwnerMenuManyChoiceReturnsVersionedSelect(t *testing.T) {
 	repo := seededPollRepo(t)
-	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), nil, nil)
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewModuleWithSideEffects(repo, sideEffects, nil, nil)
 	module.randomColor = func() int { return pollTestRandomColor }
 	responder := fakediscord.NewResponder()
 
@@ -358,6 +359,9 @@ func TestOwnerMenuManyChoiceReturnsVersionedSelect(t *testing.T) {
 	}
 	if responder.Edits[0].Embeds[0].Color != pollTestRandomColor {
 		t.Fatalf("max-choice menu color = %#x", responder.Edits[0].Embeds[0].Color)
+	}
+	if len(sideEffects.Edited) != 1 {
+		t.Fatalf("refreshed polls = %#v", sideEffects.Edited)
 	}
 }
 
@@ -429,7 +433,7 @@ func TestOwnerMenuExcelExportReturnsLegacyWorkbookAttachment(t *testing.T) {
 	_, _ = repo.Vote(context.Background(), "guild-1", "message-1", "user-1", "A", "1700000000000")
 	sideEffects := fakediscord.NewSideEffects()
 	sideEffects.MemberTagValues["user-1"] = "Alice#1234"
-	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), sideEffects, nil)
+	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, nil)
 	responder := fakediscord.NewResponder()
 
 	if err := module.OwnerMenuHandler()(context.Background(), pollMenuInteraction("poll_excel_result"), responder); err != nil {
@@ -444,6 +448,27 @@ func TestOwnerMenuExcelExportReturnsLegacyWorkbookAttachment(t *testing.T) {
 	}
 	if len(edit.Files) != 1 || edit.Files[0].Name != "poll_info.xlsx" || !strings.Contains(edit.Files[0].ContentType, "spreadsheetml") || len(edit.Files[0].Data) == 0 {
 		t.Fatalf("files = %#v", edit.Files)
+	}
+	if len(sideEffects.Edited) != 1 {
+		t.Fatalf("refreshed polls = %#v", sideEffects.Edited)
+	}
+}
+
+func TestOwnerMenuAnonymousLockRerendersPoll(t *testing.T) {
+	repo := seededPollRepo(t)
+	_, _ = repo.TogglePoll(context.Background(), "guild-1", "message-1", domain.PollToggleAnonymous)
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewModuleWithSideEffects(repo, sideEffects, nil, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.OwnerMenuHandler()(context.Background(), pollMenuInteraction("poll_anonymous"), responder); err != nil {
+		t.Fatalf("owner menu handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "匿名的投票無法改為實名") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(sideEffects.Edited) != 1 {
+		t.Fatalf("refreshed polls = %#v", sideEffects.Edited)
 	}
 }
 

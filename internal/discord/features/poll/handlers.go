@@ -108,10 +108,7 @@ func (m Module) VoteHandler() interactions.Handler {
 		if err != nil {
 			return responder.EditOriginal(ctx, pollErrorFor(err))
 		}
-		if m.messages != nil && interaction.ChannelID != "" && interaction.MessageID != "" {
-			count := m.memberCount(ctx, interaction.Actor.GuildID, change.Poll.UniqueVoterCount())
-			_ = m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: interaction.MessageID}, pollOutboundMessage(change.Poll, count, m.nextPollColor()))
-		}
+		m.refreshPollMessage(ctx, interaction, interaction.MessageID, change.Poll)
 		title := "<a:green_tick:994529015652163614> | 你成功投給`" + choice + "`!"
 		description := "如需更改選項，可以再點選一次該選項即可取消投票"
 		if change.Removed {
@@ -148,10 +145,7 @@ func (m Module) ResultHandler() interactions.Handler {
 		if err := responder.EditOriginal(ctx, pollResultMessage(ctx, poll, m.members, m.nextPollColor())); err != nil {
 			return err
 		}
-		if m.messages != nil && interaction.ChannelID != "" && interaction.MessageID != "" {
-			count := m.memberCount(ctx, interaction.Actor.GuildID, poll.UniqueVoterCount())
-			_ = m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: interaction.MessageID}, pollOutboundMessage(poll, count, m.nextPollColor()))
-		}
+		m.refreshPollMessage(ctx, interaction, interaction.MessageID, poll)
 		return nil
 	}
 }
@@ -176,7 +170,11 @@ func (m Module) OwnerMenuHandler() interactions.Handler {
 			if len(poll.Choices) < 3 {
 				return responder.EditOriginal(ctx, pollErrorMessage("必須要有3個選項才能啟用多選"))
 			}
-			return responder.EditOriginal(ctx, maxChoiceMenuMessage(interaction.MessageID, len(poll.Choices), m.nextPollColor()))
+			if err := responder.EditOriginal(ctx, maxChoiceMenuMessage(interaction.MessageID, len(poll.Choices), m.nextPollColor())); err != nil {
+				return err
+			}
+			m.refreshPollMessage(ctx, interaction, interaction.MessageID, poll)
+			return nil
 		}
 		if value == "poll_excel_result" {
 			if poll.Anonymous {
@@ -186,17 +184,25 @@ func (m Module) OwnerMenuHandler() interactions.Handler {
 			if err != nil {
 				return err
 			}
-			return responder.EditOriginal(ctx, message)
+			if err := responder.EditOriginal(ctx, message); err != nil {
+				return err
+			}
+			m.refreshPollMessage(ctx, interaction, interaction.MessageID, poll)
+			return nil
 		}
 		toggle := domain.PollToggle(value)
 		updated, err := m.repo.TogglePoll(ctx, interaction.Actor.GuildID, interaction.MessageID, toggle)
 		if err != nil {
+			if errors.Is(err, ports.ErrPollAnonymousLocked) {
+				if responseErr := responder.EditOriginal(ctx, pollErrorFor(err)); responseErr != nil {
+					return responseErr
+				}
+				m.refreshPollMessage(ctx, interaction, interaction.MessageID, poll)
+				return nil
+			}
 			return responder.EditOriginal(ctx, pollErrorFor(err))
 		}
-		if m.messages != nil && interaction.ChannelID != "" && interaction.MessageID != "" {
-			count := m.memberCount(ctx, interaction.Actor.GuildID, updated.UniqueVoterCount())
-			_ = m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: interaction.MessageID}, pollOutboundMessage(updated, count, m.nextPollColor()))
-		}
+		m.refreshPollMessage(ctx, interaction, interaction.MessageID, updated)
 		return responder.EditOriginal(ctx, pollDoneMessage(doneMessageForToggle(toggle, updated)))
 	}
 }
@@ -218,10 +224,7 @@ func (m Module) MaxChoicesHandler() interactions.Handler {
 		if err != nil {
 			return responder.UpdateMessage(ctx, pollErrorFor(err))
 		}
-		if m.messages != nil && interaction.ChannelID != "" {
-			count := m.memberCount(ctx, interaction.Actor.GuildID, updated.UniqueVoterCount())
-			_ = m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: messageID}, pollOutboundMessage(updated, count, m.nextPollColor()))
-		}
+		m.refreshPollMessage(ctx, interaction, messageID, updated)
 		return responder.UpdateMessage(ctx, responses.Message{
 			Embeds: []responses.Embed{{
 				Title: fmt.Sprintf("<a:green_tick:994529015652163614> | 成功將最多選擇數量設為%d", maxChoices),
@@ -309,6 +312,14 @@ func (m Module) memberCount(ctx context.Context, guildID string, fallback int) i
 		return fallback
 	}
 	return count
+}
+
+func (m Module) refreshPollMessage(ctx context.Context, interaction interactions.Interaction, messageID string, poll domain.Poll) {
+	if m.messages == nil || interaction.ChannelID == "" || messageID == "" {
+		return
+	}
+	count := m.memberCount(ctx, interaction.Actor.GuildID, poll.UniqueVoterCount())
+	_ = m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: messageID}, pollOutboundMessage(poll, count, m.nextPollColor()))
 }
 
 func (m Module) now() time.Time {
