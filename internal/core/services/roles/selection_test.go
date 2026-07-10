@@ -122,20 +122,55 @@ func TestPrepareAndApplyButton(t *testing.T) {
 }
 
 func TestApplyButtonRejectsRoleStateMismatches(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		assignable bool
+	}{
+		{name: "assignable role", assignable: true},
+		{name: "role above bot", assignable: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewRoleSelectionRepository()
+			repo.Buttons["guild-1/number-add"] = domain.RoleButtonConfig{GuildID: "guild-1", Number: "number-add", RoleID: "role-1"}
+			repo.Buttons["guild-1/number-delete"] = domain.RoleButtonConfig{GuildID: "guild-1", Number: "number-delete", RoleID: "role-1"}
+			discord := fakediscord.NewSideEffects()
+			discord.AssignableRoles["guild-1/role-1"] = test.assignable
+			service := SelectionService{Repository: repo, RoleInspector: discord, Roles: discord}
+
+			err := service.ApplyButton(context.Background(), ButtonApplyCommand{GuildID: "guild-1", UserID: "user-1", Number: "number-add", ActorRoleIDs: []string{"role-1"}})
+			if !errors.Is(err, ErrRoleAlreadyAssigned) {
+				t.Fatalf("expected already assigned, got %v", err)
+			}
+			err = service.ApplyButton(context.Background(), ButtonApplyCommand{GuildID: "guild-1", UserID: "user-1", Number: "number-delete", Remove: true})
+			if !errors.Is(err, ErrRoleNotAssigned) {
+				t.Fatalf("expected not assigned, got %v", err)
+			}
+			if len(discord.AddedRoles) != 0 || len(discord.RemovedRoles) != 0 {
+				t.Fatalf("role changes = added %#v, removed %#v", discord.AddedRoles, discord.RemovedRoles)
+			}
+		})
+	}
+}
+
+func TestApplyButtonReportsMissingRoleBeforeMemberState(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	repo.Buttons["guild-1/number-add"] = domain.RoleButtonConfig{GuildID: "guild-1", Number: "number-add", RoleID: "role-1"}
 	repo.Buttons["guild-1/number-delete"] = domain.RoleButtonConfig{GuildID: "guild-1", Number: "number-delete", RoleID: "role-1"}
 	discord := fakediscord.NewSideEffects()
-	discord.AssignableRoles["guild-1/role-1"] = true
+	discord.MissingRoles["guild-1/role-1"] = true
 	service := SelectionService{Repository: repo, RoleInspector: discord, Roles: discord}
 
-	err := service.ApplyButton(context.Background(), ButtonApplyCommand{GuildID: "guild-1", UserID: "user-1", Number: "number-add", ActorRoleIDs: []string{"role-1"}})
-	if !errors.Is(err, ErrRoleAlreadyAssigned) {
-		t.Fatalf("expected already assigned, got %v", err)
+	commands := []ButtonApplyCommand{
+		{GuildID: "guild-1", UserID: "user-1", Number: "number-add", ActorRoleIDs: []string{"role-1"}},
+		{GuildID: "guild-1", UserID: "user-1", Number: "number-delete", Remove: true},
 	}
-	err = service.ApplyButton(context.Background(), ButtonApplyCommand{GuildID: "guild-1", UserID: "user-1", Number: "number-delete", Remove: true})
-	if !errors.Is(err, ErrRoleNotAssigned) {
-		t.Fatalf("expected not assigned, got %v", err)
+	for _, command := range commands {
+		if err := service.ApplyButton(context.Background(), command); !errors.Is(err, ports.ErrDiscordRoleMissing) {
+			t.Fatalf("expected missing role for %q, got %v", command.Number, err)
+		}
+	}
+	if len(discord.AddedRoles) != 0 || len(discord.RemovedRoles) != 0 {
+		t.Fatalf("role changes = added %#v, removed %#v", discord.AddedRoles, discord.RemovedRoles)
 	}
 }
 

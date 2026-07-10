@@ -199,20 +199,24 @@ func (s SelectionService) ApplyButton(ctx context.Context, command ButtonApplyCo
 	if err != nil {
 		return err
 	}
+	assignable, err := s.RoleInspector.CanAssignRole(ctx, guildID, config.RoleID)
+	if err != nil {
+		return err
+	}
 	if command.Remove {
 		if !hasRole(command.ActorRoleIDs, config.RoleID) {
 			return ErrRoleNotAssigned
 		}
-		if err := s.ensureAssignable(ctx, guildID, config.RoleID); err != nil {
-			return err
+		if !assignable {
+			return ports.ErrDiscordRoleNotAssignable
 		}
 		return s.Roles.RemoveRole(ctx, guildID, userID, config.RoleID)
 	}
 	if hasRole(command.ActorRoleIDs, config.RoleID) {
 		return ErrRoleAlreadyAssigned
 	}
-	if err := s.ensureAssignable(ctx, guildID, config.RoleID); err != nil {
-		return err
+	if !assignable {
+		return ports.ErrDiscordRoleNotAssignable
 	}
 	return s.Roles.AddRole(ctx, guildID, userID, config.RoleID)
 }

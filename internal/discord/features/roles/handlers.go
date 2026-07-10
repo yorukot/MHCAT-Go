@@ -17,6 +17,7 @@ import (
 const (
 	permissionManageMessages  = int64(8192)
 	roleSelectionErrorPrefix  = "<a:Discord_AnimatedNo:1015989839809757295> | "
+	roleSelectionActionPrefix = "<a:error:980086028113182730> | "
 	roleSelectionErrorColor   = 0xED4245
 	roleSelectionSuccessColor = 0x57F287
 	roleSelectionDoneEmoji    = "<a:green_tick:994529015652163614>"
@@ -199,7 +200,7 @@ func roleSelectionButtonPanelOutbound(baseID string, content string, color int) 
 }
 
 func roleSelectionRoleErrorOutbound(remove bool) ports.OutboundMessage {
-	prefix := "<a:error:980086028113182730> | "
+	prefix := roleSelectionActionPrefix
 	if remove {
 		prefix = roleSelectionErrorPrefix
 	}
@@ -224,23 +225,37 @@ func roleSelectionModalField(fields []customid.ModalField) (string, string) {
 func roleSelectionButtonError(err error, remove bool) responses.Message {
 	switch {
 	case errors.Is(err, ports.ErrRoleButtonConfigMissing):
-		return roleSelectionErrorMessage("很抱歉，出現了錯誤!")
+		return roleSelectionButtonContentError("很抱歉，出現了錯誤!")
 	case errors.Is(err, coreservice.ErrRoleAlreadyAssigned):
 		return roleSelectionErrorMessage("你已經擁有身分組了!")
 	case errors.Is(err, coreservice.ErrRoleNotAssigned):
 		return roleSelectionErrorMessage(" 你沒有這個身分組!")
 	case errors.Is(err, ports.ErrDiscordRoleMissing):
 		if remove {
-			return roleSelectionErrorMessage("找不到這個身分組!")
+			return roleSelectionButtonActionError("找不到這個身分組!")
 		}
-		return roleSelectionErrorMessage("請通知群主管裡員找不到這個身分組!")
+		return roleSelectionButtonActionError("請通知群主管裡員找不到這個身分組!")
 	case errors.Is(err, ports.ErrDiscordRoleNotAssignable):
-		if remove {
-			return roleSelectionErrorMessage("請通知群主管裡員我沒有權限給你這個身分組(請把我的身分組調高)!")
-		}
-		return roleSelectionErrorMessage("請通知群主管裡員我沒有權限給你這個身分組(請把我的身分組調高)!")
+		return roleSelectionButtonActionError("請通知群主管裡員我沒有權限給你這個身分組(請把我的身分組調高)!")
 	default:
-		return roleSelectionErrorMessage("opps,出現了錯誤!\n有可能是你設定沒設定好\n或是我沒有權限喔(請確認我的權限比你要加的權限高，還需要管理身分組的權限)")
+		return roleSelectionButtonContentError("opps,出現了錯誤!\n有可能是你設定沒設定好\n或是我沒有權限喔(請確認我的權限比你要加的權限高，還需要管理身分組的權限)")
+	}
+}
+
+func roleSelectionButtonActionError(content string) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: roleSelectionActionPrefix + content,
+			Color: roleSelectionErrorColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func roleSelectionButtonContentError(content string) responses.Message {
+	return responses.Message{
+		Content:         content,
+		AllowedMentions: &responses.AllowedMentions{},
 	}
 }
 

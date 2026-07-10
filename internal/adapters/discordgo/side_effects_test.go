@@ -84,6 +84,43 @@ func TestFetchMessageUsesDiscordRESTAndMapsNotFound(t *testing.T) {
 	}
 }
 
+func TestRoleWritesUseRESTWithoutCachedMember(t *testing.T) {
+	requests := make([]string, 0, 2)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requests = append(requests, request.Method+" "+request.URL.Path)
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	previousGuilds := dgo.EndpointGuilds
+	dgo.EndpointGuilds = server.URL + "/guilds/"
+	defer func() { dgo.EndpointGuilds = previousGuilds }()
+	session, err := dgo.New("Bot test-token")
+	if err != nil {
+		t.Fatalf("new discord session: %v", err)
+	}
+	session.State = dgo.NewState()
+	client := SideEffectClient{Session: &Session{session: session}}
+
+	if err := client.AddRole(context.Background(), "guild-1", "uncached-user", "role-1"); err != nil {
+		t.Fatalf("add role: %v", err)
+	}
+	if err := client.RemoveRole(context.Background(), "guild-1", "uncached-user", "role-1"); err != nil {
+		t.Fatalf("remove role: %v", err)
+	}
+	want := []string{
+		"PUT /guilds/guild-1/members/uncached-user/roles/role-1",
+		"DELETE /guilds/guild-1/members/uncached-user/roles/role-1",
+	}
+	if len(requests) != len(want) {
+		t.Fatalf("requests = %#v", requests)
+	}
+	for i := range want {
+		if requests[i] != want[i] {
+			t.Fatalf("request[%d] = %q, want %q", i, requests[i], want[i])
+		}
+	}
+}
+
 func TestOutboundMessageSendIncludesReplyReference(t *testing.T) {
 	send := outboundMessageSend(" channel-1 ", ports.OutboundMessage{
 		Content:          "hello",
