@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -199,10 +200,21 @@ func TestRankFontFamilyForNumericText(t *testing.T) {
 			t.Fatalf("rankFontFamilyForNumericText(%q) = %d, want %d", value, got, want)
 		}
 	}
-	if got := rankFontCandidates(rankLanguageFont); !reflect.DeepEqual(got, []string{"fonts/language/TC.otf", "fonts/TaipeiSansTCBeta-Regular.ttf"}) {
+	wantLanguageFonts := []string{
+		"fonts/language/TC.otf",
+		"fonts/language/SC.otf",
+		"fonts/language/JP.otf",
+		"fonts/language/HK.otf",
+		"fonts/language/NotoSans.ttf",
+		"fonts/language/Bengali.ttf",
+		"fonts/language/Arabic.ttf",
+		"fonts/language/emoji.ttf",
+		"fonts/TaipeiSansTCBeta-Regular.ttf",
+	}
+	if got := rankFontCandidates(rankLanguageFont); !reflect.DeepEqual(got, wantLanguageFonts) {
 		t.Fatalf("language font candidates = %#v", got)
 	}
-	if got := rankFontCandidates(rankNumericFont); len(got) == 0 || got[0] != "fonts/Comic-Sans-MS-copy-5-.ttf" {
+	if got := rankFontCandidates(rankNumericFont); len(got) != len(wantLanguageFonts)+1 || got[0] != "fonts/Comic-Sans-MS-copy-5-.ttf" || !reflect.DeepEqual(got[1:], wantLanguageFonts) {
 		t.Fatalf("numeric font candidates = %#v", got)
 	}
 }
@@ -225,6 +237,37 @@ func TestRenderRankPNGIncludesSlotsOnEmptyPages(t *testing.T) {
 	}
 	if bytes.Equal(first, second) {
 		t.Fatal("empty rank pages rendered identically")
+	}
+}
+
+func TestRenderRankPNGUsesFontCachesConcurrently(t *testing.T) {
+	view := rankCanvasView{
+		GuildName:      "多語言 Guild",
+		GuildCreatedAt: time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC),
+		ViewerRankText: "1",
+		Title:          "聊天經驗排行榜",
+		Entries: []rankCanvasEntry{{
+			Rank:        1,
+			DisplayName: "مرحبا বাংলা 日本語",
+			TotalXP:     1250,
+		}},
+	}
+	var wait sync.WaitGroup
+	errs := make(chan error, 4)
+	for i := 0; i < 4; i++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			_, err := renderRankPNG(view)
+			errs <- err
+		}()
+	}
+	wait.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("render rank PNG: %v", err)
+		}
 	}
 }
 

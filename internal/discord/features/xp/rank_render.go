@@ -274,8 +274,8 @@ func rankFallbackTextWidth(text string, scale int) int {
 }
 
 var rankFonts = [2]struct {
-	once sync.Once
-	font *opentype.Font
+	once  sync.Once
+	fonts []*opentype.Font
 }{}
 
 func rankFontFace(family rankFontFamily, size float64) font.Face {
@@ -289,37 +289,113 @@ func rankFontFace(family rankFontFamily, size float64) font.Face {
 				}
 				parsed, err := opentype.Parse(data)
 				if err == nil {
-					cache.font = parsed
-					return
+					cache.fonts = append(cache.fonts, parsed)
+					break
 				}
 			}
 		}
 	})
-	if cache.font == nil && family == rankNumericFont {
+	if len(cache.fonts) == 0 && family == rankNumericFont {
 		return rankFontFace(rankLanguageFont, size)
 	}
-	if cache.font == nil {
+	if len(cache.fonts) == 0 {
 		return nil
 	}
-	face, err := opentype.NewFace(cache.font, &opentype.FaceOptions{Size: size, DPI: 72, Hinting: font.HintingFull})
-	if err != nil {
+	faces := make([]font.Face, 0, len(cache.fonts))
+	for _, parsed := range cache.fonts {
+		face, err := opentype.NewFace(parsed, &opentype.FaceOptions{Size: size, DPI: 72, Hinting: font.HintingFull})
+		if err == nil {
+			faces = append(faces, face)
+		}
+	}
+	if len(faces) == 0 && family == rankNumericFont {
+		return rankFontFace(rankLanguageFont, size)
+	}
+	if len(faces) == 0 {
 		return nil
 	}
-	return face
+	if len(faces) == 1 {
+		return faces[0]
+	}
+	return &rankFallbackFace{faces: faces}
 }
 
 func rankFontCandidates(family rankFontFamily) []string {
-	if family == rankNumericFont {
-		return []string{
-			"fonts/Comic-Sans-MS-copy-5-.ttf",
-			"fonts/language/TC.otf",
-			"fonts/TaipeiSansTCBeta-Regular.ttf",
-		}
-	}
-	return []string{
+	candidates := []string{
 		"fonts/language/TC.otf",
+		"fonts/language/SC.otf",
+		"fonts/language/JP.otf",
+		"fonts/language/HK.otf",
+		"fonts/language/NotoSans.ttf",
+		"fonts/language/Bengali.ttf",
+		"fonts/language/Arabic.ttf",
+		"fonts/language/emoji.ttf",
 		"fonts/TaipeiSansTCBeta-Regular.ttf",
 	}
+	if family == rankNumericFont {
+		return append([]string{"fonts/Comic-Sans-MS-copy-5-.ttf"}, candidates...)
+	}
+	return candidates
+}
+
+type rankFallbackFace struct {
+	faces []font.Face
+}
+
+func (f *rankFallbackFace) Close() error {
+	var firstErr error
+	for _, face := range f.faces {
+		if err := face.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
+func (f *rankFallbackFace) Glyph(dot fixed.Point26_6, r rune) (image.Rectangle, image.Image, image.Point, fixed.Int26_6, bool) {
+	for _, face := range f.faces {
+		if bounds, mask, maskPoint, advance, ok := face.Glyph(dot, r); ok {
+			return bounds, mask, maskPoint, advance, true
+		}
+	}
+	return image.Rectangle{}, nil, image.Point{}, 0, false
+}
+
+func (f *rankFallbackFace) GlyphBounds(r rune) (fixed.Rectangle26_6, fixed.Int26_6, bool) {
+	for _, face := range f.faces {
+		if bounds, advance, ok := face.GlyphBounds(r); ok {
+			return bounds, advance, true
+		}
+	}
+	return fixed.Rectangle26_6{}, 0, false
+}
+
+func (f *rankFallbackFace) GlyphAdvance(r rune) (fixed.Int26_6, bool) {
+	for _, face := range f.faces {
+		if advance, ok := face.GlyphAdvance(r); ok {
+			return advance, true
+		}
+	}
+	return 0, false
+}
+
+func (f *rankFallbackFace) Kern(r0 rune, r1 rune) fixed.Int26_6 {
+	for _, face := range f.faces {
+		if _, ok := face.GlyphAdvance(r0); !ok {
+			continue
+		}
+		if _, ok := face.GlyphAdvance(r1); ok {
+			return face.Kern(r0, r1)
+		}
+	}
+	return 0
+}
+
+func (f *rankFallbackFace) Metrics() font.Metrics {
+	if len(f.faces) == 0 {
+		return font.Metrics{}
+	}
+	return f.faces[0].Metrics()
 }
 
 func drawRankRune(img *image.RGBA, x, y int, r rune, c color.RGBA, scale int) {
