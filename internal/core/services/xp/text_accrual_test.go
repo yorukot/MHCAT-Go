@@ -84,6 +84,17 @@ func TestLegacyTextXPForMessageMatchesLegacyLengthAndMultiplier(t *testing.T) {
 	}
 }
 
+func TestLegacyTextXPLevelUpAnnouncementUsesDefaultAndFirstReplacements(t *testing.T) {
+	if got := LegacyTextXPLevelUpAnnouncement("", 2, " user-1 "); got != "🆙恭喜<@user-1> 的聊天等級成功升級到 2" {
+		t.Fatalf("default announcement = %q", got)
+	}
+	got := LegacyTextXPLevelUpAnnouncement("(user) {user} (leavel) {level} (user) {level}", 7, "user-1")
+	want := "<@user-1> <@user-1> 7 7 (user) {level}"
+	if got != want {
+		t.Fatalf("custom announcement = %q, want %q", got, want)
+	}
+}
+
 func fixedMultiplier(value int64) func() int64 {
 	return func() int64 { return value }
 }

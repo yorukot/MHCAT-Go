@@ -65,6 +65,18 @@ func (r *TextXPConfigRepository) SaveTextXPConfig(ctx context.Context, config do
 	return nil
 }
 
+func (r *TextXPConfigRepository) GetTextXPConfig(ctx context.Context, guildID string) (domain.TextXPConfig, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.TextXPConfig{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	config, ok := r.Configs[guildID]
+	if !ok {
+		return domain.TextXPConfig{}, ports.ErrTextXPConfigMissing
+	}
+	return config, nil
+}
+
 func (r *TextXPConfigRepository) DeleteTextXPConfig(ctx context.Context, guildID string) error {
 	if err := r.ready(ctx); err != nil {
 		return err
@@ -382,6 +394,7 @@ func filterXPProfiles(profiles map[string]domain.XPProfile, guildID string) []do
 }
 
 var _ ports.TextXPConfigRepository = (*TextXPConfigRepository)(nil)
+var _ ports.TextXPConfigReader = (*TextXPConfigRepository)(nil)
 var _ ports.VoiceXPConfigRepository = (*VoiceXPConfigRepository)(nil)
 var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
 var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)

@@ -4,13 +4,16 @@ import (
 	"context"
 	"testing"
 
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
 
 func TestTextXPEventAccruesMessageXP(t *testing.T) {
 	repo := fakemongo.NewXPAdminRepository()
-	module := NewTextEventModule(repo)
+	module := NewTextEventModule(repo, nil, nil)
 	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
 
 	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
@@ -24,7 +27,7 @@ func TestTextXPEventAccruesMessageXP(t *testing.T) {
 
 func TestTextXPEventIgnoresBotDMAndNonMessageEvents(t *testing.T) {
 	repo := fakemongo.NewXPAdminRepository()
-	module := NewTextEventModule(repo)
+	module := NewTextEventModule(repo, nil, nil)
 	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
 
 	bot := textXPEvent("bot")
@@ -46,7 +49,7 @@ func TestTextXPEventIgnoresBotDMAndNonMessageEvents(t *testing.T) {
 
 func TestTextXPEventRegisteredOnlyWithRepository(t *testing.T) {
 	dispatcher := events.NewDispatcher(nil)
-	NewTextEventModule(fakemongo.NewXPAdminRepository()).RegisterEventRoutes(dispatcher)
+	NewTextEventModule(fakemongo.NewXPAdminRepository(), nil, nil).RegisterEventRoutes(dispatcher)
 	if !dispatcher.HasHandlers(events.TypeMessageCreate) {
 		t.Fatal("expected text XP message handler")
 	}
@@ -55,6 +58,83 @@ func TestTextXPEventRegisteredOnlyWithRepository(t *testing.T) {
 	TextEventModule{}.RegisterEventRoutes(empty)
 	if empty.HasHandlers(events.TypeMessageCreate) {
 		t.Fatal("unexpected text XP message handler")
+	}
+}
+
+func TestTextXPEventSendsConfiguredLevelUpAnnouncement(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}
+	configs := fakemongo.NewTextXPConfigRepository()
+	configs.Configs["guild-1"] = domain.TextXPConfig{GuildID: "guild-1", ChannelID: "level-channel", Message: "(user) 升到了 {level}"}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewTextEventModule(repo, configs, sideEffects)
+	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
+
+	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
+		t.Fatalf("message create: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 {
+		t.Fatalf("sent messages = %#v", sideEffects.Sent)
+	}
+	sent := sideEffects.Sent[0]
+	if sent.ChannelID != "level-channel" || sent.Message.Content != "<@user-1> 升到了 1" {
+		t.Fatalf("sent = %#v", sent)
+	}
+	if sent.Message.AllowedMentions.ParseUsers || sent.Message.AllowedMentions.ParseRoles || sent.Message.AllowedMentions.ParseEveryone {
+		t.Fatalf("announcement should only allow explicit user mention: %#v", sent.Message.AllowedMentions)
+	}
+	if len(sent.Message.AllowedMentions.UserIDs) != 1 || sent.Message.AllowedMentions.UserIDs[0] != "user-1" {
+		t.Fatalf("allowed users = %#v", sent.Message.AllowedMentions)
+	}
+	profile := repo.TextProfiles["guild-1/user-1"]
+	if profile.Level != 1 || profile.XP != 0 {
+		t.Fatalf("profile = %#v", profile)
+	}
+}
+
+func TestTextXPEventUsesCurrentChannelAnnouncementSentinel(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}
+	configs := fakemongo.NewTextXPConfigRepository()
+	configs.Configs["guild-1"] = domain.TextXPConfig{GuildID: "guild-1", ChannelID: "ONCHANEL", Message: "level {level}"}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewTextEventModule(repo, configs, sideEffects)
+	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
+
+	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
+		t.Fatalf("message create: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].ChannelID != "channel-1" || sideEffects.Sent[0].Message.Content != "level 1" {
+		t.Fatalf("sent messages = %#v", sideEffects.Sent)
+	}
+}
+
+func TestTextXPEventSkipsLevelUpAnnouncementWithoutConfig(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}
+	configs := fakemongo.NewTextXPConfigRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewTextEventModule(repo, configs, sideEffects)
+	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
+
+	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
+		t.Fatalf("message create: %v", err)
+	}
+	if len(sideEffects.Sent) != 0 {
+		t.Fatalf("sent messages = %#v", sideEffects.Sent)
+	}
+}
+
+func TestTextXPEventReturnsAnnouncementRepositoryError(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}
+	configs := fakemongo.NewTextXPConfigRepository()
+	configs.Err = ports.ErrChannelNotFound
+	module := NewTextEventModule(repo, configs, fakediscord.NewSideEffects())
+	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
+
+	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != ports.ErrChannelNotFound {
+		t.Fatalf("expected config error, got %v", err)
 	}
 }
 

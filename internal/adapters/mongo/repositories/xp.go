@@ -146,6 +146,32 @@ func (r *TextXPConfigRepository) SaveTextXPConfig(ctx context.Context, config do
 	return ctx.Err()
 }
 
+func (r *TextXPConfigRepository) GetTextXPConfig(ctx context.Context, guildID string) (domain.TextXPConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.TextXPConfig{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return domain.TextXPConfig{}, domain.ErrInvalidTextXPConfig
+	}
+	var document documents.TextXPChannelDocument
+	err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document)
+	if errors.Is(err, drivermongo.ErrNoDocuments) {
+		return domain.TextXPConfig{}, ports.ErrTextXPConfigMissing
+	}
+	if err != nil {
+		return domain.TextXPConfig{}, mhcatmongo.MapError(fmt.Errorf("get text xp config: %w", err))
+	}
+	config := document.ToDomain()
+	if strings.TrimSpace(config.GuildID) == "" {
+		config.GuildID = guildID
+	}
+	if err := config.Validate(); err != nil {
+		return domain.TextXPConfig{}, err
+	}
+	return config, ctx.Err()
+}
+
 func (r *VoiceXPConfigRepository) SaveVoiceXPConfig(ctx context.Context, config domain.VoiceXPConfig) error {
 	if err := ctx.Err(); err != nil {
 		return err

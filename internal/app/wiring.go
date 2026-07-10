@@ -817,7 +817,15 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		if err != nil {
 			return nil, err
 		}
-		featurexp.NewTextEventModule(repo).RegisterEventRoutes(dispatcher)
+		configRepo, err := textXPConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "text XP accrual feature")
+		if err != nil {
+			return nil, err
+		}
+		featurexp.NewTextEventModule(repo, configRepo, sideEffects).RegisterEventRoutes(dispatcher)
 	}
 	if cfg.FeatureRoleSelectionEnabled {
 		repo, err := roleSelectionRepositoryFromMongo(mongoClient)

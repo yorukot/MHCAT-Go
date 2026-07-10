@@ -20,9 +20,9 @@ Status: implemented behind explicit runtime and command-sync gates.
 - Permission: Manage Messages (`8192`) at command definition and runtime check
 - Discord behavior: public defer, legacy-style green/red embeds, optional preview message
 
-This slice is announcement-config only. It does not enable message-create XP accrual, rank cards, automatic reward-role assignment/removal, voice XP, coin rewards, or Message Content intent. Text reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
+This config slice is announcement-config only. It does not enable message-create XP accrual, rank cards, automatic reward-role assignment/removal, voice XP, coin rewards, or Message Content intent. Text reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
 
-Text XP message accrual is implemented separately behind `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true`, with `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`. That event slice mirrors the legacy per-message XP formula and `text_xps` profile updates, including XP reset on level-up, but it does not send level-up announcements or apply XP rewards yet.
+Text XP message accrual is implemented separately behind `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true`, with `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`. That event slice mirrors the legacy per-message XP formula and `text_xps` profile updates, including XP reset on level-up, and sends configured/default level-up announcements when a `text_xp_channels` row exists. Coin rewards, automatic reward-role assignment/removal, and the legacy missing-channel/permission fallback messages remain disabled.
 
 ## Legacy UI/UX Preserved
 
@@ -47,6 +47,7 @@ Text XP message accrual is implemented separately behind `MHCAT_FEATURE_TEXT_XP_
 
 - Legacy deletes one found config document and inserts a new one. Go updates every duplicate `{guild}` row and only upserts when no row exists, avoiding a temporary missing-config window and keeping duplicate legacy rows consistent until a duplicate audit and unique-index plan are approved.
 - Legacy preview sends raw message content with default mentions. Go preserves the visible preview text but uses empty allowed mentions to avoid accidental `@everyone`, role, or user pings during configuration.
+- Legacy level-up announcements ping the leveling member. Go preserves that user ping but constrains allowed mentions to the leveling user only.
 
 ## Compatibility Notes
 
@@ -57,7 +58,8 @@ Text XP message accrual is implemented separately behind `MHCAT_FEATURE_TEXT_XP_
 
 ## Not Implemented
 
-- text XP level-up announcements, coin rewards, and reward-role changes.
+- text XP coin rewards and reward-role changes.
+- legacy missing-channel reply and missing-permission DM fallback behavior for level-up announcements.
 - `/聊天排行榜`, rank image rendering, rank buttons, and the old XP profile card lookup behind `/聊天經驗`; the current `/聊天經驗` command is implemented separately as a disabled replacement response only.
 - XP-to-coin rewards.
 - automatic chat reward-role assignment/removal; the config command is tracked separately from XP accrual.

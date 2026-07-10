@@ -20,6 +20,10 @@ type TextXPConfigRepository interface {
 	DeleteTextXPConfig(ctx context.Context, guildID string) error
 }
 
+type TextXPConfigReader interface {
+	GetTextXPConfig(ctx context.Context, guildID string) (domain.TextXPConfig, error)
+}
+
 type VoiceXPConfigRepository interface {
 	SaveVoiceXPConfig(ctx context.Context, config domain.VoiceXPConfig) error
 	DeleteVoiceXPConfig(ctx context.Context, guildID string) error
