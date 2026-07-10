@@ -69,11 +69,13 @@ func TestLotterySearchHandlerRendersParticipantsExportAndOwnerControls(t *testin
 		Participants: []domain.LotteryParticipant{
 			{UserID: "user-1", JoinedAtMillis: 1_700_000_000_000},
 			{UserID: "user-2", JoinedAtRaw: "legacy time"},
+			{UserID: "user-3", JoinedAtRaw: "modern time"},
 		},
 	}
 	info := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{ID: "guild-1", OwnerID: "guild-owner"}}
 	members := fakediscord.NewSideEffects()
 	members.MemberTagValues["user-1"] = "Owner#0001"
+	members.MemberTagValues["user-3"] = "ModernUser"
 	module := NewComponentModule(repo, info, members, nil, lotteryFixedClock{})
 	module.color = func() int { return 0x123456 }
 	interaction := fakediscord.ComponentInteractionFromID(lotteryTestID + "search")
@@ -89,7 +91,7 @@ func TestLotterySearchHandlerRendersParticipantsExportAndOwnerControls(t *testin
 	if message.Content == "" || len(message.Embeds) != 1 || message.Embeds[0].Title != "抽獎人數資訊" || message.Embeds[0].Color != 0x123456 {
 		t.Fatalf("message = %#v", message)
 	}
-	if !strings.Contains(message.Embeds[0].Description, "`2`") || !strings.Contains(message.Embeds[0].Description, "`有`") || !strings.Contains(message.Embeds[0].Description, "Owner#0001") || !strings.Contains(message.Embeds[0].Description, "使用者已消失") {
+	if !strings.Contains(message.Embeds[0].Description, "`3`") || !strings.Contains(message.Embeds[0].Description, "`有`") || !strings.Contains(message.Embeds[0].Description, "Owner#0001") || !strings.Contains(message.Embeds[0].Description, "ModernUser#0") || !strings.Contains(message.Embeds[0].Description, "使用者已消失") {
 		t.Fatalf("description = %q", message.Embeds[0].Description)
 	}
 	if len(message.Components) != 1 || message.Components[0].Components[0].CustomID != lotteryTestID+"restart" || message.Components[0].Components[1].CustomID != lotteryTestID+"stop" {
@@ -99,7 +101,7 @@ func TestLotterySearchHandlerRendersParticipantsExportAndOwnerControls(t *testin
 		t.Fatalf("files = %#v", message.Files)
 	}
 	file := string(message.Files[0].Data)
-	if !strings.Contains(file, "Owner#0001(id:user-1)|參加時間:2023/11/15\u200906:13:20 [台北標準時間]") || !strings.Contains(file, "使用者已退出伺服器!(id:user-2)|參加時間:legacy time") {
+	if !strings.Contains(file, "Owner#0001(id:user-1)|參加時間:2023/11/15\u200906:13:20 [台北標準時間]") || !strings.Contains(file, "使用者已退出伺服器!(id:user-2)|參加時間:legacy time") || !strings.Contains(file, "ModernUser#0(id:user-3)|參加時間:modern time") {
 		t.Fatalf("file = %q", file)
 	}
 }

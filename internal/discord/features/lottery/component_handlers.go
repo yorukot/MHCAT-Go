@@ -140,6 +140,7 @@ func (m Module) lotterySearchMessage(ctx context.Context, lottery domain.Lottery
 			displayNames = append(displayNames, "使用者已消失!")
 			tag = "使用者已退出伺服器!"
 		} else {
+			tag = legacyLotteryParticipantTag(tag)
 			displayNames = append(displayNames, tag)
 		}
 		fileLines = append(fileLines, tag+"(id:"+participant.UserID+")|參加時間:"+legacyLotteryParticipantTime(participant))
@@ -247,6 +248,13 @@ func legacyLotteryParticipantTime(participant domain.LotteryParticipant) string 
 		}
 	}
 	return participant.JoinedAtRaw
+}
+
+func legacyLotteryParticipantTag(tag string) string {
+	if strings.Contains(tag, "#") {
+		return tag
+	}
+	return tag + "#0"
 }
 
 func uniqueLotteryUserIDs(values []string) []string {
