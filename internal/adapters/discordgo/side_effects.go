@@ -241,23 +241,19 @@ func (c SideEffectClient) GuildStats(ctx context.Context, guildID string) (domai
 	if snapshot.BotCount < 0 {
 		snapshot.BotCount = 0
 	}
+	snapshot.ChannelCount, snapshot.TextChannelCount, snapshot.VoiceChannelCount = legacyStatsChannelCounts(channels)
+	return snapshot, ctx.Err()
+}
+
+func legacyStatsChannelCounts(channels []*dgo.Channel) (int, int, int) {
+	total := 0
 	for _, channel := range channels {
-		if channel == nil {
-			continue
-		}
-		switch channel.Type {
-		case dgo.ChannelTypeGuildText:
-			snapshot.TextChannelCount++
-			snapshot.ChannelCount++
-		case dgo.ChannelTypeGuildVoice:
-			snapshot.VoiceChannelCount++
-			snapshot.ChannelCount++
-		case dgo.ChannelTypeGuildCategory:
-		default:
-			snapshot.ChannelCount++
+		if channel != nil {
+			total++
 		}
 	}
-	return snapshot, ctx.Err()
+	// Legacy discord.js v14 compared numeric channel types to stale string names.
+	return total, 0, 0
 }
 
 func (c SideEffectClient) RoleStats(ctx context.Context, guildID string, roleID string) (domain.StatsRoleSnapshot, error) {

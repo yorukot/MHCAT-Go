@@ -49,6 +49,18 @@ func TestCoreAllowedMentionsSuppressesByDefault(t *testing.T) {
 	}
 }
 
+func TestLegacyStatsChannelCountsPreserveV14StringComparisons(t *testing.T) {
+	total, textChannels, voiceChannels := legacyStatsChannelCounts([]*dgo.Channel{
+		{ID: "text", Type: dgo.ChannelTypeGuildText},
+		{ID: "voice", Type: dgo.ChannelTypeGuildVoice},
+		{ID: "category", Type: dgo.ChannelTypeGuildCategory},
+		nil,
+	})
+	if total != 3 || textChannels != 0 || voiceChannels != 0 {
+		t.Fatalf("counts = (%d, %d, %d)", total, textChannels, voiceChannels)
+	}
+}
+
 func TestAuditLogEntriesFromDiscordIncludesActorIdentity(t *testing.T) {
 	action := dgo.AuditLogActionChannelUpdate
 	entries := auditLogEntriesFromDiscord(&dgo.GuildAuditLog{
