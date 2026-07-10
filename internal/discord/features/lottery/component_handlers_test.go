@@ -162,6 +162,40 @@ func TestLotteryRerollSendsOneLegacyWinnerMessageAndEndsLottery(t *testing.T) {
 	}
 }
 
+func TestLotteryRerollPreservesLegacyEmptyParticipantMessage(t *testing.T) {
+	repo := fakemongo.NewLotteryRepository()
+	repo.Lotteries["guild-1:"+lotteryTestID] = domain.Lottery{
+		GuildID:     "guild-1",
+		ID:          lotteryTestID,
+		OwnerID:     "user-1",
+		WinnerCount: 1,
+		ChannelID:   "channel-1",
+	}
+	info := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{BotDisplayColor: 0x123456}}
+	messages := fakediscord.NewSideEffects()
+	module := NewComponentModule(repo, info, nil, messages, lotteryFixedClock{})
+	module.randomIndex = func(int) (int, error) {
+		t.Fatal("random index called without participants")
+		return 0, nil
+	}
+	interaction := fakediscord.ComponentInteractionFromID(lotteryTestID + "restart")
+	responder := fakediscord.NewResponder()
+
+	if err := module.RerollHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("reroll: %v", err)
+	}
+	if len(messages.Sent) != 1 {
+		t.Fatalf("sent = %#v", messages.Sent)
+	}
+	sent := messages.Sent[0].Message
+	if sent.Content != "<@>" || len(sent.Embeds) != 1 || sent.Embeds[0].Description != "**沒有人參加抽獎欸QQ**" || sent.Embeds[0].Color != 0x123456 {
+		t.Fatalf("winner message = %#v", sent)
+	}
+	if !repo.Lotteries["guild-1:"+lotteryTestID].Ended || len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Content, "成功重抽") {
+		t.Fatalf("lottery=%#v edits=%#v", repo.Lotteries["guild-1:"+lotteryTestID], responder.Edits)
+	}
+}
+
 func TestLotteryStopRequiresOwnerAndEndsLegacyOwnerlessRowsForModerator(t *testing.T) {
 	repo := fakemongo.NewLotteryRepository()
 	repo.Lotteries["guild-1:"+lotteryTestID] = domain.Lottery{GuildID: "guild-1", ID: lotteryTestID, OwnerID: "owner-1"}

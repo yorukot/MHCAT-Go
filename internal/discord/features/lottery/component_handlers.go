@@ -204,7 +204,7 @@ func (m Module) lotteryWinnerMessage(lottery domain.Lottery, color int) (ports.O
 		}
 	}
 	description := "**沒有人參加抽獎欸QQ**"
-	content := ""
+	content := "<@>"
 	if len(winners) > 0 {
 		content = "<@" + strings.Join(winners, "><@") + ">"
 		description = "\n**<:celebration:997374188060946495> 恭喜:**\n<@" + strings.Join(winners, ">\n<@") + ">\n<:gift:994585975445528576> **抽中:** " + lottery.Gift + "\n"
