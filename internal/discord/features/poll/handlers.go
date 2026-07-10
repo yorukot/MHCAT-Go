@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf16"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -224,7 +225,7 @@ func (m Module) MaxChoicesHandler() interactions.Handler {
 }
 
 func validatePollInput(question string, choicesRaw string) ([]string, string) {
-	if len([]rune(question)) > 2500 {
+	if len(utf16.Encode([]rune(question))) > 2500 {
 		return nil, "問題字數不可超過2500"
 	}
 	parts := strings.Split(choicesRaw, "^")
@@ -240,7 +241,7 @@ func validatePollInput(question string, choicesRaw string) ([]string, string) {
 		if part == "" {
 			return nil, "^跟^中間請填入選項，不可為空"
 		}
-		if len([]rune(part)) > 80 {
+		if len(utf16.Encode([]rune(part))) > 80 {
 			return nil, "你輸入的選項字數不能超過80"
 		}
 		if _, ok := seen[part]; ok {

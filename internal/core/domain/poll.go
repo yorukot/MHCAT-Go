@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf16"
 )
 
 var ErrInvalidPoll = errors.New("invalid poll")
@@ -64,7 +65,7 @@ func (p PollCreate) Validate() error {
 	}
 	seen := map[string]struct{}{}
 	for _, choice := range p.Choices {
-		if strings.TrimSpace(choice) == "" || len([]rune(choice)) > 80 {
+		if strings.TrimSpace(choice) == "" || len(utf16.Encode([]rune(choice))) > 80 {
 			return ErrInvalidPoll
 		}
 		if _, ok := seen[choice]; ok {

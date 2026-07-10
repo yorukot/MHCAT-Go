@@ -153,6 +153,29 @@ func TestCreateHandlerRejectsInvalidOptionsBeforeSend(t *testing.T) {
 	}
 }
 
+func TestValidatePollInputUsesLegacyUTF16Lengths(t *testing.T) {
+	tests := []struct {
+		name     string
+		question string
+		choices  string
+		want     string
+	}{
+		{name: "question at emoji limit", question: strings.Repeat("😀", 1250), choices: "A^B"},
+		{name: "question over emoji limit", question: strings.Repeat("😀", 1251), choices: "A^B", want: "問題字數不可超過2500"},
+		{name: "choice at emoji limit", question: "Q", choices: strings.Repeat("😀", 40) + "^B"},
+		{name: "choice over emoji limit", question: "Q", choices: strings.Repeat("😀", 41) + "^B", want: "你輸入的選項字數不能超過80"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, got := validatePollInput(tc.question, tc.choices)
+			if got != tc.want {
+				t.Fatalf("validation message = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestVoteHandlerAddsVoteAndRerendersPoll(t *testing.T) {
 	repo := seededPollRepo(t)
 	sideEffects := fakediscord.NewSideEffects()
