@@ -12,10 +12,18 @@ import (
 )
 
 func pollOutboundMessage(poll domain.Poll, memberCount int, color int) ports.OutboundMessage {
+	return pollOutboundMessageWithChangeText(poll, memberCount, color, changeText(poll))
+}
+
+func initialPollOutboundMessage(poll domain.Poll, memberCount int, color int) ports.OutboundMessage {
+	return pollOutboundMessageWithChangeText(poll, memberCount, color, "不能")
+}
+
+func pollOutboundMessageWithChangeText(poll domain.Poll, memberCount int, color int, change string) ports.OutboundMessage {
 	return ports.OutboundMessage{
 		Embeds: []ports.OutboundEmbed{{
 			Title:       pollEmbedTitle(poll),
-			Description: pollEmbedDescription(poll, memberCount),
+			Description: pollEmbedDescription(poll, memberCount, change),
 			Color:       color,
 		}},
 		Components: pollOutboundComponents(poll),
@@ -26,7 +34,7 @@ func pollEmbedTitle(poll domain.Poll) string {
 	return "<:poll:1023968837965709312> | 投票\n" + poll.Question
 }
 
-func pollEmbedDescription(poll domain.Poll, memberCount int) string {
+func pollEmbedDescription(poll domain.Poll, memberCount int, change string) string {
 	voters := poll.UniqueVoterCount()
 	percentage := "0.00"
 	if memberCount > 0 {
@@ -36,7 +44,7 @@ func pollEmbedDescription(poll domain.Poll, memberCount int) string {
 <:YellowSmallDot:1023970607429328946> `+"`%s`"+`改投其他選項
 <:YellowSmallDot:1023970607429328946> `+"`%s`"+`看到投票結果
 <:YellowSmallDot:1023970607429328946> `+"`%s`"+`投票**
-`, voters, memberCount, percentage, poll.MaxChoices, changeText(poll), resultText(poll), anonymousText(poll))
+`, voters, memberCount, percentage, poll.MaxChoices, change, resultText(poll), anonymousText(poll))
 }
 
 func changeText(poll domain.Poll) string {

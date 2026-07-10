@@ -50,7 +50,7 @@ func TestCreateHandlerSendsLegacyPollUIAndSavesDocument(t *testing.T) {
 		t.Fatalf("poll color = %#x", sent.Message.Embeds[0].Color)
 	}
 	description := sent.Message.Embeds[0].Description
-	for _, want := range []string{"總投票人數:`0` / `10`", "每人可以投給`1`個選項", "`無法`改投其他選項", "`無法`看到投票結果", "`實名`投票"} {
+	for _, want := range []string{"總投票人數:`0` / `10`", "每人可以投給`1`個選項", "`不能`改投其他選項", "`無法`看到投票結果", "`實名`投票"} {
 		if !strings.Contains(description, want) {
 			t.Fatalf("description missing %q: %s", want, description)
 		}
@@ -214,6 +214,9 @@ func TestVoteHandlerAddsVoteAndRerendersPoll(t *testing.T) {
 	}
 	if len(sideEffects.Edited) != 1 || !strings.Contains(sideEffects.Edited[0].Message.Embeds[0].Description, "總投票人數:`1` / `4`") {
 		t.Fatalf("edited messages = %#v", sideEffects.Edited)
+	}
+	if !strings.Contains(sideEffects.Edited[0].Message.Embeds[0].Description, "`無法`改投其他選項") {
+		t.Fatalf("rerendered description = %q", sideEffects.Edited[0].Message.Embeds[0].Description)
 	}
 	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "你成功投給`B`") {
 		t.Fatalf("vote response = %#v", responder.Edits)

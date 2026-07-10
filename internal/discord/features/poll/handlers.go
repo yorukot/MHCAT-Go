@@ -56,7 +56,7 @@ func (m Module) CreateHandler() interactions.Handler {
 			CreatorID: interaction.Actor.UserID,
 			Choices:   choices,
 		})
-		sent, err := m.messages.SendMessage(ctx, interaction.ChannelID, pollOutboundMessage(draft, memberCount, color))
+		sent, err := m.messages.SendMessage(ctx, interaction.ChannelID, initialPollOutboundMessage(draft, memberCount, color))
 		if err != nil {
 			return err
 		}
@@ -72,7 +72,7 @@ func (m Module) CreateHandler() interactions.Handler {
 			return err
 		}
 		if sent.MessageID != "" {
-			_ = m.messages.EditMessage(ctx, sent, pollOutboundMessage(created, memberCount, color))
+			_ = m.messages.EditMessage(ctx, sent, initialPollOutboundMessage(created, memberCount, color))
 		}
 		if err := responder.EditOriginal(ctx, responses.Message{
 			Embeds: []responses.Embed{{
