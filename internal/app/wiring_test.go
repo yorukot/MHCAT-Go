@@ -1614,6 +1614,70 @@ func TestBuildRuntimeRoutesAntiScamReportOnlyWithCatalogAndSender(t *testing.T) 
 	}
 }
 
+func TestBuildRuntimeTracksEachAntiScamSlashAttemptOnce(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		commandName string
+		dispatch    func(*testing.T, *fakeusage.Tracker)
+	}{
+		{
+			name:        "config success",
+			commandName: "防詐騙網址",
+			dispatch: func(t *testing.T, tracker *fakeusage.Tracker) {
+				dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), UsageTracker: tracker, AntiScamConfigRepository: fakemongo.NewAntiScamConfigRepository()})
+				if err != nil {
+					t.Fatalf("build runtime: %v", err)
+				}
+				interaction := fakediscord.SlashInteraction("防詐騙網址")
+				interaction.Actor.PermissionBits = 8192
+				if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+					t.Fatalf("dispatch: %v", err)
+				}
+			},
+		},
+		{
+			name:        "config permission denial",
+			commandName: "防詐騙網址",
+			dispatch: func(t *testing.T, tracker *fakeusage.Tracker) {
+				dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), UsageTracker: tracker, AntiScamConfigRepository: fakemongo.NewAntiScamConfigRepository()})
+				if err != nil {
+					t.Fatalf("build runtime: %v", err)
+				}
+				if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction("防詐騙網址"), fakediscord.NewResponder()); err != nil {
+					t.Fatalf("dispatch: %v", err)
+				}
+			},
+		},
+		{
+			name:        "report validation failure",
+			commandName: "詐騙網址回報",
+			dispatch: func(t *testing.T, tracker *fakeusage.Tracker) {
+				dispatcher, err := BuildRuntime(RuntimeOptions{
+					Config:                   validTestConfig(),
+					UsageTracker:             tracker,
+					ScamURLCatalogRepository: fakemongo.NewScamURLCatalogRepository(),
+					ScamReportSender:         &fakeScamReportSender{},
+				})
+				if err != nil {
+					t.Fatalf("build runtime: %v", err)
+				}
+				interaction := fakediscord.SlashInteractionWithOptions("詐騙網址回報", "", map[string]string{"網址": "not-a-url"})
+				if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+					t.Fatalf("dispatch: %v", err)
+				}
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			tracker := &fakeusage.Tracker{}
+			test.dispatch(t, tracker)
+			if len(tracker.Events) != 1 || tracker.Events[0].CommandName != test.commandName {
+				t.Fatalf("usage events = %#v", tracker.Events)
+			}
+		})
+	}
+}
+
 func TestBuildRuntimeRoutesBirthdayConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

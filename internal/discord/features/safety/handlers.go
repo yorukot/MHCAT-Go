@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 )
@@ -29,10 +28,7 @@ func (m Module) ToggleHandler() interactions.Handler {
 		if err != nil {
 			return responder.EditOriginal(ctx, antiScamUnknownError(err))
 		}
-		if err := responder.EditOriginal(ctx, antiScamSuccessMessage(config.Open)); err != nil {
-			return err
-		}
-		return m.track(ctx, interaction)
+		return responder.EditOriginal(ctx, antiScamSuccessMessage(config.Open))
 	}
 }
 
@@ -52,10 +48,7 @@ func (m Module) ReportHandler() interactions.Handler {
 				return responder.EditOriginal(ctx, antiScamUnknownError(err))
 			}
 		}
-		if err := responder.EditOriginal(ctx, scamReportSuccessMessage(report.URL)); err != nil {
-			return err
-		}
-		return m.trackReport(ctx, interaction)
+		return responder.EditOriginal(ctx, scamReportSuccessMessage(report.URL))
 	}
 }
 
@@ -94,30 +87,6 @@ func antiScamErrorMessage(content string) responses.Message {
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
-}
-
-func (m Module) track(ctx context.Context, interaction interactions.Interaction) error {
-	if m.usage == nil {
-		return nil
-	}
-	return m.usage.TrackCommand(ctx, ports.UsageEvent{
-		CommandName: AntiScamCommandName,
-		UserID:      interaction.Actor.UserID,
-		GuildID:     interaction.Actor.GuildID,
-		Feature:     "anti-scam-config",
-	})
-}
-
-func (m Module) trackReport(ctx context.Context, interaction interactions.Interaction) error {
-	if m.usage == nil {
-		return nil
-	}
-	return m.usage.TrackCommand(ctx, ports.UsageEvent{
-		CommandName: ScamReportCommandName,
-		UserID:      interaction.Actor.UserID,
-		GuildID:     interaction.Actor.GuildID,
-		Feature:     "anti-scam-report",
-	})
 }
 
 func firstOption(interaction interactions.Interaction, names ...string) string {

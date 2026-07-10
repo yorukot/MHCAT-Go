@@ -544,13 +544,13 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		}
 	}
 	if opts.AntiScamConfigRepository != nil {
-		antiScamModule := featuresafety.NewModule(opts.AntiScamConfigRepository, opts.UsageTracker)
+		antiScamModule := featuresafety.NewModule(opts.AntiScamConfigRepository)
 		if err := antiScamModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}
 	if opts.ScamURLCatalogRepository != nil && opts.ScamReportSender != nil {
-		reportModule := featuresafety.NewReportModule(opts.ScamURLCatalogRepository, opts.ScamReportSender, opts.UsageTracker)
+		reportModule := featuresafety.NewReportModule(opts.ScamURLCatalogRepository, opts.ScamReportSender)
 		if err := reportModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

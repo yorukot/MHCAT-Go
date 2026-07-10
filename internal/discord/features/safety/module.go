@@ -12,33 +12,29 @@ type Module struct {
 	reportService  coreservice.ReportService
 	messageService coreservice.MessageService
 	messages       ports.DiscordMessagePort
-	usage          ports.UsageTracker
 	configEnabled  bool
 	reportEnabled  bool
 	messageEnabled bool
 }
 
-func NewModule(repo ports.AntiScamConfigRepository, usage ports.UsageTracker) Module {
+func NewModule(repo ports.AntiScamConfigRepository) Module {
 	return Module{
 		configService: coreservice.NewConfigService(repo),
-		usage:         usage,
 		configEnabled: true,
 	}
 }
 
-func NewReportModule(catalog ports.ScamURLCatalog, sender ports.ScamReportSender, usage ports.UsageTracker) Module {
+func NewReportModule(catalog ports.ScamURLCatalog, sender ports.ScamReportSender) Module {
 	return Module{
 		reportService: coreservice.NewReportService(catalog, sender),
-		usage:         usage,
 		reportEnabled: true,
 	}
 }
 
-func NewModuleWithReport(repo ports.AntiScamConfigRepository, catalog ports.ScamURLCatalog, sender ports.ScamReportSender, usage ports.UsageTracker) Module {
+func NewModuleWithReport(repo ports.AntiScamConfigRepository, catalog ports.ScamURLCatalog, sender ports.ScamReportSender) Module {
 	return Module{
 		configService: coreservice.NewConfigService(repo),
 		reportService: coreservice.NewReportService(catalog, sender),
-		usage:         usage,
 		configEnabled: repo != nil,
 		reportEnabled: catalog != nil && sender != nil,
 	}

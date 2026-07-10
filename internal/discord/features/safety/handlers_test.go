@@ -10,13 +10,11 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestToggleHandlerRequiresManageMessages(t *testing.T) {
 	repo := fakemongo.NewAntiScamConfigRepository()
-	usage := &fakeusage.Tracker{}
-	module := NewModule(repo, usage)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteraction(AntiScamCommandName)
 
@@ -35,15 +33,11 @@ func TestToggleHandlerRequiresManageMessages(t *testing.T) {
 	if len(repo.Saved) != 0 {
 		t.Fatalf("saved configs = %#v", repo.Saved)
 	}
-	if len(usage.Events) != 0 {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestToggleHandlerCreatesOpenConfigAndRendersLegacySuccess(t *testing.T) {
 	repo := fakemongo.NewAntiScamConfigRepository()
-	usage := &fakeusage.Tracker{}
-	module := NewModule(repo, usage)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteraction(AntiScamCommandName)
 	interaction.Actor.PermissionBits = permissionManageMessages
@@ -71,15 +65,12 @@ func TestToggleHandlerCreatesOpenConfigAndRendersLegacySuccess(t *testing.T) {
 	if responder.Edits[0].AllowedMentions == nil {
 		t.Fatal("expected allowed mentions to be disabled explicitly")
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != AntiScamCommandName || usage.Events[0].Feature != "anti-scam-config" {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestToggleHandlerFlipsExistingConfigFalse(t *testing.T) {
 	repo := fakemongo.NewAntiScamConfigRepository()
 	repo.Configs["guild-1"] = domain.AntiScamConfig{GuildID: "guild-1", Open: true}
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteraction(AntiScamCommandName)
 	interaction.Actor.PermissionBits = permissionManageMessages
@@ -99,7 +90,7 @@ func TestToggleHandlerFlipsExistingConfigFalse(t *testing.T) {
 func TestToggleHandlerUsesSafeUnknownError(t *testing.T) {
 	repo := fakemongo.NewAntiScamConfigRepository()
 	repo.Err = errors.New("mongodb://secret")
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteraction(AntiScamCommandName)
 	interaction.Actor.PermissionBits = permissionManageMessages
@@ -119,8 +110,7 @@ func TestToggleHandlerUsesSafeUnknownError(t *testing.T) {
 func TestReportHandlerSendsWebhookAndRendersLegacySuccess(t *testing.T) {
 	catalog := fakemongo.NewScamURLCatalogRepository()
 	sender := &fakeReportSender{}
-	usage := &fakeusage.Tracker{}
-	module := NewReportModule(catalog, sender, usage)
+	module := NewReportModule(catalog, sender)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(ScamReportCommandName, "", map[string]string{"網址": "https://bad.example"})
 
@@ -152,15 +142,12 @@ func TestReportHandlerSendsWebhookAndRendersLegacySuccess(t *testing.T) {
 	if responder.Edits[0].AllowedMentions == nil {
 		t.Fatal("expected allowed mentions to be disabled explicitly")
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != ScamReportCommandName || usage.Events[0].Feature != "anti-scam-report" {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestReportHandlerRejectsInvalidURL(t *testing.T) {
 	catalog := fakemongo.NewScamURLCatalogRepository()
 	sender := &fakeReportSender{}
-	module := NewReportModule(catalog, sender, nil)
+	module := NewReportModule(catalog, sender)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(ScamReportCommandName, "", map[string]string{"網址": "not-a-url"})
 
@@ -179,7 +166,7 @@ func TestReportHandlerRejectsKnownURL(t *testing.T) {
 	catalog := fakemongo.NewScamURLCatalogRepository()
 	catalog.Known = []string{"https://bad.example/path"}
 	sender := &fakeReportSender{}
-	module := NewReportModule(catalog, sender, nil)
+	module := NewReportModule(catalog, sender)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(ScamReportCommandName, "", map[string]string{"網址": "https://bad.example"})
 
@@ -198,7 +185,7 @@ func TestReportHandlerUsesSafeUnknownError(t *testing.T) {
 	catalog := fakemongo.NewScamURLCatalogRepository()
 	webhookURL := "https://discord.com/api/" + "webhooks/secret"
 	sender := &fakeReportSender{Err: errors.New(webhookURL)}
-	module := NewReportModule(catalog, sender, nil)
+	module := NewReportModule(catalog, sender)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(ScamReportCommandName, "", map[string]string{"網址": "https://bad.example"})
 
