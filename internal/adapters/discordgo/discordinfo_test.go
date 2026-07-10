@@ -76,3 +76,27 @@ func TestDiscordInfoProviderUserInfoFromState(t *testing.T) {
 		t.Fatalf("missing legacy name fields: %#v", info)
 	}
 }
+
+func TestDiscordInfoProviderCachedUserInfoDoesNotFetchMissingMembers(t *testing.T) {
+	session := &Session{session: &dgo.Session{State: dgo.NewState()}, ready: make(chan struct{})}
+	if err := session.session.State.GuildAdd(&dgo.Guild{
+		ID: "guild-1",
+		Members: []*dgo.Member{{
+			GuildID: "guild-1",
+			User:    &dgo.User{ID: "user-1", Username: "Yoru", Discriminator: "0"},
+		}},
+	}); err != nil {
+		t.Fatalf("guild add: %v", err)
+	}
+	provider := DiscordInfoProvider{Session: session}
+	info, ok, err := provider.CachedUserInfo(context.Background(), "guild-1", "user-1")
+	if err != nil {
+		t.Fatalf("cached user info: %v", err)
+	}
+	if !ok || info.Username != "Yoru" || info.Discriminator != "0" {
+		t.Fatalf("info = %#v, ok = %t", info, ok)
+	}
+	if _, ok, err := provider.CachedUserInfo(context.Background(), "guild-1", "missing"); err != nil || ok {
+		t.Fatalf("missing cached user: ok=%t err=%v", ok, err)
+	}
+}

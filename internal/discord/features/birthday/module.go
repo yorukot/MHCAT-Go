@@ -18,6 +18,7 @@ import (
 type Module struct {
 	configService  coreservice.ConfigService
 	profileService coreservice.ProfileService
+	cachedUsers    ports.DiscordCachedUserInfoProvider
 	usage          ports.UsageTracker
 	clock          ports.Clock
 	pendingAdds    *birthdayAddStateStore
@@ -29,12 +30,21 @@ func NewModule(repo ports.BirthdayConfigRepository, usage ports.UsageTracker) Mo
 }
 
 func NewModuleWithClock(repo ports.BirthdayConfigRepository, usage ports.UsageTracker, clock ports.Clock) Module {
+	return NewModuleWithClockAndCachedUsers(repo, nil, usage, clock)
+}
+
+func NewModuleWithCachedUsers(repo ports.BirthdayConfigRepository, cachedUsers ports.DiscordCachedUserInfoProvider, usage ports.UsageTracker) Module {
+	return NewModuleWithClockAndCachedUsers(repo, cachedUsers, usage, nil)
+}
+
+func NewModuleWithClockAndCachedUsers(repo ports.BirthdayConfigRepository, cachedUsers ports.DiscordCachedUserInfoProvider, usage ports.UsageTracker, clock ports.Clock) Module {
 	if clock == nil {
 		clock = ports.SystemClock{}
 	}
 	return Module{
 		configService:  coreservice.NewConfigService(repo),
 		profileService: coreservice.NewProfileService(repo),
+		cachedUsers:    cachedUsers,
 		usage:          usage,
 		clock:          clock,
 		pendingAdds:    newBirthdayAddStateStore(),

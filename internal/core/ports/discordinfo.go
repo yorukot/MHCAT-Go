@@ -38,3 +38,7 @@ type DiscordInfoProvider interface {
 	UserInfo(ctx context.Context, guildID string, userID string) (DiscordUserInfo, error)
 	GuildInfo(ctx context.Context, guildID string) (DiscordGuildInfo, error)
 }
+
+type DiscordCachedUserInfoProvider interface {
+	CachedUserInfo(ctx context.Context, guildID string, userID string) (DiscordUserInfo, bool, error)
+}

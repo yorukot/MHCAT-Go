@@ -1681,6 +1681,32 @@ func TestBuildRuntimeRoutesBirthdayAddComponentsWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeBirthdayListUsesCachedUserNames(t *testing.T) {
+	year, month, day := 2002, 3, 4
+	repo := &fakemongo.BirthdayConfigRepository{Profiles: map[string]domain.BirthdayProfile{
+		"guild-1/user-2": {GuildID: "guild-1", UserID: "user-2", BirthdayYear: &year, BirthdayMonth: &month, BirthdayDay: &day},
+	}}
+	cachedUsers := &fakebotinfo.DiscordInfoProvider{CachedUsers: map[string]ports.DiscordUserInfo{
+		"user-2": {ID: "user-2", Username: "Yoru", Discriminator: "0"},
+	}}
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		BirthdayConfigRepository: repo,
+		BirthdayCachedUsers:      cachedUsers,
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteractionWithOptions("生日系統", "生日列表", map[string]string{})
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch birthday list: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Files) != 1 || !strings.Contains(string(responder.Edits[0].Files[0].Data), "Yoru#0(user-2)") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesAnnouncementConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

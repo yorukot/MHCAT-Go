@@ -2,6 +2,7 @@ package discordgo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -30,6 +31,28 @@ func (p DiscordInfoProvider) UserInfo(ctx context.Context, guildID string, userI
 		}
 	}
 	return userInfoFromMember(member), nil
+}
+
+func (p DiscordInfoProvider) CachedUserInfo(ctx context.Context, guildID string, userID string) (ports.DiscordUserInfo, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return ports.DiscordUserInfo{}, false, err
+	}
+	session, err := p.session()
+	if err != nil {
+		return ports.DiscordUserInfo{}, false, err
+	}
+	member, err := stateMember(session, guildID, userID)
+	if errors.Is(err, dgo.ErrStateNotFound) {
+		return ports.DiscordUserInfo{}, false, nil
+	}
+	if err != nil {
+		return ports.DiscordUserInfo{}, false, fmt.Errorf("load cached guild member: %w", err)
+	}
+	info := userInfoFromMember(member)
+	if info.ID == "" {
+		return ports.DiscordUserInfo{}, false, nil
+	}
+	return info, true, ctx.Err()
 }
 
 func (p DiscordInfoProvider) GuildInfo(ctx context.Context, guildID string) (ports.DiscordGuildInfo, error) {
@@ -146,3 +169,6 @@ func zeroIfInvalid(value time.Time) time.Time {
 	}
 	return value
 }
+
+var _ ports.DiscordInfoProvider = DiscordInfoProvider{}
+var _ ports.DiscordCachedUserInfoProvider = DiscordInfoProvider{}

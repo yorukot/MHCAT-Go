@@ -213,7 +213,7 @@ func (m Module) handleList(ctx context.Context, interaction interactions.Interac
 	if len(profiles) == 0 {
 		return responder.EditOriginal(ctx, birthdayErrorMessage("還沒有任何人有進行生日設置喔!", birthdayDateAddDocsPath))
 	}
-	if err := responder.EditOriginal(ctx, listMessage(profiles, m.legacyColor())); err != nil {
+	if err := responder.EditOriginal(ctx, listMessage(profiles, m.cachedBirthdayUserTags(ctx, interaction.Actor.GuildID, profiles), m.legacyColor())); err != nil {
 		return err
 	}
 	return m.track(ctx, interaction)
@@ -325,13 +325,38 @@ func allowAdminSuccessMessage(allow bool) responses.Message {
 	}
 }
 
-func listMessage(profiles []domain.BirthdayProfile, color int) responses.Message {
+func (m Module) cachedBirthdayUserTags(ctx context.Context, guildID string, profiles []domain.BirthdayProfile) map[string]string {
+	tags := make(map[string]string, len(profiles))
+	if m.cachedUsers == nil {
+		return tags
+	}
+	for _, profile := range profiles {
+		userID := strings.TrimSpace(profile.UserID)
+		if userID == "" {
+			continue
+		}
+		if _, exists := tags[userID]; exists {
+			continue
+		}
+		info, ok, err := m.cachedUsers.CachedUserInfo(ctx, guildID, userID)
+		if err == nil && ok {
+			tags[userID] = info.Username + "#" + info.Discriminator
+		}
+	}
+	return tags
+}
+
+func listMessage(profiles []domain.BirthdayProfile, cachedUserTags map[string]string, color int) responses.Message {
 	fileLines := make([]string, 0, len(profiles))
 	mentionLines := make([]string, 0, len(profiles))
 	for _, profile := range profiles {
 		date := profileDate(profile)
 		userID := strings.TrimSpace(profile.UserID)
-		fileLines = append(fileLines, "找不到使用者!("+userID+")  | 生日日期(YYYY/MM/DD):"+date)
+		userTag := "找不到使用者!"
+		if cachedTag, ok := cachedUserTags[userID]; ok {
+			userTag = cachedTag
+		}
+		fileLines = append(fileLines, userTag+"("+userID+")  | 生日日期(YYYY/MM/DD):"+date)
 		mentionLines = append(mentionLines, "<@"+userID+">  | 生日日期(YYYY/MM/DD):"+date)
 	}
 	description := "<:list:992002476360343602>**目前共有**`" + strconv.Itoa(len(profiles)) + "`**人的生日數據**\n\n"

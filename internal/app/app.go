@@ -629,6 +629,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 			return nil, err
 		}
 		opts.BirthdayConfigRepository = birthdayRepo
+		opts.BirthdayCachedUsers = discordCachedUserInfoProvider(session)
 	}
 	if cfg.FeatureAnnouncementConfigEnabled || cfg.FeatureAnnouncementSendEnabled {
 		announcementRepo, err := announcementConfigRepositoryFromMongo(mongoClient)

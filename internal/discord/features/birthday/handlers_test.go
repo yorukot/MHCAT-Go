@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakebotinfo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
@@ -377,6 +379,36 @@ func TestHandlerListProfilesRendersLegacyAttachment(t *testing.T) {
 	}
 	if edit.AllowedMentions == nil {
 		t.Fatalf("allowed mentions not set: %#v", edit)
+	}
+}
+
+func TestHandlerListAttachmentUsesCachedLegacyUserTags(t *testing.T) {
+	year, month, day := 2002, 3, 4
+	repo := &fakemongo.BirthdayConfigRepository{Profiles: map[string]domain.BirthdayProfile{
+		"guild-1/legacy":   {GuildID: "guild-1", UserID: "legacy", BirthdayYear: &year, BirthdayMonth: &month, BirthdayDay: &day},
+		"guild-1/migrated": {GuildID: "guild-1", UserID: "migrated", BirthdayYear: &year, BirthdayMonth: &month, BirthdayDay: &day},
+		"guild-1/missing":  {GuildID: "guild-1", UserID: "missing", BirthdayYear: &year, BirthdayMonth: &month, BirthdayDay: &day},
+	}}
+	cachedUsers := &fakebotinfo.DiscordInfoProvider{CachedUsers: map[string]ports.DiscordUserInfo{
+		"legacy":   {ID: "legacy", Username: "Yoru", Discriminator: "1234"},
+		"migrated": {ID: "migrated", Username: "yoru", Discriminator: "0"},
+	}}
+	module := NewModuleWithCachedUsers(repo, cachedUsers, nil)
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteractionWithOptions(BirthdayCommandName, subcommandList, map[string]string{})
+
+	if err := module.Handler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	content := string(responder.Edits[0].Files[0].Data)
+	for _, want := range []string{
+		"Yoru#1234(legacy)  | 生日日期(YYYY/MM/DD):2002/3/4",
+		"yoru#0(migrated)  | 生日日期(YYYY/MM/DD):2002/3/4",
+		"找不到使用者!(missing)  | 生日日期(YYYY/MM/DD):2002/3/4",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("attachment missing %q: %q", want, content)
+		}
 	}
 }
 

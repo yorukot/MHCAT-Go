@@ -123,6 +123,7 @@ type RuntimeOptions struct {
 	StatsRoleStatsReader          ports.DiscordRoleStatsReader
 	StatsDeleteRepository         ports.StatsConfigRepository
 	BirthdayConfigRepository      ports.BirthdayConfigRepository
+	BirthdayCachedUsers           ports.DiscordCachedUserInfoProvider
 	AnnouncementConfigRepository  ports.AnnouncementConfigRepository
 	AnnouncementSendRepository    ports.AnnouncementChannelReader
 	AnnouncementMessagePort       ports.DiscordMessagePort
@@ -610,7 +611,7 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		}
 	}
 	if opts.BirthdayConfigRepository != nil {
-		birthdayModule := featurebirthday.NewModuleWithClock(opts.BirthdayConfigRepository, opts.UsageTracker, clockOrSystem(opts.Clock))
+		birthdayModule := featurebirthday.NewModuleWithClockAndCachedUsers(opts.BirthdayConfigRepository, opts.BirthdayCachedUsers, opts.UsageTracker, clockOrSystem(opts.Clock))
 		if err := birthdayModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
@@ -1177,6 +1178,13 @@ func botInfoProvider(session DiscordSession) ports.BotInfoProvider {
 }
 
 func discordInfoProvider(session DiscordSession) ports.DiscordInfoProvider {
+	if concrete, ok := session.(*discordadapter.Session); ok {
+		return discordadapter.DiscordInfoProvider{Session: concrete}
+	}
+	return nil
+}
+
+func discordCachedUserInfoProvider(session DiscordSession) ports.DiscordCachedUserInfoProvider {
 	if concrete, ok := session.(*discordadapter.Session); ok {
 		return discordadapter.DiscordInfoProvider{Session: concrete}
 	}
