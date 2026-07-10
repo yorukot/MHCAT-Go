@@ -135,6 +135,8 @@ func TestCreateHandlerRejectsInvalidOptionsBeforeSend(t *testing.T) {
 	}{
 		{name: "too few", options: "A", want: "最少需要2個選項!"},
 		{name: "duplicate", options: "A^A", want: "選項名稱不可以重複!"},
+		{name: "duplicate empty", options: "^^B", want: "選項名稱不可以重複!"},
+		{name: "duplicate overlong", options: strings.Repeat("A", 81) + "^" + strings.Repeat("A", 81), want: "選項名稱不可以重複!"},
 		{name: "empty", options: "A^^B", want: "^跟^中間請填入選項，不可為空"},
 	}
 	for _, tc := range cases {

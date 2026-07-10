@@ -236,18 +236,20 @@ func validatePollInput(question string, choicesRaw string) ([]string, string) {
 		return nil, "最多只能有19個選項!"
 	}
 	seen := map[string]struct{}{}
-	choices := make([]string, 0, len(parts))
 	for _, part := range parts {
-		if part == "" {
-			return nil, "^跟^中間請填入選項，不可為空"
-		}
-		if len(utf16.Encode([]rune(part))) > 80 {
-			return nil, "你輸入的選項字數不能超過80"
-		}
 		if _, ok := seen[part]; ok {
 			return nil, "選項名稱不可以重複!"
 		}
 		seen[part] = struct{}{}
+	}
+	choices := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if len(utf16.Encode([]rune(part))) > 80 {
+			return nil, "你輸入的選項字數不能超過80"
+		}
+		if part == "" {
+			return nil, "^跟^中間請填入選項，不可為空"
+		}
 		choices = append(choices, part)
 	}
 	return choices, ""
