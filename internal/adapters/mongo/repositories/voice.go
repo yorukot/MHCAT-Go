@@ -176,7 +176,7 @@ func (r *VoiceRoomLockRepository) GetVoiceRoomLock(ctx context.Context, guildID 
 	if guildID == "" || channelID == "" {
 		return domain.VoiceRoomLock{}, domain.ErrInvalidVoiceRoomLock
 	}
-	var document documents.VoiceRoomLockDocument
+	var document documents.VoiceRoomLockReadDocument
 	err := r.collection.FindOne(ctx, voiceRoomLockFilter(guildID, channelID)).Decode(&document)
 	if err != nil {
 		if errors.Is(err, drivermongo.ErrNoDocuments) {

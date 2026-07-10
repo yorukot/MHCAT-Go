@@ -52,9 +52,9 @@ func TestVoiceRoomLockNormalizeAndValidate(t *testing.T) {
 	if normalized.GuildID != "guild-1" ||
 		normalized.ChannelID != "voice-1" ||
 		normalized.Password != " secret " ||
-		normalized.OwnerID != "owner-1" ||
-		normalized.TextChannelID != "text-1" ||
-		!reflect.DeepEqual(normalized.AllowedUserIDs, []string{"user-1", "user-2"}) {
+		normalized.OwnerID != " owner-1 " ||
+		normalized.TextChannelID != " text-1 " ||
+		!reflect.DeepEqual(normalized.AllowedUserIDs, []string{" user-1 ", " ", "user-2"}) {
 		t.Fatalf("normalized lock = %#v", normalized)
 	}
 	if err := normalized.Validate(); err != nil {

@@ -181,7 +181,7 @@ func (s LockService) SetPassword(ctx context.Context, guildID string, channelID 
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(existing.OwnerID) != ownerID {
+	if existing.OwnerID != ownerID {
 		return ports.ErrVoiceRoomLockNotOwner
 	}
 	lock := domain.VoiceRoomLock{
@@ -238,7 +238,7 @@ func (s LockService) LockedJoinPrompt(ctx context.Context, guildID string, chann
 		return domain.VoiceRoomLock{}, false, nil
 	}
 	for _, allowed := range lock.AllowedUserIDs {
-		if strings.TrimSpace(allowed) == userID {
+		if allowed == userID {
 			return domain.VoiceRoomLock{}, false, nil
 		}
 	}

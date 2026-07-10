@@ -48,16 +48,7 @@ func (l VoiceRoomLock) Normalize() VoiceRoomLock {
 	l.GuildID = strings.TrimSpace(l.GuildID)
 	l.ChannelID = strings.TrimSpace(l.ChannelID)
 	l.PasswordPresent = l.PasswordPresent || l.Password != ""
-	l.OwnerID = strings.TrimSpace(l.OwnerID)
-	l.TextChannelID = strings.TrimSpace(l.TextChannelID)
-	out := make([]string, 0, len(l.AllowedUserIDs))
-	for _, userID := range l.AllowedUserIDs {
-		userID = strings.TrimSpace(userID)
-		if userID != "" {
-			out = append(out, userID)
-		}
-	}
-	l.AllowedUserIDs = out
+	l.AllowedUserIDs = append([]string(nil), l.AllowedUserIDs...)
 	return l
 }
 

@@ -48,9 +48,9 @@ func TestVoiceRoomLockRepositoryGetSaveAndLast(t *testing.T) {
 		saved.ChannelID != "voice-1" ||
 		saved.Password != " new " ||
 		!saved.PasswordPresent ||
-		saved.OwnerID != "owner-1" ||
-		saved.TextChannelID != "text-2" ||
-		!reflect.DeepEqual(saved.AllowedUserIDs, []string{"user-2"}) {
+		saved.OwnerID != " owner-1 " ||
+		saved.TextChannelID != " text-2 " ||
+		!reflect.DeepEqual(saved.AllowedUserIDs, []string{" user-2 ", " "}) {
 		t.Fatalf("saved lock = %#v", saved)
 	}
 }

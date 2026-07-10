@@ -220,7 +220,7 @@ func (r *VoiceRoomLockRepository) AllowVoiceRoomLockUser(ctx context.Context, gu
 		return ports.ErrVoiceRoomLockMissing
 	}
 	for _, allowed := range lock.AllowedUserIDs {
-		if strings.TrimSpace(allowed) == userID {
+		if allowed == userID {
 			r.Locks[key] = lock
 			return nil
 		}

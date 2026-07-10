@@ -148,6 +148,27 @@ func TestLockServiceSetPasswordRejectsNonOwner(t *testing.T) {
 	}
 }
 
+func TestLockServiceUsesExactLegacyOwnerAndAllowedIDs(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{
+		GuildID:         "guild-1",
+		ChannelID:       "voice-1",
+		Password:        "secret",
+		PasswordPresent: true,
+		OwnerID:         " owner-1 ",
+		TextChannelID:   "text-1",
+		AllowedUserIDs:  []string{" user-1 "},
+	}
+	service := coreservice.NewLockService(repo)
+	if err := service.SetPassword(context.Background(), "guild-1", "voice-1", "owner-1", "text-1", "new"); !errors.Is(err, ports.ErrVoiceRoomLockNotOwner) {
+		t.Fatalf("expected exact owner mismatch, got %v", err)
+	}
+	_, prompt, err := service.LockedJoinPrompt(context.Background(), "guild-1", "voice-1", "user-1")
+	if err != nil || !prompt {
+		t.Fatalf("spaced allowed id should not match: prompt=%t err=%v", prompt, err)
+	}
+}
+
 func TestLockServiceSetPasswordRejectsInvalidInput(t *testing.T) {
 	service := coreservice.NewLockService(fakemongo.NewVoiceRoomLockRepository())
 	err := service.SetPassword(context.Background(), "", "voice-1", "owner-1", "text-1", "secret")

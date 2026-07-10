@@ -32,6 +32,15 @@ type VoiceRoomLockDocument struct {
 	AllowedUsers []string `bson:"ok_people" json:"ok_people"`
 }
 
+type VoiceRoomLockReadDocument struct {
+	Guild        string        `bson:"guild" json:"guild"`
+	ChannelID    string        `bson:"channel_id" json:"channel_id"`
+	LockAnswer   bson.RawValue `bson:"lock_anser" json:"lock_anser"`
+	Owner        bson.RawValue `bson:"owner" json:"owner"`
+	TextChannel  bson.RawValue `bson:"text_channel" json:"text_channel"`
+	AllowedUsers bson.RawValue `bson:"ok_people" json:"ok_people"`
+}
+
 type VoiceRoomStateDocument struct {
 	Guild     string `bson:"guild" json:"guild"`
 	ChannelID string `bson:"channel_id" json:"channel_id"`
@@ -114,6 +123,42 @@ func (d VoiceRoomLockDocument) ToDomain() domain.VoiceRoomLock {
 		TextChannelID:   textChannel,
 		AllowedUserIDs:  append([]string(nil), d.AllowedUsers...),
 	}.Normalize()
+}
+
+func (d VoiceRoomLockReadDocument) ToDomain() domain.VoiceRoomLock {
+	password, passwordPresent := legacyMongooseString(d.LockAnswer)
+	owner, _ := legacyMongooseString(d.Owner)
+	textChannel, _ := legacyNullableString(d.TextChannel)
+	return domain.VoiceRoomLock{
+		GuildID:         d.Guild,
+		ChannelID:       d.ChannelID,
+		Password:        password,
+		PasswordPresent: passwordPresent,
+		OwnerID:         owner,
+		TextChannelID:   textChannel,
+		AllowedUserIDs:  legacyVoiceRoomAllowedUsers(d.AllowedUsers),
+	}.Normalize()
+}
+
+func legacyVoiceRoomAllowedUsers(value bson.RawValue) []string {
+	array, ok := value.ArrayOK()
+	if !ok {
+		if text, ok := value.StringValueOK(); ok {
+			return []string{text}
+		}
+		return nil
+	}
+	values, err := array.Values()
+	if err != nil {
+		return nil
+	}
+	users := make([]string, 0, len(values))
+	for _, candidate := range values {
+		if text, ok := candidate.StringValueOK(); ok {
+			users = append(users, text)
+		}
+	}
+	return users
 }
 
 func VoiceRoomStateDocumentFromDomain(state domain.VoiceRoomState) VoiceRoomStateDocument {

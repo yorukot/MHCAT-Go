@@ -63,10 +63,10 @@ func TestVoiceRoomLockDocumentRoundTripPreservesLegacyFields(t *testing.T) {
 		document.ChannelID != "voice-1" ||
 		document.LockAnswer == nil ||
 		*document.LockAnswer != " secret " ||
-		document.Owner != "owner-1" ||
+		document.Owner != " owner-1 " ||
 		document.TextChannel == nil ||
-		*document.TextChannel != "text-1" ||
-		!reflect.DeepEqual(document.AllowedUsers, []string{"user-2", "user-3"}) {
+		*document.TextChannel != " text-1 " ||
+		!reflect.DeepEqual(document.AllowedUsers, []string{" user-2 ", "user-3"}) {
 		t.Fatalf("document = %#v", document)
 	}
 	document.AllowedUsers[0] = "mutated"
@@ -75,10 +75,54 @@ func TestVoiceRoomLockDocumentRoundTripPreservesLegacyFields(t *testing.T) {
 		got.ChannelID != "voice-1" ||
 		got.Password != " secret " ||
 		!got.PasswordPresent ||
-		got.OwnerID != "owner-1" ||
-		got.TextChannelID != "text-1" ||
+		got.OwnerID != " owner-1 " ||
+		got.TextChannelID != " text-1 " ||
 		!reflect.DeepEqual(got.AllowedUserIDs, []string{"mutated", "user-3"}) {
 		t.Fatalf("domain = %#v", got)
+	}
+}
+
+func TestVoiceRoomLockReadDocumentUsesMongooseScalarAndMixedArrayCoercion(t *testing.T) {
+	raw, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: "guild-1"},
+		{Key: "channel_id", Value: "voice-1"},
+		{Key: "lock_anser", Value: int32(1234)},
+		{Key: "owner", Value: int64(42)},
+		{Key: "text_channel", Value: true},
+		{Key: "ok_people", Value: bson.A{"user-1", " user-2 ", int32(3), false}},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document documents.VoiceRoomLockReadDocument
+	if err := bson.Unmarshal(raw, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	lock := document.ToDomain()
+	if lock.GuildID != "guild-1" || lock.ChannelID != "voice-1" || lock.Password != "1234" || !lock.PasswordPresent || lock.OwnerID != "42" || lock.TextChannelID != "true" || !reflect.DeepEqual(lock.AllowedUserIDs, []string{"user-1", " user-2 "}) {
+		t.Fatalf("lock = %#v", lock)
+	}
+}
+
+func TestVoiceRoomLockReadDocumentWrapsLegacyScalarArrayValue(t *testing.T) {
+	raw, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: "guild-1"},
+		{Key: "channel_id", Value: "voice-1"},
+		{Key: "lock_anser", Value: nil},
+		{Key: "owner", Value: "owner-1"},
+		{Key: "text_channel", Value: nil},
+		{Key: "ok_people", Value: "user-1"},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document documents.VoiceRoomLockReadDocument
+	if err := bson.Unmarshal(raw, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	lock := document.ToDomain()
+	if lock.PasswordPresent || lock.TextChannelID != "" || !reflect.DeepEqual(lock.AllowedUserIDs, []string{"user-1"}) {
+		t.Fatalf("lock = %#v", lock)
 	}
 }
 
