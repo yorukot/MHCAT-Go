@@ -1,6 +1,7 @@
 package discordgo
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -106,14 +107,31 @@ func TestEventFromReaction(t *testing.T) {
 
 func TestEventFromMemberIncludesGuildNameFromState(t *testing.T) {
 	state := dgo.NewState()
-	if err := state.GuildAdd(&dgo.Guild{ID: "guild-1", Name: "測試伺服器"}); err != nil {
+	bot := &dgo.User{ID: "bot-1", Username: "MHCAT", Avatar: "bot-avatar"}
+	if err := state.GuildAdd(&dgo.Guild{
+		ID:   "guild-1",
+		Name: "測試伺服器",
+		Members: []*dgo.Member{{
+			GuildID: "guild-1",
+			User:    bot,
+			Avatar:  "guild-bot-avatar",
+		}},
+	}); err != nil {
 		t.Fatalf("guild add: %v", err)
 	}
-	state.User = &dgo.User{ID: "bot-1", Username: "MHCAT", Avatar: "bot-avatar"}
-	member := &dgo.Member{GuildID: "guild-1", User: &dgo.User{ID: "113779359301998592", Username: "Yoru", Discriminator: "0"}}
+	state.User = bot
+	member := &dgo.Member{
+		GuildID: "guild-1",
+		User:    &dgo.User{ID: "113779359301998592", Username: "Yoru", Discriminator: "0", Avatar: "user-avatar"},
+		Avatar:  "guild-user-avatar",
+	}
 	event := eventFromMember(events.TypeMemberAdd, member, guildFromState(&dgo.Session{State: state}, member), botFromState(&dgo.Session{State: state}))
 	if event.GuildID != "guild-1" || event.GuildName != "測試伺服器" || event.BotUserID != "bot-1" || event.BotAvatarURL == "" || event.Member == nil || event.Member.AccountCreatedAt.IsZero() || event.Member.Discriminator != "0" {
 		t.Fatalf("event = %#v", event)
+	}
+	if !strings.Contains(event.BotAvatarURL, "/guilds/guild-1/users/bot-1/avatars/guild-bot-avatar") ||
+		!strings.Contains(event.Member.AvatarURL, "/guilds/guild-1/users/113779359301998592/avatars/guild-user-avatar") {
+		t.Fatalf("guild avatars were not preserved: %#v", event)
 	}
 }
 

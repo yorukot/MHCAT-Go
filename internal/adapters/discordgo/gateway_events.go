@@ -274,11 +274,30 @@ func eventFromMember(eventType events.Type, member *dgo.Member, guild *dgo.Guild
 		}
 		if bot != nil {
 			event.BotUserID = bot.ID
-			event.BotAvatarURL = bot.AvatarURL("")
+			event.BotAvatarURL = guildMemberAvatarURL(guild, bot)
 		}
 		event.UserID = event.Member.UserID
 	}
 	return event
+}
+
+func guildMemberAvatarURL(guild *dgo.Guild, user *dgo.User) string {
+	if user == nil {
+		return ""
+	}
+	if guild != nil {
+		for _, member := range guild.Members {
+			if member == nil || member.User == nil || member.User.ID != user.ID {
+				continue
+			}
+			copy := *member
+			if copy.GuildID == "" {
+				copy.GuildID = guild.ID
+			}
+			return copy.AvatarURL("")
+		}
+	}
+	return user.AvatarURL("")
 }
 
 func guildFromState(session *dgo.Session, member *dgo.Member) *dgo.Guild {
@@ -372,6 +391,6 @@ func memberFromDiscord(member *dgo.Member) *events.Member {
 		JoinedAt:         member.JoinedAt,
 		AccountCreatedAt: discordIDCreatedAt(member.User.ID),
 		IsBot:            member.User.Bot,
-		AvatarURL:        member.User.AvatarURL(""),
+		AvatarURL:        member.AvatarURL(""),
 	}
 }
