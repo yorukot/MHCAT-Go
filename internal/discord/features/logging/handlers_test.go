@@ -19,7 +19,7 @@ func TestLoggingConfigPromptRequiresManageMessages(t *testing.T) {
 	if err := module.ConfigPromptHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") {
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") || responder.Edits[0].Embeds[0].Color != 0xED4245 {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 }

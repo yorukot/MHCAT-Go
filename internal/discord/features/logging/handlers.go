@@ -15,7 +15,7 @@ import (
 const (
 	permissionManageMessages = int64(8192)
 	loggingEmbedColor        = 0xFFDC35
-	loggingErrorColor        = 0xEA0000
+	loggingErrorColor        = 0xED4245
 	loggingFooterText        = "MHCAT帶給你最棒的Discord體驗!"
 )
 
