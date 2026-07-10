@@ -111,7 +111,7 @@ func (m LockModule) LockHandler() interactions.Handler {
 		if voiceChannelID == "" {
 			return responder.EditOriginal(ctx, voiceLockErrorMessage("你不在一個語音包廂!"))
 		}
-		password := firstOption(interaction, optionLockPassword)
+		password := rawOption(interaction, optionLockPassword)
 		err := m.service.SetPassword(ctx, interaction.Actor.GuildID, voiceChannelID, interaction.Actor.UserID, interaction.ChannelID, password)
 		if err != nil {
 			switch {
@@ -375,7 +375,6 @@ func voiceLockErrorMessage(content string) responses.Message {
 }
 
 func voiceLockSuccessMessage(password string) responses.Message {
-	password = strings.TrimSpace(password)
 	if password == "" {
 		password = "null"
 	}
@@ -583,13 +582,13 @@ func voiceLockPromptPayload(raw string) (string, string, bool) {
 func voiceLockAnswerValue(fields []customid.ModalField) string {
 	for _, field := range fields {
 		if field.CustomID == voiceLockAnswerInputID {
-			return strings.TrimSpace(field.Value)
+			return field.Value
 		}
 	}
 	if len(fields) == 0 {
 		return ""
 	}
-	return strings.TrimSpace(fields[0].Value)
+	return fields[0].Value
 }
 
 func boolOption(interaction interactions.Interaction, name string) bool {

@@ -196,7 +196,7 @@ func TestLockHandlerSavesPassword(t *testing.T) {
 		TextChannelID: "old-text",
 	}
 	module := NewLockModule(repo, nil)
-	interaction := voiceLockInteraction("secret")
+	interaction := voiceLockInteraction(" secret ")
 	responder := fakediscord.NewResponder()
 	if err := module.LockHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("lock handler: %v", err)
@@ -205,13 +205,13 @@ func TestLockHandlerSavesPassword(t *testing.T) {
 	if !ok {
 		t.Fatal("expected saved lock")
 	}
-	if saved.GuildID != "guild-1" || saved.ChannelID != "voice-1" || saved.OwnerID != "user-1" || saved.TextChannelID != "text-1" || saved.Password != "secret" {
+	if saved.GuildID != "guild-1" || saved.ChannelID != "voice-1" || saved.OwnerID != "user-1" || saved.TextChannelID != "text-1" || saved.Password != " secret " || !saved.PasswordPresent {
 		t.Fatalf("saved lock = %#v", saved)
 	}
 	if len(saved.AllowedUserIDs) != 0 {
 		t.Fatalf("allowed users should reset, got %#v", saved.AllowedUserIDs)
 	}
-	assertLockEmbed(t, responder, legacyDoneEmoji+" | 成功進行設定", legacyVoiceEmoji+" 你成功對語音包廂密碼進行設定為:secret")
+	assertLockEmbed(t, responder, legacyDoneEmoji+" | 成功進行設定", legacyVoiceEmoji+" 你成功對語音包廂密碼進行設定為: secret ")
 }
 
 func TestLockHandlerRequiresVoiceChannel(t *testing.T) {
@@ -268,8 +268,8 @@ func TestLockHandlerEmptyPasswordStoresNullEquivalent(t *testing.T) {
 	if !ok {
 		t.Fatal("expected saved lock")
 	}
-	if saved.Password != "" {
-		t.Fatalf("expected empty password, got %#v", saved)
+	if saved.Password != "" || saved.PasswordPresent {
+		t.Fatalf("expected absent password, got %#v", saved)
 	}
 	assertLockEmbed(t, responder, legacyDoneEmoji+" | 成功進行設定", legacyVoiceEmoji+" 你成功對語音包廂密碼進行設定為:null")
 }
@@ -277,15 +277,16 @@ func TestLockHandlerEmptyPasswordStoresNullEquivalent(t *testing.T) {
 func TestLockAnswerHandlerAllowsUserAndReturnsLegacySuccess(t *testing.T) {
 	repo := fakemongo.NewVoiceRoomLockRepository()
 	repo.Locks["guild-1\x00123456789012345678"] = domain.VoiceRoomLock{
-		GuildID:       "guild-1",
-		ChannelID:     "123456789012345678",
-		Password:      "secret",
-		OwnerID:       "owner-1",
-		TextChannelID: "text-1",
+		GuildID:         "guild-1",
+		ChannelID:       "123456789012345678",
+		Password:        " secret ",
+		PasswordPresent: true,
+		OwnerID:         "owner-1",
+		TextChannelID:   "text-1",
 	}
 	module := NewLockModule(repo, nil)
 	responder := fakediscord.NewResponder()
-	if err := module.AnswerHandler()(context.Background(), voiceLockAnswerInteraction("secret"), responder); err != nil {
+	if err := module.AnswerHandler()(context.Background(), voiceLockAnswerInteraction(" secret "), responder); err != nil {
 		t.Fatalf("answer handler: %v", err)
 	}
 	lock := repo.Locks["guild-1\x00123456789012345678"]

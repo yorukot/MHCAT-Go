@@ -51,7 +51,7 @@ func TestVoiceRoomLockNormalizeAndValidate(t *testing.T) {
 	normalized := lock.Normalize()
 	if normalized.GuildID != "guild-1" ||
 		normalized.ChannelID != "voice-1" ||
-		normalized.Password != "secret" ||
+		normalized.Password != " secret " ||
 		normalized.OwnerID != "owner-1" ||
 		normalized.TextChannelID != "text-1" ||
 		!reflect.DeepEqual(normalized.AllowedUserIDs, []string{"user-1", "user-2"}) {
@@ -63,15 +63,23 @@ func TestVoiceRoomLockNormalizeAndValidate(t *testing.T) {
 
 	withoutPassword := normalized
 	withoutPassword.Password = ""
+	withoutPassword.PasswordPresent = false
 	if err := withoutPassword.Validate(); err != nil {
 		t.Fatalf("password is optional: %v", err)
 	}
 
 	lockSeed := normalized
 	lockSeed.Password = ""
+	lockSeed.PasswordPresent = false
 	lockSeed.TextChannelID = ""
 	if err := lockSeed.Validate(); err != nil {
 		t.Fatalf("dynamic lock seed text channel is optional: %v", err)
+	}
+
+	explicitEmpty := lockSeed
+	explicitEmpty.PasswordPresent = true
+	if !explicitEmpty.HasPassword() || withoutPassword.HasPassword() {
+		t.Fatalf("password presence mismatch: explicit=%#v absent=%#v", explicitEmpty, withoutPassword)
 	}
 
 	for _, invalid := range []domain.VoiceRoomLock{

@@ -46,7 +46,8 @@ func TestVoiceRoomLockRepositoryGetSaveAndLast(t *testing.T) {
 	}
 	if saved.GuildID != "guild-1" ||
 		saved.ChannelID != "voice-1" ||
-		saved.Password != "new" ||
+		saved.Password != " new " ||
+		!saved.PasswordPresent ||
 		saved.OwnerID != "owner-1" ||
 		saved.TextChannelID != "text-2" ||
 		!reflect.DeepEqual(saved.AllowedUserIDs, []string{"user-2"}) {

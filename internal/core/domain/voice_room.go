@@ -18,12 +18,13 @@ type VoiceRoomConfig struct {
 }
 
 type VoiceRoomLock struct {
-	GuildID        string
-	ChannelID      string
-	Password       string
-	OwnerID        string
-	TextChannelID  string
-	AllowedUserIDs []string
+	GuildID         string
+	ChannelID       string
+	Password        string
+	PasswordPresent bool
+	OwnerID         string
+	TextChannelID   string
+	AllowedUserIDs  []string
 }
 
 type VoiceRoomState struct {
@@ -46,7 +47,7 @@ func (c VoiceRoomConfig) Validate() error {
 func (l VoiceRoomLock) Normalize() VoiceRoomLock {
 	l.GuildID = strings.TrimSpace(l.GuildID)
 	l.ChannelID = strings.TrimSpace(l.ChannelID)
-	l.Password = strings.TrimSpace(l.Password)
+	l.PasswordPresent = l.PasswordPresent || l.Password != ""
 	l.OwnerID = strings.TrimSpace(l.OwnerID)
 	l.TextChannelID = strings.TrimSpace(l.TextChannelID)
 	out := make([]string, 0, len(l.AllowedUserIDs))
@@ -58,6 +59,10 @@ func (l VoiceRoomLock) Normalize() VoiceRoomLock {
 	}
 	l.AllowedUserIDs = out
 	return l
+}
+
+func (l VoiceRoomLock) HasPassword() bool {
+	return l.PasswordPresent || l.Password != ""
 }
 
 func (l VoiceRoomLock) Validate() error {

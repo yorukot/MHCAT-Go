@@ -50,7 +50,7 @@ func (d VoiceRoomConfigDocument) ToDomain() domain.VoiceRoomConfig {
 func VoiceRoomLockDocumentFromDomain(lock domain.VoiceRoomLock) VoiceRoomLockDocument {
 	lock = lock.Normalize()
 	var password *string
-	if lock.Password != "" {
+	if lock.HasPassword() {
 		password = &lock.Password
 	}
 	var textChannel *string
@@ -77,12 +77,13 @@ func (d VoiceRoomLockDocument) ToDomain() domain.VoiceRoomLock {
 		textChannel = *d.TextChannel
 	}
 	return domain.VoiceRoomLock{
-		GuildID:        d.Guild,
-		ChannelID:      d.ChannelID,
-		Password:       password,
-		OwnerID:        d.Owner,
-		TextChannelID:  textChannel,
-		AllowedUserIDs: append([]string(nil), d.AllowedUsers...),
+		GuildID:         d.Guild,
+		ChannelID:       d.ChannelID,
+		Password:        password,
+		PasswordPresent: d.LockAnswer != nil,
+		OwnerID:         d.Owner,
+		TextChannelID:   textChannel,
+		AllowedUserIDs:  append([]string(nil), d.AllowedUsers...),
 	}.Normalize()
 }
 

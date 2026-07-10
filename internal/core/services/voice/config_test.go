@@ -117,7 +117,7 @@ func TestLockServiceSetPasswordSavesReplacement(t *testing.T) {
 	if !ok {
 		t.Fatal("expected saved lock")
 	}
-	if saved.GuildID != "guild-1" || saved.ChannelID != "voice-1" || saved.OwnerID != "owner-1" || saved.TextChannelID != "text-1" || saved.Password != "secret" {
+	if saved.GuildID != "guild-1" || saved.ChannelID != "voice-1" || saved.OwnerID != "owner-1" || saved.TextChannelID != "text-1" || saved.Password != " secret " || !saved.PasswordPresent {
 		t.Fatalf("saved lock = %#v", saved)
 	}
 	if len(saved.AllowedUserIDs) != 0 {
@@ -165,12 +165,13 @@ func TestLockServiceSetPasswordRejectsInvalidInput(t *testing.T) {
 func TestLockServiceAnswerPasswordAllowsUser(t *testing.T) {
 	repo := fakemongo.NewVoiceRoomLockRepository()
 	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{
-		GuildID:        "guild-1",
-		ChannelID:      "voice-1",
-		Password:       "secret",
-		OwnerID:        "owner-1",
-		TextChannelID:  "text-1",
-		AllowedUserIDs: []string{"user-2"},
+		GuildID:         "guild-1",
+		ChannelID:       "voice-1",
+		Password:        " secret ",
+		PasswordPresent: true,
+		OwnerID:         "owner-1",
+		TextChannelID:   "text-1",
+		AllowedUserIDs:  []string{"user-2"},
 	}
 	service := coreservice.NewLockService(repo)
 	if err := service.AnswerPassword(context.Background(), " guild-1 ", " voice-1 ", " user-1 ", " secret "); err != nil {
@@ -180,7 +181,7 @@ func TestLockServiceAnswerPasswordAllowsUser(t *testing.T) {
 	if got := lock.AllowedUserIDs; len(got) != 2 || got[0] != "user-2" || got[1] != "user-1" {
 		t.Fatalf("allowed users = %#v", got)
 	}
-	if err := service.AnswerPassword(context.Background(), "guild-1", "voice-1", "user-1", "secret"); err != nil {
+	if err := service.AnswerPassword(context.Background(), "guild-1", "voice-1", "user-1", " secret "); err != nil {
 		t.Fatalf("answer password duplicate: %v", err)
 	}
 	if got := repo.Locks["guild-1\x00voice-1"].AllowedUserIDs; len(got) != 2 {
@@ -207,6 +208,23 @@ func TestLockServiceAnswerPasswordRejectsWrongPassword(t *testing.T) {
 	}
 }
 
+func TestLockServiceAnswerPasswordDoesNotTrimLegacyInput(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{
+		GuildID:         "guild-1",
+		ChannelID:       "voice-1",
+		Password:        " secret ",
+		PasswordPresent: true,
+		OwnerID:         "owner-1",
+		TextChannelID:   "text-1",
+	}
+	service := coreservice.NewLockService(repo)
+	err := service.AnswerPassword(context.Background(), "guild-1", "voice-1", "user-1", "secret")
+	if !errors.Is(err, coreservice.ErrVoiceRoomLockPasswordMismatch) {
+		t.Fatalf("expected exact password mismatch, got %v", err)
+	}
+}
+
 func TestLockServiceLockedJoinPrompt(t *testing.T) {
 	repo := fakemongo.NewVoiceRoomLockRepository()
 	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{
@@ -230,5 +248,24 @@ func TestLockServiceLockedJoinPrompt(t *testing.T) {
 	}
 	if _, prompt, err := service.LockedJoinPrompt(context.Background(), "guild-1", "missing", "user-1"); err != nil || prompt {
 		t.Fatalf("missing lock should no-op: prompt=%t err=%v", prompt, err)
+	}
+}
+
+func TestLockServiceTreatsExplicitEmptyBSONPasswordAsLocked(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomLockRepository()
+	repo.Locks["guild-1\x00voice-1"] = domain.VoiceRoomLock{
+		GuildID:         "guild-1",
+		ChannelID:       "voice-1",
+		PasswordPresent: true,
+		OwnerID:         "owner-1",
+		TextChannelID:   "text-1",
+	}
+	service := coreservice.NewLockService(repo)
+	lock, prompt, err := service.LockedJoinPrompt(context.Background(), "guild-1", "voice-1", "user-1")
+	if err != nil || !prompt || !lock.HasPassword() {
+		t.Fatalf("prompt=%t lock=%#v err=%v", prompt, lock, err)
+	}
+	if err := service.AnswerPassword(context.Background(), "guild-1", "voice-1", "user-1", ""); err != nil {
+		t.Fatalf("answer explicit empty password: %v", err)
 	}
 }

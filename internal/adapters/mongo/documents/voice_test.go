@@ -39,7 +39,7 @@ func TestVoiceRoomLockDocumentRoundTripPreservesLegacyFields(t *testing.T) {
 	if document.Guild != "guild-1" ||
 		document.ChannelID != "voice-1" ||
 		document.LockAnswer == nil ||
-		*document.LockAnswer != "secret" ||
+		*document.LockAnswer != " secret " ||
 		document.Owner != "owner-1" ||
 		document.TextChannel == nil ||
 		*document.TextChannel != "text-1" ||
@@ -50,7 +50,8 @@ func TestVoiceRoomLockDocumentRoundTripPreservesLegacyFields(t *testing.T) {
 	got := document.ToDomain()
 	if got.GuildID != "guild-1" ||
 		got.ChannelID != "voice-1" ||
-		got.Password != "secret" ||
+		got.Password != " secret " ||
+		!got.PasswordPresent ||
 		got.OwnerID != "owner-1" ||
 		got.TextChannelID != "text-1" ||
 		!reflect.DeepEqual(got.AllowedUserIDs, []string{"mutated", "user-3"}) {
@@ -78,6 +79,25 @@ func TestVoiceRoomLockDocumentUsesNullForEmptyPassword(t *testing.T) {
 	}.ToDomain()
 	if got.Password != "" {
 		t.Fatalf("null lock_anser should map to empty password, got %#v", got)
+	}
+	if got.PasswordPresent {
+		t.Fatalf("null lock_anser should remain absent, got %#v", got)
+	}
+
+	empty := ""
+	explicitEmpty := documents.VoiceRoomLockDocument{
+		Guild:       "guild-1",
+		ChannelID:   "voice-1",
+		LockAnswer:  &empty,
+		Owner:       "owner-1",
+		TextChannel: ptr("text-1"),
+	}.ToDomain()
+	if !explicitEmpty.PasswordPresent || !explicitEmpty.HasPassword() {
+		t.Fatalf("empty string lock_anser should remain present, got %#v", explicitEmpty)
+	}
+	encoded := documents.VoiceRoomLockDocumentFromDomain(explicitEmpty)
+	if encoded.LockAnswer == nil || *encoded.LockAnswer != "" {
+		t.Fatalf("explicit empty password should round trip, got %#v", encoded.LockAnswer)
 	}
 }
 

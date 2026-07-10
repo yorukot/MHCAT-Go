@@ -185,12 +185,13 @@ func (s LockService) SetPassword(ctx context.Context, guildID string, channelID 
 		return ports.ErrVoiceRoomLockNotOwner
 	}
 	lock := domain.VoiceRoomLock{
-		GuildID:        guildID,
-		ChannelID:      channelID,
-		Password:       password,
-		OwnerID:        ownerID,
-		TextChannelID:  textChannelID,
-		AllowedUserIDs: []string{},
+		GuildID:         guildID,
+		ChannelID:       channelID,
+		Password:        password,
+		PasswordPresent: password != "",
+		OwnerID:         ownerID,
+		TextChannelID:   textChannelID,
+		AllowedUserIDs:  []string{},
 	}
 	return s.Repository.SaveVoiceRoomLock(ctx, lock)
 }
@@ -202,15 +203,14 @@ func (s LockService) AnswerPassword(ctx context.Context, guildID string, channel
 	guildID = strings.TrimSpace(guildID)
 	channelID = strings.TrimSpace(channelID)
 	userID = strings.TrimSpace(userID)
-	password = strings.TrimSpace(password)
-	if guildID == "" || channelID == "" || userID == "" || password == "" {
+	if guildID == "" || channelID == "" || userID == "" {
 		return domain.ErrInvalidVoiceRoomLock
 	}
 	lock, err := s.Repository.GetVoiceRoomLock(ctx, guildID, channelID)
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(lock.Password) == "" || strings.TrimSpace(lock.Password) != password {
+	if !lock.HasPassword() || lock.Password != password {
 		return ErrVoiceRoomLockPasswordMismatch
 	}
 	return s.Repository.AllowVoiceRoomLockUser(ctx, guildID, channelID, userID)
@@ -234,7 +234,7 @@ func (s LockService) LockedJoinPrompt(ctx context.Context, guildID string, chann
 		return domain.VoiceRoomLock{}, false, err
 	}
 	lock = lock.Normalize()
-	if lock.Password == "" || lock.TextChannelID == "" {
+	if !lock.HasPassword() || lock.TextChannelID == "" {
 		return domain.VoiceRoomLock{}, false, nil
 	}
 	for _, allowed := range lock.AllowedUserIDs {
