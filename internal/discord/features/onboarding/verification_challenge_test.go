@@ -8,6 +8,9 @@ import (
 	mathrand "math/rand"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 )
 
 func TestVerificationCaptchaGeneratorPreservesLegacyShape(t *testing.T) {
@@ -71,5 +74,28 @@ func TestVerificationCaptchaGeneratorHonorsCanceledContext(t *testing.T) {
 	_, err := (verificationCaptchaGenerator{}).Generate(ctx)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context canceled", err)
+	}
+}
+
+func TestVerificationChallengeStoreExpiresAtTTLBoundary(t *testing.T) {
+	now := time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC)
+	store := newVerificationChallengeStore()
+	store.now = func() time.Time { return now }
+	challenge, err := store.Create(context.Background(), domain.VerificationChallenge{
+		StateID: "state",
+		GuildID: "guild",
+		UserID:  "user",
+		Answer:  "ABCDEF",
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	now = now.Add(verificationChallengeTTL - time.Nanosecond)
+	if got, err := store.Get(context.Background(), challenge.StateID); err != nil || got.Answer != "ABCDEF" {
+		t.Fatalf("challenge before expiry = %#v, %v", got, err)
+	}
+	now = now.Add(time.Nanosecond)
+	if _, err := store.Get(context.Background(), challenge.StateID); !errors.Is(err, domain.ErrInvalidVerificationChallenge) {
+		t.Fatalf("expiry error = %v", err)
 	}
 }

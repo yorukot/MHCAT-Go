@@ -110,7 +110,7 @@ func (s *verificationChallengeStore) Delete(ctx context.Context, stateID string)
 func (s *verificationChallengeStore) pruneLocked() {
 	now := s.now()
 	for id, stored := range s.values {
-		if !stored.expiresAt.IsZero() && now.After(stored.expiresAt) {
+		if !stored.expiresAt.IsZero() && !now.Before(stored.expiresAt) {
 			delete(s.values, id)
 		}
 	}
