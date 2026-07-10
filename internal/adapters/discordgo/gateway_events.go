@@ -59,11 +59,15 @@ func (s *Session) RegisterGatewayEventHandlers(dispatcher *events.Dispatcher, op
 	}
 	if opts.MessageReactions {
 		removers = append(removers,
-			s.session.AddHandler(func(_ *dgo.Session, event *dgo.MessageReactionAdd) {
-				dispatcher.DispatchSafe(context.Background(), eventFromReaction(events.TypeReactionAdd, event.MessageReaction, event.Member))
+			s.session.AddHandler(func(session *dgo.Session, event *dgo.MessageReactionAdd) {
+				member := event.Member
+				if member == nil {
+					member = reactionMemberFromState(session, event.MessageReaction)
+				}
+				dispatcher.DispatchSafe(context.Background(), eventFromReaction(events.TypeReactionAdd, event.MessageReaction, member))
 			}),
-			s.session.AddHandler(func(_ *dgo.Session, event *dgo.MessageReactionRemove) {
-				dispatcher.DispatchSafe(context.Background(), eventFromReaction(events.TypeReactionRemove, event.MessageReaction, nil))
+			s.session.AddHandler(func(session *dgo.Session, event *dgo.MessageReactionRemove) {
+				dispatcher.DispatchSafe(context.Background(), eventFromReaction(events.TypeReactionRemove, event.MessageReaction, reactionMemberFromState(session, event.MessageReaction)))
 			}),
 		)
 	}
@@ -263,8 +267,25 @@ func eventFromReaction(eventType events.Type, reaction *dgo.MessageReaction, mem
 	}
 	if member != nil {
 		event.Member = memberFromDiscord(member)
+		if event.Member != nil {
+			event.IsBot = event.Member.IsBot
+		}
 	}
 	return event
+}
+
+func reactionMemberFromState(session *dgo.Session, reaction *dgo.MessageReaction) *dgo.Member {
+	if session == nil || session.State == nil || reaction == nil {
+		return nil
+	}
+	member, err := session.State.Member(reaction.GuildID, reaction.UserID)
+	if err == nil && member != nil {
+		return member
+	}
+	if session.State.User != nil && session.State.User.ID == reaction.UserID {
+		return &dgo.Member{GuildID: reaction.GuildID, User: session.State.User}
+	}
+	return nil
 }
 
 func eventFromMember(eventType events.Type, member *dgo.Member, guild *dgo.Guild, bot *dgo.User) events.Event {

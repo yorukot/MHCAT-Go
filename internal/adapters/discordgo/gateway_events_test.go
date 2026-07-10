@@ -121,9 +121,19 @@ func TestEventFromReaction(t *testing.T) {
 		ChannelID: "channel-1",
 		GuildID:   "guild-1",
 		Emoji:     dgo.Emoji{Name: "cat", ID: "emoji-1"},
-	}, &dgo.Member{User: &dgo.User{ID: "user-1", Username: "Yoru"}, Roles: []string{"role-1"}})
-	if event.Reaction == nil || event.Reaction.EmojiID != "emoji-1" || event.Member == nil || event.Member.UserID != "user-1" {
+	}, &dgo.Member{User: &dgo.User{ID: "user-1", Username: "Yoru", Bot: true}, Roles: []string{"role-1"}})
+	if event.Reaction == nil || event.Reaction.EmojiID != "emoji-1" || event.Member == nil || event.Member.UserID != "user-1" || !event.IsBot {
 		t.Fatalf("event = %#v", event)
+	}
+}
+
+func TestReactionMemberFromStateResolvesRemoveEventBot(t *testing.T) {
+	state := dgo.NewState()
+	bot := &dgo.User{ID: "bot-1", Username: "MHCAT", Bot: true}
+	state.User = bot
+	member := reactionMemberFromState(&dgo.Session{State: state}, &dgo.MessageReaction{GuildID: "guild-1", UserID: "bot-1"})
+	if member == nil || member.User == nil || !member.User.Bot {
+		t.Fatalf("member = %#v", member)
 	}
 }
 

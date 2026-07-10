@@ -204,6 +204,30 @@ func TestReactionEventsApplyRolesAndIgnoreMissingConfig(t *testing.T) {
 	}
 }
 
+func TestReactionEventsIgnoreBots(t *testing.T) {
+	repo := fakemongo.NewRoleSelectionRepository()
+	repo.Reactions["guild-1/message-1/emoji-1"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "emoji-1", RoleID: "role-1"}
+	discord := fakediscord.NewSideEffects()
+	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+
+	for _, remove := range []bool{false, true} {
+		err := module.ReactionEventHandler(remove)(context.Background(), events.Event{
+			Type:      events.TypeReactionAdd,
+			GuildID:   "guild-1",
+			MessageID: "message-1",
+			UserID:    "bot-1",
+			IsBot:     true,
+			Reaction:  &events.Reaction{EmojiID: "emoji-1"},
+		})
+		if err != nil {
+			t.Fatalf("handler: %v", err)
+		}
+	}
+	if len(discord.AddedRoles) != 0 || len(discord.RemovedRoles) != 0 || len(discord.DirectMessages) != 0 {
+		t.Fatalf("bot reaction side effects: added=%#v removed=%#v dms=%#v", discord.AddedRoles, discord.RemovedRoles, discord.DirectMessages)
+	}
+}
+
 func TestReactionEventFailureDMUsesLegacyDirectionIcon(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
