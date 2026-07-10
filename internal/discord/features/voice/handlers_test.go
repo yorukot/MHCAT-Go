@@ -51,6 +51,25 @@ func TestSetHandlerRejectsInvalidLimit(t *testing.T) {
 	assertEmbedContains(t, responder, "必須為1-99的整數!")
 }
 
+func TestSetHandlerAcceptsExplicitZeroLimitLikeLegacy(t *testing.T) {
+	repo := fakemongo.NewVoiceRoomConfigRepository()
+	module := NewModule(repo, nil)
+	interaction := voiceSetInteraction()
+	interaction.CommandOptions[optionUserLimit] = interactions.CommandOptionValue{
+		Type: interactions.CommandOptionInteger,
+		Int:  0,
+	}
+	responder := fakediscord.NewResponder()
+	if err := module.SetHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("set handler: %v", err)
+	}
+	saved, ok := repo.Last()
+	if !ok || saved.Limit != 0 {
+		t.Fatalf("saved config = %#v, ok = %t", saved, ok)
+	}
+	assertEmbed(t, responder, legacyDoneEmoji+" | 成功進行設定", legacyVoiceEmoji+" 你成功對語音包廂進行`設定`")
+}
+
 func TestSetHandlerRequiresManageMessages(t *testing.T) {
 	module := NewModule(fakemongo.NewVoiceRoomConfigRepository(), nil)
 	interaction := voiceSetInteraction()

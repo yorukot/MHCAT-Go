@@ -43,7 +43,7 @@ func (m Module) SetHandler() interactions.Handler {
 		trigger := firstCommandOption(interaction, optionTriggerChannel)
 		triggerID := strings.TrimSpace(trigger.String)
 		limit, ok := limitOption(interaction, optionUserLimit)
-		if ok && (limit < 1 || limit > 99) {
+		if ok && (limit < 0 || limit > 99) {
 			return responder.EditOriginal(ctx, voiceErrorMessage("必須為1-99的整數!"))
 		}
 		config := domain.VoiceRoomConfig{
