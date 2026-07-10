@@ -486,7 +486,10 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	if !ok {
 		return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
 	}
-	totalCost := item.NeedCoins * command.Quantity
+	totalCost, ok := item.PurchaseCost(command.Quantity)
+	if !ok {
+		return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
+	}
 	if balance.Coins < totalCost {
 		return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
 	}

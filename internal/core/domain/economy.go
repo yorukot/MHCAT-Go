@@ -343,6 +343,13 @@ func (i ShopItem) Validate() error {
 	return nil
 }
 
+func (i ShopItem) PurchaseCost(quantity int64) (int64, bool) {
+	if i.NeedCoins <= 0 || quantity <= 0 || i.NeedCoins > math.MaxInt64/quantity {
+		return 0, false
+	}
+	return i.NeedCoins * quantity, true
+}
+
 func (c ShopPurchaseCommand) Normalize() ShopPurchaseCommand {
 	return ShopPurchaseCommand{
 		GuildID:     strings.TrimSpace(c.GuildID),

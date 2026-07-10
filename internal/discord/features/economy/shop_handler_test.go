@@ -3,6 +3,7 @@ package economy
 import (
 	"context"
 	"errors"
+	"math"
 	"strconv"
 	"strings"
 	"testing"
@@ -356,6 +357,43 @@ func TestShopPurchaseInsufficientCoinsUsesLegacyError(t *testing.T) {
 	balance, _ := repo.GetCoinBalance(context.Background(), "guild-1", "user-1")
 	if balance.Coins != 5 {
 		t.Fatalf("balance mutated = %#v", balance)
+	}
+}
+
+func TestShopPurchaseCostOverflowUsesLegacyInsufficientError(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: math.MaxInt64, Description: "reward", AutoDelete: true, Count: 2})
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: math.MaxInt64})
+	module := NewShopModule(repo, nil, nil, nil, nil, nil, nil)
+	showShopDetail(t, &module, 1001, "message-1")
+
+	start := fakediscord.ComponentInteractionFromID("1001ghp")
+	start.MessageID = "message-1"
+	if err := module.ShopItemHandler()(context.Background(), start, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("start purchase: %v", err)
+	}
+	digit := fakediscord.ComponentInteractionFromID("2ghp_number")
+	digit.MessageID = "message-1"
+	if err := module.ShopQuantityHandler()(context.Background(), digit, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("digit: %v", err)
+	}
+	confirm := fakediscord.ComponentInteractionFromID("confirmghp_number1001")
+	confirm.MessageID = "message-1"
+	responder := fakediscord.NewResponder()
+	if err := module.ShopQuantityHandler()(context.Background(), confirm, responder); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+
+	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Embeds[0].Title, "你的代幣不夠") {
+		t.Fatalf("overflow response = %#v", responder.Updates)
+	}
+	balance, err := repo.GetCoinBalance(context.Background(), "guild-1", "user-1")
+	if err != nil || balance.Coins != math.MaxInt64 {
+		t.Fatalf("balance = %#v, err = %v", balance, err)
+	}
+	item, err := repo.GetShopItem(context.Background(), "guild-1", 1001)
+	if err != nil || item.Count != 2 {
+		t.Fatalf("item = %#v, err = %v", item, err)
 	}
 }
 
