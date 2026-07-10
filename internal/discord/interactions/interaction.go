@@ -92,6 +92,7 @@ type Interaction struct {
 	CreatedAt                 time.Time
 	ChannelID                 string
 	ChannelName               string
+	BotAvatarURL              string
 	MessageID                 string
 	OriginalInteractionID     string
 	OriginalInteractionUserID string

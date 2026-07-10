@@ -2,6 +2,7 @@ package discordgo
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	dgo "github.com/bwmarrin/discordgo"
@@ -94,6 +95,20 @@ func TestRuntimeInteractionChannelOptionMetadata(t *testing.T) {
 	value := interaction.CommandOptions["語音頻道"]
 	if value.String != "voice-1" || value.ChannelName != "Create room" || value.ChannelType != int(dgo.ChannelTypeGuildVoice) || value.ChannelParentID != "category-1" {
 		t.Fatalf("channel option = %#v", value)
+	}
+}
+
+func TestRuntimeInteractionIncludesCachedBotAvatar(t *testing.T) {
+	session := testSession()
+	session.session.State = dgo.NewState()
+	session.session.State.User = &dgo.User{ID: "bot-1", Avatar: "bot-avatar"}
+
+	interaction, _, err := session.RuntimeInteraction(&dgo.InteractionCreate{Interaction: slashEvent("ping", nil)})
+	if err != nil {
+		t.Fatalf("runtime interaction: %v", err)
+	}
+	if interaction.BotAvatarURL == "" || !strings.Contains(interaction.BotAvatarURL, "bot-avatar") {
+		t.Fatalf("bot avatar url = %q", interaction.BotAvatarURL)
 	}
 }
 

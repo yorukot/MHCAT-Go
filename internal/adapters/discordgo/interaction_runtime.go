@@ -20,8 +20,16 @@ func (s *Session) RuntimeInteraction(event *dgo.InteractionCreate) (interactions
 	if err != nil {
 		return interactions.Interaction{}, nil, err
 	}
+	s.populateBotAvatar(&interaction)
 	s.populateActorVoiceState(&interaction)
 	return interaction, NewInteractionResponder(s.session, event.Interaction), nil
+}
+
+func (s *Session) populateBotAvatar(interaction *interactions.Interaction) {
+	if interaction == nil || s == nil || s.session == nil || s.session.State == nil || s.session.State.User == nil {
+		return
+	}
+	interaction.BotAvatarURL = s.session.State.User.AvatarURL("")
 }
 
 func (s *Session) populateActorVoiceState(interaction *interactions.Interaction) {

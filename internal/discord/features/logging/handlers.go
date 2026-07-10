@@ -42,7 +42,7 @@ func (m Module) ConfigPromptHandler() interactions.Handler {
 			return responder.EditOriginal(ctx, loggingErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 		}
 		expiresAt := m.now().Add(loggingConfigCollectorTTL)
-		return responder.EditOriginal(ctx, loggingPromptMessage(channelID, interaction.Actor.UserID, expiresAt, nil))
+		return responder.EditOriginal(ctx, loggingPromptMessage(channelID, interaction.Actor.UserID, expiresAt, interaction.BotAvatarURL, nil))
 	}
 }
 
@@ -62,7 +62,7 @@ func (m Module) ConfigSelectHandler() interactions.Handler {
 		if err := m.service.Save(ctx, config); err != nil {
 			return responder.EditOriginal(ctx, loggingErrorFromError(err))
 		}
-		if err := responder.EditOriginal(ctx, loggingPromptMessage(channelID, ownerID, expiresAt, interaction.Values)); err != nil {
+		if err := responder.EditOriginal(ctx, loggingPromptMessage(channelID, ownerID, expiresAt, interaction.BotAvatarURL, interaction.Values)); err != nil {
 			return err
 		}
 		return m.track(ctx, interaction)
@@ -85,7 +85,7 @@ func loggingConfigFromValues(guildID string, channelID string, values []string) 
 	return config
 }
 
-func loggingPromptMessage(channelID string, ownerID string, expiresAt time.Time, selected []string) responses.Message {
+func loggingPromptMessage(channelID string, ownerID string, expiresAt time.Time, botAvatarURL string, selected []string) responses.Message {
 	selectedText := ""
 	if len(selected) > 0 {
 		selectedText = "`" + strings.Join(selected, "`,`") + "`"
@@ -96,7 +96,8 @@ func loggingPromptMessage(channelID string, ownerID string, expiresAt time.Time,
 			Description: "**請選擇您需要的日誌(未來會更新更多喔)** \n目前的選擇:" + selectedText,
 			Color:       loggingEmbedColor,
 			Footer: &responses.EmbedFooter{
-				Text: loggingFooterText,
+				Text:    loggingFooterText,
+				IconURL: botAvatarURL,
 			},
 		}},
 		Components: []responses.ComponentRow{{

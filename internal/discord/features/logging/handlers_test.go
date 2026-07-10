@@ -31,6 +31,7 @@ func TestLoggingConfigPromptRendersLegacySelect(t *testing.T) {
 	module := NewModuleWithClock(&fakemongo.LoggingConfigRepository{}, nil, loggingFixedClock{now: now})
 	responder := fakediscord.NewResponder()
 	interaction := loggingSlash("channel-1")
+	interaction.BotAvatarURL = "https://example.test/bot.png"
 
 	if err := module.ConfigPromptHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
@@ -42,6 +43,9 @@ func TestLoggingConfigPromptRendersLegacySelect(t *testing.T) {
 	embed := message.Embeds[0]
 	if embed.Title != "<:logfile:985948561625710663> 日誌系統" || embed.Color != loggingEmbedColor || !strings.Contains(embed.Description, "目前的選擇:") {
 		t.Fatalf("embed = %#v", embed)
+	}
+	if embed.Footer == nil || embed.Footer.Text != loggingFooterText || embed.Footer.IconURL != interaction.BotAvatarURL {
+		t.Fatalf("footer = %#v", embed.Footer)
 	}
 	if len(message.Components) != 1 || len(message.Components[0].Components) != 1 {
 		t.Fatalf("components = %#v", message.Components)
@@ -68,6 +72,7 @@ func TestLoggingConfigSelectSavesConfigAndUpdatesMessage(t *testing.T) {
 	interaction := fakediscord.ComponentInteractionFromID(loggingConfigCustomID("channel-9", "user-1", now.Add(loggingConfigCollectorTTL)))
 	interaction.RouteKey = interactions.RouteKey{Kind: interactions.TypeComponent, Version: "v1", Feature: "logging", Action: "configure"}
 	interaction.Values = []string{"訊息更新", "用戶語音更新"}
+	interaction.BotAvatarURL = "https://example.test/bot.png"
 
 	if err := module.ConfigSelectHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
@@ -84,6 +89,9 @@ func TestLoggingConfigSelectSavesConfigAndUpdatesMessage(t *testing.T) {
 	}
 	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "`訊息更新`,`用戶語音更新`") {
 		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if footer := responder.Edits[0].Embeds[0].Footer; footer == nil || footer.IconURL != interaction.BotAvatarURL {
+		t.Fatalf("footer = %#v", footer)
 	}
 	if len(usage.Events) != 1 || usage.Events[0].Feature != "logging" || usage.Events[0].CommandName != LoggingConfigCommandName {
 		t.Fatalf("usage = %#v", usage.Events)
