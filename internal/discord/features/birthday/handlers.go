@@ -80,7 +80,7 @@ func (m Module) handleAdd(ctx context.Context, interaction interactions.Interact
 		return responder.EditOriginal(ctx, birthdayErrorMessage("很抱歉，出現了未知的錯誤，請重試!", ""))
 	}
 	expiresAt := now.Add(birthdayAddTimeout)
-	stateID := m.pendingAdds.create(pendingBirthdayAdd{
+	stateID := m.pendingAdds.create(now, pendingBirthdayAdd{
 		OwnerUserID: interaction.Actor.UserID,
 		Profile:     profile,
 		ExpiresAt:   expiresAt,

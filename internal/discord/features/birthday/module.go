@@ -88,9 +88,14 @@ func newBirthdayAddStateStore() *birthdayAddStateStore {
 	return &birthdayAddStateStore{entries: map[string]pendingBirthdayAdd{}}
 }
 
-func (s *birthdayAddStateStore) create(entry pendingBirthdayAdd) string {
+func (s *birthdayAddStateStore) create(now time.Time, entry pendingBirthdayAdd) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	for id, candidate := range s.entries {
+		if birthdayAddExpired(candidate, now) {
+			delete(s.entries, id)
+		}
+	}
 	s.next++
 	id := strconv.FormatUint(s.next, 36)
 	s.entries[id] = entry
@@ -104,7 +109,7 @@ func (s *birthdayAddStateStore) get(id string, now time.Time) (pendingBirthdayAd
 	if !ok {
 		return pendingBirthdayAdd{}, false
 	}
-	if !entry.ExpiresAt.IsZero() && now.After(entry.ExpiresAt) {
+	if birthdayAddExpired(entry, now) {
 		delete(s.entries, id)
 		return pendingBirthdayAdd{}, false
 	}
@@ -118,7 +123,7 @@ func (s *birthdayAddStateStore) setHour(id string, now time.Time, hour int) (pen
 	if !ok {
 		return pendingBirthdayAdd{}, false
 	}
-	if !entry.ExpiresAt.IsZero() && now.After(entry.ExpiresAt) {
+	if birthdayAddExpired(entry, now) {
 		delete(s.entries, id)
 		return pendingBirthdayAdd{}, false
 	}
@@ -126,6 +131,10 @@ func (s *birthdayAddStateStore) setHour(id string, now time.Time, hour int) (pen
 	entry.HasHour = true
 	s.entries[id] = entry
 	return entry, true
+}
+
+func birthdayAddExpired(entry pendingBirthdayAdd, now time.Time) bool {
+	return !entry.ExpiresAt.IsZero() && !now.Before(entry.ExpiresAt)
 }
 
 func (s *birthdayAddStateStore) delete(id string) {
