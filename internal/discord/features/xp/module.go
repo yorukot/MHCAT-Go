@@ -58,6 +58,7 @@ type TextEventModule struct {
 	configs     ports.TextXPConfigReader
 	messages    ports.DiscordMessagePort
 	rewardRoles coreservice.TextRewardRoleService
+	coinRewards coreservice.TextCoinRewardService
 }
 
 type VoiceEventModule struct {
@@ -135,6 +136,11 @@ func NewTextEventModule(repo ports.TextXPAccrualRepository, configs ports.TextXP
 
 func (m TextEventModule) WithRewardRoles(repo ports.TextXPRewardRoleRepository, roles ports.DiscordRolePort) TextEventModule {
 	m.rewardRoles = coreservice.TextRewardRoleService{Repository: repo, RolePort: roles}
+	return m
+}
+
+func (m TextEventModule) WithCoinRewards(repo ports.TextXPCoinRewardRepository) TextEventModule {
+	m.coinRewards = coreservice.TextCoinRewardService{Repository: repo}
 	return m
 }
 

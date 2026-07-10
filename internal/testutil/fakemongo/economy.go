@@ -96,6 +96,27 @@ func (r *EconomyRepository) SaveEconomyConfig(ctx context.Context, config domain
 	return config, nil
 }
 
+func (r *EconomyRepository) ApplyTextXPCoinReward(ctx context.Context, guildID string, userID string, level int64) (domain.CoinBalance, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.CoinBalance{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	config := r.Configs[guildID]
+	reward := domain.LegacyTextXPCoinReward(level, config.XPMultiple)
+	key := economyBalanceKey(guildID, userID)
+	balance, ok := r.Balances[key]
+	if !ok {
+		balance = domain.CoinBalance{GuildID: guildID, UserID: userID, Coins: reward, Today: 0}
+		r.Balances[key] = balance
+		r.balanceOrder = append(r.balanceOrder, key)
+		return balance, nil
+	}
+	balance.Coins += reward
+	r.Balances[key] = balance
+	return balance, nil
+}
+
 func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domain.CoinAdminCommand) (domain.CoinAdminResult, error) {
 	if err := r.ready(ctx); err != nil {
 		return domain.CoinAdminResult{}, err
@@ -512,6 +533,7 @@ var _ ports.EconomyCoinResetRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyRockPaperScissorsRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyCoinGameRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyShopRepository = (*EconomyRepository)(nil)
+var _ ports.TextXPCoinRewardRepository = (*EconomyRepository)(nil)
 
 func cloneSignCalendar(calendar domain.SignCalendar) domain.SignCalendar {
 	cloned := domain.SignCalendar{

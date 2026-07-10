@@ -42,6 +42,9 @@ func (m TextEventModule) MessageCreateHandler() events.Handler {
 		if err := m.applyRewardRoles(ctx, guildID, userID, result.Profile.Level, event.Member); err != nil && firstErr == nil {
 			firstErr = err
 		}
+		if err := m.applyCoinReward(ctx, guildID, userID, result.Profile.Level); err != nil && firstErr == nil {
+			firstErr = err
+		}
 		if firstErr != nil {
 			return firstErr
 		}
@@ -87,4 +90,12 @@ func (m TextEventModule) applyRewardRoles(ctx context.Context, guildID string, u
 		currentRoleIDs = member.RoleIDs
 	}
 	return m.rewardRoles.ApplyLevelUp(ctx, guildID, userID, level, currentRoleIDs)
+}
+
+func (m TextEventModule) applyCoinReward(ctx context.Context, guildID string, userID string, level int64) error {
+	if m.coinRewards.Repository == nil {
+		return ctx.Err()
+	}
+	_, err := m.coinRewards.ApplyLevelUp(ctx, guildID, userID, level)
+	return err
 }

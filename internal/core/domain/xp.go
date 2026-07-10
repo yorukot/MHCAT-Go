@@ -124,6 +124,10 @@ func ApplyTextXPMessage(profile XPProfile, gained int64) (XPProfile, bool) {
 	return profile, false
 }
 
+func LegacyTextXPCoinReward(level int64, xpMultiple float64) int64 {
+	return int64(float64(level) * xpMultiple)
+}
+
 func applyXPAdjustment(profile XPProfile, delta int64, required func(int64) int64) XPProfile {
 	lessXP := delta
 	allXP := int64(0)

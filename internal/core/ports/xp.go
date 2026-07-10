@@ -35,6 +35,10 @@ type TextXPRewardRoleRepository interface {
 	DeleteTextXPRewardRole(ctx context.Context, guildID string, level int64, roleID string) error
 }
 
+type TextXPCoinRewardRepository interface {
+	ApplyTextXPCoinReward(ctx context.Context, guildID string, userID string, level int64) (domain.CoinBalance, error)
+}
+
 type VoiceXPRewardRoleRepository interface {
 	ListVoiceXPRewardRoles(ctx context.Context, guildID string) ([]domain.XPRewardRoleConfig, error)
 	SaveVoiceXPRewardRole(ctx context.Context, config domain.XPRewardRoleConfig) error

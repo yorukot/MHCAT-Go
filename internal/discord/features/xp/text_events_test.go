@@ -180,6 +180,56 @@ func TestTextXPEventDoesNotApplyRewardRolesWithoutLevelUp(t *testing.T) {
 	}
 }
 
+func TestTextXPEventAppliesCoinRewardOnLevelUp(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}
+	economy := fakemongo.NewEconomyRepository()
+	economy.PutConfig(domain.EconomyConfig{GuildID: "guild-1", XPMultiple: 2.5})
+	module := NewTextEventModule(repo, nil, nil).WithCoinRewards(economy)
+	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
+
+	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
+		t.Fatalf("message create: %v", err)
+	}
+	balance := economy.Balances["guild-1\x00user-1"]
+	if balance.GuildID != "guild-1" || balance.UserID != "user-1" || balance.Coins != 2 || balance.Today != 0 {
+		t.Fatalf("balance = %#v", balance)
+	}
+}
+
+func TestTextXPEventIncrementsExistingCoinBalanceOnLevelUp(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}
+	economy := fakemongo.NewEconomyRepository()
+	economy.PutConfig(domain.EconomyConfig{GuildID: "guild-1", XPMultiple: 3})
+	economy.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 10, Today: 4})
+	module := NewTextEventModule(repo, nil, nil).WithCoinRewards(economy)
+	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
+
+	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
+		t.Fatalf("message create: %v", err)
+	}
+	balance := economy.Balances["guild-1\x00user-1"]
+	if balance.Coins != 13 || balance.Today != 4 {
+		t.Fatalf("balance = %#v", balance)
+	}
+}
+
+func TestTextXPEventDoesNotApplyCoinRewardWithoutLevelUp(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	economy := fakemongo.NewEconomyRepository()
+	economy.PutConfig(domain.EconomyConfig{GuildID: "guild-1", XPMultiple: 3})
+	module := NewTextEventModule(repo, nil, nil).WithCoinRewards(economy)
+	module.service.RandomMultiplier = fixedTextEventMultiplier(500)
+
+	if err := module.MessageCreateHandler()(context.Background(), textXPEvent("hello")); err != nil {
+		t.Fatalf("message create: %v", err)
+	}
+	if len(economy.Balances) != 0 {
+		t.Fatalf("balances = %#v", economy.Balances)
+	}
+}
+
 func textXPEvent(content string) events.Event {
 	return events.Event{
 		Type:      events.TypeMessageCreate,

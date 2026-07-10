@@ -141,6 +141,54 @@ func (r *EconomyRepository) SaveEconomyConfig(ctx context.Context, config domain
 	return config, ctx.Err()
 }
 
+func (r *EconomyRepository) ApplyTextXPCoinReward(ctx context.Context, guildID string, userID string, level int64) (domain.CoinBalance, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.CoinBalance{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	userID = strings.TrimSpace(userID)
+	if guildID == "" || userID == "" {
+		return domain.CoinBalance{}, domain.ErrInvalidEconomyQuery
+	}
+	config, err := r.GetEconomyConfig(ctx, guildID)
+	if err != nil {
+		if !errors.Is(err, ports.ErrEconomyConfigMissing) {
+			return domain.CoinBalance{}, err
+		}
+		config = domain.EconomyConfig{GuildID: guildID}
+	}
+	reward := domain.LegacyTextXPCoinReward(level, config.XPMultiple)
+	current, err := r.GetCoinBalance(ctx, guildID, userID)
+	if err != nil {
+		if !errors.Is(err, ports.ErrCoinBalanceNotFound) {
+			return domain.CoinBalance{}, err
+		}
+		balance := domain.CoinBalance{GuildID: guildID, UserID: userID, Coins: reward, Today: 0}
+		if _, err := r.coins.InsertOne(ctx, bson.D{
+			{Key: "guild", Value: balance.GuildID},
+			{Key: "member", Value: balance.UserID},
+			{Key: "coin", Value: balance.Coins},
+			{Key: "today", Value: balance.Today},
+		}); err != nil {
+			return domain.CoinBalance{}, mhcatmongo.MapError(fmt.Errorf("create text xp coin reward balance: %w", err))
+		}
+		return balance, ctx.Err()
+	}
+	current.Coins += reward
+	result, err := r.coins.UpdateMany(
+		ctx,
+		bson.D{{Key: "guild", Value: guildID}, {Key: "member", Value: userID}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: current.Coins}}}},
+	)
+	if err != nil {
+		return domain.CoinBalance{}, mhcatmongo.MapError(fmt.Errorf("apply text xp coin reward: %w", err))
+	}
+	if result.MatchedCount == 0 {
+		return domain.CoinBalance{}, ports.ErrCoinBalanceNotFound
+	}
+	return current, ctx.Err()
+}
+
 func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domain.CoinAdminCommand) (domain.CoinAdminResult, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.CoinAdminResult{}, err
@@ -755,3 +803,5 @@ func (r *EconomyRepository) shopReady(ctx context.Context) error {
 	}
 	return nil
 }
+
+var _ ports.TextXPCoinRewardRepository = (*EconomyRepository)(nil)
