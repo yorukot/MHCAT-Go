@@ -1,12 +1,75 @@
 package discordgo
 
 import (
+	"context"
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	dgo "github.com/bwmarrin/discordgo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 )
+
+type recordedResponderRequest struct {
+	method string
+	url    string
+	body   string
+}
+
+type responderRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f responderRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
+}
+
+func TestInteractionResponderCreatesAndEditsFollowUpByMessageID(t *testing.T) {
+	var requests []recordedResponderRequest
+	session, err := dgo.New("")
+	if err != nil {
+		t.Fatalf("new discord session: %v", err)
+	}
+	session.Client = &http.Client{Transport: responderRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		body, readErr := io.ReadAll(request.Body)
+		if readErr != nil {
+			t.Fatalf("read request body: %v", readErr)
+		}
+		requests = append(requests, recordedResponderRequest{method: request.Method, url: request.URL.String(), body: string(body)})
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Status:     "200 OK",
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(`{"id":"loading-1"}`)),
+			Request:    request,
+		}, nil
+	})}
+	responder := NewInteractionResponder(session, &dgo.Interaction{AppID: "app-1", Token: "token-1"})
+	if err := responder.state.MarkDefer(context.Background(), responses.DeferOptions{}); err != nil {
+		t.Fatalf("mark deferred response: %v", err)
+	}
+
+	messageID, err := responder.CreateFollowUp(context.Background(), responses.Message{Content: "loading"})
+	if err != nil {
+		t.Fatalf("create follow-up: %v", err)
+	}
+	if messageID != "loading-1" {
+		t.Fatalf("message ID = %q", messageID)
+	}
+	if err := responder.EditFollowUp(context.Background(), messageID, responses.Message{Embeds: []responses.Embed{{Title: "result"}}}); err != nil {
+		t.Fatalf("edit follow-up: %v", err)
+	}
+
+	if len(requests) != 2 {
+		t.Fatalf("requests = %#v", requests)
+	}
+	if requests[0].method != http.MethodPost || !strings.Contains(requests[0].url, "/webhooks/app-1/token-1?wait=true") || !strings.Contains(requests[0].body, `"content":"loading"`) {
+		t.Fatalf("create request = %#v", requests[0])
+	}
+	if requests[1].method != http.MethodPatch || !strings.Contains(requests[1].url, "/webhooks/app-1/token-1/messages/loading-1") || !strings.Contains(requests[1].body, `"title":"result"`) {
+		t.Fatalf("edit request = %#v", requests[1])
+	}
+}
 
 func TestInteractionResponseDataConvertsEmbedsAndComponents(t *testing.T) {
 	timestamp := time.Date(2026, 7, 4, 1, 2, 3, 0, time.UTC)

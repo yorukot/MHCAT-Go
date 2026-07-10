@@ -61,6 +61,23 @@ func TestResponderDeferThenFollowUp(t *testing.T) {
 	}
 }
 
+func TestResponderDeferThenCreateAndEditFollowUp(t *testing.T) {
+	responder := fakediscord.NewResponder()
+	if err := responder.Defer(context.Background(), responses.DeferOptions{}); err != nil {
+		t.Fatalf("defer: %v", err)
+	}
+	messageID, err := responder.CreateFollowUp(context.Background(), responses.Message{Content: "loading"})
+	if err != nil {
+		t.Fatalf("create follow-up: %v", err)
+	}
+	if err := responder.EditFollowUp(context.Background(), messageID, responses.Message{Content: "done"}); err != nil {
+		t.Fatalf("edit follow-up: %v", err)
+	}
+	if len(responder.Follow) != 1 || responder.Follow[0].Content != "loading" || len(responder.FollowEdits) != 1 || responder.FollowEdits[0].MessageID != messageID || responder.FollowEdits[0].Message.Content != "done" {
+		t.Fatalf("follow=%#v edits=%#v", responder.Follow, responder.FollowEdits)
+	}
+}
+
 func TestResponderUpdateMessageThenFollowUp(t *testing.T) {
 	responder := fakediscord.NewResponder()
 	if err := responder.UpdateMessage(context.Background(), responses.Message{Content: "updated"}); err != nil {
@@ -141,6 +158,19 @@ func TestResponderEditBeforeInitialResponseFails(t *testing.T) {
 	responder := fakediscord.NewResponder()
 	if err := responder.EditOriginal(context.Background(), responses.Message{Content: "too soon"}); !errors.Is(err, responses.ErrNoInitialResponse) {
 		t.Fatalf("expected ErrNoInitialResponse, got %v", err)
+	}
+}
+
+func TestResponderEditFollowUpRejectsMissingResponseOrMessageID(t *testing.T) {
+	responder := fakediscord.NewResponder()
+	if err := responder.EditFollowUp(context.Background(), "follow-up-1", responses.Message{Content: "too soon"}); !errors.Is(err, responses.ErrNoInitialResponse) {
+		t.Fatalf("expected ErrNoInitialResponse, got %v", err)
+	}
+	if err := responder.Defer(context.Background(), responses.DeferOptions{}); err != nil {
+		t.Fatalf("defer: %v", err)
+	}
+	if err := responder.EditFollowUp(context.Background(), "", responses.Message{Content: "missing ID"}); !errors.Is(err, responses.ErrInvalidFollowUp) {
+		t.Fatalf("expected ErrInvalidFollowUp, got %v", err)
 	}
 }
 

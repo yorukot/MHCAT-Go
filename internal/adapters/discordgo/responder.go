@@ -117,32 +117,46 @@ func (r *InteractionResponder) EditOriginal(ctx context.Context, msg responses.M
 	if err := r.state.MarkEditOriginal(ctx, msg); err != nil {
 		return err
 	}
-	content := msg.Content
-	embeds := toDiscordEmbeds(msg.Embeds)
-	components := toDiscordComponents(msg.Components)
-	files := toDiscordFiles(msg.Files)
-	allowedMentions := toDiscordAllowedMentions(msg.AllowedMentions)
-	if _, err := r.session.InteractionResponseEdit(r.interaction, &dgo.WebhookEdit{
-		Content:         &content,
-		Embeds:          &embeds,
-		Components:      &components,
-		Files:           files,
-		AllowedMentions: allowedMentions,
-	}); err != nil {
+	if _, err := r.session.InteractionResponseEdit(r.interaction, webhookEdit(msg)); err != nil {
 		return fmt.Errorf("edit original interaction response: %w", err)
 	}
 	return ctx.Err()
 }
 
 func (r *InteractionResponder) FollowUp(ctx context.Context, msg responses.Message) error {
+	_, err := r.CreateFollowUp(ctx, msg)
+	return err
+}
+
+func (r *InteractionResponder) CreateFollowUp(ctx context.Context, msg responses.Message) (string, error) {
+	if err := r.ready(ctx); err != nil {
+		return "", err
+	}
+	if err := r.state.MarkFollowUp(ctx, msg); err != nil {
+		return "", err
+	}
+	created, err := r.session.FollowupMessageCreate(r.interaction, true, webhookParams(msg))
+	if err != nil {
+		return "", fmt.Errorf("create interaction follow-up: %w", err)
+	}
+	if created == nil || created.ID == "" {
+		return "", fmt.Errorf("create interaction follow-up: %w", responses.ErrInvalidFollowUp)
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	return created.ID, nil
+}
+
+func (r *InteractionResponder) EditFollowUp(ctx context.Context, messageID string, msg responses.Message) error {
 	if err := r.ready(ctx); err != nil {
 		return err
 	}
-	if err := r.state.MarkFollowUp(ctx, msg); err != nil {
+	if err := r.state.MarkEditFollowUp(ctx, messageID); err != nil {
 		return err
 	}
-	if _, err := r.session.FollowupMessageCreate(r.interaction, true, webhookParams(msg)); err != nil {
-		return fmt.Errorf("create interaction follow-up: %w", err)
+	if _, err := r.session.FollowupMessageEdit(r.interaction, messageID, webhookEdit(msg)); err != nil {
+		return fmt.Errorf("edit interaction follow-up: %w", err)
 	}
 	return ctx.Err()
 }
@@ -199,6 +213,19 @@ func webhookParams(msg responses.Message) *dgo.WebhookParams {
 		params.Flags = dgo.MessageFlagsEphemeral
 	}
 	return params
+}
+
+func webhookEdit(msg responses.Message) *dgo.WebhookEdit {
+	content := msg.Content
+	embeds := toDiscordEmbeds(msg.Embeds)
+	components := toDiscordComponents(msg.Components)
+	return &dgo.WebhookEdit{
+		Content:         &content,
+		Embeds:          &embeds,
+		Components:      &components,
+		Files:           toDiscordFiles(msg.Files),
+		AllowedMentions: toDiscordAllowedMentions(msg.AllowedMentions),
+	}
 }
 
 func toDiscordEmbeds(embeds []responses.Embed) []*dgo.MessageEmbed {

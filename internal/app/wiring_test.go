@@ -1020,8 +1020,8 @@ func TestBuildRuntimeRoutesGachaDrawOnlyWithRepository(t *testing.T) {
 	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("dispatch gacha draw: %v", err)
 	}
-	if len(responder.Edits) != 2 || len(responder.Edits[1].Embeds) != 1 || !strings.Contains(responder.Edits[1].Embeds[0].Title, "扭蛋系統") {
-		t.Fatalf("gacha draw response = %#v", responder.Edits)
+	if len(responder.Edits) != 0 || len(responder.Follow) != 1 || len(responder.FollowEdits) != 1 || len(responder.FollowEdits[0].Message.Embeds) != 1 || !strings.Contains(responder.FollowEdits[0].Message.Embeds[0].Title, "扭蛋系統") {
+		t.Fatalf("gacha draw response: edits=%#v follow=%#v follow edits=%#v", responder.Edits, responder.Follow, responder.FollowEdits)
 	}
 	if !waited {
 		t.Fatal("gacha draw did not wait before revealing results")

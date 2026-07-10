@@ -7,6 +7,7 @@ var (
 	ErrNoInitialResponse = errors.New("interaction has no initial response")
 	ErrEphemeralChanged  = errors.New("interaction ephemeral state cannot be changed after defer")
 	ErrInvalidModal      = errors.New("interaction modal is invalid")
+	ErrInvalidFollowUp   = errors.New("interaction follow-up message is invalid")
 )
 
 const safeInternalErrorMessage = "Something went wrong while handling this interaction."

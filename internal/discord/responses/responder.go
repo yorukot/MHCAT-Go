@@ -146,5 +146,7 @@ type Responder interface {
 	UpdateMessage(ctx context.Context, msg Message) error
 	EditOriginal(ctx context.Context, msg Message) error
 	FollowUp(ctx context.Context, msg Message) error
+	CreateFollowUp(ctx context.Context, msg Message) (string, error)
+	EditFollowUp(ctx context.Context, messageID string, msg Message) error
 	Error(ctx context.Context, err error) error
 }

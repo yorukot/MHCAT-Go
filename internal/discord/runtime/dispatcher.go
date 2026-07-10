@@ -153,6 +153,22 @@ func (r *trackingResponder) FollowUp(ctx context.Context, msg responses.Message)
 	return err
 }
 
+func (r *trackingResponder) CreateFollowUp(ctx context.Context, msg responses.Message) (string, error) {
+	messageID, err := r.next.CreateFollowUp(ctx, msg)
+	if err == nil {
+		r.responded = true
+	}
+	return messageID, err
+}
+
+func (r *trackingResponder) EditFollowUp(ctx context.Context, messageID string, msg responses.Message) error {
+	err := r.next.EditFollowUp(ctx, messageID, msg)
+	if err == nil {
+		r.responded = true
+	}
+	return err
+}
+
 func (r *trackingResponder) Error(ctx context.Context, err error) error {
 	responseErr := r.next.Error(ctx, err)
 	if responseErr == nil {

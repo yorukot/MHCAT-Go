@@ -2,9 +2,15 @@ package fakediscord
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 )
+
+type FollowUpEdit struct {
+	MessageID string
+	Message   responses.Message
+}
 
 type Responder struct {
 	State           *responses.State
@@ -15,6 +21,8 @@ type Responder struct {
 	Updates         []responses.Message
 	Edits           []responses.Message
 	Follow          []responses.Message
+	FollowIDs       []string
+	FollowEdits     []FollowUpEdit
 	Errors          []responses.Message
 }
 
@@ -71,10 +79,25 @@ func (r *Responder) EditOriginal(ctx context.Context, msg responses.Message) err
 }
 
 func (r *Responder) FollowUp(ctx context.Context, msg responses.Message) error {
+	_, err := r.CreateFollowUp(ctx, msg)
+	return err
+}
+
+func (r *Responder) CreateFollowUp(ctx context.Context, msg responses.Message) (string, error) {
 	if err := r.State.MarkFollowUp(ctx, msg); err != nil {
+		return "", err
+	}
+	messageID := fmt.Sprintf("follow-up-%d", len(r.Follow)+1)
+	r.Follow = append(r.Follow, msg)
+	r.FollowIDs = append(r.FollowIDs, messageID)
+	return messageID, nil
+}
+
+func (r *Responder) EditFollowUp(ctx context.Context, messageID string, msg responses.Message) error {
+	if err := r.State.MarkEditFollowUp(ctx, messageID); err != nil {
 		return err
 	}
-	r.Follow = append(r.Follow, msg)
+	r.FollowEdits = append(r.FollowEdits, FollowUpEdit{MessageID: messageID, Message: msg})
 	return nil
 }
 

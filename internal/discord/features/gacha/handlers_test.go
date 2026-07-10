@@ -137,8 +137,8 @@ func TestDrawRendersLegacyResultAndSendsSideEffects(t *testing.T) {
 		if duration != legacyGachaDrawRevealDelay {
 			t.Fatalf("reveal delay = %s", duration)
 		}
-		if len(responder.Edits) != 1 || responder.Edits[0].Content != legacyGachaDrawLoadingGIF {
-			t.Fatalf("loading was not visible before wait: %#v", responder.Edits)
+		if len(responder.Follow) != 1 || responder.Follow[0].Content != legacyGachaDrawLoadingGIF || len(responder.FollowEdits) != 0 {
+			t.Fatalf("loading follow-up was not visible before wait: follow=%#v edits=%#v", responder.Follow, responder.FollowEdits)
 		}
 		return nil
 	}
@@ -151,13 +151,16 @@ func TestDrawRendersLegacyResultAndSendsSideEffects(t *testing.T) {
 	if len(responder.Defers) != 1 || responder.Defers[0].Ephemeral {
 		t.Fatalf("defers = %#v", responder.Defers)
 	}
-	if len(responder.Edits) != 2 {
-		t.Fatalf("edits = %#v", responder.Edits)
+	if len(responder.Edits) != 0 {
+		t.Fatalf("original response edits = %#v", responder.Edits)
 	}
-	if responder.Edits[0].Content != legacyGachaDrawLoadingGIF {
-		t.Fatalf("loading edit = %#v", responder.Edits[0])
+	if len(responder.Follow) != 1 || responder.Follow[0].Content != legacyGachaDrawLoadingGIF {
+		t.Fatalf("loading follow-up = %#v", responder.Follow)
 	}
-	embed := responder.Edits[1].Embeds[0]
+	if len(responder.FollowEdits) != 1 || responder.FollowEdits[0].MessageID != responder.FollowIDs[0] {
+		t.Fatalf("follow-up edits = %#v ids=%#v", responder.FollowEdits, responder.FollowIDs)
+	}
+	embed := responder.FollowEdits[0].Message.Embeds[0]
 	if embed.Title != "<:gashapon:997374176526610472> 扭蛋系統" || embed.Color != 0x123456 || !strings.Contains(embed.Description, "你扭中了:\n大獎") {
 		t.Fatalf("result embed = %#v", embed)
 	}
@@ -201,7 +204,7 @@ func TestDrawChoiceUsesPaidCostAndActualResultCount(t *testing.T) {
 	if err := module.DrawHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	description := responder.Edits[1].Embeds[0].Description
+	description := responder.FollowEdits[0].Message.Embeds[0].Description
 	if strings.Count(description, "大獎") != 11 {
 		t.Fatalf("description = %q", description)
 	}

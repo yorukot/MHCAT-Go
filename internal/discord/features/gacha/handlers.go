@@ -64,10 +64,11 @@ func (m Module) DrawHandler() interactions.Handler {
 		if err != nil {
 			return m.handleDrawError(ctx, responder, result, err)
 		}
-		if err := responder.EditOriginal(ctx, responses.Message{
+		loadingMessageID, err := responder.CreateFollowUp(ctx, responses.Message{
 			Content:         legacyGachaDrawLoadingGIF,
 			AllowedMentions: &responses.AllowedMentions{},
-		}); err != nil {
+		})
+		if err != nil {
 			return err
 		}
 		wait := m.drawWait
@@ -77,7 +78,7 @@ func (m Module) DrawHandler() interactions.Handler {
 		if err := wait(ctx, legacyGachaDrawRevealDelay); err != nil {
 			return err
 		}
-		if err := responder.EditOriginal(ctx, legacyGachaDrawResultMessage(result, interaction.Actor.AvatarURL, m.color())); err != nil {
+		if err := responder.EditFollowUp(ctx, loadingMessageID, legacyGachaDrawResultMessage(result, interaction.Actor.AvatarURL, m.color())); err != nil {
 			return err
 		}
 		m.sendDrawSideEffects(ctx, interaction, result)
