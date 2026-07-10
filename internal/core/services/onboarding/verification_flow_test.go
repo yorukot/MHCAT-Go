@@ -90,6 +90,31 @@ func TestVerificationFlowLegacyAnswerComparisonPreservesWhitespace(t *testing.T)
 	}
 }
 
+func TestLegacyVerificationNicknamePreservesJavaScriptReplacementTokens(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		username string
+		want     string
+	}{
+		{name: "plain", template: "Member | {name}", username: "Yoru", want: "Member | Yoru"},
+		{name: "first placeholder only", template: "{name}/{name}", username: "Yoru", want: "Yoru/{name}"},
+		{name: "no placeholder", template: "Member", username: "$&", want: "Member"},
+		{name: "dollar", template: "pre{name}post", username: "$$", want: "pre$post"},
+		{name: "matched text", template: "pre{name}post", username: "$&", want: "pre{name}post"},
+		{name: "prefix", template: "pre{name}post", username: "$`", want: "preprepost"},
+		{name: "suffix", template: "pre{name}post", username: "$'", want: "prepostpost"},
+		{name: "unknown token", template: "pre{name}post", username: "$1", want: "pre$1post"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := legacyVerificationNickname(test.template, test.username); got != test.want {
+				t.Fatalf("legacyVerificationNickname(%q, %q) = %q, want %q", test.template, test.username, got, test.want)
+			}
+		})
+	}
+}
+
 func TestVerificationFlowCheckPromptValidatesStateAndRole(t *testing.T) {
 	repo := &fakeVerificationConfigReader{config: domain.VerificationConfig{GuildID: "guild", RoleID: "role"}}
 	store := &fakeVerificationChallengeStore{challenge: domain.VerificationChallenge{StateID: "state", GuildID: "guild", UserID: "user", Answer: "1234"}}

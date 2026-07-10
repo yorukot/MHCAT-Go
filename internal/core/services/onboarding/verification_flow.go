@@ -161,12 +161,44 @@ func (s VerificationFlowService) completeConfigured(ctx context.Context, guildID
 		if strings.TrimSpace(guild.OwnerID) == userID {
 			return ErrVerificationOwnerNickname
 		}
-		nickname := strings.Replace(config.RenameTemplate, "{name}", strings.TrimSpace(username), 1)
+		nickname := legacyVerificationNickname(config.RenameTemplate, username)
 		if err := s.Members.SetNickname(ctx, guildID, userID, nickname); err != nil {
 			return err
 		}
 	}
 	return ctx.Err()
+}
+
+func legacyVerificationNickname(template string, username string) string {
+	const placeholder = "{name}"
+	index := strings.Index(template, placeholder)
+	if index < 0 {
+		return template
+	}
+	prefix := template[:index]
+	suffix := template[index+len(placeholder):]
+	var replacement strings.Builder
+	for i := 0; i < len(username); i++ {
+		if username[i] != '$' || i+1 >= len(username) {
+			replacement.WriteByte(username[i])
+			continue
+		}
+		switch username[i+1] {
+		case '$':
+			replacement.WriteByte('$')
+		case '&':
+			replacement.WriteString(placeholder)
+		case '`':
+			replacement.WriteString(prefix)
+		case '\'':
+			replacement.WriteString(suffix)
+		default:
+			replacement.WriteByte('$')
+			continue
+		}
+		i++
+	}
+	return prefix + replacement.String() + suffix
 }
 
 func (s VerificationFlowService) loadAndCheckConfig(ctx context.Context, guildID string) (domain.VerificationConfig, error) {
