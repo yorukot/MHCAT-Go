@@ -450,6 +450,29 @@ func TestOpenHandlerDuplicateChannelUsesLegacyWarning(t *testing.T) {
 	}
 }
 
+func TestOpenHandlerDuplicateCheckMatchesAnyLegacyChannelType(t *testing.T) {
+	repo := seededTicketRepo(t)
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.Channels = append(sideEffects.Channels, ports.ChannelRef{
+		GuildID:   testGuildID,
+		ChannelID: "same-name-voice-channel",
+		Name:      "user-1",
+		Type:      2,
+	})
+	module := NewModuleWithSideEffects(repo, nil, sideEffects, sideEffects, "")
+	responder := fakediscord.NewResponder()
+
+	if err := module.OpenHandler()(context.Background(), ticketButtonInteraction("tic"), responder); err != nil {
+		t.Fatalf("open handler: %v", err)
+	}
+	if len(sideEffects.Created) != 0 || len(sideEffects.Sent) != 0 {
+		t.Fatalf("unexpected side effects: created=%#v sent=%#v", sideEffects.Created, sideEffects.Sent)
+	}
+	if len(responder.Replies) != 1 || responder.Replies[0].Embeds[0].Description != ":warning: 你已經有一個客服頻道了!" {
+		t.Fatalf("duplicate reply = %#v", responder.Replies)
+	}
+}
+
 func TestOpenHandlerMissingConfigDeletesPanelAndRepliesLegacyMessage(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
 	module := NewModuleWithSideEffects(fakemongo.NewTicketConfigRepository(), nil, sideEffects, sideEffects, "")

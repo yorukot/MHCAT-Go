@@ -189,7 +189,7 @@ func (m Module) OpenHandler() interactions.Handler {
 		if m.channels == nil || m.messages == nil {
 			return ErrTicketSideEffectsNotConfigured
 		}
-		if existing, err := m.channels.FindChannelByName(ctx, interaction.Actor.GuildID, interaction.Actor.UserID, discordChannelTypeGuildText); err == nil && existing.ChannelID != "" {
+		if existing, err := m.channels.FindChannelByName(ctx, interaction.Actor.GuildID, interaction.Actor.UserID, -1); err == nil && existing.ChannelID != "" {
 			return responder.Reply(ctx, ticketAlreadyOpenMessage())
 		} else if err != nil && !errors.Is(err, ports.ErrChannelNotFound) {
 			return err
