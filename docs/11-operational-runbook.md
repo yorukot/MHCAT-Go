@@ -728,7 +728,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true
 MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true
 ```
 
-These commands write/delete legacy-compatible `voice_channels` config rows and require Manage Messages. When the app is also running the gateway with `MHCAT_DISCORD_VOICE_STATE_INTENT=true`, trigger joins create legacy-named dynamic voice rooms, copy parent permission overwrites plus owner management permissions, persist `voice_channel_ids`, seed nullable `lock_channels` rows for lockable rooms, move the joining member, and delete empty tracked dynamic rooms. Slash delete removes config rows only; it does not delete already-active dynamic rooms or write usage counters.
+The command definitions remain publicly discoverable like legacy, while both handlers require Manage Messages. Setup writes legacy-compatible `voice_channels`, preserving raw name whitespace and explicit `limit:0`; only the first `{name}` is replaced. Slash delete removes config rows only and preserves the legacy branch where only a type-2 voice channel deletes by trigger while stage/category selections delete by parent. With Gateway and Voice State intent enabled, human or bot trigger joins create rooms under the trigger's current parent, copy current overwrites plus owner management permissions, persist `voice_channel_ids`, seed nullable `lock_channels`, move the member, and delete empty tracked rooms. Follow the compatibility, ownership, smoke, and rollback audit in the [voice-room parity contract](72-voice-room-config.md).
 
 Command-only `/上鎖頻道` is available only when staging command sync, runtime, gateway, and Voice State flags are explicitly enabled:
 
@@ -739,7 +739,7 @@ MHCAT_DISCORD_ENABLE_GATEWAY=true
 MHCAT_DISCORD_VOICE_STATE_INTENT=true
 ```
 
-This feature reads the actor's current voice channel from DiscordGo state for `/上鎖頻道`, verifies the actor owns the existing `lock_channels` row, and replaces that row with a nullable legacy `lock_anser` password and empty `ok_people`. For existing passworded lock rows, voice-state joins now send the legacy-style password prompt to `text_channel`, disconnect unauthorized users from the locked voice channel, and DM the legacy instructions. The generated prompt button opens the legacy `<channel>anser` modal, and modal submits compare the stored password and append the submitter to `ok_people`. Old orphaned `lock_start` buttons cannot recover the channel from legacy collector state and return a retry error. This does not write usage counters.
+This publicly discoverable feature reads the actor's current voice channel from DiscordGo state, verifies ownership of the existing `lock_channels` row, and replaces it with a raw nullable `lock_anser` password and empty BSON-array `ok_people`. Existing passworded rows send the exact legacy prompt/DM colors, disconnect unauthorized humans, and bind the prompt button to the joining user and a 60-second deadline. Modal submits compare raw passwords exactly and add correct users idempotently; old orphaned `lock_start` buttons return a retry error. When global usage tracking is enabled, slash attempts increment `all_use_counts` once through middleware; voice-state, button, and modal handling add no usage writes. See the [voice-room parity contract](72-voice-room-config.md).
 
 Config-only `/加入身份組設置` and `/加入身份組刪除` are available only when both staging command sync and runtime flags are explicitly enabled:
 

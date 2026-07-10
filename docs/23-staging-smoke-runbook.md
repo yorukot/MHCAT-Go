@@ -551,7 +551,7 @@ export MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_VOICE_ROOM_CONFIG=true
 ```
 
-Set both together only in an isolated staging guild/database when testing `/語音包廂設置`, `/語音包廂刪除`, and dynamic voice-room creation. The slash commands write/delete `voice_channels` config rows. When gateway Voice State events are enabled, trigger joins create/move users into dynamic voice rooms, persist `voice_channel_ids`, seed nullable `lock_channels` rows when the config is lockable, and delete empty tracked rooms.
+Set both together only in an isolated staging guild/database when testing `/語音包廂設置`, `/語音包廂刪除`, and dynamic voice-room creation. The slash commands write/delete `voice_channels` config rows. When gateway Voice State events are enabled, trigger joins create/move users into dynamic voice rooms, persist `voice_channel_ids`, seed nullable `lock_channels` rows when the config is lockable, and delete empty tracked rooms. Use the [voice-room parity contract](72-voice-room-config.md) for exact values, ownership, and rollback checks.
 
 Optional voice-room lock smoke flags:
 
@@ -1655,25 +1655,27 @@ If XP rank flags were enabled and command sync apply was reviewed:
 
 If voice-room config flags were enabled and command sync apply was reviewed:
 
-- run `/語音包廂設置` with a staging voice or stage channel, a `設定頻道名稱` template containing `{name}`, `是否予許房主上鎖`, and optional `設定人數上限`;
+- verify both config commands are discoverable to a non-manager but return the legacy runtime permission denial;
+- run `/語音包廂設置` as a manager with a staging voice or stage trigger, raw template ` {name}-{name} `, `是否予許房主上鎖`, and explicit `設定人數上限:0`;
 - verify the legacy green setup embed appears;
-- verify the staging `voice_channels` row contains `guild`, `ticket_channel`, `limit`, `name`, `parent`, and `lock`;
-- run `/語音包廂刪除` for the same trigger channel and verify the legacy delete embed appears and the matching staging rows are removed;
-- optionally configure a second trigger under a disposable staging category, run `/語音包廂刪除` for the category, and verify only rows with that `parent` are removed;
-- join the configured trigger as a disposable member and verify a dynamic voice room is created with the legacy `{name}` replacement, the member is moved into it, `voice_channel_ids` contains the created channel, and lockable configs seed a nullable `lock_channels` row plus owner DM;
+- verify the staging `voice_channels` row contains `guild`, `ticket_channel`, numeric `limit:0`, the unchanged raw `name`, the setup-time `parent`, and Boolean `lock`;
+- move the trigger to another category, join it as a disposable member, and verify the room uses that current category/overwrites, replaces only the first `{name}` token, moves the member, persists `voice_channel_ids`, and seeds a nullable `lock_channels` row plus owner DM;
 - leave the created room and verify the empty room is deleted, the matching `voice_channel_ids` row is removed, and the matching lock seed row is removed;
-- verify slash config smoke caused no `/上鎖頻道` command usage-counter write.
+- run `/語音包廂刪除` for the same trigger channel and verify the legacy delete embed appears and the matching staging rows are removed;
+- optionally configure a stage trigger under a disposable staging category, verify deleting by the stage trigger follows the legacy category branch and returns the missing-category response without removing its trigger row, then delete by category and verify only rows with that `parent` are removed;
+- with usage tracking disabled verify no counter write; when separately testing usage tracking, verify exactly one `all_use_counts` increment per config slash attempt and none for voice-state events.
 
 If voice-room lock flags were enabled and command sync apply was reviewed:
 
 - seed a disposable `lock_channels` row for the staging guild/current voice channel with the invoking user as `owner`;
 - join that staging voice channel and run `/上鎖頻道` with a password;
-- verify the legacy ephemeral success embed appears and the row is replaced with `lock_anser`, `owner`, `text_channel`, and empty `ok_people`;
+- verify the legacy ephemeral success embed appears and the row is replaced with raw `lock_anser`, `owner`, `text_channel`, and BSON-array `ok_people:[]`;
 - from another test user, join the locked voice channel and verify the prompt message appears in `text_channel`, the user is disconnected, and the DM instruction is sent;
-- click the generated prompt button, submit the correct password, and verify the user ID is added to `ok_people`;
-- run `/上鎖頻道` without `密碼` and verify the success embed shows `null` and `lock_anser` is null/empty in Mongo;
+- verify another user cannot open the prompt and the intended user cannot open it at or after exactly 60 seconds;
+- before expiry, click the generated prompt button, submit the exact password, and verify the user ID is added once to `ok_people`;
+- run `/上鎖頻道` without `密碼` and verify the success embed shows `null` and Mongo stores BSON null; separately seed an empty BSON string and verify it remains distinct on reads;
 - verify not-in-voice, missing lock row, and non-owner cases return the legacy red ephemeral errors;
-- verify no usage-counter write happened.
+- with usage tracking disabled verify no counter write; when separately testing usage tracking, verify exactly one `all_use_counts` increment per `/上鎖頻道` slash attempt and none for prompt buttons or modal submissions.
 
 Verify:
 
@@ -1700,6 +1702,7 @@ Verify:
   - Exception: auto-notification delivery smoke sends persisted disposable messages and acquires/renews/releases `mhcat_scheduler_locks`; it does not mutate `cron_sets`.
   - Exception: daily-reset smoke mutates disposable `coins.today`/`work_users.energi` and acquires/releases `daily-reset` in `mhcat_scheduler_locks`.
   - Exception: voice-room config smoke writes/deletes legacy-compatible `voice_channels` rows and, with gateway Voice State events enabled, creates/moves/deletes disposable dynamic rooms plus `voice_channel_ids`/lock seed rows.
+  - Exception: voice-room lock smoke replaces one disposable `lock_channels` row and can add the authorized user to `ok_people`.
   - Exception: XP reset smoke deletes disposable staging `text_xps`/`voice_xps` rows only after an individual reset command or full-reset `^確認^` confirmation.
   - Exception: global usage tracking smoke increments `all_use_counts` once per slash attempt when `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`.
 
