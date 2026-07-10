@@ -2,6 +2,7 @@ package poll
 
 import (
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -12,20 +13,20 @@ import (
 )
 
 func pollOutboundMessage(poll domain.Poll, memberCount int, color int) ports.OutboundMessage {
-	return pollOutboundMessageWithChangeText(poll, memberCount, color, changeText(poll))
+	return pollOutboundMessageWithChangeText(poll, memberCount, color, changeText(poll), legacyPollPercentage(poll.UniqueVoterCount(), memberCount))
 }
 
 func initialPollOutboundMessage(poll domain.Poll, memberCount int, color int) ports.OutboundMessage {
-	message := pollOutboundMessageWithChangeText(poll, memberCount, color, "不能")
+	message := pollOutboundMessageWithChangeText(poll, memberCount, color, "不能", "0.00")
 	message.Components = initialPollOutboundComponents(poll)
 	return message
 }
 
-func pollOutboundMessageWithChangeText(poll domain.Poll, memberCount int, color int, change string) ports.OutboundMessage {
+func pollOutboundMessageWithChangeText(poll domain.Poll, memberCount int, color int, change string, percentage string) ports.OutboundMessage {
 	return ports.OutboundMessage{
 		Embeds: []ports.OutboundEmbed{{
 			Title:       pollEmbedTitle(poll),
-			Description: pollEmbedDescription(poll, memberCount, change),
+			Description: pollEmbedDescription(poll, memberCount, change, percentage),
 			Color:       color,
 		}},
 		Components: pollOutboundComponents(poll),
@@ -36,12 +37,8 @@ func pollEmbedTitle(poll domain.Poll) string {
 	return "<:poll:1023968837965709312> | 投票\n" + poll.Question
 }
 
-func pollEmbedDescription(poll domain.Poll, memberCount int, change string) string {
+func pollEmbedDescription(poll domain.Poll, memberCount int, change string, percentage string) string {
 	voters := poll.UniqueVoterCount()
-	percentage := "0.00"
-	if memberCount > 0 {
-		percentage = fmt.Sprintf("%.2f", float64(voters)/float64(memberCount)*100)
-	}
 	return fmt.Sprintf(`<:vote:1023969411369025576> **總投票人數:`+"`%d` / `%d`|參與率:`%s`%%**\n\n"+`<:YellowSmallDot:1023970607429328946> **每人可以投給`+"`%d`"+`個選項
 <:YellowSmallDot:1023970607429328946> `+"`%s`"+`改投其他選項
 <:YellowSmallDot:1023970607429328946> `+"`%s`"+`看到投票結果
@@ -240,10 +237,7 @@ func pollResultEmbedMessage(poll domain.Poll, color int) responses.Message {
 	fields := make([]responses.EmbedField, 0, len(poll.Choices))
 	for _, choice := range poll.Choices {
 		count := poll.CountChoice(choice)
-		percentage := "0.00"
-		if len(poll.Votes) > 0 {
-			percentage = fmt.Sprintf("%.2f", float64(count)/float64(len(poll.Votes))*100)
-		}
+		percentage := legacyPollPercentage(count, len(poll.Votes))
 		fields = append(fields, responses.EmbedField{
 			Name:   fmt.Sprintf("%s(共%d人 `%s`%%)", choice, count, percentage),
 			Value:  pollChoiceVoters(poll, choice),
@@ -257,6 +251,29 @@ func pollResultEmbedMessage(poll domain.Poll, color int) responses.Message {
 			Color:  color,
 		}},
 	}
+}
+
+func legacyPollPercentage(numerator int, denominator int) string {
+	if denominator == 0 {
+		if numerator == 0 {
+			return "NaN"
+		}
+		return "Infinity"
+	}
+	value := float64(numerator) / float64(denominator) * 100
+	scaled := new(big.Rat).SetFloat64(value)
+	scaled.Mul(scaled, big.NewRat(100, 1))
+	rounded := new(big.Int)
+	remainder := new(big.Int)
+	rounded.QuoRem(scaled.Num(), scaled.Denom(), remainder)
+	twiceRemainder := new(big.Int).Lsh(new(big.Int).Set(remainder), 1)
+	if twiceRemainder.Cmp(scaled.Denom()) >= 0 {
+		rounded.Add(rounded, big.NewInt(1))
+	}
+	whole := new(big.Int)
+	fraction := new(big.Int)
+	whole.QuoRem(rounded, big.NewInt(100), fraction)
+	return fmt.Sprintf("%s.%02d", whole.String(), fraction.Int64())
 }
 
 func pollChoiceVoters(poll domain.Poll, choice string) string {
