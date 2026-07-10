@@ -6,6 +6,7 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo/documents"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func TestVoiceRoomConfigDocumentRoundTrip(t *testing.T) {
@@ -23,6 +24,28 @@ func TestVoiceRoomConfigDocumentRoundTrip(t *testing.T) {
 	}
 	if got := document.ToDomain(); got != config {
 		t.Fatalf("round trip = %#v", got)
+	}
+}
+
+func TestVoiceRoomConfigReadDocumentUsesMongooseScalarCoercion(t *testing.T) {
+	raw, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: "guild-1"},
+		{Key: "ticket_channel", Value: "voice-1"},
+		{Key: "limit", Value: "7"},
+		{Key: "name", Value: int32(42)},
+		{Key: "parent", Value: nil},
+		{Key: "lock", Value: "yes"},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document documents.VoiceRoomConfigReadDocument
+	if err := bson.Unmarshal(raw, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	config := document.ToDomain()
+	if config.GuildID != "guild-1" || config.TriggerChannelID != "voice-1" || config.Limit != 7 || config.Name != "42" || config.ParentID != "" || !config.Lock {
+		t.Fatalf("config = %#v", config)
 	}
 }
 

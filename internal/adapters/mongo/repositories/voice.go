@@ -84,7 +84,7 @@ func (r *VoiceRoomConfigRepository) GetVoiceRoomConfigByTrigger(ctx context.Cont
 	if guildID == "" || triggerChannelID == "" {
 		return domain.VoiceRoomConfig{}, domain.ErrInvalidVoiceRoomConfig
 	}
-	var document documents.VoiceRoomConfigDocument
+	var document documents.VoiceRoomConfigReadDocument
 	err := r.collection.FindOne(ctx, voiceRoomConfigFilter(guildID, triggerChannelID)).Decode(&document)
 	if err != nil {
 		if errors.Is(err, drivermongo.ErrNoDocuments) {

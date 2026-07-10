@@ -1,6 +1,9 @@
 package documents
 
-import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+import (
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"go.mongodb.org/mongo-driver/v2/bson"
+)
 
 type VoiceRoomConfigDocument struct {
 	Guild         string `bson:"guild" json:"guild"`
@@ -9,6 +12,15 @@ type VoiceRoomConfigDocument struct {
 	Name          string `bson:"name" json:"name"`
 	Parent        string `bson:"parent,omitempty" json:"parent,omitempty"`
 	Lock          bool   `bson:"lock" json:"lock"`
+}
+
+type VoiceRoomConfigReadDocument struct {
+	Guild         string        `bson:"guild" json:"guild"`
+	TicketChannel string        `bson:"ticket_channel" json:"ticket_channel"`
+	Limit         bson.RawValue `bson:"limit" json:"limit"`
+	Name          bson.RawValue `bson:"name" json:"name"`
+	Parent        bson.RawValue `bson:"parent" json:"parent"`
+	Lock          bson.RawValue `bson:"lock" json:"lock"`
 }
 
 type VoiceRoomLockDocument struct {
@@ -44,6 +56,23 @@ func (d VoiceRoomConfigDocument) ToDomain() domain.VoiceRoomConfig {
 		Name:             d.Name,
 		Limit:            d.Limit,
 		Lock:             d.Lock,
+	}
+}
+
+func (d VoiceRoomConfigReadDocument) ToDomain() domain.VoiceRoomConfig {
+	limit, ok := LegacyExactInt64(d.Limit)
+	if !ok {
+		limit = 0
+	}
+	name, _ := legacyMongooseString(d.Name)
+	parent, _ := legacyNullableString(d.Parent)
+	return domain.VoiceRoomConfig{
+		GuildID:          d.Guild,
+		TriggerChannelID: d.TicketChannel,
+		ParentID:         parent,
+		Name:             name,
+		Limit:            int(limit),
+		Lock:             legacyMongooseBoolean(d.Lock),
 	}
 }
 
