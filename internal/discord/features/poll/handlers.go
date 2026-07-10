@@ -23,7 +23,6 @@ var (
 
 const (
 	permissionManageMessages = 8192
-	pollColor                = 0x5865F2
 	pollSuccessColor         = 0x57F287
 	pollErrorColor           = 0xED4245
 )
@@ -49,6 +48,7 @@ func (m Module) CreateHandler() interactions.Handler {
 			return responder.EditOriginal(ctx, pollErrorMessage(msg))
 		}
 		memberCount := m.memberCount(ctx, interaction.Actor.GuildID, 0)
+		color := m.nextPollColor()
 		draft := domain.NewPoll(domain.PollCreate{
 			GuildID:   interaction.Actor.GuildID,
 			MessageID: "pending",
@@ -56,7 +56,7 @@ func (m Module) CreateHandler() interactions.Handler {
 			CreatorID: interaction.Actor.UserID,
 			Choices:   choices,
 		})
-		sent, err := m.messages.SendMessage(ctx, interaction.ChannelID, pollOutboundMessage(draft, memberCount))
+		sent, err := m.messages.SendMessage(ctx, interaction.ChannelID, pollOutboundMessage(draft, memberCount, color))
 		if err != nil {
 			return err
 		}
@@ -72,7 +72,7 @@ func (m Module) CreateHandler() interactions.Handler {
 			return err
 		}
 		if sent.MessageID != "" {
-			_ = m.messages.EditMessage(ctx, sent, pollOutboundMessage(created, memberCount))
+			_ = m.messages.EditMessage(ctx, sent, pollOutboundMessage(created, memberCount, color))
 		}
 		if err := responder.EditOriginal(ctx, responses.Message{
 			Embeds: []responses.Embed{{
@@ -110,7 +110,7 @@ func (m Module) VoteHandler() interactions.Handler {
 		}
 		if m.messages != nil && interaction.ChannelID != "" && interaction.MessageID != "" {
 			count := m.memberCount(ctx, interaction.Actor.GuildID, change.Poll.UniqueVoterCount())
-			_ = m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: interaction.MessageID}, pollOutboundMessage(change.Poll, count))
+			_ = m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: interaction.MessageID}, pollOutboundMessage(change.Poll, count, m.nextPollColor()))
 		}
 		title := "<a:green_tick:994529015652163614> | 你成功投給`" + choice + "`!"
 		description := "如需更改選項，可以再點選一次該選項即可取消投票"
@@ -145,7 +145,7 @@ func (m Module) ResultHandler() interactions.Handler {
 		if len(poll.Votes) == 0 {
 			return responder.EditOriginal(ctx, pollErrorMessage("還沒有人參與投票!"))
 		}
-		return responder.EditOriginal(ctx, pollResultMessage(ctx, poll, m.members))
+		return responder.EditOriginal(ctx, pollResultMessage(ctx, poll, m.members, m.nextPollColor()))
 	}
 }
 
@@ -169,7 +169,7 @@ func (m Module) OwnerMenuHandler() interactions.Handler {
 			if len(poll.Choices) < 3 {
 				return responder.EditOriginal(ctx, pollErrorMessage("必須要有3個選項才能啟用多選"))
 			}
-			return responder.EditOriginal(ctx, maxChoiceMenuMessage(interaction.MessageID, len(poll.Choices)))
+			return responder.EditOriginal(ctx, maxChoiceMenuMessage(interaction.MessageID, len(poll.Choices), m.nextPollColor()))
 		}
 		if value == "poll_excel_result" {
 			if poll.Anonymous {
@@ -188,7 +188,7 @@ func (m Module) OwnerMenuHandler() interactions.Handler {
 		}
 		if m.messages != nil && interaction.ChannelID != "" && interaction.MessageID != "" {
 			count := m.memberCount(ctx, interaction.Actor.GuildID, updated.UniqueVoterCount())
-			_ = m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: interaction.MessageID}, pollOutboundMessage(updated, count))
+			_ = m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: interaction.MessageID}, pollOutboundMessage(updated, count, m.nextPollColor()))
 		}
 		return responder.EditOriginal(ctx, pollDoneMessage(doneMessageForToggle(toggle, updated)))
 	}
@@ -213,12 +213,12 @@ func (m Module) MaxChoicesHandler() interactions.Handler {
 		}
 		if m.messages != nil && interaction.ChannelID != "" {
 			count := m.memberCount(ctx, interaction.Actor.GuildID, updated.UniqueVoterCount())
-			_ = m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: messageID}, pollOutboundMessage(updated, count))
+			_ = m.messages.EditMessage(ctx, ports.MessageRef{ChannelID: interaction.ChannelID, MessageID: messageID}, pollOutboundMessage(updated, count, m.nextPollColor()))
 		}
 		return responder.UpdateMessage(ctx, responses.Message{
 			Embeds: []responses.Embed{{
 				Title: fmt.Sprintf("<a:green_tick:994529015652163614> | 成功將最多選擇數量設為%d", maxChoices),
-				Color: pollColor,
+				Color: m.nextPollColor(),
 			}},
 		})
 	}

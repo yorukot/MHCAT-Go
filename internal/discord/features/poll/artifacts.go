@@ -48,8 +48,8 @@ var pollChartColors = []color.RGBA{
 	{R: 255, G: 68, B: 255, A: 255},
 }
 
-func pollResultMessage(ctx context.Context, poll domain.Poll, members ports.DiscordGuildMemberReader) responses.Message {
-	message := pollResultEmbedMessage(poll)
+func pollResultMessage(ctx context.Context, poll domain.Poll, members ports.DiscordGuildMemberReader, color int) responses.Message {
+	message := pollResultEmbedMessage(poll, color)
 	message.Embeds[0].Image = &responses.EmbedImage{URL: "attachment://" + pollChartFileName}
 	message.Files = []responses.File{
 		{Name: pollChartFileName, ContentType: "image/jpeg", Data: buildPollChartJPEG(poll)},

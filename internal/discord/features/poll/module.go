@@ -1,28 +1,43 @@
 package poll
 
 import (
+	"math/rand/v2"
+
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 )
 
 type Module struct {
-	repo       ports.PollRepository
-	messages   ports.DiscordMessagePort
-	members    ports.DiscordGuildMemberReader
-	clock      ports.Clock
-	defs       []commands.Definition
-	feature    string
-	memberPerm int64
+	repo        ports.PollRepository
+	messages    ports.DiscordMessagePort
+	members     ports.DiscordGuildMemberReader
+	clock       ports.Clock
+	randomColor func() int
+	defs        []commands.Definition
+	feature     string
+	memberPerm  int64
 }
 
 func NewModule(repo ports.PollRepository) Module {
 	return Module{
-		repo:       repo,
-		defs:       Definitions(),
-		feature:    "poll",
-		memberPerm: permissionManageMessages,
+		repo:        repo,
+		randomColor: randomPollColor,
+		defs:        Definitions(),
+		feature:     "poll",
+		memberPerm:  permissionManageMessages,
 	}
+}
+
+func randomPollColor() int {
+	return rand.IntN(1 << 24)
+}
+
+func (m Module) nextPollColor() int {
+	if m.randomColor == nil {
+		return randomPollColor()
+	}
+	return m.randomColor()
 }
 
 func NewModuleWithSideEffects(repo ports.PollRepository, messages ports.DiscordMessagePort, members ports.DiscordGuildMemberReader, clock ports.Clock) Module {

@@ -14,7 +14,10 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
 
-const pollTestPermission = int64(permissionManageMessages)
+const (
+	pollTestPermission  = int64(permissionManageMessages)
+	pollTestRandomColor = 0x123456
+)
 
 type fixedClock struct {
 	now time.Time
@@ -29,6 +32,7 @@ func TestCreateHandlerSendsLegacyPollUIAndSavesDocument(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
 	sideEffects.NonBotMembers = 10
 	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, fixedClock{now: time.UnixMilli(1700000000000)})
+	module.randomColor = func() int { return pollTestRandomColor }
 	responder := fakediscord.NewResponder()
 	interaction := pollCreateInteraction("今天吃什麼?", "拉麵^壽司^咖哩")
 
@@ -41,6 +45,9 @@ func TestCreateHandlerSendsLegacyPollUIAndSavesDocument(t *testing.T) {
 	sent := sideEffects.Sent[0]
 	if len(sent.Message.Embeds) != 1 || sent.Message.Embeds[0].Title != "<:poll:1023968837965709312> | 投票\n今天吃什麼?" {
 		t.Fatalf("poll embed = %#v", sent.Message.Embeds)
+	}
+	if sent.Message.Embeds[0].Color != pollTestRandomColor {
+		t.Fatalf("poll color = %#x", sent.Message.Embeds[0].Color)
 	}
 	description := sent.Message.Embeds[0].Description
 	for _, want := range []string{"總投票人數:`0` / `10`", "每人可以投給`1`個選項", "`無法`改投其他選項", "`無法`看到投票結果", "`實名`投票"} {
@@ -80,6 +87,9 @@ func TestCreateHandlerSendsLegacyPollUIAndSavesDocument(t *testing.T) {
 	}
 	if got := responder.Edits[0].Embeds[0].Color; got != 0x57F287 {
 		t.Fatalf("success color = %#x", got)
+	}
+	if len(sideEffects.Edited) != 1 || sideEffects.Edited[0].Message.Embeds[0].Color != pollTestRandomColor {
+		t.Fatalf("persisted poll edits = %#v", sideEffects.Edited)
 	}
 }
 
@@ -294,6 +304,7 @@ func TestOwnerMenuRejectsNonCreator(t *testing.T) {
 func TestOwnerMenuManyChoiceReturnsVersionedSelect(t *testing.T) {
 	repo := seededPollRepo(t)
 	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), nil, nil)
+	module.randomColor = func() int { return pollTestRandomColor }
 	responder := fakediscord.NewResponder()
 
 	if err := module.OwnerMenuHandler()(context.Background(), pollMenuInteraction("poll_can_choose_many"), responder); err != nil {
@@ -306,12 +317,16 @@ func TestOwnerMenuManyChoiceReturnsVersionedSelect(t *testing.T) {
 	if selectMenu.Placeholder != "請選擇可以最多選擇數!" || !strings.HasPrefix(selectMenu.CustomID, "mhcat:v1:poll:max_choices:") {
 		t.Fatalf("select = %#v", selectMenu)
 	}
+	if responder.Edits[0].Embeds[0].Color != pollTestRandomColor {
+		t.Fatalf("max-choice menu color = %#x", responder.Edits[0].Embeds[0].Color)
+	}
 }
 
 func TestMaxChoicesHandlerUpdatesPollAndMenuMessage(t *testing.T) {
 	repo := seededPollRepo(t)
 	sideEffects := fakediscord.NewSideEffects()
 	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, nil)
+	module.randomColor = func() int { return pollTestRandomColor }
 	responder := fakediscord.NewResponder()
 	interaction := pollButtonInteraction("mhcat:v1:poll:max_choices:m=message-1")
 	interaction.Values = []string{"2"}
@@ -329,6 +344,12 @@ func TestMaxChoicesHandlerUpdatesPollAndMenuMessage(t *testing.T) {
 	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Embeds[0].Title, "成功將最多選擇數量設為2") {
 		t.Fatalf("updates = %#v", responder.Updates)
 	}
+	if responder.Updates[0].Embeds[0].Color != pollTestRandomColor {
+		t.Fatalf("max-choice success color = %#x", responder.Updates[0].Embeds[0].Color)
+	}
+	if len(sideEffects.Edited) != 1 || sideEffects.Edited[0].Message.Embeds[0].Color != pollTestRandomColor {
+		t.Fatalf("rerendered poll = %#v", sideEffects.Edited)
+	}
 }
 
 func TestResultHandlerReturnsLegacyTextFields(t *testing.T) {
@@ -336,6 +357,7 @@ func TestResultHandlerReturnsLegacyTextFields(t *testing.T) {
 	_, _ = repo.TogglePoll(context.Background(), "guild-1", "message-1", domain.PollTogglePublicResult)
 	_, _ = repo.Vote(context.Background(), "guild-1", "message-1", "user-1", "A", "1")
 	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), nil, nil)
+	module.randomColor = func() int { return pollTestRandomColor }
 	responder := fakediscord.NewResponder()
 
 	if err := module.ResultHandler()(context.Background(), pollButtonInteraction("mhcat:v1:poll:result:"), responder); err != nil {
@@ -349,6 +371,9 @@ func TestResultHandlerReturnsLegacyTextFields(t *testing.T) {
 	}
 	if responder.Edits[0].Embeds[0].Image == nil || responder.Edits[0].Embeds[0].Image.URL != "attachment://file.jpg" {
 		t.Fatalf("result image = %#v", responder.Edits[0].Embeds[0].Image)
+	}
+	if responder.Edits[0].Embeds[0].Color != pollTestRandomColor {
+		t.Fatalf("result color = %#x", responder.Edits[0].Embeds[0].Color)
 	}
 	if len(responder.Edits[0].Files) != 2 || responder.Edits[0].Files[0].Name != "file.jpg" || responder.Edits[0].Files[1].Name != "discord.txt" {
 		t.Fatalf("result files = %#v", responder.Edits[0].Files)

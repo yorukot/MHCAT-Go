@@ -19,10 +19,13 @@ func TestPollResultMessageIncludesLegacyAttachments(t *testing.T) {
 	members := fakediscord.NewSideEffects()
 	members.MemberTagValues["user-1"] = "Alice#1234"
 
-	message := pollResultMessage(context.Background(), poll, members)
+	message := pollResultMessage(context.Background(), poll, members, 0x123456)
 
 	if len(message.Embeds) != 1 || message.Embeds[0].Image == nil || message.Embeds[0].Image.URL != "attachment://file.jpg" {
 		t.Fatalf("embed image = %#v", message.Embeds)
+	}
+	if message.Embeds[0].Color != 0x123456 {
+		t.Fatalf("embed color = %#x", message.Embeds[0].Color)
 	}
 	if len(message.Files) != 2 {
 		t.Fatalf("files = %#v", message.Files)

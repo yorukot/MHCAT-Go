@@ -11,12 +11,12 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 )
 
-func pollOutboundMessage(poll domain.Poll, memberCount int) ports.OutboundMessage {
+func pollOutboundMessage(poll domain.Poll, memberCount int, color int) ports.OutboundMessage {
 	return ports.OutboundMessage{
 		Embeds: []ports.OutboundEmbed{{
 			Title:       pollEmbedTitle(poll),
 			Description: pollEmbedDescription(poll, memberCount),
-			Color:       pollColor,
+			Color:       color,
 		}},
 		Components: pollOutboundComponents(poll),
 	}
@@ -187,7 +187,7 @@ func endPollEmoji(poll domain.Poll) string {
 	return "<:stop:1023972878678503434>"
 }
 
-func maxChoiceMenuMessage(messageID string, choiceCount int) responses.Message {
+func maxChoiceMenuMessage(messageID string, choiceCount int, color int) responses.Message {
 	options := make([]responses.SelectOption, 0, choiceCount-1)
 	for index := 1; index < choiceCount; index++ {
 		options = append(options, responses.SelectOption{
@@ -199,7 +199,7 @@ func maxChoiceMenuMessage(messageID string, choiceCount int) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title: "<:maybe:1023971826948391074> | 請選擇最多選擇數量",
-			Color: pollColor,
+			Color: color,
 		}},
 		Components: []responses.ComponentRow{{Components: []responses.Component{{
 			Type:        responses.ComponentTypeSelect,
@@ -210,7 +210,7 @@ func maxChoiceMenuMessage(messageID string, choiceCount int) responses.Message {
 	}
 }
 
-func pollResultEmbedMessage(poll domain.Poll) responses.Message {
+func pollResultEmbedMessage(poll domain.Poll, color int) responses.Message {
 	fields := make([]responses.EmbedField, 0, len(poll.Choices))
 	for _, choice := range poll.Choices {
 		count := poll.CountChoice(choice)
@@ -228,7 +228,7 @@ func pollResultEmbedMessage(poll domain.Poll) responses.Message {
 		Embeds: []responses.Embed{{
 			Title:  "<:poll:1023968837965709312> | " + poll.Question,
 			Fields: fields,
-			Color:  pollColor,
+			Color:  color,
 		}},
 	}
 }

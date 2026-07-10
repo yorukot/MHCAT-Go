@@ -78,3 +78,12 @@ func TestModuleUsesGlobalUsageForSlashOnly(t *testing.T) {
 		t.Fatalf("usage events = %#v", tracker.Events)
 	}
 }
+
+func TestRandomPollColorUsesDiscordRange(t *testing.T) {
+	for range 100 {
+		color := randomPollColor()
+		if color < 0 || color > 0xFFFFFF {
+			t.Fatalf("random color = %#x", color)
+		}
+	}
+}
