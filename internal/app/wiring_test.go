@@ -390,7 +390,7 @@ func TestBuildRuntimeRoutesEconomyRPSWithoutPublishingOtherEconomyCommands(t *te
 	if err != nil {
 		t.Fatalf("build runtime with economy RPS repo: %v", err)
 	}
-	for _, commandName := range []string{"代幣查詢", "簽到", "coin-related-settings", "代幣增加", "代幣排行榜"} {
+	for _, commandName := range []string{"代幣查詢", "簽到", "coin-related-settings", "代幣增加", "代幣排行榜", "代幣遊戲"} {
 		responder := fakediscord.NewResponder()
 		if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction(commandName), responder); err == nil {
 			t.Fatalf("%s route should not be available with RPS repository alone", commandName)
@@ -409,6 +409,36 @@ func TestBuildRuntimeRoutesEconomyRPSWithoutPublishingOtherEconomyCommands(t *te
 	}
 }
 
+func TestBuildRuntimeRoutesEconomyGameWithoutPublishingOtherEconomyCommands(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 42})
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-2", Coins: 42})
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                validTestConfig(),
+		EconomyGameRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime with economy game repo: %v", err)
+	}
+	for _, commandName := range []string{"代幣查詢", "簽到", "coin-related-settings", "代幣增加", "代幣排行榜", "剪刀石頭布"} {
+		responder := fakediscord.NewResponder()
+		if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction(commandName), responder); err == nil {
+			t.Fatalf("%s route should not be available with economy game repository alone", commandName)
+		}
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("代幣遊戲", "比大小", map[string]string{
+		"跟誰玩": "user-2",
+		"賭注":  "5",
+	})
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch economy game: %v", err)
+	}
+	if len(responder.Follow) != 1 || len(responder.Follow[0].Components) != 1 {
+		t.Fatalf("game response = %#v", responder.Follow)
+	}
+}
+
 func TestBuildRuntimeRoutesEconomyShopWithoutPublishingOtherEconomyCommands(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 50, Description: "role reward", Count: 1})
@@ -419,7 +449,7 @@ func TestBuildRuntimeRoutesEconomyShopWithoutPublishingOtherEconomyCommands(t *t
 	if err != nil {
 		t.Fatalf("build runtime with economy shop repo: %v", err)
 	}
-	for _, commandName := range []string{"代幣查詢", "簽到", "coin-related-settings", "代幣增加", "代幣排行榜", "剪刀石頭布", "my-profile"} {
+	for _, commandName := range []string{"代幣查詢", "簽到", "coin-related-settings", "代幣增加", "代幣排行榜", "剪刀石頭布", "代幣遊戲", "my-profile"} {
 		responder := fakediscord.NewResponder()
 		if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction(commandName), responder); err == nil {
 			t.Fatalf("%s route should not be available with shop repository alone", commandName)
@@ -447,7 +477,7 @@ func TestBuildRuntimeRoutesEconomyProfileWithoutPublishingOtherEconomyCommands(t
 	if err != nil {
 		t.Fatalf("build runtime with economy profile repo: %v", err)
 	}
-	for _, commandName := range []string{"代幣查詢", "簽到", "coin-related-settings", "代幣增加", "代幣排行榜"} {
+	for _, commandName := range []string{"代幣查詢", "簽到", "coin-related-settings", "代幣增加", "代幣排行榜", "剪刀石頭布", "代幣遊戲", "代幣商店"} {
 		responder := fakediscord.NewResponder()
 		if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction(commandName), responder); err == nil {
 			t.Fatalf("%s route should not be available with profile repository alone", commandName)

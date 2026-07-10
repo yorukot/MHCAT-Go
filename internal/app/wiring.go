@@ -55,6 +55,7 @@ type RuntimeOptions struct {
 	EconomyCoinResetMessagePort   ports.DiscordMessagePort
 	EconomyCoinResetGuildInfo     ports.DiscordInfoProvider
 	EconomyRPSRepository          ports.EconomyRockPaperScissorsRepository
+	EconomyGameRepository         ports.EconomyCoinGameRepository
 	EconomyShopRepository         ports.EconomyShopRepository
 	EconomyShopDirectMessage      ports.DiscordDirectMessagePort
 	EconomyShopRolePort           ports.DiscordRolePort
@@ -193,6 +194,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	if opts.EconomyRPSRepository != nil {
 		definitions = append(definitions, featureeconomy.RockPaperScissorsDefinitions()...)
+	}
+	if opts.EconomyGameRepository != nil {
+		definitions = append(definitions, featureeconomy.CoinGameDefinitions()...)
 	}
 	if opts.EconomyShopRepository != nil {
 		definitions = append(definitions, featureeconomy.ShopDefinitions()...)
@@ -405,6 +409,12 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.EconomyRPSRepository != nil {
 		rpsModule := featureeconomy.NewRockPaperScissorsModule(opts.EconomyRPSRepository, concreteDiscord, opts.UsageTracker)
 		if err := rpsModule.RegisterRoutes(router); err != nil {
+			return nil, err
+		}
+	}
+	if opts.EconomyGameRepository != nil {
+		gameModule := featureeconomy.NewCoinGameModule(opts.EconomyGameRepository, concreteDiscord, opts.UsageTracker, clockOrSystem(opts.Clock))
+		if err := gameModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
 	}

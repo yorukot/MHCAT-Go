@@ -10,6 +10,7 @@ const (
 	CoinAdminCommandName         = "代幣增加"
 	CoinResetCommandName         = "代幣重製"
 	CoinRankCommandName          = "代幣排行榜"
+	CoinGameCommandName          = "代幣遊戲"
 	ShopCommandName              = "代幣商店"
 	ProfileCommandName           = "my-profile"
 	RockPaperScissorsCommandName = "剪刀石頭布"
@@ -47,6 +48,10 @@ func CoinRankDefinitions() []commands.Definition {
 
 func RockPaperScissorsDefinitions() []commands.Definition {
 	return []commands.Definition{RockPaperScissorsDefinition()}
+}
+
+func CoinGameDefinitions() []commands.Definition {
+	return []commands.Definition{CoinGameDefinition()}
 }
 
 func ShopDefinitions() []commands.Definition {
@@ -108,6 +113,43 @@ func RockPaperScissorsDefinition() commands.Definition {
 					{Name: string(domain.RockPaperScissorsChoiceRock), Value: string(domain.RockPaperScissorsChoiceRock)},
 					{Name: string(domain.RockPaperScissorsChoicePaper), Value: string(domain.RockPaperScissorsChoicePaper)},
 				},
+			},
+		},
+	}
+}
+
+func CoinGameDefinition() commands.Definition {
+	return commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        CoinGameCommandName,
+		Description: "遊玩有關代幣的小遊戲",
+		DocsURL:     "https://docsmhcat.yorukot.mes/coin_increase",
+		Ownership:   commands.ManagedOwnership("economy-game", commands.ScopeGuild),
+		Options: []commands.Option{
+			coinGameSubcommand("21點", "跟真人遊玩21點!!"),
+			coinGameSubcommand("知識王", "跟真人對比誰的知識性高!!"),
+			coinGameSubcommand("比大小", "由電腦隨機為兩位抽取兩個數字比大小!!"),
+		},
+	}
+}
+
+func coinGameSubcommand(name string, description string) commands.Option {
+	return commands.Option{
+		Type:        commands.OptionTypeSubCommand,
+		Name:        name,
+		Description: description,
+		Options: []commands.Option{
+			{
+				Type:        commands.OptionTypeUser,
+				Name:        "跟誰玩",
+				Description: "輸入你要跟誰玩!",
+				Required:    true,
+			},
+			{
+				Type:        commands.OptionTypeInteger,
+				Name:        "賭注",
+				Description: "輸入你的賭注!",
+				Required:    true,
 			},
 		},
 	}

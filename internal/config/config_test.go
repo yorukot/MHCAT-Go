@@ -135,6 +135,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureEconomyRPSEnabled {
 		t.Fatal("economy RPS feature must be disabled by default")
 	}
+	if cfg.FeatureEconomyGameEnabled {
+		t.Fatal("economy game feature must be disabled by default")
+	}
 	if cfg.FeatureEconomyShopEnabled {
 		t.Fatal("economy shop feature must be disabled by default")
 	}
@@ -1215,6 +1218,21 @@ func TestFeatureEconomyRPSConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureEconomyRPSEnabled {
 		t.Fatal("expected economy RPS feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureEconomyGameConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                "token",
+		"MHCAT_MONGODB_URI":                  "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":             "mhcat",
+		"MHCAT_FEATURE_ECONOMY_GAME_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureEconomyGameEnabled {
+		t.Fatal("expected economy game feature to be enabled explicitly")
 	}
 }
 

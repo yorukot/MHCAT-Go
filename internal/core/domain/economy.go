@@ -17,10 +17,12 @@ var ErrInvalidEconomyProfileQuery = errors.New("invalid economy profile query")
 var ErrInvalidRockPaperScissorsCommand = errors.New("invalid rock paper scissors command")
 var ErrInvalidShopItem = errors.New("invalid shop item")
 var ErrInvalidShopPurchase = errors.New("invalid shop purchase")
+var ErrInvalidCoinGameCommand = errors.New("invalid coin game command")
 
 type CoinAdminOperation string
 type RockPaperScissorsChoice string
 type RockPaperScissorsOutcome string
+type CoinGameKind string
 
 const (
 	CoinAdminOperationAdd    CoinAdminOperation = "add"
@@ -33,6 +35,10 @@ const (
 	RockPaperScissorsOutcomeWin  RockPaperScissorsOutcome = "win"
 	RockPaperScissorsOutcomeLoss RockPaperScissorsOutcome = "loss"
 	RockPaperScissorsOutcomeTie  RockPaperScissorsOutcome = "tie"
+
+	CoinGameKindBlackjack   CoinGameKind = "21點"
+	CoinGameKindKnowledge   CoinGameKind = "知識王"
+	CoinGameKindHigherLower CoinGameKind = "比大小"
 )
 
 type CoinBalance struct {
@@ -190,6 +196,33 @@ type ShopPurchaseResult struct {
 	Balance         CoinBalance
 }
 
+type CoinGameCommand struct {
+	GuildID      string
+	ChallengerID string
+	OpponentID   string
+	Wager        int64
+	Kind         CoinGameKind
+}
+
+type CoinGameBalanceResult struct {
+	Challenger CoinBalance
+	Opponent   CoinBalance
+	Wager      int64
+}
+
+type CoinGameSettlementCommand struct {
+	GuildID          string
+	ChallengerID     string
+	OpponentID       string
+	ChallengerReturn int64
+	OpponentReturn   int64
+}
+
+type CoinGameSettlementResult struct {
+	Challenger CoinBalance
+	Opponent   CoinBalance
+}
+
 func (c CoinAdminCommand) Normalize() CoinAdminCommand {
 	return CoinAdminCommand{
 		GuildID:   strings.TrimSpace(c.GuildID),
@@ -323,6 +356,55 @@ func (c ShopPurchaseCommand) Validate() error {
 	c = c.Normalize()
 	if c.GuildID == "" || c.UserID == "" || c.CommodityID <= 0 || c.Quantity <= 0 {
 		return ErrInvalidShopPurchase
+	}
+	return nil
+}
+
+func (k CoinGameKind) Normalize() CoinGameKind {
+	return CoinGameKind(strings.TrimSpace(string(k)))
+}
+
+func (k CoinGameKind) Valid() bool {
+	switch k.Normalize() {
+	case CoinGameKindBlackjack, CoinGameKindKnowledge, CoinGameKindHigherLower:
+		return true
+	default:
+		return false
+	}
+}
+
+func (c CoinGameCommand) Normalize() CoinGameCommand {
+	return CoinGameCommand{
+		GuildID:      strings.TrimSpace(c.GuildID),
+		ChallengerID: strings.TrimSpace(c.ChallengerID),
+		OpponentID:   strings.TrimSpace(c.OpponentID),
+		Wager:        c.Wager,
+		Kind:         c.Kind.Normalize(),
+	}
+}
+
+func (c CoinGameCommand) Validate() error {
+	c = c.Normalize()
+	if c.GuildID == "" || c.ChallengerID == "" || c.OpponentID == "" || c.ChallengerID == c.OpponentID || c.Wager < 0 || !c.Kind.Valid() {
+		return ErrInvalidCoinGameCommand
+	}
+	return nil
+}
+
+func (c CoinGameSettlementCommand) Normalize() CoinGameSettlementCommand {
+	return CoinGameSettlementCommand{
+		GuildID:          strings.TrimSpace(c.GuildID),
+		ChallengerID:     strings.TrimSpace(c.ChallengerID),
+		OpponentID:       strings.TrimSpace(c.OpponentID),
+		ChallengerReturn: c.ChallengerReturn,
+		OpponentReturn:   c.OpponentReturn,
+	}
+}
+
+func (c CoinGameSettlementCommand) Validate() error {
+	c = c.Normalize()
+	if c.GuildID == "" || c.ChallengerID == "" || c.OpponentID == "" || c.ChallengerID == c.OpponentID || c.ChallengerReturn < 0 || c.OpponentReturn < 0 {
+		return ErrInvalidCoinGameCommand
 	}
 	return nil
 }

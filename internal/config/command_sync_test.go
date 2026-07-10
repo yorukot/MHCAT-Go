@@ -76,6 +76,9 @@ func TestCommandSyncDefaultsDryRunStrict(t *testing.T) {
 	if cfg.IncludeEconomyRPS {
 		t.Fatal("include economy RPS must default false")
 	}
+	if cfg.IncludeEconomyGame {
+		t.Fatal("include economy game must default false")
+	}
 	if cfg.IncludeEconomyShop {
 		t.Fatal("include economy shop must default false")
 	}
@@ -1932,6 +1935,48 @@ func TestCommandSyncIncludeEconomyRPSStagingGuildParses(t *testing.T) {
 	}
 	if !cfg.IncludeEconomyRPS {
 		t.Fatal("expected include economy RPS to be enabled explicitly")
+	}
+}
+
+func TestCommandSyncIncludeEconomyGameRequiresStagingMode(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":            "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":             "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include economy game without staging mode to fail")
+	}
+}
+
+func TestCommandSyncIncludeEconomyGameRequiresGuildScope(t *testing.T) {
+	_, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":            "app",
+		"MHCAT_COMMAND_SYNC_SCOPE":                "global",
+		"MHCAT_STAGING_MODE":                      "true",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME": "true",
+	}))
+	if err == nil {
+		t.Fatal("expected include economy game with global scope to fail")
+	}
+}
+
+func TestCommandSyncIncludeEconomyGameStagingGuildParses(t *testing.T) {
+	cfg, err := LoadCommandSyncWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                     "token",
+		"MHCAT_DISCORD_APPLICATION_ID":            "app",
+		"MHCAT_COMMAND_SYNC_GUILD_ID":             "guild",
+		"MHCAT_STAGING_MODE":                      "true",
+		"MHCAT_STAGING_GUILD_ID":                  "guild",
+		"MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load command sync: %v", err)
+	}
+	if !cfg.IncludeEconomyGame {
+		t.Fatal("expected include economy game to be enabled explicitly")
 	}
 }
 

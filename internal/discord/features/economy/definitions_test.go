@@ -74,6 +74,46 @@ func TestCoinResetDefinitionMatchesLegacyCommand(t *testing.T) {
 	}
 }
 
+func TestCoinGameDefinitionMatchesLegacyCommand(t *testing.T) {
+	definition := CoinGameDefinition()
+	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}, []commands.Definition{definition})
+	if err := commands.ValidateRegistry(registry); err != nil {
+		t.Fatalf("validate registry: %v", err)
+	}
+	if definition.Name != CoinGameCommandName || definition.Description != "遊玩有關代幣的小遊戲" {
+		t.Fatalf("game definition = %#v", definition)
+	}
+	if len(definition.Options) != 3 {
+		t.Fatalf("game options = %#v", definition.Options)
+	}
+	wants := []struct {
+		name        string
+		description string
+	}{
+		{"21點", "跟真人遊玩21點!!"},
+		{"知識王", "跟真人對比誰的知識性高!!"},
+		{"比大小", "由電腦隨機為兩位抽取兩個數字比大小!!"},
+	}
+	for i, want := range wants {
+		option := definition.Options[i]
+		if option.Type != commands.OptionTypeSubCommand || option.Name != want.name || option.Description != want.description {
+			t.Fatalf("subcommand %d = %#v", i, option)
+		}
+		if len(option.Options) != 2 {
+			t.Fatalf("subcommand options %d = %#v", i, option.Options)
+		}
+		if option.Options[0].Type != commands.OptionTypeUser || option.Options[0].Name != "跟誰玩" || option.Options[0].Description != "輸入你要跟誰玩!" || !option.Options[0].Required {
+			t.Fatalf("opponent option %d = %#v", i, option.Options[0])
+		}
+		if option.Options[1].Type != commands.OptionTypeInteger || option.Options[1].Name != "賭注" || option.Options[1].Description != "輸入你的賭注!" || !option.Options[1].Required {
+			t.Fatalf("wager option %d = %#v", i, option.Options[1])
+		}
+	}
+	if !commands.IsManagedForScope(definition, commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}) {
+		t.Fatal("game command should be marked managed for guild-scoped staging sync")
+	}
+}
+
 func TestShopDefinitionMatchesLegacyCommand(t *testing.T) {
 	definition := ShopDefinition()
 	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild"}, []commands.Definition{definition})

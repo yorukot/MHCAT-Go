@@ -211,6 +211,89 @@ func (r *EconomyRepository) ApplyRockPaperScissors(ctx context.Context, command 
 	}, nil
 }
 
+func (r *EconomyRepository) CheckCoinGameBalances(ctx context.Context, command domain.CoinGameCommand) (domain.CoinGameBalanceResult, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	challenger, opponent, err := r.coinGameBalancesLocked(command)
+	if err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	return domain.CoinGameBalanceResult{Challenger: challenger, Opponent: opponent, Wager: command.Wager}, nil
+}
+
+func (r *EconomyRepository) ReserveCoinGameWager(ctx context.Context, command domain.CoinGameCommand) (domain.CoinGameBalanceResult, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	challenger, opponent, err := r.coinGameBalancesLocked(command)
+	if err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	challenger.Coins -= command.Wager
+	opponent.Coins -= command.Wager
+	r.Balances[economyBalanceKey(command.GuildID, command.ChallengerID)] = challenger
+	r.Balances[economyBalanceKey(command.GuildID, command.OpponentID)] = opponent
+	return domain.CoinGameBalanceResult{Challenger: challenger, Opponent: opponent, Wager: command.Wager}, nil
+}
+
+func (r *EconomyRepository) SettleCoinGameWager(ctx context.Context, command domain.CoinGameSettlementCommand) (domain.CoinGameSettlementResult, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.CoinGameSettlementResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.CoinGameSettlementResult{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	challengerKey := economyBalanceKey(command.GuildID, command.ChallengerID)
+	opponentKey := economyBalanceKey(command.GuildID, command.OpponentID)
+	challenger, ok := r.Balances[challengerKey]
+	if !ok {
+		return domain.CoinGameSettlementResult{}, ports.ErrCoinBalanceNotFound
+	}
+	opponent, ok := r.Balances[opponentKey]
+	if !ok {
+		return domain.CoinGameSettlementResult{}, ports.ErrCoinBalanceNotFound
+	}
+	challenger.Coins += command.ChallengerReturn
+	opponent.Coins += command.OpponentReturn
+	r.Balances[challengerKey] = challenger
+	r.Balances[opponentKey] = opponent
+	return domain.CoinGameSettlementResult{Challenger: challenger, Opponent: opponent}, nil
+}
+
+func (r *EconomyRepository) coinGameBalancesLocked(command domain.CoinGameCommand) (domain.CoinBalance, domain.CoinBalance, error) {
+	opponent, ok := r.Balances[economyBalanceKey(command.GuildID, command.OpponentID)]
+	if !ok {
+		return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameOpponent
+	}
+	if opponent.Coins < command.Wager {
+		return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameOpponent
+	}
+	challenger, ok := r.Balances[economyBalanceKey(command.GuildID, command.ChallengerID)]
+	if !ok {
+		return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameChallenger
+	}
+	if challenger.Coins < command.Wager {
+		return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameChallenger
+	}
+	return challenger, opponent, nil
+}
+
 func (r *EconomyRepository) SignIn(ctx context.Context, command domain.SignInCommand) (domain.SignInResult, error) {
 	if err := r.ready(ctx); err != nil {
 		return domain.SignInResult{}, err
@@ -427,6 +510,7 @@ var _ ports.EconomySettingsRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyCoinAdminRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyCoinResetRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyRockPaperScissorsRepository = (*EconomyRepository)(nil)
+var _ ports.EconomyCoinGameRepository = (*EconomyRepository)(nil)
 var _ ports.EconomyShopRepository = (*EconomyRepository)(nil)
 
 func cloneSignCalendar(calendar domain.SignCalendar) domain.SignCalendar {

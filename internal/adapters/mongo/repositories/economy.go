@@ -305,6 +305,110 @@ func (r *EconomyRepository) ApplyRockPaperScissors(ctx context.Context, command 
 	}, ctx.Err()
 }
 
+func (r *EconomyRepository) CheckCoinGameBalances(ctx context.Context, command domain.CoinGameCommand) (domain.CoinGameBalanceResult, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	challenger, opponent, err := r.coinGameBalances(ctx, command)
+	if err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	return domain.CoinGameBalanceResult{Challenger: challenger, Opponent: opponent, Wager: command.Wager}, ctx.Err()
+}
+
+func (r *EconomyRepository) ReserveCoinGameWager(ctx context.Context, command domain.CoinGameCommand) (domain.CoinGameBalanceResult, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	challenger, opponent, err := r.coinGameBalances(ctx, command)
+	if err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	challenger.Coins -= command.Wager
+	opponent.Coins -= command.Wager
+	if err := r.setCoinGameBalance(ctx, challenger); err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	if err := r.setCoinGameBalance(ctx, opponent); err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	return domain.CoinGameBalanceResult{Challenger: challenger, Opponent: opponent, Wager: command.Wager}, ctx.Err()
+}
+
+func (r *EconomyRepository) SettleCoinGameWager(ctx context.Context, command domain.CoinGameSettlementCommand) (domain.CoinGameSettlementResult, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.CoinGameSettlementResult{}, err
+	}
+	command = command.Normalize()
+	if err := command.Validate(); err != nil {
+		return domain.CoinGameSettlementResult{}, err
+	}
+	challenger, err := r.GetCoinBalance(ctx, command.GuildID, command.ChallengerID)
+	if err != nil {
+		return domain.CoinGameSettlementResult{}, err
+	}
+	opponent, err := r.GetCoinBalance(ctx, command.GuildID, command.OpponentID)
+	if err != nil {
+		return domain.CoinGameSettlementResult{}, err
+	}
+	challenger.Coins += command.ChallengerReturn
+	opponent.Coins += command.OpponentReturn
+	if err := r.setCoinGameBalance(ctx, challenger); err != nil {
+		return domain.CoinGameSettlementResult{}, err
+	}
+	if err := r.setCoinGameBalance(ctx, opponent); err != nil {
+		return domain.CoinGameSettlementResult{}, err
+	}
+	return domain.CoinGameSettlementResult{Challenger: challenger, Opponent: opponent}, ctx.Err()
+}
+
+func (r *EconomyRepository) coinGameBalances(ctx context.Context, command domain.CoinGameCommand) (domain.CoinBalance, domain.CoinBalance, error) {
+	opponent, err := r.GetCoinBalance(ctx, command.GuildID, command.OpponentID)
+	if err != nil {
+		if errors.Is(err, ports.ErrCoinBalanceNotFound) {
+			return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameOpponent
+		}
+		return domain.CoinBalance{}, domain.CoinBalance{}, err
+	}
+	if opponent.Coins < command.Wager {
+		return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameOpponent
+	}
+	challenger, err := r.GetCoinBalance(ctx, command.GuildID, command.ChallengerID)
+	if err != nil {
+		if errors.Is(err, ports.ErrCoinBalanceNotFound) {
+			return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameChallenger
+		}
+		return domain.CoinBalance{}, domain.CoinBalance{}, err
+	}
+	if challenger.Coins < command.Wager {
+		return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameChallenger
+	}
+	return challenger, opponent, nil
+}
+
+func (r *EconomyRepository) setCoinGameBalance(ctx context.Context, balance domain.CoinBalance) error {
+	result, err := r.coins.UpdateMany(
+		ctx,
+		bson.D{{Key: "guild", Value: balance.GuildID}, {Key: "member", Value: balance.UserID}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: balance.Coins}}}},
+	)
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("update coin game balance: %w", err))
+	}
+	if result.MatchedCount == 0 {
+		return ports.ErrCoinBalanceNotFound
+	}
+	return ctx.Err()
+}
+
 func (r *EconomyRepository) SignIn(ctx context.Context, command domain.SignInCommand) (domain.SignInResult, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.SignInResult{}, err

@@ -18,6 +18,8 @@ var (
 	ErrShopItemLimit        = errors.New("shop item limit exceeded")
 	ErrShopInsufficientCoin = errors.New("shop purchase has insufficient coins")
 	ErrShopQuantityInvalid  = errors.New("shop purchase quantity is invalid")
+	ErrCoinGameChallenger   = errors.New("coin game challenger has insufficient coins")
+	ErrCoinGameOpponent     = errors.New("coin game opponent has insufficient coins")
 )
 
 type EconomyQueryRepository interface {
@@ -64,6 +66,12 @@ type EconomyCoinResetRepository interface {
 
 type EconomyRockPaperScissorsRepository interface {
 	ApplyRockPaperScissors(ctx context.Context, command domain.RockPaperScissorsCommand) (domain.RockPaperScissorsResult, error)
+}
+
+type EconomyCoinGameRepository interface {
+	CheckCoinGameBalances(ctx context.Context, command domain.CoinGameCommand) (domain.CoinGameBalanceResult, error)
+	ReserveCoinGameWager(ctx context.Context, command domain.CoinGameCommand) (domain.CoinGameBalanceResult, error)
+	SettleCoinGameWager(ctx context.Context, command domain.CoinGameSettlementCommand) (domain.CoinGameSettlementResult, error)
 }
 
 type EconomyShopRepository interface {

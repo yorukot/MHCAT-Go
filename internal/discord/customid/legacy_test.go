@@ -95,3 +95,15 @@ func TestLegacyPollChoiceAllowsLegacyEightyCharacters(t *testing.T) {
 		t.Fatalf("parsed = %#v", parsed)
 	}
 }
+
+func TestLegacyKnowledgeAnswerRoutesKnownUnicodeAndASCIIAnswers(t *testing.T) {
+	for _, raw := range []string{"亞洲", "RAV4"} {
+		parsed, err := customid.ParseComponent(raw)
+		if err != nil {
+			t.Fatalf("parse %q: %v", raw, err)
+		}
+		if parsed.Feature != "game" || parsed.Action != "knowledge_answer" || !parsed.Legacy {
+			t.Fatalf("parsed %q = %#v", raw, parsed)
+		}
+	}
+}

@@ -8,10 +8,10 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 
 - Legacy slash command files: 74
 - Legacy unique command names: 74
-- Current Go command definitions: 73
-- Matching command definitions: 73
+- Current Go command definitions: 74
+- Matching command definitions: 74
 - Implemented definitions needing UI review: 0
-- Legacy commands without Go definitions: 1
+- Legacy commands without Go definitions: 0
 - Go definitions without a legacy command name: 0
 - Legacy parse warning/error files: 0
 
@@ -31,6 +31,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `代幣增加` | `slashCommands/代幣系統/addcoin.js` | matching-definition | none |
 | `代幣排行榜` | `slashCommands/代幣系統/coin_rank.js` | matching-definition | none |
 | `代幣查詢` | `slashCommands/代幣系統/coin.js` | matching-definition | none |
+| `代幣遊戲` | `slashCommands/代幣系統/game.js` | matching-definition | none |
 | `代幣重製` | `slashCommands/代幣系統/coin_rest.js` | matching-definition | none |
 | `兌換` | `slashCommands/管理系統/get_something.js` | matching-definition | none |
 | `公告發送` | `slashCommands/公告系統/announcement.js` | matching-definition | none |
@@ -99,9 +100,7 @@ None.
 
 ## Legacy Commands Without Go Definitions
 
-| Command | Category | Legacy file | Description |
-| --- | --- | --- | --- |
-| `代幣遊戲` | 代幣系統 | `slashCommands/代幣系統/game.js` | 遊玩有關代幣的小遊戲 |
+None.
 
 ## Go Definitions Without Legacy Command Names
 

@@ -25,6 +25,7 @@ const (
 	DefaultFeatureEconomyCoinRankEnabled        = false
 	DefaultFeatureEconomyCoinResetEnabled       = false
 	DefaultFeatureEconomyRPSEnabled             = false
+	DefaultFeatureEconomyGameEnabled            = false
 	DefaultFeatureEconomyShopEnabled            = false
 	DefaultFeatureEconomyProfileEnabled         = false
 	DefaultFeatureWorkEnabled                   = false
@@ -105,6 +106,7 @@ type Config struct {
 	FeatureEconomyCoinRankEnabled        bool
 	FeatureEconomyCoinResetEnabled       bool
 	FeatureEconomyRPSEnabled             bool
+	FeatureEconomyGameEnabled            bool
 	FeatureEconomyShopEnabled            bool
 	FeatureEconomyProfileEnabled         bool
 	FeatureWorkEnabled                   bool

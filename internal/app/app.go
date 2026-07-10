@@ -305,7 +305,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		opts.PollMessagePort = sideEffects
 		opts.PollMemberCounter = sideEffects
 	}
-	if cfg.FeatureEconomyQueryEnabled || cfg.FeatureEconomySignInEnabled || cfg.FeatureEconomyCoinAdminEnabled || cfg.FeatureEconomyCoinRankEnabled || cfg.FeatureEconomyCoinResetEnabled || cfg.FeatureEconomyRPSEnabled || cfg.FeatureEconomyShopEnabled {
+	if cfg.FeatureEconomyQueryEnabled || cfg.FeatureEconomySignInEnabled || cfg.FeatureEconomyCoinAdminEnabled || cfg.FeatureEconomyCoinRankEnabled || cfg.FeatureEconomyCoinResetEnabled || cfg.FeatureEconomyRPSEnabled || cfg.FeatureEconomyGameEnabled || cfg.FeatureEconomyShopEnabled {
 		economyRepo, err := economyRepositoryFromMongo(mongoClient)
 		if err != nil {
 			return nil, err
@@ -333,6 +333,9 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		if cfg.FeatureEconomyRPSEnabled {
 			opts.EconomyRPSRepository = economyRepo
+		}
+		if cfg.FeatureEconomyGameEnabled {
+			opts.EconomyGameRepository = economyRepo
 		}
 		if cfg.FeatureEconomyShopEnabled {
 			sideEffects, err := messageSideEffectsFromSession(session, "economy shop feature")

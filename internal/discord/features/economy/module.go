@@ -23,6 +23,7 @@ type Module struct {
 	coinReset     coreeconomy.CoinResetService
 	coinRank      coreeconomy.CoinRankService
 	rps           coreeconomy.RockPaperScissorsService
+	game          coreeconomy.CoinGameService
 	shop          coreeconomy.ShopService
 	profile       coreeconomy.ProfileService
 	discord       ports.DiscordInfoProvider
@@ -33,9 +34,11 @@ type Module struct {
 	usage         ports.UsageTracker
 	clock         ports.Clock
 	confirmations *coinResetConfirmationStore
+	gameSessions  *coinGameSessionStore
 	shopSessions  *shopSessionStore
 	color         func() int
 	rpsChoice     func() domain.RockPaperScissorsChoice
+	gameRandInt   func(int) int
 	defs          []commands.Definition
 	feature       string
 	queryEnabled  bool
@@ -48,6 +51,7 @@ func NewModule(repo ports.EconomyQueryRepository, discordInfo ports.DiscordInfoP
 		usage:        usage,
 		color:        legacyRandomColor,
 		rpsChoice:    legacyRandomRockPaperScissorsChoice,
+		gameRandInt:  legacyRandomInt,
 		defs:         Definitions(),
 		feature:      "economy-query",
 		queryEnabled: true,
@@ -71,13 +75,14 @@ func NewSignInOnlyModule(repo ports.EconomySignInRepository, discordInfo ports.D
 		signInList: coreeconomy.SignInListService{
 			Repository: repo,
 		},
-		discord:   discordInfo,
-		usage:     usage,
-		clock:     clock,
-		color:     legacyRandomColor,
-		rpsChoice: legacyRandomRockPaperScissorsChoice,
-		defs:      SignInDefinitions(),
-		feature:   "economy-signin",
+		discord:     discordInfo,
+		usage:       usage,
+		clock:       clock,
+		color:       legacyRandomColor,
+		rpsChoice:   legacyRandomRockPaperScissorsChoice,
+		gameRandInt: legacyRandomInt,
+		defs:        SignInDefinitions(),
+		feature:     "economy-signin",
 	}
 }
 
@@ -87,25 +92,27 @@ func NewSignInModule(repo ports.EconomySignInRepository, discordInfo ports.Disco
 
 func NewSettingsModule(repo ports.EconomySettingsRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
 	return Module{
-		settings:  coreeconomy.SettingsService{Repository: repo},
-		discord:   discordInfo,
-		usage:     usage,
-		color:     legacyRandomColor,
-		rpsChoice: legacyRandomRockPaperScissorsChoice,
-		defs:      SettingsDefinitions(),
-		feature:   "economy-settings",
+		settings:    coreeconomy.SettingsService{Repository: repo},
+		discord:     discordInfo,
+		usage:       usage,
+		color:       legacyRandomColor,
+		rpsChoice:   legacyRandomRockPaperScissorsChoice,
+		gameRandInt: legacyRandomInt,
+		defs:        SettingsDefinitions(),
+		feature:     "economy-settings",
 	}
 }
 
 func NewCoinAdminModule(repo ports.EconomyCoinAdminRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
 	return Module{
-		coinAdmin: coreeconomy.CoinAdminService{Repository: repo},
-		discord:   discordInfo,
-		usage:     usage,
-		color:     legacyRandomColor,
-		rpsChoice: legacyRandomRockPaperScissorsChoice,
-		defs:      CoinAdminDefinitions(),
-		feature:   "economy-coin-admin",
+		coinAdmin:   coreeconomy.CoinAdminService{Repository: repo},
+		discord:     discordInfo,
+		usage:       usage,
+		color:       legacyRandomColor,
+		rpsChoice:   legacyRandomRockPaperScissorsChoice,
+		gameRandInt: legacyRandomInt,
+		defs:        CoinAdminDefinitions(),
+		feature:     "economy-coin-admin",
 	}
 }
 
@@ -125,6 +132,7 @@ func NewCoinResetModule(repo ports.EconomyCoinResetRepository, discordInfo ports
 		confirmations: confirmations,
 		color:         legacyRandomColor,
 		rpsChoice:     legacyRandomRockPaperScissorsChoice,
+		gameRandInt:   legacyRandomInt,
 		defs:          CoinResetDefinitions(),
 		feature:       "economy-coin-reset",
 	}
@@ -132,25 +140,45 @@ func NewCoinResetModule(repo ports.EconomyCoinResetRepository, discordInfo ports
 
 func NewCoinRankModule(repo ports.EconomyCoinRankRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
 	return Module{
-		coinRank:  coreeconomy.CoinRankService{Repository: repo},
-		discord:   discordInfo,
-		usage:     usage,
-		color:     legacyRandomColor,
-		rpsChoice: legacyRandomRockPaperScissorsChoice,
-		defs:      CoinRankDefinitions(),
-		feature:   "economy-coin-rank",
+		coinRank:    coreeconomy.CoinRankService{Repository: repo},
+		discord:     discordInfo,
+		usage:       usage,
+		color:       legacyRandomColor,
+		rpsChoice:   legacyRandomRockPaperScissorsChoice,
+		gameRandInt: legacyRandomInt,
+		defs:        CoinRankDefinitions(),
+		feature:     "economy-coin-rank",
 	}
 }
 
 func NewRockPaperScissorsModule(repo ports.EconomyRockPaperScissorsRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
 	return Module{
-		rps:       coreeconomy.RockPaperScissorsService{Repository: repo},
-		discord:   discordInfo,
-		usage:     usage,
-		color:     legacyRandomColor,
-		rpsChoice: legacyRandomRockPaperScissorsChoice,
-		defs:      RockPaperScissorsDefinitions(),
-		feature:   "economy-rps",
+		rps:         coreeconomy.RockPaperScissorsService{Repository: repo},
+		discord:     discordInfo,
+		usage:       usage,
+		color:       legacyRandomColor,
+		rpsChoice:   legacyRandomRockPaperScissorsChoice,
+		gameRandInt: legacyRandomInt,
+		defs:        RockPaperScissorsDefinitions(),
+		feature:     "economy-rps",
+	}
+}
+
+func NewCoinGameModule(repo ports.EconomyCoinGameRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker, clock ports.Clock) Module {
+	if clock == nil {
+		clock = ports.SystemClock{}
+	}
+	return Module{
+		game:         coreeconomy.CoinGameService{Repository: repo},
+		discord:      discordInfo,
+		usage:        usage,
+		clock:        clock,
+		gameSessions: newCoinGameSessionStore(clock),
+		color:        legacyRandomColor,
+		rpsChoice:    legacyRandomRockPaperScissorsChoice,
+		gameRandInt:  legacyRandomInt,
+		defs:         CoinGameDefinitions(),
+		feature:      "economy-game",
 	}
 }
 
@@ -169,6 +197,7 @@ func NewShopModule(repo ports.EconomyShopRepository, discordInfo ports.DiscordIn
 		shopSessions:  newShopSessionStore(),
 		color:         legacyRandomColor,
 		rpsChoice:     legacyRandomRockPaperScissorsChoice,
+		gameRandInt:   legacyRandomInt,
 		defs:          ShopDefinitions(),
 		feature:       "economy-shop",
 	}
@@ -176,14 +205,15 @@ func NewShopModule(repo ports.EconomyShopRepository, discordInfo ports.DiscordIn
 
 func NewProfileModule(repo ports.EconomyProfileRepository, discordInfo ports.DiscordInfoProvider, clock ports.Clock, usage ports.UsageTracker) Module {
 	return Module{
-		profile:   coreeconomy.ProfileService{Repository: repo},
-		discord:   discordInfo,
-		usage:     usage,
-		clock:     clock,
-		color:     legacyRandomColor,
-		rpsChoice: legacyRandomRockPaperScissorsChoice,
-		defs:      ProfileDefinitions(),
-		feature:   "economy-profile",
+		profile:     coreeconomy.ProfileService{Repository: repo},
+		discord:     discordInfo,
+		usage:       usage,
+		clock:       clock,
+		color:       legacyRandomColor,
+		rpsChoice:   legacyRandomRockPaperScissorsChoice,
+		gameRandInt: legacyRandomInt,
+		defs:        ProfileDefinitions(),
+		feature:     "economy-profile",
 	}
 }
 
@@ -243,6 +273,27 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 	if m.rps.Repository != nil {
 		if err := router.RegisterSlash(RockPaperScissorsCommandName, m.RockPaperScissorsHandler()); err != nil {
 			return err
+		}
+	}
+	if m.game.Repository != nil {
+		if err := router.RegisterSlash(CoinGameCommandName, m.CoinGameHandler()); err != nil {
+			return err
+		}
+		for _, key := range []interactions.RouteKey{
+			{Kind: interactions.TypeComponent, Version: "legacy", Feature: "game", Action: "yes", Legacy: true},
+			{Kind: interactions.TypeComponent, Version: "legacy", Feature: "game", Action: "no", Legacy: true},
+			{Kind: interactions.TypeComponent, Version: "legacy", Feature: "game", Action: "main_stand", Legacy: true},
+			{Kind: interactions.TypeComponent, Version: "legacy", Feature: "game", Action: "main_hit", Legacy: true},
+			{Kind: interactions.TypeComponent, Version: "legacy", Feature: "game", Action: "user_stand", Legacy: true},
+			{Kind: interactions.TypeComponent, Version: "legacy", Feature: "game", Action: "user_hit", Legacy: true},
+			{Kind: interactions.TypeComponent, Version: "legacy", Feature: "game", Action: "show_number", Legacy: true},
+			{Kind: interactions.TypeComponent, Version: "legacy", Feature: "game", Action: "teach_21_point", Legacy: true},
+			{Kind: interactions.TypeComponent, Version: "legacy", Feature: "game", Action: "than_size_help", Legacy: true},
+			{Kind: interactions.TypeComponent, Version: "legacy", Feature: "game", Action: "knowledge_answer", Legacy: true},
+		} {
+			if err := router.RegisterRoute(key, m.CoinGameComponentHandler()); err != nil {
+				return err
+			}
 		}
 	}
 	if m.shop.Repository != nil {
@@ -371,4 +422,15 @@ func legacyRandomRockPaperScissorsChoice() domain.RockPaperScissorsChoice {
 		return domain.RockPaperScissorsChoiceScissors
 	}
 	return choices[value.Int64()]
+}
+
+func legacyRandomInt(maxExclusive int) int {
+	if maxExclusive <= 0 {
+		return 0
+	}
+	value, err := rand.Int(rand.Reader, big.NewInt(int64(maxExclusive)))
+	if err != nil {
+		return 0
+	}
+	return int(value.Int64())
 }

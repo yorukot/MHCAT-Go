@@ -93,6 +93,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true
 
 Set both together only in an isolated staging database when testing `/剪刀石頭布`. This path writes existing `coins` rows, so use disposable balances only.
 
+Optional economy game smoke flags:
+
+```bash
+export MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME=true
+```
+
+Set both together only in an isolated staging database when testing `/代幣遊戲`. This path writes two-player `coins` wagers and uses process-local component session state, so use disposable balances only.
+
 Optional economy shop smoke flags:
 
 ```bash
@@ -522,6 +531,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true`, confirm `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, the tester is the staging guild owner, and the staging database has only disposable `coins` rows for the reset target.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`, confirm `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`, the database is isolated staging data, and all target `coins` rows are disposable.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME=true`, confirm `MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true`, the database is isolated staging data, and all target `coins` rows are disposable.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP=true`, confirm `MHCAT_FEATURE_ECONOMY_SHOP_ENABLED=true`, the database is isolated staging data, all target `ghps`/`coins` rows are disposable, and test roles are below the bot's highest role.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_PROFILE=true`, confirm `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true` and the database is isolated staging data.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true`, confirm `MHCAT_FEATURE_WORK_ENABLED=true` and that the test accepts the partial work command surface.
@@ -651,6 +661,13 @@ For economy RPS staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`;
 - `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`;
 - plan includes managed `剪刀石頭布`;
+- plan still performs no create/update/delete during dry-run.
+
+For economy game staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME=true`;
+- `MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true`;
+- plan includes managed `代幣遊戲`;
 - plan still performs no create/update/delete during dry-run.
 
 For economy shop staging smoke, expected additionally:

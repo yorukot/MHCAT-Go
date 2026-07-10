@@ -502,6 +502,43 @@ func TestPreflightWarnsWhenEconomyRPSRuntimeEnabledWithoutCommandSync(t *testing
 	}
 }
 
+func TestPreflightRejectsEconomyGameCommandSyncWithoutRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "economy-game-runtime-pairing status=fail") {
+		t.Fatalf("expected economy game pairing failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsEconomyGameCommandSyncWithRuntimeFlag(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME"] = "true"
+	env["MHCAT_FEATURE_ECONOMY_GAME_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "economy-game-command-sync status=pass") || !strings.Contains(stdout, "economy-game-runtime-pairing status=pass") {
+		t.Fatalf("expected economy game pass checks, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenEconomyGameRuntimeEnabledWithoutCommandSync(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_ECONOMY_GAME_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "economy-game-runtime-pairing status=warn") {
+		t.Fatalf("expected economy game runtime warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsEconomyShopCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SHOP"] = "true"

@@ -32,6 +32,19 @@ var (
 	legacyShopNumberRe   = regexp.MustCompile(`^([0-9]|back|confirm)ghp_number[A-Za-z0-9_-]*$`)
 )
 
+var legacyKnowledgeASCIIAnswerIDs = map[string]struct{}{
+	"-1": {}, "0": {}, "1/722": {}, "1/782": {}, "1/784": {}, "1/893": {},
+	"10": {}, "10.1g": {}, "11.1g": {}, "12.1g": {}, "20": {}, "236": {},
+	"3.141592653589 ": {}, "3.145192837": {}, "3.1495736494": {}, "30": {},
+	"31.415926": {}, "336": {}, "40": {}, "436": {}, "5012": {}, "5042": {},
+	"536": {}, "5742": {}, "5972 ": {}, "7": {}, "71%": {}, "72%": {},
+	"73%": {}, "74%": {}, "8": {}, "9": {}, "9.1g": {}, "CR-V": {},
+	"Corolla": {}, "Fe": {}, "Frank": {}, "H": {}, "Hakuna Matata": {},
+	"July": {}, "Lisa": {}, "Melody": {}, "N": {}, "RAV4": {}, "Si": {},
+	"Surprised grassland": {}, "The happiness of the lion": {}, "iPhone": {},
+	"iPhone A": {}, "iPhone I": {}, "iPhones": {},
+}
+
 var exactComponentRoutes = map[string]RouteKey{
 	"helphelphelphelpmenu": {Kind: InteractionKindComponent, Feature: "help", Action: "category_select", Version: LegacyVersion, Legacy: true},
 	"help-menus":           {Kind: InteractionKindComponent, Feature: "help", Action: "legacy_unused", Version: LegacyVersion, Legacy: true},
@@ -129,10 +142,28 @@ func ParseLegacyComponent(raw string) (ID, error) {
 		}
 		return legacyComponent("lottery", "enter", raw), nil
 	}
+	if routeKnowledgeAnswer(raw) {
+		return legacyComponent("game", "knowledge_answer", raw), nil
+	}
 	if legacyShopItemRe.MatchString(raw) {
 		return ID{}, safeError(ErrAmbiguousID, "raw item/work/lottery id")
 	}
 	return ID{}, safeError(ErrUnknownLegacyID, "component")
+}
+
+func routeKnowledgeAnswer(raw string) bool {
+	if raw == "" || customIDLength(raw) > MaxCustomIDLength || strings.ContainsAny(raw, "\x00\r\n:") {
+		return false
+	}
+	if _, ok := legacyKnowledgeASCIIAnswerIDs[raw]; ok {
+		return true
+	}
+	for _, r := range raw {
+		if r > 127 {
+			return true
+		}
+	}
+	return false
 }
 
 func parseRank(raw string) (ID, bool, error) {

@@ -102,6 +102,8 @@ func buildReport(lookup lookupFunc) []checkResult {
 		economyCoinResetRuntimeReadiness(lookup),
 		economyRPSCommandSync(lookup),
 		economyRPSRuntimePairing(lookup),
+		economyGameCommandSync(lookup),
+		economyGameRuntimePairing(lookup),
 		economyShopCommandSync(lookup),
 		economyShopRuntimePairing(lookup),
 		economyProfileCommandSync(lookup),
@@ -608,6 +610,38 @@ func economyShopCommandSync(lookup lookupFunc) checkResult {
 		return checkResult{Name: "economy-shop-command-sync", Status: statusPass, Message: "economy shop command sync include is enabled for staging review"}
 	}
 	return checkResult{Name: "economy-shop-command-sync", Status: statusSkipped, Message: "economy shop command sync include is disabled"}
+}
+
+func economyGameCommandSync(lookup lookupFunc) checkResult {
+	includeGame, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME")
+	if err != nil {
+		return checkResult{Name: "economy-game-command-sync", Status: statusFail, Message: err.Error()}
+	}
+	if includeGame {
+		return checkResult{Name: "economy-game-command-sync", Status: statusPass, Message: "economy game command sync include is enabled for staging review"}
+	}
+	return checkResult{Name: "economy-game-command-sync", Status: statusSkipped, Message: "economy game command sync include is disabled"}
+}
+
+func economyGameRuntimePairing(lookup lookupFunc) checkResult {
+	includeGame, err := boolValue(lookup, "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME")
+	if err != nil {
+		return checkResult{Name: "economy-game-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	gameEnabled, err := boolValue(lookup, "MHCAT_FEATURE_ECONOMY_GAME_ENABLED")
+	if err != nil {
+		return checkResult{Name: "economy-game-runtime-pairing", Status: statusFail, Message: err.Error()}
+	}
+	if includeGame && !gameEnabled {
+		return checkResult{Name: "economy-game-runtime-pairing", Status: statusFail, Message: "MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME=true requires MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true in the staging runtime"}
+	}
+	if includeGame && gameEnabled {
+		return checkResult{Name: "economy-game-runtime-pairing", Status: statusPass, Message: "economy game command sync and runtime feature flag are paired"}
+	}
+	if gameEnabled {
+		return checkResult{Name: "economy-game-runtime-pairing", Status: statusWarn, Message: "economy game runtime is enabled but command sync include is disabled"}
+	}
+	return checkResult{Name: "economy-game-runtime-pairing", Status: statusSkipped, Message: "economy game runtime and command sync include are disabled"}
 }
 
 func economyShopRuntimePairing(lookup lookupFunc) checkResult {
