@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -30,6 +31,7 @@ const (
 	legacyUnlockEmoji         = "<:unlock:1017087850556174367>"
 	legacyLockEmoji           = "<:lock:1017077025397288980>"
 	legacyArrowPinkEmoji      = "<a:arrow_pink:996242460294512690>"
+	voiceLockPromptTTL        = 60 * time.Second
 )
 
 func (m Module) SetHandler() interactions.Handler {
@@ -154,8 +156,8 @@ func (m LockModule) AnswerHandler() interactions.Handler {
 
 func (m LockModule) PromptHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
-		channelID, userID, ok := voiceLockPromptPayload(interaction.CustomID)
-		if !ok {
+		channelID, userID, expiresAt, ok := voiceLockPromptPayload(interaction.CustomID)
+		if !ok || !m.now().Before(expiresAt) {
 			message := voiceLockPromptUnavailableMessage()
 			message.Ephemeral = true
 			return responder.Reply(ctx, message)
@@ -198,7 +200,8 @@ func (m LockEventModule) VoiceStateHandler() events.Handler {
 		if err != nil || !prompt {
 			return err
 		}
-		if _, err := m.messages.SendMessage(ctx, lock.TextChannelID, voiceLockPromptOutbound(lock, userID)); err != nil {
+		expiresAt := m.now().Add(voiceLockPromptTTL)
+		if _, err := m.messages.SendMessage(ctx, lock.TextChannelID, voiceLockPromptOutbound(lock, userID, expiresAt)); err != nil {
 			return err
 		}
 		if err := m.members.MoveMember(ctx, guildID, userID, nil); err != nil {
@@ -444,7 +447,7 @@ func voiceLockChannelLinkRow(guildID string, channelID string) responses.Compone
 	}}}
 }
 
-func voiceLockPromptOutbound(lock domain.VoiceRoomLock, userID string) ports.OutboundMessage {
+func voiceLockPromptOutbound(lock domain.VoiceRoomLock, userID string, expiresAt time.Time) ports.OutboundMessage {
 	return ports.OutboundMessage{
 		Content: "<@" + strings.TrimSpace(userID) + ">",
 		Embeds: []ports.OutboundEmbed{{
@@ -455,7 +458,7 @@ func voiceLockPromptOutbound(lock domain.VoiceRoomLock, userID string) ports.Out
 		Components: []ports.OutboundComponentRow{{
 			Components: []ports.OutboundComponent{{
 				Type:     "button",
-				CustomID: voiceLockPromptButtonID(lock.ChannelID, userID),
+				CustomID: voiceLockPromptButtonID(lock.ChannelID, userID, expiresAt),
 				Label:    "點我輸入密碼!",
 				Emoji:    legacyArrowPinkEmoji,
 				Style:    "success",
@@ -552,9 +555,10 @@ func voiceLockAnswerChannelID(customID string) string {
 	return strings.TrimSpace(strings.TrimSuffix(customID, "anser"))
 }
 
-func voiceLockPromptButtonID(channelID string, userID string) string {
+func voiceLockPromptButtonID(channelID string, userID string, expiresAt time.Time) string {
 	payload, err := customid.KeyValuePayload(map[string]string{
 		"c": strings.TrimSpace(channelID),
+		"e": strconv.FormatInt(expiresAt.UnixMilli(), 10),
 		"u": strings.TrimSpace(userID),
 	})
 	if err != nil {
@@ -567,16 +571,32 @@ func voiceLockPromptButtonID(channelID string, userID string) string {
 	return id
 }
 
-func voiceLockPromptPayload(raw string) (string, string, bool) {
+func voiceLockPromptPayload(raw string) (string, string, time.Time, bool) {
 	parsed, err := customid.ParseComponent(raw)
 	if err != nil || parsed.Feature != "voice_lock" || parsed.Action != "prompt" || parsed.Payload.Kind != customid.PayloadKV {
-		return "", "", false
+		return "", "", time.Time{}, false
 	}
 	channelID := strings.TrimSpace(parsed.Payload.Values["c"])
-	if channelID == "" {
-		return "", "", false
+	userID := strings.TrimSpace(parsed.Payload.Values["u"])
+	expiresMillis, err := strconv.ParseInt(parsed.Payload.Values["e"], 10, 64)
+	if channelID == "" || userID == "" || err != nil || expiresMillis <= 0 {
+		return "", "", time.Time{}, false
 	}
-	return channelID, strings.TrimSpace(parsed.Payload.Values["u"]), true
+	return channelID, userID, time.UnixMilli(expiresMillis), true
+}
+
+func (m LockModule) now() time.Time {
+	if m.clock == nil {
+		return time.Now()
+	}
+	return m.clock.Now()
+}
+
+func (m LockEventModule) now() time.Time {
+	if m.clock == nil {
+		return time.Now()
+	}
+	return m.clock.Now()
 }
 
 func voiceLockAnswerValue(fields []customid.ModalField) string {

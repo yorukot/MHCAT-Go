@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -339,8 +340,9 @@ func TestLockModuleRoutesLegacyAnswerModal(t *testing.T) {
 }
 
 func TestLockPromptHandlerShowsLegacyAnswerModal(t *testing.T) {
-	module := NewLockModule(fakemongo.NewVoiceRoomLockRepository(), nil)
-	interaction := fakediscord.ComponentInteractionFromID(voiceLockPromptButtonID("123456789012345678", "user-1"))
+	now := time.UnixMilli(1_700_000_000_000)
+	module := NewLockModuleWithClock(fakemongo.NewVoiceRoomLockRepository(), nil, voiceFixedClock{now: now})
+	interaction := fakediscord.ComponentInteractionFromID(voiceLockPromptButtonID("123456789012345678", "user-1", now.Add(voiceLockPromptTTL)))
 	responder := fakediscord.NewResponder()
 	if err := module.PromptHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("prompt handler: %v", err)
@@ -360,17 +362,43 @@ func TestLockPromptHandlerShowsLegacyAnswerModal(t *testing.T) {
 func TestLockModuleRoutesVersionedPromptButton(t *testing.T) {
 	router := interactions.NewRouter()
 	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
-	module := NewLockModule(fakemongo.NewVoiceRoomLockRepository(), nil)
+	now := time.UnixMilli(1_700_000_000_000)
+	module := NewLockModuleWithClock(fakemongo.NewVoiceRoomLockRepository(), nil, voiceFixedClock{now: now})
 	if err := module.RegisterRoutes(router); err != nil {
 		t.Fatalf("register routes: %v", err)
 	}
 	responder := fakediscord.NewResponder()
-	interaction := fakediscord.ComponentInteractionFromID(voiceLockPromptButtonID("123456789012345678", "user-1"))
+	interaction := fakediscord.ComponentInteractionFromID(voiceLockPromptButtonID("123456789012345678", "user-1", now.Add(voiceLockPromptTTL)))
 	if err := router.Handle(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handle prompt: %v", err)
 	}
 	if len(responder.Modals) != 1 || responder.Modals[0].CustomID != "123456789012345678anser" {
 		t.Fatalf("modals = %#v", responder.Modals)
+	}
+}
+
+func TestLockPromptHandlerExpiresAtLegacyDeadline(t *testing.T) {
+	deadline := time.UnixMilli(1_700_000_060_000)
+	module := NewLockModuleWithClock(fakemongo.NewVoiceRoomLockRepository(), nil, voiceFixedClock{now: deadline})
+	interaction := fakediscord.ComponentInteractionFromID(voiceLockPromptButtonID("123456789012345678", "user-1", deadline))
+	responder := fakediscord.NewResponder()
+	if err := module.PromptHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("prompt handler: %v", err)
+	}
+	if len(responder.Modals) != 0 || len(responder.Replies) != 1 || !responder.Replies[0].Ephemeral || !strings.Contains(responder.Replies[0].Embeds[0].Title, "請重新加入語音頻道後再試一次!") {
+		t.Fatalf("modals=%#v replies=%#v", responder.Modals, responder.Replies)
+	}
+}
+
+func TestVoiceLockPromptButtonIDFitsDiscordLimit(t *testing.T) {
+	deadline := time.UnixMilli(1_700_000_060_000)
+	customID := voiceLockPromptButtonID("1234567890123456789", "9876543210987654321", deadline)
+	if customID == "lock_start" || len(customID) > customid.MaxCustomIDLength {
+		t.Fatalf("custom id length=%d value=%q", len(customID), customID)
+	}
+	channelID, userID, expiresAt, ok := voiceLockPromptPayload(customID)
+	if !ok || channelID != "1234567890123456789" || userID != "9876543210987654321" || !expiresAt.Equal(deadline) {
+		t.Fatalf("channel=%q user=%q expires=%v ok=%t", channelID, userID, expiresAt, ok)
 	}
 }
 
@@ -400,7 +428,8 @@ func TestLockEventHandlerPromptsDisconnectsAndDMsLockedJoin(t *testing.T) {
 		TextChannelID: "text-1",
 	}
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewLockEventModule(repo, sideEffects, sideEffects, sideEffects)
+	now := time.UnixMilli(1_700_000_000_000)
+	module := NewLockEventModuleWithClock(repo, sideEffects, sideEffects, sideEffects, voiceFixedClock{now: now})
 	err := module.VoiceStateHandler()(context.Background(), events.Event{
 		Type:    events.TypeVoiceState,
 		GuildID: "guild-1",
@@ -428,9 +457,9 @@ func TestLockEventHandlerPromptsDisconnectsAndDMsLockedJoin(t *testing.T) {
 	if button.Label != "點我輸入密碼!" || button.Emoji != legacyArrowPinkEmoji || button.Style != "success" {
 		t.Fatalf("prompt button = %#v", button)
 	}
-	channelID, userID, ok := voiceLockPromptPayload(button.CustomID)
-	if !ok || channelID != "123456789012345678" || userID != "user-1" {
-		t.Fatalf("prompt custom id parsed as channel=%q user=%q ok=%t raw=%q", channelID, userID, ok, button.CustomID)
+	channelID, userID, expiresAt, ok := voiceLockPromptPayload(button.CustomID)
+	if !ok || channelID != "123456789012345678" || userID != "user-1" || !expiresAt.Equal(now.Add(voiceLockPromptTTL)) || len(button.CustomID) > customid.MaxCustomIDLength {
+		t.Fatalf("prompt custom id parsed as channel=%q user=%q expires=%v ok=%t raw=%q", channelID, userID, expiresAt, ok, button.CustomID)
 	}
 	if len(sideEffects.MovedMembers) != 1 || sideEffects.MovedMembers[0].GuildID != "guild-1" || sideEffects.MovedMembers[0].UserID != "user-1" || sideEffects.MovedMembers[0].ChannelID != nil {
 		t.Fatalf("moved members = %#v", sideEffects.MovedMembers)
@@ -703,6 +732,14 @@ func voiceLockAnswerInteraction(password string) interactions.Interaction {
 			Value:    password,
 		}},
 	}
+}
+
+type voiceFixedClock struct {
+	now time.Time
+}
+
+func (c voiceFixedClock) Now() time.Time {
+	return c.now
 }
 
 func assertEmbed(t *testing.T, responder *fakediscord.Responder, title string, description string) {

@@ -17,6 +17,7 @@ type Module struct {
 type LockModule struct {
 	service coreservice.LockService
 	usage   ports.UsageTracker
+	clock   ports.Clock
 }
 
 type LockEventModule struct {
@@ -24,6 +25,7 @@ type LockEventModule struct {
 	messages ports.DiscordMessagePort
 	direct   ports.DiscordDirectMessagePort
 	members  ports.DiscordMemberPort
+	clock    ports.Clock
 }
 
 type RoomEventModule struct {
@@ -41,18 +43,34 @@ func NewModule(repo ports.VoiceRoomConfigRepository, usage ports.UsageTracker) M
 }
 
 func NewLockModule(repo ports.VoiceRoomLockRepository, usage ports.UsageTracker) LockModule {
+	return NewLockModuleWithClock(repo, usage, nil)
+}
+
+func NewLockModuleWithClock(repo ports.VoiceRoomLockRepository, usage ports.UsageTracker, clock ports.Clock) LockModule {
+	if clock == nil {
+		clock = ports.SystemClock{}
+	}
 	return LockModule{
 		service: coreservice.NewLockService(repo),
 		usage:   usage,
+		clock:   clock,
 	}
 }
 
 func NewLockEventModule(repo ports.VoiceRoomLockRepository, messages ports.DiscordMessagePort, direct ports.DiscordDirectMessagePort, members ports.DiscordMemberPort) LockEventModule {
+	return NewLockEventModuleWithClock(repo, messages, direct, members, nil)
+}
+
+func NewLockEventModuleWithClock(repo ports.VoiceRoomLockRepository, messages ports.DiscordMessagePort, direct ports.DiscordDirectMessagePort, members ports.DiscordMemberPort, clock ports.Clock) LockEventModule {
+	if clock == nil {
+		clock = ports.SystemClock{}
+	}
 	return LockEventModule{
 		service:  coreservice.NewLockService(repo),
 		messages: messages,
 		direct:   direct,
 		members:  members,
+		clock:    clock,
 	}
 }
 
