@@ -13,7 +13,6 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 const (
@@ -24,7 +23,7 @@ const (
 
 func TestSetupHandlerShowsLegacyModalWithoutSavingConfig(t *testing.T) {
 	repo := fakemongo.NewTicketConfigRepository()
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions("私人頻道設置", "", map[string]string{
 		"類別":     testCategoryID,
@@ -64,7 +63,7 @@ func TestSetupHandlerShowsLegacyModalWithoutSavingConfig(t *testing.T) {
 }
 
 func TestSetupHandlerRequiresManageMessagesWithLegacyError(t *testing.T) {
-	module := NewModule(fakemongo.NewTicketConfigRepository(), nil)
+	module := NewModule(fakemongo.NewTicketConfigRepository())
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions("私人頻道設置", "", map[string]string{
 		"類別":     testCategoryID,
@@ -88,7 +87,7 @@ func TestSetupHandlerRequiresManageMessagesWithLegacyError(t *testing.T) {
 
 func TestSetupHandlerExistingConfigUsesLegacyDuplicateError(t *testing.T) {
 	repo := seededTicketRepo(t)
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions("私人頻道設置", "", map[string]string{
 		"類別":     "444444444444444444",
@@ -122,8 +121,7 @@ func TestSetupHandlerExistingConfigUsesLegacyDuplicateError(t *testing.T) {
 func TestSetupModalSavesConfigAfterValidModalAndRepliesPanel(t *testing.T) {
 	repo := fakemongo.NewTicketConfigRepository()
 	sideEffects := fakediscord.NewSideEffects()
-	usage := &fakeusage.Tracker{}
-	module := NewModuleWithSideEffects(repo, usage, nil, sideEffects, "")
+	module := NewModuleWithSideEffects(repo, nil, sideEffects, "")
 	responder := fakediscord.NewResponder()
 	interaction := ticketModalInteraction(t, "#00ff00", "建立私人頻道", "按下按鈕創建客服頻道")
 
@@ -163,15 +161,12 @@ func TestSetupModalSavesConfigAfterValidModalAndRepliesPanel(t *testing.T) {
 	if button.CustomID != "tic" || button.Label != "🎫 點我創建客服頻道!" || button.Style != "primary" {
 		t.Fatalf("panel button = %#v", button)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != "私人頻道設置" || usage.Events[0].Feature != "ticket" {
-		t.Fatalf("usage events = %#v", usage.Events)
-	}
 }
 
 func TestSetupModalRejectsInvalidColorWithoutSavingConfig(t *testing.T) {
 	repo := fakemongo.NewTicketConfigRepository()
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewModuleWithSideEffects(repo, nil, nil, sideEffects, "")
+	module := NewModuleWithSideEffects(repo, nil, sideEffects, "")
 	responder := fakediscord.NewResponder()
 	interaction := ticketModalInteraction(t, "not-a-color", "建立私人頻道", "按下按鈕創建客服頻道")
 
@@ -194,8 +189,7 @@ func TestSetupModalRejectsInvalidColorWithoutSavingConfig(t *testing.T) {
 
 func TestLegacyPanelSubmitPreservesRawPanelTextAndEditsSuccess(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
-	usage := &fakeusage.Tracker{}
-	module := NewModuleWithSideEffects(nil, usage, nil, sideEffects, "")
+	module := NewModuleWithSideEffects(nil, nil, sideEffects, "")
 	responder := fakediscord.NewResponder()
 	interaction := legacyTicketModalInteraction("#00ff00", "  建立私人頻道  ", "  按下按鈕創建客服頻道  ")
 
@@ -218,14 +212,11 @@ func TestLegacyPanelSubmitPreservesRawPanelTextAndEditsSuccess(t *testing.T) {
 	if len(sent.Components) != 1 || sent.Components[0].Components[0].CustomID != "tic" {
 		t.Fatalf("panel components = %#v", sent.Components)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != "私人頻道設置" {
-		t.Fatalf("usage events = %#v", usage.Events)
-	}
 }
 
 func TestLegacyPanelSubmitRejectsInvalidColor(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewModuleWithSideEffects(nil, nil, nil, sideEffects, "")
+	module := NewModuleWithSideEffects(nil, nil, sideEffects, "")
 	responder := fakediscord.NewResponder()
 	interaction := legacyTicketModalInteraction("bad", "建立私人頻道", "按下按鈕創建客服頻道")
 
@@ -313,8 +304,7 @@ func TestDeleteHandlerDeletesConfigWithLegacyMessage(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("seed config: %v", err)
 	}
-	usage := &fakeusage.Tracker{}
-	module := NewModule(repo, usage)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteraction("私人頻道刪除")
 	interaction.Actor.GuildID = testGuildID
@@ -333,13 +323,10 @@ func TestDeleteHandlerDeletesConfigWithLegacyMessage(t *testing.T) {
 	if !strings.Contains(description, "成功刪除私人頻道的設置") {
 		t.Fatalf("delete description = %q", description)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != "私人頻道刪除" {
-		t.Fatalf("usage events = %#v", usage.Events)
-	}
 }
 
 func TestDeleteHandlerMissingConfigUsesLegacyFailureMessage(t *testing.T) {
-	module := NewModule(fakemongo.NewTicketConfigRepository(), nil)
+	module := NewModule(fakemongo.NewTicketConfigRepository())
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteraction("私人頻道刪除")
 	interaction.Actor.GuildID = testGuildID
@@ -359,8 +346,7 @@ func TestDeleteHandlerMissingConfigUsesLegacyFailureMessage(t *testing.T) {
 
 func TestDeleteHandlerRequiresManageMessagesBeforeDeletingConfig(t *testing.T) {
 	repo := seededTicketRepo(t)
-	usage := &fakeusage.Tracker{}
-	module := NewModule(repo, usage)
+	module := NewModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteraction("私人頻道刪除")
 	interaction.Actor.GuildID = testGuildID
@@ -385,16 +371,12 @@ func TestDeleteHandlerRequiresManageMessagesBeforeDeletingConfig(t *testing.T) {
 	if got := responder.Edits[0].Embeds[0].Title; got != wantTitle {
 		t.Fatalf("permission title = %q, want %q", got, wantTitle)
 	}
-	if len(usage.Events) != 0 {
-		t.Fatalf("route-level usage events = %#v", usage.Events)
-	}
 }
 
 func TestOpenHandlerCreatesTicketChannelAndSendsLegacyWelcome(t *testing.T) {
 	repo := seededTicketRepo(t)
 	sideEffects := fakediscord.NewSideEffects()
-	usage := &fakeusage.Tracker{}
-	module := NewModuleWithSideEffects(repo, usage, sideEffects, sideEffects, "")
+	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, "")
 	responder := fakediscord.NewResponder()
 	interaction := ticketButtonInteraction("tic")
 	interaction.ApplicationID = "444444444444444444"
@@ -441,9 +423,6 @@ func TestOpenHandlerCreatesTicketChannelAndSendsLegacyWelcome(t *testing.T) {
 	if len(responder.Replies[0].Embeds) != 1 || responder.Replies[0].Embeds[0].Title != "__**頻道**__" || responder.Replies[0].Embeds[0].Description != ":white_check_mark: 你成功開啟了頻道!" {
 		t.Fatalf("open success embed = %#v", responder.Replies[0].Embeds)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != "私人頻道開啟" {
-		t.Fatalf("usage events = %#v", usage.Events)
-	}
 }
 
 func TestTicketBotUserIDUsesConfiguredFallbackOutsideRuntimeInteractions(t *testing.T) {
@@ -461,7 +440,7 @@ func TestOpenHandlerDuplicateChannelUsesLegacyWarning(t *testing.T) {
 		Name:      "user-1",
 		Type:      discordChannelTypeGuildText,
 	})
-	module := NewModuleWithSideEffects(repo, nil, sideEffects, sideEffects, "")
+	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, "")
 	responder := fakediscord.NewResponder()
 
 	if err := module.OpenHandler()(context.Background(), ticketButtonInteraction("tic"), responder); err != nil {
@@ -484,7 +463,7 @@ func TestOpenHandlerDuplicateCheckMatchesAnyLegacyChannelType(t *testing.T) {
 		Name:      "user-1",
 		Type:      2,
 	})
-	module := NewModuleWithSideEffects(repo, nil, sideEffects, sideEffects, "")
+	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, "")
 	responder := fakediscord.NewResponder()
 
 	if err := module.OpenHandler()(context.Background(), ticketButtonInteraction("tic"), responder); err != nil {
@@ -500,7 +479,7 @@ func TestOpenHandlerDuplicateCheckMatchesAnyLegacyChannelType(t *testing.T) {
 
 func TestOpenHandlerMissingConfigDeletesPanelAndRepliesLegacyMessage(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewModuleWithSideEffects(fakemongo.NewTicketConfigRepository(), nil, sideEffects, sideEffects, "")
+	module := NewModuleWithSideEffects(fakemongo.NewTicketConfigRepository(), sideEffects, sideEffects, "")
 	responder := fakediscord.NewResponder()
 	interaction := ticketButtonInteraction("tic")
 
@@ -520,7 +499,7 @@ func TestOpenHandlerMissingConfigDeletesPanelAndRepliesLegacyMessage(t *testing.
 
 func TestCloseHandlerDeletesOwnerTicketChannel(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewModuleWithSideEffects(nil, nil, sideEffects, sideEffects, "")
+	module := NewModuleWithSideEffects(nil, sideEffects, sideEffects, "")
 	interaction := ticketButtonInteraction("del")
 	interaction.ChannelID = "ticket-channel"
 	interaction.ChannelName = interaction.Actor.UserID
@@ -535,7 +514,7 @@ func TestCloseHandlerDeletesOwnerTicketChannel(t *testing.T) {
 
 func TestCloseHandlerDeletesWhenActorCanManageMessages(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewModuleWithSideEffects(nil, nil, sideEffects, sideEffects, "")
+	module := NewModuleWithSideEffects(nil, sideEffects, sideEffects, "")
 	interaction := ticketButtonInteraction("del")
 	interaction.ChannelID = "ticket-channel"
 	interaction.ChannelName = "someone-else"
@@ -551,7 +530,7 @@ func TestCloseHandlerDeletesWhenActorCanManageMessages(t *testing.T) {
 
 func TestCloseHandlerDeniesWrongChannelWithoutManageMessages(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewModuleWithSideEffects(nil, nil, sideEffects, sideEffects, "")
+	module := NewModuleWithSideEffects(nil, sideEffects, sideEffects, "")
 	responder := fakediscord.NewResponder()
 	interaction := ticketButtonInteraction("del")
 	interaction.ChannelID = "ticket-channel"

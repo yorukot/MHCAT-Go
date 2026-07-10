@@ -8,7 +8,6 @@ import (
 
 type Module struct {
 	repo      ports.TicketConfigRepository
-	usage     ports.UsageTracker
 	channels  ports.DiscordChannelPort
 	messages  ports.DiscordMessagePort
 	botUserID string
@@ -16,17 +15,16 @@ type Module struct {
 	feature   string
 }
 
-func NewModule(repo ports.TicketConfigRepository, usage ports.UsageTracker) Module {
+func NewModule(repo ports.TicketConfigRepository) Module {
 	return Module{
 		repo:    repo,
-		usage:   usage,
 		defs:    Definitions(),
 		feature: "ticket",
 	}
 }
 
-func NewModuleWithSideEffects(repo ports.TicketConfigRepository, usage ports.UsageTracker, channels ports.DiscordChannelPort, messages ports.DiscordMessagePort, botUserID string) Module {
-	module := NewModule(repo, usage)
+func NewModuleWithSideEffects(repo ports.TicketConfigRepository, channels ports.DiscordChannelPort, messages ports.DiscordMessagePort, botUserID string) Module {
+	module := NewModule(repo)
 	module.channels = channels
 	module.messages = messages
 	module.botUserID = botUserID

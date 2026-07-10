@@ -374,7 +374,7 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		return nil, err
 	}
 	if opts.TicketConfigRepository != nil {
-		ticketModule := featureticket.NewModuleWithSideEffects(opts.TicketConfigRepository, opts.UsageTracker, opts.TicketChannelPort, opts.TicketMessagePort, opts.BotUserID)
+		ticketModule := featureticket.NewModuleWithSideEffects(opts.TicketConfigRepository, opts.TicketChannelPort, opts.TicketMessagePort, opts.BotUserID)
 		if err := ticketModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

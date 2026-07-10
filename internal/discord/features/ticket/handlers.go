@@ -146,7 +146,7 @@ func (m Module) submitTicketPanel(ctx context.Context, interaction interactions.
 	if err := responder.EditOriginal(ctx, ticketSetupSuccessMessage()); err != nil {
 		return err
 	}
-	return m.track(ctx, interaction, "私人頻道設置")
+	return nil
 }
 
 func (m Module) DeleteHandler() interactions.Handler {
@@ -176,7 +176,7 @@ func (m Module) DeleteHandler() interactions.Handler {
 		}); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, "私人頻道刪除")
+		return nil
 	}
 }
 
@@ -221,7 +221,7 @@ func (m Module) OpenHandler() interactions.Handler {
 		if err := responder.Reply(ctx, ticketOpenSuccessMessage()); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, "私人頻道開啟")
+		return nil
 	}
 }
 
@@ -242,7 +242,7 @@ func (m Module) CloseHandler() interactions.Handler {
 		if err := m.channels.DeleteChannel(ctx, interaction.ChannelID); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, "私人頻道刪除頻道")
+		return nil
 	}
 }
 
@@ -265,18 +265,6 @@ func ticketBotUserID(applicationID string, fallbackID string) string {
 		return applicationID
 	}
 	return strings.TrimSpace(fallbackID)
-}
-
-func (m Module) track(ctx context.Context, interaction interactions.Interaction, command string) error {
-	if m.usage == nil {
-		return nil
-	}
-	return m.usage.TrackCommand(ctx, ports.UsageEvent{
-		CommandName: command,
-		UserID:      interaction.Actor.UserID,
-		GuildID:     interaction.Actor.GuildID,
-		Feature:     m.feature,
-	})
 }
 
 func firstOption(interaction interactions.Interaction, names ...string) string {

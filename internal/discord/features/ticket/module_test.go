@@ -9,10 +9,11 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestModuleCommandsValidate(t *testing.T) {
-	module := NewModule(fakemongo.NewTicketConfigRepository(), nil)
+	module := NewModule(fakemongo.NewTicketConfigRepository())
 	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, module.Commands())
 	if err := commands.ValidateRegistry(registry); err != nil {
 		t.Fatalf("ticket command registry validation failed: %v", err)
@@ -40,7 +41,7 @@ func TestModuleCommandsValidate(t *testing.T) {
 }
 
 func TestModuleRegistersRoutes(t *testing.T) {
-	module := NewModule(fakemongo.NewTicketConfigRepository(), nil)
+	module := NewModule(fakemongo.NewTicketConfigRepository())
 	router := interactions.NewRouter()
 	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
 	if err := module.RegisterRoutes(router); err != nil {
@@ -63,7 +64,7 @@ func TestModuleRegistersRoutes(t *testing.T) {
 
 func TestModuleRegistersLegacyTicketPanelModalRoute(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewModuleWithSideEffects(fakemongo.NewTicketConfigRepository(), nil, nil, sideEffects, "")
+	module := NewModuleWithSideEffects(fakemongo.NewTicketConfigRepository(), nil, sideEffects, "")
 	router := interactions.NewRouter()
 	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
 	if err := module.RegisterRoutes(router); err != nil {
@@ -87,5 +88,43 @@ func TestModuleRegistersLegacyTicketPanelModalRoute(t *testing.T) {
 	}
 	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Components[0].Components[0].CustomID != "tic" {
 		t.Fatalf("sent messages = %#v", sideEffects.Sent)
+	}
+}
+
+func TestModuleUsesGlobalUsageForSlashOnly(t *testing.T) {
+	repo := fakemongo.NewTicketConfigRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, "")
+	tracker := &fakeusage.Tracker{}
+	router := interactions.NewRouter(interactions.Usage(tracker))
+	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
+	if err := module.RegisterRoutes(router); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	setupResponder := fakediscord.NewResponder()
+	setup := fakediscord.SlashInteractionWithOptions("私人頻道設置", "", map[string]string{
+		"類別":     testCategoryID,
+		"管理員身分組": testAdminRole,
+	})
+	setup.Actor.GuildID = testGuildID
+	setup.Actor.PermissionBits = permissionManageMessages
+	if err := router.Handle(context.Background(), setup, setupResponder); err != nil {
+		t.Fatalf("route setup: %v", err)
+	}
+	if len(setupResponder.Modals) != 1 {
+		t.Fatalf("setup modals = %#v", setupResponder.Modals)
+	}
+
+	modal := ticketModalInteraction(t, "#00ff00", "Ticket", "Open a ticket")
+	modal.CustomID = setupResponder.Modals[0].CustomID
+	if err := router.Handle(context.Background(), modal, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("route setup modal: %v", err)
+	}
+	if err := router.Handle(context.Background(), ticketButtonInteraction("tic"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("route open button: %v", err)
+	}
+	if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "私人頻道設置" {
+		t.Fatalf("usage events = %#v", tracker.Events)
 	}
 }
