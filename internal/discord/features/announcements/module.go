@@ -1,6 +1,8 @@
 package announcements
 
 import (
+	"time"
+
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/announcements"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
@@ -16,6 +18,7 @@ type Module struct {
 	messages    ports.DiscordMessagePort
 	usage       ports.UsageTracker
 	drafts      *DraftStore
+	after       func(time.Duration, func())
 	config      bool
 	send        bool
 	relay       bool
@@ -38,6 +41,7 @@ func NewSendModule(reader ports.AnnouncementChannelReader, messages ports.Discor
 		messages: messages,
 		usage:    usage,
 		drafts:   NewDraftStore(),
+		after:    announcementAfter,
 		send:     reader != nil && messages != nil,
 	}
 }
@@ -50,6 +54,7 @@ func NewModuleWithSend(repo ports.AnnouncementConfigRepository, messages ports.D
 		messages:    messages,
 		usage:       usage,
 		drafts:      NewDraftStore(),
+		after:       announcementAfter,
 		config:      repo != nil,
 		send:        repo != nil && messages != nil,
 	}
@@ -71,10 +76,15 @@ func NewModuleWithRelay(repo ports.AnnouncementConfigRepository, messages ports.
 		messages:    messages,
 		usage:       usage,
 		drafts:      NewDraftStore(),
+		after:       announcementAfter,
 		config:      repo != nil,
 		send:        repo != nil && messages != nil,
 		relay:       repo != nil && messages != nil,
 	}
+}
+
+func announcementAfter(delay time.Duration, callback func()) {
+	time.AfterFunc(delay, callback)
 }
 
 func (m Module) Name() string {

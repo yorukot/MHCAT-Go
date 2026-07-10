@@ -156,3 +156,18 @@ func (s *State) MarkEditFollowUp(ctx context.Context, messageID string) error {
 	}
 	return nil
 }
+
+func (s *State) MarkDeleteFollowUp(ctx context.Context, messageID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.status == StatusInitial {
+		return ErrNoInitialResponse
+	}
+	if messageID == "" {
+		return ErrInvalidFollowUp
+	}
+	return nil
+}

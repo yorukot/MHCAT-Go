@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
@@ -100,6 +101,90 @@ func TestSendModalPreviewsAndConfirmsAnnouncement(t *testing.T) {
 	}
 	if len(confirmResponder.Edits) != 1 || confirmResponder.Edits[0].Content != "<a:green_tick:994529015652163614> | 成功發送!" {
 		t.Fatalf("confirm response = %#v", confirmResponder.Edits)
+	}
+}
+
+func TestSendModalDeletesConfirmationAtLegacyDeadline(t *testing.T) {
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	var delay time.Duration
+	module.after = func(got time.Duration, callback func()) {
+		delay = got
+		callback()
+	}
+	interaction := modalInteraction(map[string]string{
+		fieldTag:     "@here",
+		fieldColor:   "#53FF53",
+		fieldTitle:   "公告",
+		fieldContent: "內容",
+	})
+	responder := fakediscord.NewResponder()
+
+	if err := module.SendModalHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if delay != 6*time.Second || len(responder.FollowIDs) != 1 || len(responder.FollowDeletes) != 1 || responder.FollowDeletes[0] != responder.FollowIDs[0] {
+		t.Fatalf("delay=%v ids=%#v deletes=%#v", delay, responder.FollowIDs, responder.FollowDeletes)
+	}
+}
+
+func TestUnauthorizedConfirmationDoesNotConsumeDraft(t *testing.T) {
+	repo := fakemongo.NewAnnouncementConfigRepository()
+	repo.AnnouncementChannels["guild-1"] = "announcement-channel"
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewSendModule(repo, sideEffects, nil)
+	stateID, err := module.draftStore().Put(AnnouncementDraft{GuildID: "guild-1", UserID: "owner-1", Color: 0x53FF53, Title: "公告", Content: "內容", Tag: "@here"})
+	if err != nil {
+		t.Fatalf("put draft: %v", err)
+	}
+	customID := announcementStateComponentID(confirmAction, stateID)
+
+	unauthorized := fakediscord.ComponentInteractionFromID(customID)
+	unauthorized.Actor.UserID = "other-user"
+	unauthorizedResponder := fakediscord.NewResponder()
+	if err := module.ConfirmHandler()(context.Background(), unauthorized, unauthorizedResponder); err != nil {
+		t.Fatalf("unauthorized confirm: %v", err)
+	}
+	if len(unauthorizedResponder.Edits) != 1 || unauthorizedResponder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 這個公告確認按鈕不是給你使用的" {
+		t.Fatalf("unauthorized response = %#v", unauthorizedResponder.Edits)
+	}
+
+	owner := fakediscord.ComponentInteractionFromID(customID)
+	owner.Actor.UserID = "owner-1"
+	ownerResponder := fakediscord.NewResponder()
+	if err := module.ConfirmHandler()(context.Background(), owner, ownerResponder); err != nil {
+		t.Fatalf("owner confirm: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 {
+		t.Fatalf("owner send = %#v", sideEffects.Sent)
+	}
+}
+
+func TestUnauthorizedCancelDoesNotConsumeDraft(t *testing.T) {
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	stateID, err := module.draftStore().Put(AnnouncementDraft{GuildID: "guild-1", UserID: "owner-1", Color: 0x53FF53, Title: "公告", Content: "內容", Tag: "@here"})
+	if err != nil {
+		t.Fatalf("put draft: %v", err)
+	}
+	customID := announcementStateComponentID(cancelAction, stateID)
+
+	unauthorized := fakediscord.ComponentInteractionFromID(customID)
+	unauthorized.Actor.UserID = "other-user"
+	unauthorizedResponder := fakediscord.NewResponder()
+	if err := module.CancelHandler()(context.Background(), unauthorized, unauthorizedResponder); err != nil {
+		t.Fatalf("unauthorized cancel: %v", err)
+	}
+	if len(unauthorizedResponder.Replies) != 1 || unauthorizedResponder.Replies[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 這個公告確認按鈕不是給你使用的" {
+		t.Fatalf("unauthorized response = %#v", unauthorizedResponder.Replies)
+	}
+
+	owner := fakediscord.ComponentInteractionFromID(customID)
+	owner.Actor.UserID = "owner-1"
+	ownerResponder := fakediscord.NewResponder()
+	if err := module.CancelHandler()(context.Background(), owner, ownerResponder); err != nil {
+		t.Fatalf("owner cancel: %v", err)
+	}
+	if len(ownerResponder.Replies) != 1 || ownerResponder.Replies[0].Content != "已取消" {
+		t.Fatalf("owner response = %#v", ownerResponder.Replies)
 	}
 }
 

@@ -169,6 +169,10 @@ func (r *trackingResponder) EditFollowUp(ctx context.Context, messageID string, 
 	return err
 }
 
+func (r *trackingResponder) DeleteFollowUp(ctx context.Context, messageID string) error {
+	return r.next.DeleteFollowUp(ctx, messageID)
+}
+
 func (r *trackingResponder) Error(ctx context.Context, err error) error {
 	responseErr := r.next.Error(ctx, err)
 	if responseErr == nil {

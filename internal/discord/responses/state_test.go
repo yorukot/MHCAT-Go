@@ -73,8 +73,11 @@ func TestResponderDeferThenCreateAndEditFollowUp(t *testing.T) {
 	if err := responder.EditFollowUp(context.Background(), messageID, responses.Message{Content: "done"}); err != nil {
 		t.Fatalf("edit follow-up: %v", err)
 	}
-	if len(responder.Follow) != 1 || responder.Follow[0].Content != "loading" || len(responder.FollowEdits) != 1 || responder.FollowEdits[0].MessageID != messageID || responder.FollowEdits[0].Message.Content != "done" {
-		t.Fatalf("follow=%#v edits=%#v", responder.Follow, responder.FollowEdits)
+	if err := responder.DeleteFollowUp(context.Background(), messageID); err != nil {
+		t.Fatalf("delete follow-up: %v", err)
+	}
+	if len(responder.Follow) != 1 || responder.Follow[0].Content != "loading" || len(responder.FollowEdits) != 1 || responder.FollowEdits[0].MessageID != messageID || responder.FollowEdits[0].Message.Content != "done" || len(responder.FollowDeletes) != 1 || responder.FollowDeletes[0] != messageID {
+		t.Fatalf("follow=%#v edits=%#v deletes=%#v", responder.Follow, responder.FollowEdits, responder.FollowDeletes)
 	}
 }
 
@@ -171,6 +174,13 @@ func TestResponderEditFollowUpRejectsMissingResponseOrMessageID(t *testing.T) {
 	}
 	if err := responder.EditFollowUp(context.Background(), "", responses.Message{Content: "missing ID"}); !errors.Is(err, responses.ErrInvalidFollowUp) {
 		t.Fatalf("expected ErrInvalidFollowUp, got %v", err)
+	}
+	initial := fakediscord.NewResponder()
+	if err := initial.DeleteFollowUp(context.Background(), "follow-up-1"); !errors.Is(err, responses.ErrNoInitialResponse) {
+		t.Fatalf("expected delete ErrNoInitialResponse, got %v", err)
+	}
+	if err := responder.DeleteFollowUp(context.Background(), ""); !errors.Is(err, responses.ErrInvalidFollowUp) {
+		t.Fatalf("expected delete ErrInvalidFollowUp, got %v", err)
 	}
 }
 

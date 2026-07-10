@@ -59,8 +59,11 @@ func TestInteractionResponderCreatesAndEditsFollowUpByMessageID(t *testing.T) {
 	if err := responder.EditFollowUp(context.Background(), messageID, responses.Message{Embeds: []responses.Embed{{Title: "result"}}}); err != nil {
 		t.Fatalf("edit follow-up: %v", err)
 	}
+	if err := responder.DeleteFollowUp(context.Background(), messageID); err != nil {
+		t.Fatalf("delete follow-up: %v", err)
+	}
 
-	if len(requests) != 2 {
+	if len(requests) != 3 {
 		t.Fatalf("requests = %#v", requests)
 	}
 	if requests[0].method != http.MethodPost || !strings.Contains(requests[0].url, "/webhooks/app-1/token-1?wait=true") || !strings.Contains(requests[0].body, `"content":"loading"`) {
@@ -68,6 +71,9 @@ func TestInteractionResponderCreatesAndEditsFollowUpByMessageID(t *testing.T) {
 	}
 	if requests[1].method != http.MethodPatch || !strings.Contains(requests[1].url, "/webhooks/app-1/token-1/messages/loading-1") || !strings.Contains(requests[1].body, `"title":"result"`) {
 		t.Fatalf("edit request = %#v", requests[1])
+	}
+	if requests[2].method != http.MethodDelete || !strings.Contains(requests[2].url, "/webhooks/app-1/token-1/messages/loading-1") {
+		t.Fatalf("delete request = %#v", requests[2])
 	}
 }
 

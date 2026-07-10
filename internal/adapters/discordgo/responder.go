@@ -161,6 +161,19 @@ func (r *InteractionResponder) EditFollowUp(ctx context.Context, messageID strin
 	return ctx.Err()
 }
 
+func (r *InteractionResponder) DeleteFollowUp(ctx context.Context, messageID string) error {
+	if err := r.ready(ctx); err != nil {
+		return err
+	}
+	if err := r.state.MarkDeleteFollowUp(ctx, messageID); err != nil {
+		return err
+	}
+	if err := r.session.FollowupMessageDelete(r.interaction, messageID, dgo.WithContext(ctx)); err != nil {
+		return fmt.Errorf("delete interaction follow-up: %w", err)
+	}
+	return ctx.Err()
+}
+
 func (r *InteractionResponder) Error(ctx context.Context, err error) error {
 	msg := responses.SafeErrorMessage(err)
 	if r.state.Status() == responses.StatusInitial {

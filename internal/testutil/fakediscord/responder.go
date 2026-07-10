@@ -23,6 +23,7 @@ type Responder struct {
 	Follow          []responses.Message
 	FollowIDs       []string
 	FollowEdits     []FollowUpEdit
+	FollowDeletes   []string
 	Errors          []responses.Message
 }
 
@@ -98,6 +99,14 @@ func (r *Responder) EditFollowUp(ctx context.Context, messageID string, msg resp
 		return err
 	}
 	r.FollowEdits = append(r.FollowEdits, FollowUpEdit{MessageID: messageID, Message: msg})
+	return nil
+}
+
+func (r *Responder) DeleteFollowUp(ctx context.Context, messageID string) error {
+	if err := r.State.MarkDeleteFollowUp(ctx, messageID); err != nil {
+		return err
+	}
+	r.FollowDeletes = append(r.FollowDeletes, messageID)
 	return nil
 }
 

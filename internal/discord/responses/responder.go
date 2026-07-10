@@ -148,5 +148,6 @@ type Responder interface {
 	FollowUp(ctx context.Context, msg Message) error
 	CreateFollowUp(ctx context.Context, msg Message) (string, error)
 	EditFollowUp(ctx context.Context, messageID string, msg Message) error
+	DeleteFollowUp(ctx context.Context, messageID string) error
 	Error(ctx context.Context, err error) error
 }

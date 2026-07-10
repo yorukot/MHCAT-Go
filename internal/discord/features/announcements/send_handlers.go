@@ -3,6 +3,7 @@ package announcements
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -62,7 +63,13 @@ func (m Module) SendModalHandler() interactions.Handler {
 			m.draftStore().Delete(stateID)
 			return err
 		}
-		return responder.FollowUp(ctx, confirmationMessage(stateID))
+		messageID, err := responder.CreateFollowUp(ctx, confirmationMessage(stateID))
+		if err != nil {
+			m.draftStore().Delete(stateID)
+			return err
+		}
+		m.scheduleConfirmationDelete(responder, messageID)
+		return nil
 	}
 }
 
@@ -75,15 +82,15 @@ func (m Module) ConfirmHandler() interactions.Handler {
 		if err != nil {
 			return responder.EditOriginal(ctx, announcementErrorMessage("已取消"))
 		}
-		draft, err := m.draftStore().Take(stateID)
+		draft, err := m.draftStore().TakeForActor(stateID, interaction.Actor.GuildID, interaction.Actor.UserID)
 		if errors.Is(err, ErrAnnouncementDraftNotFound) {
 			return responder.EditOriginal(ctx, announcementErrorMessage("已取消"))
 		}
+		if errors.Is(err, ErrAnnouncementDraftUnauthorized) {
+			return responder.EditOriginal(ctx, announcementErrorMessage("這個公告確認按鈕不是給你使用的"))
+		}
 		if err != nil {
 			return err
-		}
-		if draft.UserID != "" && draft.UserID != interaction.Actor.UserID {
-			return responder.EditOriginal(ctx, announcementErrorMessage("這個公告確認按鈕不是給你使用的"))
 		}
 		if m.reader == nil || m.messages == nil {
 			return responder.EditOriginal(ctx, announcementErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
@@ -108,13 +115,27 @@ func (m Module) ConfirmHandler() interactions.Handler {
 func (m Module) CancelHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
 		if stateID, err := stateIDFromInteraction(interaction); err == nil {
-			m.draftStore().Delete(stateID)
+			_, err = m.draftStore().TakeForActor(stateID, interaction.Actor.GuildID, interaction.Actor.UserID)
+			if errors.Is(err, ErrAnnouncementDraftUnauthorized) {
+				return responder.Reply(ctx, announcementErrorMessage("這個公告確認按鈕不是給你使用的"))
+			}
 		}
 		return responder.Reply(ctx, responses.Message{
 			Content:         "已取消",
 			AllowedMentions: &responses.AllowedMentions{},
 		})
 	}
+}
+
+func (m Module) scheduleConfirmationDelete(responder responses.Responder, messageID string) {
+	if m.after == nil || responder == nil || messageID == "" {
+		return
+	}
+	m.after(defaultDraftTTL, func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = responder.DeleteFollowUp(ctx, messageID)
+	})
 }
 
 func announcementSendModal(customID string) responses.Modal {

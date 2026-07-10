@@ -9,6 +9,7 @@ import (
 )
 
 var ErrAnnouncementDraftNotFound = errors.New("announcement draft not found")
+var ErrAnnouncementDraftUnauthorized = errors.New("announcement draft unauthorized")
 
 const (
 	defaultDraftLimit = 512
@@ -70,6 +71,14 @@ func (s *DraftStore) Put(draft AnnouncementDraft) (string, error) {
 }
 
 func (s *DraftStore) Take(id string) (AnnouncementDraft, error) {
+	return s.take(id, "", "", false)
+}
+
+func (s *DraftStore) TakeForActor(id string, guildID string, userID string) (AnnouncementDraft, error) {
+	return s.take(id, guildID, userID, true)
+}
+
+func (s *DraftStore) take(id string, guildID string, userID string, authorize bool) (AnnouncementDraft, error) {
 	if s == nil || id == "" {
 		return AnnouncementDraft{}, ErrAnnouncementDraftNotFound
 	}
@@ -80,11 +89,16 @@ func (s *DraftStore) Take(id string) (AnnouncementDraft, error) {
 	if !ok {
 		return AnnouncementDraft{}, ErrAnnouncementDraftNotFound
 	}
-	delete(s.drafts, id)
-	s.removeOrder(id)
 	if !draft.ExpiresAt.IsZero() && s.now().After(draft.ExpiresAt) {
+		delete(s.drafts, id)
+		s.removeOrder(id)
 		return AnnouncementDraft{}, ErrAnnouncementDraftNotFound
 	}
+	if authorize && ((draft.GuildID != "" && draft.GuildID != guildID) || (draft.UserID != "" && draft.UserID != userID)) {
+		return AnnouncementDraft{}, ErrAnnouncementDraftUnauthorized
+	}
+	delete(s.drafts, id)
+	s.removeOrder(id)
 	return draft, nil
 }
 
