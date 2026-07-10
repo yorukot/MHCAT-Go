@@ -82,7 +82,7 @@ func (m Module) CreateHandler() interactions.Handler {
 		}); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, "投票創建")
+		return nil
 	}
 }
 
@@ -122,7 +122,7 @@ func (m Module) VoteHandler() interactions.Handler {
 		}); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, "投票")
+		return nil
 	}
 }
 
@@ -371,16 +371,4 @@ func doneMessageForToggle(toggle domain.PollToggle, poll domain.Poll) string {
 	default:
 		return "成功更新投票!"
 	}
-}
-
-func (m Module) track(ctx context.Context, interaction interactions.Interaction, command string) error {
-	if m.usage == nil {
-		return nil
-	}
-	return m.usage.TrackCommand(ctx, ports.UsageEvent{
-		CommandName: command,
-		UserID:      interaction.Actor.UserID,
-		GuildID:     interaction.Actor.GuildID,
-		Feature:     m.feature,
-	})
 }

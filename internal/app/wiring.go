@@ -380,7 +380,7 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		}
 	}
 	if opts.PollRepository != nil {
-		pollModule := featurepoll.NewModuleWithSideEffects(opts.PollRepository, opts.UsageTracker, opts.PollMessagePort, opts.PollMemberCounter, clockOrSystem(opts.Clock))
+		pollModule := featurepoll.NewModuleWithSideEffects(opts.PollRepository, opts.PollMessagePort, opts.PollMemberCounter, clockOrSystem(opts.Clock))
 		if err := pollModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

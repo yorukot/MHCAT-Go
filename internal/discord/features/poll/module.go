@@ -8,7 +8,6 @@ import (
 
 type Module struct {
 	repo       ports.PollRepository
-	usage      ports.UsageTracker
 	messages   ports.DiscordMessagePort
 	members    ports.DiscordGuildMemberReader
 	clock      ports.Clock
@@ -17,18 +16,17 @@ type Module struct {
 	memberPerm int64
 }
 
-func NewModule(repo ports.PollRepository, usage ports.UsageTracker) Module {
+func NewModule(repo ports.PollRepository) Module {
 	return Module{
 		repo:       repo,
-		usage:      usage,
 		defs:       Definitions(),
 		feature:    "poll",
 		memberPerm: permissionManageMessages,
 	}
 }
 
-func NewModuleWithSideEffects(repo ports.PollRepository, usage ports.UsageTracker, messages ports.DiscordMessagePort, members ports.DiscordGuildMemberReader, clock ports.Clock) Module {
-	module := NewModule(repo, usage)
+func NewModuleWithSideEffects(repo ports.PollRepository, messages ports.DiscordMessagePort, members ports.DiscordGuildMemberReader, clock ports.Clock) Module {
+	module := NewModule(repo)
 	module.messages = messages
 	module.members = members
 	module.clock = clock

@@ -12,7 +12,6 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 const pollTestPermission = int64(permissionManageMessages)
@@ -29,8 +28,7 @@ func TestCreateHandlerSendsLegacyPollUIAndSavesDocument(t *testing.T) {
 	repo := fakemongo.NewPollRepository()
 	sideEffects := fakediscord.NewSideEffects()
 	sideEffects.NonBotMembers = 10
-	usage := &fakeusage.Tracker{}
-	module := NewModuleWithSideEffects(repo, usage, sideEffects, sideEffects, fixedClock{now: time.UnixMilli(1700000000000)})
+	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, fixedClock{now: time.UnixMilli(1700000000000)})
 	responder := fakediscord.NewResponder()
 	interaction := pollCreateInteraction("今天吃什麼?", "拉麵^壽司^咖哩")
 
@@ -80,13 +78,10 @@ func TestCreateHandlerSendsLegacyPollUIAndSavesDocument(t *testing.T) {
 	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "成功創建投票") {
 		t.Fatalf("success edit = %#v", responder.Edits)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != "投票創建" {
-		t.Fatalf("usage events = %#v", usage.Events)
-	}
 }
 
 func TestCreateHandlerRequiresManageMessages(t *testing.T) {
-	module := NewModuleWithSideEffects(fakemongo.NewPollRepository(), nil, fakediscord.NewSideEffects(), nil, nil)
+	module := NewModuleWithSideEffects(fakemongo.NewPollRepository(), fakediscord.NewSideEffects(), nil, nil)
 	responder := fakediscord.NewResponder()
 	interaction := pollCreateInteraction("問題", "A^B")
 	interaction.Actor.PermissionBits = 0
@@ -101,7 +96,7 @@ func TestCreateHandlerRequiresManageMessages(t *testing.T) {
 
 func TestCreateHandlerRejectsInvalidOptionsBeforeSend(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewModuleWithSideEffects(fakemongo.NewPollRepository(), nil, sideEffects, nil, nil)
+	module := NewModuleWithSideEffects(fakemongo.NewPollRepository(), sideEffects, nil, nil)
 	cases := []struct {
 		name    string
 		options string
@@ -131,7 +126,7 @@ func TestVoteHandlerAddsVoteAndRerendersPoll(t *testing.T) {
 	repo := seededPollRepo(t)
 	sideEffects := fakediscord.NewSideEffects()
 	sideEffects.NonBotMembers = 4
-	module := NewModuleWithSideEffects(repo, nil, sideEffects, sideEffects, fixedClock{now: time.UnixMilli(1700000000000)})
+	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, fixedClock{now: time.UnixMilli(1700000000000)})
 	responder := fakediscord.NewResponder()
 	interaction := pollButtonInteraction("mhcat:v1:poll:vote:i=1")
 
@@ -165,7 +160,7 @@ func TestVoteHandlerLegacyIDSupportsEightyCharacterChoice(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("seed poll: %v", err)
 	}
-	module := NewModuleWithSideEffects(repo, nil, fakediscord.NewSideEffects(), nil, fixedClock{now: time.UnixMilli(1700000000000)})
+	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), nil, fixedClock{now: time.UnixMilli(1700000000000)})
 	responder := fakediscord.NewResponder()
 	interaction := pollButtonInteraction("poll_" + choice)
 
@@ -183,7 +178,7 @@ func TestVoteHandlerDuplicateChoiceWithoutChangeUsesLegacyError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed vote: %v", err)
 	}
-	module := NewModuleWithSideEffects(repo, nil, fakediscord.NewSideEffects(), nil, nil)
+	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), nil, nil)
 	responder := fakediscord.NewResponder()
 
 	if err := module.VoteHandler()(context.Background(), pollButtonInteraction("mhcat:v1:poll:vote:i=0"), responder); err != nil {
@@ -197,7 +192,7 @@ func TestVoteHandlerDuplicateChoiceWithoutChangeUsesLegacyError(t *testing.T) {
 func TestOwnerMenuTogglesPublicResultAndRerenders(t *testing.T) {
 	repo := seededPollRepo(t)
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewModuleWithSideEffects(repo, nil, sideEffects, sideEffects, nil)
+	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, nil)
 	responder := fakediscord.NewResponder()
 	interaction := pollMenuInteraction("poll_public_result")
 
@@ -221,7 +216,7 @@ func TestOwnerMenuTogglesPublicResultAndRerenders(t *testing.T) {
 
 func TestOwnerMenuRejectsNonCreator(t *testing.T) {
 	repo := seededPollRepo(t)
-	module := NewModuleWithSideEffects(repo, nil, fakediscord.NewSideEffects(), nil, nil)
+	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), nil, nil)
 	responder := fakediscord.NewResponder()
 	interaction := pollMenuInteraction("poll_public_result")
 	interaction.Actor.UserID = "not-owner"
@@ -236,7 +231,7 @@ func TestOwnerMenuRejectsNonCreator(t *testing.T) {
 
 func TestOwnerMenuManyChoiceReturnsVersionedSelect(t *testing.T) {
 	repo := seededPollRepo(t)
-	module := NewModuleWithSideEffects(repo, nil, fakediscord.NewSideEffects(), nil, nil)
+	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), nil, nil)
 	responder := fakediscord.NewResponder()
 
 	if err := module.OwnerMenuHandler()(context.Background(), pollMenuInteraction("poll_can_choose_many"), responder); err != nil {
@@ -254,7 +249,7 @@ func TestOwnerMenuManyChoiceReturnsVersionedSelect(t *testing.T) {
 func TestMaxChoicesHandlerUpdatesPollAndMenuMessage(t *testing.T) {
 	repo := seededPollRepo(t)
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewModuleWithSideEffects(repo, nil, sideEffects, sideEffects, nil)
+	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, nil)
 	responder := fakediscord.NewResponder()
 	interaction := pollButtonInteraction("mhcat:v1:poll:max_choices:m=message-1")
 	interaction.Values = []string{"2"}
@@ -278,7 +273,7 @@ func TestResultHandlerReturnsLegacyTextFields(t *testing.T) {
 	repo := seededPollRepo(t)
 	_, _ = repo.TogglePoll(context.Background(), "guild-1", "message-1", domain.PollTogglePublicResult)
 	_, _ = repo.Vote(context.Background(), "guild-1", "message-1", "user-1", "A", "1")
-	module := NewModuleWithSideEffects(repo, nil, fakediscord.NewSideEffects(), nil, nil)
+	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), nil, nil)
 	responder := fakediscord.NewResponder()
 
 	if err := module.ResultHandler()(context.Background(), pollButtonInteraction("mhcat:v1:poll:result:"), responder); err != nil {
@@ -303,7 +298,7 @@ func TestOwnerMenuExcelExportReturnsLegacyWorkbookAttachment(t *testing.T) {
 	_, _ = repo.Vote(context.Background(), "guild-1", "message-1", "user-1", "A", "1700000000000")
 	sideEffects := fakediscord.NewSideEffects()
 	sideEffects.MemberTagValues["user-1"] = "Alice#1234"
-	module := NewModuleWithSideEffects(repo, nil, fakediscord.NewSideEffects(), sideEffects, nil)
+	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), sideEffects, nil)
 	responder := fakediscord.NewResponder()
 
 	if err := module.OwnerMenuHandler()(context.Background(), pollMenuInteraction("poll_excel_result"), responder); err != nil {
@@ -324,7 +319,7 @@ func TestOwnerMenuExcelExportReturnsLegacyWorkbookAttachment(t *testing.T) {
 func TestOwnerMenuExcelExportRejectsAnonymousPoll(t *testing.T) {
 	repo := seededPollRepo(t)
 	_, _ = repo.TogglePoll(context.Background(), "guild-1", "message-1", domain.PollToggleAnonymous)
-	module := NewModuleWithSideEffects(repo, nil, fakediscord.NewSideEffects(), nil, nil)
+	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), nil, nil)
 	responder := fakediscord.NewResponder()
 
 	if err := module.OwnerMenuHandler()(context.Background(), pollMenuInteraction("poll_excel_result"), responder); err != nil {

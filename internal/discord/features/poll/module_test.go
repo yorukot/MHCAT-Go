@@ -8,10 +8,11 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestModuleCommandsValidate(t *testing.T) {
-	module := NewModule(fakemongo.NewPollRepository(), nil)
+	module := NewModule(fakemongo.NewPollRepository())
 	registry := commands.NewRegistry(commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}, module.Commands())
 	if err := commands.ValidateRegistry(registry); err != nil {
 		t.Fatalf("poll command registry validation failed: %v", err)
@@ -34,7 +35,7 @@ func TestModuleCommandsValidate(t *testing.T) {
 func TestModuleRegistersPollRoutes(t *testing.T) {
 	repo := fakemongo.NewPollRepository()
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewModuleWithSideEffects(repo, nil, sideEffects, sideEffects, nil)
+	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, nil)
 	router := interactions.NewRouter()
 	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
 	if err := module.RegisterRoutes(router); err != nil {
@@ -47,5 +48,33 @@ func TestModuleRegistersPollRoutes(t *testing.T) {
 	}
 	if len(sideEffects.Sent) != 1 {
 		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+}
+
+func TestModuleUsesGlobalUsageForSlashOnly(t *testing.T) {
+	repo := fakemongo.NewPollRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewModuleWithSideEffects(repo, sideEffects, sideEffects, nil)
+	tracker := &fakeusage.Tracker{}
+	router := interactions.NewRouter(interactions.Usage(tracker))
+	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
+	if err := module.RegisterRoutes(router); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	create := pollCreateInteraction("問題", "A^B")
+	if err := router.Handle(context.Background(), create, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("route create: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 {
+		t.Fatalf("sent polls = %#v", sideEffects.Sent)
+	}
+	vote := pollButtonInteraction(sideEffects.Sent[0].Message.Components[0].Components[0].CustomID)
+	vote.MessageID = sideEffects.Sent[0].Ref.MessageID
+	if err := router.Handle(context.Background(), vote, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("route vote: %v", err)
+	}
+	if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "投票創建" {
+		t.Fatalf("usage events = %#v", tracker.Events)
 	}
 }
