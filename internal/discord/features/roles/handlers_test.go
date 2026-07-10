@@ -108,6 +108,9 @@ func TestButtonModalSendsLegacyPanel(t *testing.T) {
 	if err := module.ButtonModalHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
+	if len(responder.Defers) != 1 || responder.Defers[0].Ephemeral {
+		t.Fatalf("legacy role panel modal should defer publicly: %#v", responder.Defers)
+	}
 	if len(discord.Sent) != 1 {
 		t.Fatalf("sent = %#v", discord.Sent)
 	}

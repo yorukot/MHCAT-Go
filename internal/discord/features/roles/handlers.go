@@ -98,7 +98,7 @@ func (m Module) ButtonSetupHandler() interactions.Handler {
 
 func (m Module) ButtonModalHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
-		if err := responder.Defer(ctx, responses.DeferOptions{Ephemeral: true}); err != nil {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
 			return err
 		}
 		fieldID, content := roleSelectionModalField(interaction.ModalFields)
