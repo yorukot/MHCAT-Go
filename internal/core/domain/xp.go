@@ -57,7 +57,7 @@ func (c TextXPConfig) Validate() error {
 	if strings.TrimSpace(c.GuildID) == "" || strings.TrimSpace(c.ChannelID) == "" {
 		return ErrInvalidTextXPConfig
 	}
-	if strings.TrimSpace(c.Color) != "" && !ValidLegacyColor(c.Color) {
+	if c.Color != "" && !ValidLegacyXPColor(c.Color) {
 		return ErrInvalidTextXPConfig
 	}
 	return nil
@@ -67,7 +67,7 @@ func (c VoiceXPConfig) Validate() error {
 	if strings.TrimSpace(c.GuildID) == "" || strings.TrimSpace(c.ChannelID) == "" {
 		return ErrInvalidVoiceXPConfig
 	}
-	if strings.TrimSpace(c.Color) != "" && !ValidLegacyColor(c.Color) {
+	if c.Color != "" && !ValidLegacyXPColor(c.Color) {
 		return ErrInvalidVoiceXPConfig
 	}
 	return nil

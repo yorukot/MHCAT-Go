@@ -28,7 +28,7 @@ func TestSetHandlerRendersLegacySuccessAndPreview(t *testing.T) {
 	interaction := fakediscord.SlashInteractionWithOptions(TextXPSetCommandName, "", map[string]string{
 		"頻道": "channel-1",
 		"訊息": "  {user} 升到了 {level}  ",
-		"顏色": "#00ff00",
+		"顏色": "rgba(0, 0, 0, .45)",
 	})
 	interaction.ChannelID = "invoke-channel"
 	interaction.Actor.PermissionBits = permissionManageMessages
@@ -48,7 +48,7 @@ func TestSetHandlerRendersLegacySuccessAndPreview(t *testing.T) {
 		t.Fatalf("embed = %#v", embed)
 	}
 	saved := repo.Configs["guild-1"]
-	if saved.ChannelID != "channel-1" || saved.Color != "#00ff00" || saved.Message != "  {user} 升到了 {level}  " {
+	if saved.ChannelID != "channel-1" || saved.Color != "rgba(0, 0, 0, .45)" || saved.Message != "  {user} 升到了 {level}  " {
 		t.Fatalf("saved config = %#v", saved)
 	}
 	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].ChannelID != "invoke-channel" {
@@ -204,13 +204,13 @@ func TestSetHandlerRejectsMissingPermissionAndInvalidColor(t *testing.T) {
 	}
 
 	interaction.Actor.PermissionBits = permissionManageMessages
-	interaction.Options["顏色"] = "not-a-color"
-	responder = fakediscord.NewResponder()
-	if err := module.SetHandler()(context.Background(), interaction, responder); err != nil {
-		t.Fatalf("handler: %v", err)
-	}
-	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你傳送的並不是顏色(色碼)") {
-		t.Fatalf("color response = %#v", responder.Edits)
+	for _, color := range []string{"ffffff", " #fff"} {
+		interaction.Options["顏色"] = color
+		responder = fakediscord.NewResponder()
+		if err := module.SetHandler()(context.Background(), interaction, responder); err != nil {
+			t.Fatalf("handler for %q: %v", color, err)
+		}
+		assertLegacyXPColorError(t, responder)
 	}
 }
 
@@ -252,7 +252,7 @@ func TestVoiceSetHandlerRendersLegacySuccessAndIgnoresBackground(t *testing.T) {
 	interaction := fakediscord.SlashInteractionWithOptions(VoiceXPSetCommandName, "", map[string]string{
 		"頻道": "voice-channel-1",
 		"訊息": "  {user} 升到了 {level}  ",
-		"顏色": "#00ff00",
+		"顏色": "hwb(180deg 0% 0% / 100%)",
 		"背景": "https://example.invalid/background.png",
 	})
 	interaction.ChannelID = "invoke-channel"
@@ -273,7 +273,7 @@ func TestVoiceSetHandlerRendersLegacySuccessAndIgnoresBackground(t *testing.T) {
 		t.Fatalf("embed = %#v", embed)
 	}
 	saved := repo.Configs["guild-1"]
-	if saved.ChannelID != "voice-channel-1" || saved.Color != "#00ff00" || saved.Message != "  {user} 升到了 {level}  " {
+	if saved.ChannelID != "voice-channel-1" || saved.Color != "hwb(180deg 0% 0% / 100%)" || saved.Message != "  {user} 升到了 {level}  " {
 		t.Fatalf("saved config = %#v", saved)
 	}
 	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].ChannelID != "invoke-channel" {
@@ -299,13 +299,28 @@ func TestVoiceSetHandlerRejectsMissingPermissionAndInvalidColor(t *testing.T) {
 	}
 
 	interaction.Actor.PermissionBits = permissionManageMessages
-	interaction.Options["顏色"] = "not-a-color"
-	responder = fakediscord.NewResponder()
-	if err := module.SetHandler()(context.Background(), interaction, responder); err != nil {
-		t.Fatalf("handler: %v", err)
+	for _, color := range []string{"ffffff", " #fff"} {
+		interaction.Options["顏色"] = color
+		responder = fakediscord.NewResponder()
+		if err := module.SetHandler()(context.Background(), interaction, responder); err != nil {
+			t.Fatalf("handler for %q: %v", color, err)
+		}
+		assertLegacyXPColorError(t, responder)
 	}
-	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你傳送的並不是顏色(色碼)") {
+}
+
+func assertLegacyXPColorError(t *testing.T, responder *fakediscord.Responder) {
+	t.Helper()
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
 		t.Fatalf("color response = %#v", responder.Edits)
+	}
+	message := responder.Edits[0]
+	embed := message.Embeds[0]
+	if embed.Title != "<a:Discord_AnimatedNo:1015989839809757295> | 你傳送的並不是顏色(色碼)" || embed.Description != "" || embed.Color != textXPErrorColor {
+		t.Fatalf("color response embed = %#v", embed)
+	}
+	if message.Content != "" || message.AllowedMentions == nil || len(message.Components) != 0 || len(message.Files) != 0 || message.Ephemeral {
+		t.Fatalf("unexpected color response fields = %#v", message)
 	}
 }
 

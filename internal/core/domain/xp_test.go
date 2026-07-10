@@ -47,6 +47,45 @@ func TestValidLegacyColor(t *testing.T) {
 	}
 }
 
+func TestValidLegacyXPColorMatchesValidateColorPackage(t *testing.T) {
+	for _, value := range []string{
+		"#fff",
+		"#ffff",
+		"#ffffff",
+		"#ffffffff",
+		"AliceBlue",
+		"RebeccaPurple",
+		"currentColor",
+		"inherit",
+		"transparent",
+		"rgb(0 0 0)",
+		"rgb(0\u00a00\u00a00)",
+		"rgba(0, 0, 0, .45)",
+		"hsl(4.71239rad, 60%, 70%)",
+		"hwb(180deg 0% 0% / 100%)",
+		"lab(2000.1337% -8.6911 -41.6019 / 100%)",
+		"lch(54.292% 106.839 40.853)",
+	} {
+		if !ValidLegacyXPColor(value) {
+			t.Fatalf("expected %q to be valid", value)
+		}
+	}
+	for _, value := range []string{
+		"",
+		"ffffff",
+		" #fff",
+		"#ff00f",
+		"bad color",
+		"rgb(-100, -10, 0)",
+		"rgb(0\u200b0\u200b0)",
+		"hsl(361deg, 60%, 70%)",
+	} {
+		if ValidLegacyXPColor(value) {
+			t.Fatalf("expected %q to be invalid", value)
+		}
+	}
+}
+
 func TestParseLegacyColorValue(t *testing.T) {
 	tests := map[string]int{
 		"#df1f2f": 0xDF1F2F,

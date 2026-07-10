@@ -31,9 +31,9 @@ func (m Module) SetHandler() interactions.Handler {
 			return responder.EditOriginal(ctx, textXPErrorMessage("你需要有`訊息管理`才能使用此指令"))
 		}
 		channelID := firstOption(interaction, "頻道")
-		color := firstOption(interaction, "顏色")
+		color := firstRawOption(interaction, "顏色")
 		message := firstRawOption(interaction, "訊息")
-		if strings.TrimSpace(color) != "" && !domain.ValidLegacyColor(color) {
+		if color != "" && !domain.ValidLegacyXPColor(color) {
 			return responder.EditOriginal(ctx, textXPErrorMessage("你傳送的並不是顏色(色碼)"))
 		}
 		config := domain.TextXPConfig{
@@ -88,9 +88,9 @@ func (m VoiceModule) SetHandler() interactions.Handler {
 			return responder.EditOriginal(ctx, textXPErrorMessage("你需要有`訊息管理`才能使用此指令"))
 		}
 		channelID := firstOption(interaction, "頻道")
-		color := firstOption(interaction, "顏色")
+		color := firstRawOption(interaction, "顏色")
 		message := firstRawOption(interaction, "訊息")
-		if strings.TrimSpace(color) != "" && !domain.ValidLegacyColor(color) {
+		if color != "" && !domain.ValidLegacyXPColor(color) {
 			return responder.EditOriginal(ctx, textXPErrorMessage("你傳送的並不是顏色(色碼)"))
 		}
 		config := domain.VoiceXPConfig{

@@ -7,8 +7,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-func TestXPChannelConfigUpdatePreservesMessageAndUnsetsBackground(t *testing.T) {
-	update, err := xpChannelConfigUpdate("channel-1", " #00ff00 ", "  {user} 升到了 {level}  ", "guild-1", true)
+func TestXPChannelConfigUpdatePreservesColorAndMessageAndUnsetsBackground(t *testing.T) {
+	update, err := xpChannelConfigUpdate("channel-1", "rgba(0, 0, 0, .45)", "  {user} 升到了 {level}  ", "guild-1", true)
 	if err != nil {
 		t.Fatalf("build update: %v", err)
 	}
@@ -16,8 +16,8 @@ func TestXPChannelConfigUpdatePreservesMessageAndUnsetsBackground(t *testing.T) 
 	if value := documentValue(t, set, "channel"); value != "channel-1" {
 		t.Fatalf("channel = %#v", value)
 	}
-	if value := documentValue(t, set, "color"); value != "#00ff00" {
-		t.Fatalf("color = %#v", value)
+	if value := documentValue(t, set, "color"); value != "rgba(0, 0, 0, .45)" {
+		t.Fatalf("color should preserve the accepted value, got %#v", value)
 	}
 	if value := documentValue(t, set, "message"); value != "  {user} 升到了 {level}  " {
 		t.Fatalf("message should preserve legacy spacing, got %#v", value)
@@ -33,7 +33,7 @@ func TestXPChannelConfigUpdatePreservesMessageAndUnsetsBackground(t *testing.T) 
 }
 
 func TestXPChannelConfigUpdateUsesNilForEmptyColorAndMessage(t *testing.T) {
-	update, err := xpChannelConfigUpdate("channel-1", " ", "", "", false)
+	update, err := xpChannelConfigUpdate("channel-1", "", "", "", false)
 	if err != nil {
 		t.Fatalf("build update: %v", err)
 	}

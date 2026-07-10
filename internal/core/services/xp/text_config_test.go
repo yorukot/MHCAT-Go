@@ -13,12 +13,12 @@ import (
 func TestTextConfigSaveValidatesAndStores(t *testing.T) {
 	repo := fakemongo.NewTextXPConfigRepository()
 	service := TextConfigService{Repository: repo}
-	config := domain.TextXPConfig{GuildID: " guild-1 ", ChannelID: " channel-1 ", Color: "#00ff00", Message: "hello"}
+	config := domain.TextXPConfig{GuildID: " guild-1 ", ChannelID: " channel-1 ", Color: "rgba(0, 0, 0, .45)", Message: "hello"}
 	if err := service.Save(context.Background(), config); err != nil {
 		t.Fatalf("save: %v", err)
 	}
 	saved, ok := repo.Configs["guild-1"]
-	if !ok || saved.ChannelID != "channel-1" || saved.Color != "#00ff00" || saved.Message != "hello" {
+	if !ok || saved.ChannelID != "channel-1" || saved.Color != "rgba(0, 0, 0, .45)" || saved.Message != "hello" {
 		t.Fatalf("saved = %#v ok=%v", saved, ok)
 	}
 }
@@ -44,12 +44,12 @@ func TestTextConfigDeleteMissing(t *testing.T) {
 func TestVoiceConfigSaveValidatesAndStores(t *testing.T) {
 	repo := fakemongo.NewVoiceXPConfigRepository()
 	service := VoiceConfigService{Repository: repo}
-	config := domain.VoiceXPConfig{GuildID: " guild-1 ", ChannelID: " channel-1 ", Color: "#00ff00", Message: "hello"}
+	config := domain.VoiceXPConfig{GuildID: " guild-1 ", ChannelID: " channel-1 ", Color: "RebeccaPurple", Message: "hello"}
 	if err := service.Save(context.Background(), config); err != nil {
 		t.Fatalf("save: %v", err)
 	}
 	saved, ok := repo.Configs["guild-1"]
-	if !ok || saved.ChannelID != "channel-1" || saved.Color != "#00ff00" || saved.Message != "hello" {
+	if !ok || saved.ChannelID != "channel-1" || saved.Color != "RebeccaPurple" || saved.Message != "hello" {
 		t.Fatalf("saved = %#v ok=%v", saved, ok)
 	}
 }

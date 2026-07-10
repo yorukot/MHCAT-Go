@@ -334,7 +334,7 @@ func nullableRawString(value string) any {
 func xpChannelConfigUpdate(channel string, color string, message string, guild string, upsert bool) (bson.D, error) {
 	builder := mhcatmongo.NewUpdate().
 		Set("channel", channel).
-		Set("color", nullableTrimmedString(color)).
+		Set("color", nullableRawString(color)).
 		Set("message", nullableRawString(message)).
 		Unset("background")
 	if upsert {

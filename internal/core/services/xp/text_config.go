@@ -22,7 +22,6 @@ func (s TextConfigService) Save(ctx context.Context, config domain.TextXPConfig)
 	}
 	config.GuildID = strings.TrimSpace(config.GuildID)
 	config.ChannelID = strings.TrimSpace(config.ChannelID)
-	config.Color = strings.TrimSpace(config.Color)
 	if err := config.Validate(); err != nil {
 		return err
 	}
@@ -46,7 +45,6 @@ func (s VoiceConfigService) Save(ctx context.Context, config domain.VoiceXPConfi
 	}
 	config.GuildID = strings.TrimSpace(config.GuildID)
 	config.ChannelID = strings.TrimSpace(config.ChannelID)
-	config.Color = strings.TrimSpace(config.Color)
 	if err := config.Validate(); err != nil {
 		return err
 	}
