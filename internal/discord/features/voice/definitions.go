@@ -6,7 +6,6 @@ const (
 	VoiceRoomSetCommandName    = "語音包廂設置"
 	VoiceRoomDeleteCommandName = "語音包廂刪除"
 	VoiceRoomLockCommandName   = "上鎖頻道"
-	manageMessagesPermission   = "8192"
 
 	optionTriggerChannel = "語音頻道"
 	optionRoomName       = "設定頻道名稱"
@@ -26,11 +25,10 @@ func LockDefinitions() []commands.Definition {
 
 func SetDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     VoiceRoomSetCommandName,
-		Description:              "設定語音包廂",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		Ownership:                commands.ManagedOwnership("voice-room-config", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        VoiceRoomSetCommandName,
+		Description: "設定語音包廂",
+		Ownership:   commands.ManagedOwnership("voice-room-config", commands.ScopeGuild),
 		Options: []commands.Option{
 			{
 				Type:         commands.OptionTypeChannel,
@@ -62,11 +60,10 @@ func SetDefinition() commands.Definition {
 
 func DeleteDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     VoiceRoomDeleteCommandName,
-		Description:              "刪除語音包廂設置",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		Ownership:                commands.ManagedOwnership("voice-room-config", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        VoiceRoomDeleteCommandName,
+		Description: "刪除語音包廂設置",
+		Ownership:   commands.ManagedOwnership("voice-room-config", commands.ScopeGuild),
 		Options: []commands.Option{{
 			Type:        commands.OptionTypeChannel,
 			Name:        optionChannelOrGroup,
@@ -88,8 +85,4 @@ func LockDefinition() commands.Definition {
 			Description: "設定該包廂密碼，如想不設定密碼，可直接忽略此選項",
 		}},
 	}
-}
-
-func stringPtr(value string) *string {
-	return &value
 }

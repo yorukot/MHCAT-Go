@@ -16,8 +16,8 @@ func TestDefinitionsMatchLegacyVoiceRoomCommands(t *testing.T) {
 	if set.Name != VoiceRoomSetCommandName || set.Description != "設定語音包廂" {
 		t.Fatalf("set definition = %#v", set)
 	}
-	if set.DefaultMemberPermissions == nil || *set.DefaultMemberPermissions != manageMessagesPermission {
-		t.Fatalf("set default permissions = %#v", set.DefaultMemberPermissions)
+	if set.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy set command should remain publicly discoverable: %#v", set.DefaultMemberPermissions)
 	}
 	if len(set.Options) != 4 {
 		t.Fatalf("set options = %#v", set.Options)
@@ -39,8 +39,8 @@ func TestDefinitionsMatchLegacyVoiceRoomCommands(t *testing.T) {
 	if deleteDefinition.Name != VoiceRoomDeleteCommandName || deleteDefinition.Description != "刪除語音包廂設置" {
 		t.Fatalf("delete definition = %#v", deleteDefinition)
 	}
-	if deleteDefinition.DefaultMemberPermissions == nil || *deleteDefinition.DefaultMemberPermissions != manageMessagesPermission {
-		t.Fatalf("delete default permissions = %#v", deleteDefinition.DefaultMemberPermissions)
+	if deleteDefinition.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy delete command should remain publicly discoverable: %#v", deleteDefinition.DefaultMemberPermissions)
 	}
 	if len(deleteDefinition.Options) != 1 || deleteDefinition.Options[0].Name != optionChannelOrGroup || !deleteDefinition.Options[0].Required {
 		t.Fatalf("delete options = %#v", deleteDefinition.Options)
