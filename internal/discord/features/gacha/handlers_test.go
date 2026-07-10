@@ -37,6 +37,46 @@ func TestFormatLegacyNumberMatchesJavaScriptNumberText(t *testing.T) {
 	}
 }
 
+func TestLegacyGachaPrizeNameLimitUsesJavaScriptNumericCoercion(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{"200", false},
+		{"201", true},
+		{" 2.01e2 ", true},
+		{"0xC9", true},
+		{"0x+FF", false},
+		{"0o311", true},
+		{"0b11001001", true},
+		{"1e999", true},
+		{"-1e999", false},
+		{"201st prize", false},
+		{strings.Repeat("獎", 201), false},
+	}
+	for _, test := range tests {
+		if got := legacyGachaPrizeNameExceedsLimit(test.name); got != test.want {
+			t.Errorf("legacyGachaPrizeNameExceedsLimit(%q) = %t, want %t", test.name, got, test.want)
+		}
+	}
+}
+
+func TestPrizeCreateRejectsNumericNameAboveLegacyLimit(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	module := NewCreateModule(repo, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.PrizeCreateHandler()(context.Background(), gachaPrizeCreateInteraction("201"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 獎品名稱不能這麼長!(需小於200)" {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(repo.Prizes["guild-1"]) != 0 {
+		t.Fatalf("numeric name should be rejected: %#v", repo.Prizes["guild-1"])
+	}
+}
+
 func TestPrizeListRendersLegacyEmbed(t *testing.T) {
 	repo := fakemongo.NewGachaRepository()
 	repo.Prizes["guild-1"] = []domain.GachaPrize{

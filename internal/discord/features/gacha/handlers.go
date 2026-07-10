@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -119,7 +120,7 @@ func (m Module) PrizeCreateHandler() interactions.Handler {
 			return responder.EditOriginal(ctx, gachaErrorMessage("你沒有權限使用這個指令"))
 		}
 		prizeName := gachaStringOption(interaction, gachaPrizeNameOption)
-		if len([]rune(prizeName)) > 200 {
+		if legacyGachaPrizeNameExceedsLimit(prizeName) {
 			return responder.EditOriginal(ctx, gachaErrorMessage("獎品名稱不能這麼長!(需小於200)"))
 		}
 		prize := domain.GachaPrizeConfig{
@@ -162,7 +163,7 @@ func (m Module) PrizeEditHandler() interactions.Handler {
 			return responder.EditOriginal(ctx, gachaErrorMessage("你沒有權限使用這個指令"))
 		}
 		prizeName := gachaStringOption(interaction, gachaPrizeNameOption)
-		if len([]rune(prizeName)) > 200 {
+		if legacyGachaPrizeNameExceedsLimit(prizeName) {
 			return responder.EditOriginal(ctx, gachaErrorMessage("獎品名稱不能這麼長!(需小於200)"))
 		}
 		chance, chanceSet := gachaNumberOptionValue(interaction, gachaPrizeChanceOption)
@@ -402,6 +403,37 @@ func formatLegacyNumber(value float64) string {
 		return mantissa + "e" + sign + exponent
 	}
 	return strconv.FormatFloat(value, 'f', -1, 64)
+}
+
+func legacyGachaPrizeNameExceedsLimit(name string) bool {
+	value := strings.TrimSpace(name)
+	if value == "" {
+		return false
+	}
+	lower := strings.ToLower(value)
+	for _, base := range []struct {
+		prefix string
+		radix  int
+	}{
+		{"0x", 16},
+		{"0o", 8},
+		{"0b", 2},
+	} {
+		if !strings.HasPrefix(lower, base.prefix) {
+			continue
+		}
+		digits := value[len(base.prefix):]
+		if strings.HasPrefix(digits, "+") || strings.HasPrefix(digits, "-") {
+			return false
+		}
+		parsed, ok := new(big.Int).SetString(digits, base.radix)
+		return ok && parsed.Cmp(big.NewInt(200)) > 0
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil && !errors.Is(err, strconv.ErrRange) {
+		return false
+	}
+	return parsed > 200
 }
 
 func gachaErrorMessage(content string) responses.Message {
