@@ -29,6 +29,36 @@ func TestCoreAllowedMentionsSuppressesByDefault(t *testing.T) {
 	}
 }
 
+func TestAuditLogEntriesFromDiscordIncludesActorIdentity(t *testing.T) {
+	action := dgo.AuditLogActionChannelUpdate
+	entries := auditLogEntriesFromDiscord(&dgo.GuildAuditLog{
+		Users: []*dgo.User{{
+			ID:            "moderator-1",
+			Username:      "Mio",
+			Discriminator: "1234",
+			Avatar:        "avatar-hash",
+		}},
+		AuditLogEntries: []*dgo.AuditLogEntry{nil, {
+			ID:         "audit-1",
+			UserID:     "moderator-1",
+			TargetID:   "channel-1",
+			ActionType: &action,
+			Options:    &dgo.AuditLogOptions{ChannelID: "source-channel"},
+		}},
+	})
+
+	if len(entries) != 1 {
+		t.Fatalf("entries = %#v", entries)
+	}
+	entry := entries[0]
+	if entry.ID != "audit-1" || entry.UserID != "moderator-1" || entry.Username != "Mio" || entry.UserTag != "Mio#1234" {
+		t.Fatalf("entry = %#v", entry)
+	}
+	if entry.AvatarURL == "" || entry.TargetID != "channel-1" || entry.ChannelID != "source-channel" || entry.Action != int(action) {
+		t.Fatalf("entry metadata = %#v", entry)
+	}
+}
+
 func TestOutboundMessageConversionIncludesEmbedsAndButtons(t *testing.T) {
 	embeds := outboundEmbeds([]ports.OutboundEmbed{{
 		Title:         "__**私人頻道**__",

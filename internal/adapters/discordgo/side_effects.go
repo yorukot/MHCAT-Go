@@ -687,22 +687,44 @@ func (c SideEffectClient) AuditLog(ctx context.Context, query ports.AuditLogQuer
 	if err != nil {
 		return nil, fmt.Errorf("read discord audit log: %w", err)
 	}
+	return auditLogEntriesFromDiscord(logs), ctx.Err()
+}
+
+func auditLogEntriesFromDiscord(logs *dgo.GuildAuditLog) []ports.AuditLogEntry {
+	if logs == nil {
+		return nil
+	}
+	usersByID := map[string]*dgo.User{}
+	for _, user := range logs.Users {
+		if user != nil && user.ID != "" {
+			usersByID[user.ID] = user
+		}
+	}
 	entries := make([]ports.AuditLogEntry, 0, len(logs.AuditLogEntries))
 	for _, entry := range logs.AuditLogEntries {
+		if entry == nil {
+			continue
+		}
 		action := 0
 		if entry.ActionType != nil {
 			action = int(*entry.ActionType)
 		}
-		entries = append(entries, ports.AuditLogEntry{
+		out := ports.AuditLogEntry{
 			ID:        entry.ID,
 			UserID:    entry.UserID,
 			TargetID:  entry.TargetID,
 			ChannelID: auditLogChannelID(entry),
 			Reason:    entry.Reason,
 			Action:    action,
-		})
+		}
+		if user := usersByID[entry.UserID]; user != nil {
+			out.Username = user.Username
+			out.UserTag = userTag(user)
+			out.AvatarURL = user.AvatarURL("")
+		}
+		entries = append(entries, out)
 	}
-	return entries, ctx.Err()
+	return entries
 }
 
 func auditLogChannelID(entry *dgo.AuditLogEntry) string {

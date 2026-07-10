@@ -287,6 +287,32 @@ func TestLoggingMessageEventsFeatureRequiresDefaultRuntimeAdapters(t *testing.T)
 	}
 }
 
+func TestLoggingChannelEventsFeatureRequiresDefaultRuntimeAdapters(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.DiscordEnableGateway = true
+	cfg.FeatureLoggingChannelEventsEnabled = true
+	mongo := &fakeMongo{}
+	discord := &fakeDiscord{}
+	application, err := New(
+		cfg,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		WithMongoFactory(func(config.Config) (MongoClient, error) { return mongo, nil }),
+		WithDiscordFactory(func(config.Config) (DiscordSession, error) { return discord, nil }),
+	)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	if err := application.Start(context.Background()); err == nil {
+		t.Fatal("expected logging channel events feature to reject fake runtime adapters")
+	}
+	if mongo.connects != 1 || mongo.disconnects != 1 {
+		t.Fatalf("mongo should be cleaned up after event runtime wiring failure: connects=%d disconnects=%d", mongo.connects, mongo.disconnects)
+	}
+	if discord.closes != 1 {
+		t.Fatalf("discord session should be closed after event runtime wiring failure, got %d", discord.closes)
+	}
+}
+
 func TestWelcomeMessageDeliveryRequiresDefaultRuntimeAdapters(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.DiscordEnableGateway = true
@@ -377,7 +403,7 @@ func TestGatewayWaitsForContext(t *testing.T) {
 	if discord.eventRegisters != 1 {
 		t.Fatalf("expected gateway event registration once, got %d", discord.eventRegisters)
 	}
-	if discord.lastEventOptions.Messages || discord.lastEventOptions.MessageReactions || discord.lastEventOptions.GuildMembers || discord.lastEventOptions.VoiceStates {
+	if discord.lastEventOptions.Messages || discord.lastEventOptions.GuildChannels || discord.lastEventOptions.MessageReactions || discord.lastEventOptions.GuildMembers || discord.lastEventOptions.VoiceStates {
 		t.Fatalf("event options should be disabled by default: %#v", discord.lastEventOptions)
 	}
 	if discord.closes != 1 {
@@ -389,6 +415,7 @@ func TestGatewayEventOptionsFollowConfig(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.DiscordEnableGateway = true
 	cfg.DiscordGuildMessagesIntent = true
+	cfg.FeatureLoggingChannelEventsEnabled = true
 	cfg.DiscordMessageReactionsIntent = true
 	cfg.DiscordGuildMembersIntent = true
 	cfg.DiscordVoiceStateIntent = true
@@ -399,6 +426,9 @@ func TestGatewayEventOptionsFollowConfig(t *testing.T) {
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		WithMongoFactory(func(config.Config) (MongoClient, error) { return mongo, nil }),
 		WithDiscordFactory(func(config.Config) (DiscordSession, error) { return discord, nil }),
+		WithEventRuntimeFactory(func(config.Config, *slog.Logger, DiscordSession, MongoClient) (*discordevents.Dispatcher, error) {
+			return discordevents.NewDispatcher(nil), nil
+		}),
 	)
 	if err != nil {
 		t.Fatalf("new app: %v", err)
@@ -414,7 +444,7 @@ func TestGatewayEventOptionsFollowConfig(t *testing.T) {
 	if discord.eventRegisters != 1 {
 		t.Fatalf("expected one event registration, got %d", discord.eventRegisters)
 	}
-	if !discord.lastEventOptions.Messages || !discord.lastEventOptions.MessageReactions || !discord.lastEventOptions.GuildMembers || !discord.lastEventOptions.VoiceStates {
+	if !discord.lastEventOptions.Messages || !discord.lastEventOptions.GuildChannels || !discord.lastEventOptions.MessageReactions || !discord.lastEventOptions.GuildMembers || !discord.lastEventOptions.VoiceStates {
 		t.Fatalf("event options not propagated: %#v", discord.lastEventOptions)
 	}
 }

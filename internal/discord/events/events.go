@@ -17,6 +17,7 @@ const (
 	TypeMessageCreate  Type = "message_create"
 	TypeMessageUpdate  Type = "message_update"
 	TypeMessageDelete  Type = "message_delete"
+	TypeChannelUpdate  Type = "channel_update"
 	TypeReactionAdd    Type = "reaction_add"
 	TypeReactionRemove Type = "reaction_remove"
 	TypeMemberAdd      Type = "member_add"
@@ -48,9 +49,10 @@ type Event struct {
 	CreatedAt     time.Time
 	Attachments   []Attachment
 
-	Reaction   *Reaction
-	Member     *Member
-	VoiceState *VoiceState
+	Reaction      *Reaction
+	Member        *Member
+	ChannelUpdate *ChannelUpdate
+	VoiceState    *VoiceState
 }
 
 type Attachment struct {
@@ -71,6 +73,23 @@ type Member struct {
 	AccountCreatedAt time.Time
 	IsBot            bool
 	AvatarURL        string
+}
+
+type ChannelUpdate struct {
+	ChannelID               string
+	GuildID                 string
+	OldTopic                string
+	NewTopic                string
+	HasOldChannel           bool
+	OldPermissionOverwrites []PermissionOverwrite
+	NewPermissionOverwrites []PermissionOverwrite
+}
+
+type PermissionOverwrite struct {
+	ID    string
+	Type  int
+	Allow int64
+	Deny  int64
 }
 
 type VoiceState struct {

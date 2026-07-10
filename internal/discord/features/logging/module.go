@@ -15,6 +15,7 @@ type Module struct {
 	auditLogs            ports.DiscordAuditLogPort
 	usage                ports.UsageTracker
 	messageEventsEnabled bool
+	channelEventsEnabled bool
 }
 
 func NewModule(repo ports.LoggingConfigRepository, usage ports.UsageTracker) Module {

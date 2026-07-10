@@ -54,6 +54,43 @@ func TestEventFromMessageDeletePrefersCachedMessage(t *testing.T) {
 	}
 }
 
+func TestEventFromChannelUpdateIncludesCachedBeforePayload(t *testing.T) {
+	event := eventFromChannelUpdate(&dgo.ChannelUpdate{
+		Channel: &dgo.Channel{
+			ID:      "channel-1",
+			GuildID: "guild-1",
+			Topic:   "new topic",
+			PermissionOverwrites: []*dgo.PermissionOverwrite{{
+				ID:    "role-1",
+				Type:  dgo.PermissionOverwriteTypeRole,
+				Allow: dgo.PermissionManageMessages,
+			}},
+		},
+		BeforeUpdate: &dgo.Channel{
+			ID:      "channel-1",
+			GuildID: "guild-1",
+			Topic:   "old topic",
+			PermissionOverwrites: []*dgo.PermissionOverwrite{{
+				ID:   "role-1",
+				Type: dgo.PermissionOverwriteTypeRole,
+				Deny: dgo.PermissionVoiceConnect,
+			}},
+		},
+	}, &dgo.User{ID: "bot-1", Username: "MHCAT", Avatar: "bot-avatar"})
+	if event.Type != events.TypeChannelUpdate || event.ChannelID != "channel-1" || event.GuildID != "guild-1" || event.BotUserID != "bot-1" || event.BotAvatarURL == "" {
+		t.Fatalf("event = %#v", event)
+	}
+	if event.ChannelUpdate == nil || !event.ChannelUpdate.HasOldChannel || event.ChannelUpdate.OldTopic != "old topic" || event.ChannelUpdate.NewTopic != "new topic" {
+		t.Fatalf("channel update = %#v", event.ChannelUpdate)
+	}
+	if len(event.ChannelUpdate.OldPermissionOverwrites) != 1 || event.ChannelUpdate.OldPermissionOverwrites[0].Deny != dgo.PermissionVoiceConnect {
+		t.Fatalf("old overwrites = %#v", event.ChannelUpdate.OldPermissionOverwrites)
+	}
+	if len(event.ChannelUpdate.NewPermissionOverwrites) != 1 || event.ChannelUpdate.NewPermissionOverwrites[0].Allow != dgo.PermissionManageMessages {
+		t.Fatalf("new overwrites = %#v", event.ChannelUpdate.NewPermissionOverwrites)
+	}
+}
+
 func TestEventFromReaction(t *testing.T) {
 	event := eventFromReaction(events.TypeReactionAdd, &dgo.MessageReaction{
 		UserID:    "user-1",

@@ -755,6 +755,17 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		}
 		featurelogging.NewMessageEventModule(repo, sideEffects, sideEffects).RegisterEventRoutes(dispatcher)
 	}
+	if cfg.FeatureLoggingChannelEventsEnabled {
+		repo, err := loggingConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "logging channel events feature")
+		if err != nil {
+			return nil, err
+		}
+		featurelogging.NewChannelEventModule(repo, sideEffects, sideEffects).RegisterEventRoutes(dispatcher)
+	}
 	if cfg.FeatureAccountAgePolicyEnabled {
 		repo, err := accountAgeConfigRepositoryFromMongo(mongoClient)
 		if err != nil {

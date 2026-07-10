@@ -166,6 +166,7 @@ func (a *App) Start(ctx context.Context) error {
 			}
 			removeEventHandler = gatewayEvents.RegisterGatewayEventHandlers(eventDispatcher, discordadapter.GatewayEventOptions{
 				Messages:         a.cfg.DiscordGuildMessagesIntent,
+				GuildChannels:    a.cfg.FeatureLoggingChannelEventsEnabled,
 				MessageReactions: a.cfg.DiscordMessageReactionsIntent,
 				GuildMembers:     a.cfg.DiscordGuildMembersIntent,
 				VoiceStates:      a.cfg.DiscordVoiceStateIntent,

@@ -10,6 +10,7 @@ import (
 
 type GatewayEventOptions struct {
 	Messages         bool
+	GuildChannels    bool
 	MessageReactions bool
 	GuildMembers     bool
 	VoiceStates      bool
@@ -46,6 +47,13 @@ func (s *Session) RegisterGatewayEventHandlers(dispatcher *events.Dispatcher, op
 			}),
 			s.session.AddHandler(func(session *dgo.Session, event *dgo.MessageDelete) {
 				dispatcher.DispatchSafe(context.Background(), eventFromMessageDelete(event, botFromState(session)))
+			}),
+		)
+	}
+	if opts.GuildChannels {
+		removers = append(removers,
+			s.session.AddHandler(func(session *dgo.Session, event *dgo.ChannelUpdate) {
+				dispatcher.DispatchSafe(context.Background(), eventFromChannelUpdate(event, botFromState(session)))
 			}),
 		)
 	}
@@ -175,6 +183,61 @@ func attachmentsFromDiscord(attachments []*dgo.MessageAttachment) []events.Attac
 			continue
 		}
 		out = append(out, events.Attachment{URL: attachment.URL})
+	}
+	return out
+}
+
+func eventFromChannelUpdate(update *dgo.ChannelUpdate, bot *dgo.User) events.Event {
+	event := events.Event{Type: events.TypeChannelUpdate}
+	if bot != nil {
+		event.BotUserID = bot.ID
+		event.BotAvatarURL = bot.AvatarURL("")
+	}
+	channelUpdate := &events.ChannelUpdate{}
+	if update != nil && update.Channel != nil {
+		event.ID = update.Channel.ID
+		event.ChannelID = update.Channel.ID
+		event.GuildID = update.Channel.GuildID
+		channelUpdate.ChannelID = update.Channel.ID
+		channelUpdate.GuildID = update.Channel.GuildID
+		channelUpdate.NewTopic = update.Channel.Topic
+		channelUpdate.NewPermissionOverwrites = permissionOverwritesFromDiscord(update.Channel.PermissionOverwrites)
+	}
+	if update != nil && update.BeforeUpdate != nil {
+		channelUpdate.HasOldChannel = true
+		channelUpdate.OldTopic = update.BeforeUpdate.Topic
+		channelUpdate.OldPermissionOverwrites = permissionOverwritesFromDiscord(update.BeforeUpdate.PermissionOverwrites)
+		if event.ID == "" {
+			event.ID = update.BeforeUpdate.ID
+		}
+		if event.ChannelID == "" {
+			event.ChannelID = update.BeforeUpdate.ID
+			channelUpdate.ChannelID = update.BeforeUpdate.ID
+		}
+		if event.GuildID == "" {
+			event.GuildID = update.BeforeUpdate.GuildID
+			channelUpdate.GuildID = update.BeforeUpdate.GuildID
+		}
+	}
+	event.ChannelUpdate = channelUpdate
+	return event
+}
+
+func permissionOverwritesFromDiscord(overwrites []*dgo.PermissionOverwrite) []events.PermissionOverwrite {
+	if len(overwrites) == 0 {
+		return nil
+	}
+	out := make([]events.PermissionOverwrite, 0, len(overwrites))
+	for _, overwrite := range overwrites {
+		if overwrite == nil {
+			continue
+		}
+		out = append(out, events.PermissionOverwrite{
+			ID:    overwrite.ID,
+			Type:  int(overwrite.Type),
+			Allow: overwrite.Allow,
+			Deny:  overwrite.Deny,
+		})
 	}
 	return out
 }

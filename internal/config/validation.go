@@ -178,6 +178,11 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED requires MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureLoggingChannelEventsEnabled {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+	}
 	if cfg.FeatureStatsRenameWorkerEnabled {
 		if !cfg.DiscordEnableGateway {
 			return fmt.Errorf("%w: MHCAT_FEATURE_STATS_RENAME_WORKER_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)

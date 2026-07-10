@@ -44,6 +44,7 @@ Primary Go env vars:
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED`
 - `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED`
 - `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED`
+- `MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED`
 - `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED`
 - `MHCAT_FEATURE_GACHA_DRAW_ENABLED`
 - `MHCAT_FEATURE_GACHA_PRIZE_CREATE_ENABLED`
@@ -464,6 +465,15 @@ MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 ```
 
 This runtime reads existing `loggings` rows and emits only message edit/delete embeds when `message_update` or `message_delete` is selected for a staging log channel. It uses cached old/deleted message payloads, suppresses mentions in sent embeds, and performs best-effort audit-log attribution for delete events. It does not enable `/set-log-channel` by itself, create indexes, or emit channel/voice logs.
+
+Logging channel topic/permission update events are available only when the event runtime flag and Gateway are explicitly enabled:
+
+```bash
+MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+```
+
+This runtime reads existing `loggings` rows and emits only channel topic and permission-overwrite update embeds when `channel_update` is selected for a staging log channel. It uses cached old channel data and best-effort audit-log actor attribution, and suppresses mentions in sent embeds. It does not enable `/set-log-channel` by itself, create indexes, or emit message/voice logs.
 
 Read-only `/扭蛋獎池查詢` is available only when both staging command sync and runtime flags are explicitly enabled:
 

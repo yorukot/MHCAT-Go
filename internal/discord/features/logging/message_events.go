@@ -25,11 +25,16 @@ func NewMessageEventModule(repo ports.LoggingConfigReader, messages ports.Discor
 }
 
 func (m Module) RegisterEventRoutes(dispatcher *events.Dispatcher) {
-	if dispatcher == nil || !m.messageEventsEnabled {
+	if dispatcher == nil {
 		return
 	}
-	dispatcher.Register(events.TypeMessageUpdate, m.MessageUpdateHandler())
-	dispatcher.Register(events.TypeMessageDelete, m.MessageDeleteHandler())
+	if m.messageEventsEnabled {
+		dispatcher.Register(events.TypeMessageUpdate, m.MessageUpdateHandler())
+		dispatcher.Register(events.TypeMessageDelete, m.MessageDeleteHandler())
+	}
+	if m.channelEventsEnabled {
+		dispatcher.Register(events.TypeChannelUpdate, m.ChannelUpdateHandler())
+	}
 }
 
 func (m Module) MessageUpdateHandler() events.Handler {

@@ -116,6 +116,9 @@ type AuditLogQuery struct {
 type AuditLogEntry struct {
 	ID        string
 	UserID    string
+	Username  string
+	UserTag   string
+	AvatarURL string
 	TargetID  string
 	ChannelID string
 	Reason    string

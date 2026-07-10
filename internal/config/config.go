@@ -45,6 +45,7 @@ const (
 	DefaultFeatureAntiScamMessageDeleteEnabled  = false
 	DefaultFeatureLoggingConfigEnabled          = false
 	DefaultFeatureLoggingMessageEventsEnabled   = false
+	DefaultFeatureLoggingChannelEventsEnabled   = false
 	DefaultFeatureGachaPrizeListEnabled         = false
 	DefaultFeatureGachaDrawEnabled              = false
 	DefaultFeatureGachaPrizeCreateEnabled       = false
@@ -131,6 +132,7 @@ type Config struct {
 	FeatureAntiScamMessageDeleteEnabled  bool
 	FeatureLoggingConfigEnabled          bool
 	FeatureLoggingMessageEventsEnabled   bool
+	FeatureLoggingChannelEventsEnabled   bool
 	FeatureGachaPrizeListEnabled         bool
 	FeatureGachaDrawEnabled              bool
 	FeatureGachaPrizeCreateEnabled       bool
