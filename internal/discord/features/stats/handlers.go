@@ -38,17 +38,31 @@ func (m Module) CreateHandler() interactions.Handler {
 		if !interaction.Actor.HasPermission(permissionManageMessages) {
 			return responder.FollowUp(ctx, statsErrorMessage("你需要有`訊息管理`才能使用此指令"))
 		}
+		loadingMessageID := ""
 		_, err := m.createService.Create(ctx, corestats.CreateRequest{
 			GuildID:     interaction.Actor.GuildID,
 			ChannelType: firstStatsOption(interaction, statsOptionChannelType),
 			Option:      firstStatsOption(interaction, statsOptionStat),
 			BotUserID:   m.botUserID,
+			BeforeBaseCreate: func(ctx context.Context) error {
+				messageID, err := responder.CreateFollowUp(ctx, statsCreateLoadingMessage())
+				if err == nil {
+					loadingMessageID = messageID
+				}
+				return err
+			},
 		})
 		if err != nil {
 			return responder.FollowUp(ctx, statsCreateErrorMessage(err))
 		}
-		if err := responder.FollowUp(ctx, statsCreateSuccessMessage()); err != nil {
-			return err
+		if loadingMessageID != "" {
+			if err := responder.EditFollowUp(ctx, loadingMessageID, statsCreateSuccessMessage()); err != nil {
+				return err
+			}
+		} else {
+			if err := responder.FollowUp(ctx, statsCreateSuccessMessage()); err != nil {
+				return err
+			}
 		}
 		return m.track(ctx, interaction, StatsCreateCommandName, "stats-create")
 	}
@@ -132,6 +146,16 @@ func statsCreateSuccessMessage() responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title: "<a:greentick:980496858445135893> | 成功創建!頻道(不要動到數字就沒問題)跟類別的名稱都能自行更改喔!",
+			Color: statsSuccessColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func statsCreateLoadingMessage() responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<a:lodding:980493229592043581> | 正在進行設置中!",
 			Color: statsSuccessColor,
 		}},
 		AllowedMentions: &responses.AllowedMentions{},

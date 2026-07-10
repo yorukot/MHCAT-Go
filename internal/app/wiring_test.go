@@ -1305,8 +1305,11 @@ func TestBuildRuntimeRoutesStatsCreateOnlyWithDependencies(t *testing.T) {
 	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("dispatch stats create: %v", err)
 	}
-	if len(responder.Follow) != 1 || len(responder.Follow[0].Embeds) != 1 || !strings.Contains(responder.Follow[0].Embeds[0].Title, "成功創建") {
-		t.Fatalf("stats create response = %#v", responder.Follow)
+	if len(responder.Follow) != 1 || len(responder.Follow[0].Embeds) != 1 || !strings.Contains(responder.Follow[0].Embeds[0].Title, "正在進行設置中") {
+		t.Fatalf("stats create loading response = %#v", responder.Follow)
+	}
+	if len(responder.FollowEdits) != 1 || len(responder.FollowEdits[0].Message.Embeds) != 1 || !strings.Contains(responder.FollowEdits[0].Message.Embeds[0].Title, "成功創建") {
+		t.Fatalf("stats create final response = %#v", responder.FollowEdits)
 	}
 	if len(sideEffects.Created) != 4 || repo.Configs["guild-1"].MemberNumberName != "11" {
 		t.Fatalf("created=%#v repo=%#v", sideEffects.Created, repo.Configs)

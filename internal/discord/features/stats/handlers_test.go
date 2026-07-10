@@ -128,11 +128,17 @@ func TestCreateHandlerCreatesStatsWithLegacySuccess(t *testing.T) {
 	if err := module.CreateHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Defers) != 1 || len(responder.Follow) != 1 {
-		t.Fatalf("defers=%#v followups=%#v", responder.Defers, responder.Follow)
+	if len(responder.Defers) != 1 || len(responder.Follow) != 1 || len(responder.FollowEdits) != 1 {
+		t.Fatalf("defers=%#v followups=%#v followup edits=%#v", responder.Defers, responder.Follow, responder.FollowEdits)
 	}
-	if title := responder.Follow[0].Embeds[0].Title; title != "<a:greentick:980496858445135893> | 成功創建!頻道(不要動到數字就沒問題)跟類別的名稱都能自行更改喔!" {
-		t.Fatalf("title = %q", title)
+	if title := responder.Follow[0].Embeds[0].Title; title != "<a:lodding:980493229592043581> | 正在進行設置中!" {
+		t.Fatalf("loading title = %q", title)
+	}
+	if responder.FollowEdits[0].MessageID != responder.FollowIDs[0] {
+		t.Fatalf("follow-up edits = %#v ids=%#v", responder.FollowEdits, responder.FollowIDs)
+	}
+	if title := responder.FollowEdits[0].Message.Embeds[0].Title; title != "<a:greentick:980496858445135893> | 成功創建!頻道(不要動到數字就沒問題)跟類別的名稱都能自行更改喔!" {
+		t.Fatalf("success title = %q", title)
 	}
 	if len(discord.Created) != 4 || discord.Created[1].Name != "總人數: 15" {
 		t.Fatalf("created channels = %#v", discord.Created)

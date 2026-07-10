@@ -25,10 +25,11 @@ const (
 )
 
 type CreateRequest struct {
-	GuildID     string
-	ChannelType string
-	Option      string
-	BotUserID   string
+	GuildID          string
+	ChannelType      string
+	Option           string
+	BotUserID        string
+	BeforeBaseCreate func(context.Context) error
 }
 
 type CreateService struct {
@@ -60,6 +61,11 @@ func (s CreateService) Create(ctx context.Context, req CreateRequest) (domain.St
 		return domain.StatsConfig{}, err
 	}
 	if errors.Is(err, ports.ErrStatsConfigMissing) {
+		if req.BeforeBaseCreate != nil {
+			if err := req.BeforeBaseCreate(ctx); err != nil {
+				return domain.StatsConfig{}, err
+			}
+		}
 		return s.createBase(ctx, req, snapshot)
 	}
 	return s.createOptional(ctx, req, existing, snapshot)

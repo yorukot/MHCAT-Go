@@ -17,17 +17,28 @@ func TestCreateStatsConfigCreatesLegacyTextChannels(t *testing.T) {
 	discord.TotalMembers = 10
 	discord.NonBotMembers = 8
 	service := CreateService{Repository: repo, Channels: discord, GuildStats: discord}
+	loadingStarted := false
 
 	config, err := service.Create(context.Background(), CreateRequest{
 		GuildID:     "guild-1",
 		ChannelType: domain.StatsChannelTypeText,
 		BotUserID:   "bot-1",
+		BeforeBaseCreate: func(context.Context) error {
+			if len(discord.Created) != 0 {
+				t.Fatalf("loading started after channel creation: %#v", discord.Created)
+			}
+			loadingStarted = true
+			return nil
+		},
 	})
 	if err != nil {
 		t.Fatalf("create stats: %v", err)
 	}
 	if len(discord.Created) != 4 {
 		t.Fatalf("created channels = %#v", discord.Created)
+	}
+	if !loadingStarted {
+		t.Fatal("loading hook was not called")
 	}
 	if discord.Created[0].Name != "伺服器統計數據(這串可隨便改)" || discord.Created[0].Type != discordChannelTypeGuildCategory {
 		t.Fatalf("category request = %#v", discord.Created[0])
