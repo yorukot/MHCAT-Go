@@ -2,6 +2,7 @@ package xp
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -51,7 +52,11 @@ func (s ResetService) ResetTextGuild(ctx context.Context, guildID string) error 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return s.Repository.DeleteTextXPGuild(ctx, guildID)
+	err := s.Repository.DeleteTextXPGuild(ctx, guildID)
+	if errors.Is(err, ports.ErrTextXPProfileMissing) {
+		return nil
+	}
+	return err
 }
 
 func (s ResetService) ResetVoiceGuild(ctx context.Context, guildID string) error {

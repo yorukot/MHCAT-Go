@@ -105,3 +105,14 @@ func TestResetServiceDeletesGuildProfiles(t *testing.T) {
 		t.Fatal("guild voice profile was not deleted")
 	}
 }
+
+func TestResetServicePreservesLegacyEmptyGuildAsymmetry(t *testing.T) {
+	service := ResetService{Repository: fakemongo.NewXPAdminRepository()}
+
+	if err := service.ResetTextGuild(context.Background(), "guild-1"); err != nil {
+		t.Fatalf("empty text reset: %v", err)
+	}
+	if err := service.ResetVoiceGuild(context.Background(), "guild-1"); !errors.Is(err, ports.ErrVoiceXPProfileMissing) {
+		t.Fatalf("empty voice reset error = %v", err)
+	}
+}

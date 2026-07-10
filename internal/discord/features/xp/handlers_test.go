@@ -781,6 +781,38 @@ func TestResetConfirmationReportsNoGuildData(t *testing.T) {
 		nil,
 		clock,
 	)
+	interaction := fakediscord.SlashInteractionWithOptions(XPResetCommandName, "語音經驗重製", nil)
+	interaction.ChannelID = "channel-1"
+	if err := module.ResetHandler()(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("arm handler: %v", err)
+	}
+
+	err := module.ConfirmationHandler()(context.Background(), events.Event{
+		Type:      events.TypeMessageCreate,
+		GuildID:   "guild-1",
+		ChannelID: "channel-1",
+		UserID:    "user-1",
+		Content:   xpResetConfirmContent,
+		CreatedAt: clock.now.Add(time.Second),
+	})
+	if err != nil {
+		t.Fatalf("confirm handler: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 || !strings.Contains(sideEffects.Sent[0].Message.Embeds[0].Title, "伺服器沒有任何語音經驗的資料!") {
+		t.Fatalf("missing guild response = %#v", sideEffects.Sent)
+	}
+}
+
+func TestResetConfirmationEmptyTextGuildReportsLegacySuccess(t *testing.T) {
+	sideEffects := fakediscord.NewSideEffects()
+	clock := &xpResetTestClock{now: time.Unix(1000, 0)}
+	module := NewResetModule(
+		fakemongo.NewXPAdminRepository(),
+		&fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "user-1"}},
+		sideEffects,
+		nil,
+		clock,
+	)
 	interaction := fakediscord.SlashInteractionWithOptions(XPResetCommandName, "聊天經驗重製", nil)
 	interaction.ChannelID = "channel-1"
 	if err := module.ResetHandler()(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
@@ -798,8 +830,8 @@ func TestResetConfirmationReportsNoGuildData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("confirm handler: %v", err)
 	}
-	if len(sideEffects.Sent) != 1 || !strings.Contains(sideEffects.Sent[0].Message.Embeds[0].Title, "伺服器沒有任何聊天經驗的資料!") {
-		t.Fatalf("missing guild response = %#v", sideEffects.Sent)
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != deleteEmoji+"成功刪除伺服器內所有聊天經驗" {
+		t.Fatalf("success response = %#v", sideEffects.Sent)
 	}
 }
 
