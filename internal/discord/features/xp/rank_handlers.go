@@ -202,7 +202,15 @@ func (m RankModule) lookupRankUsername(ctx context.Context, guildID string, user
 	if err != nil || strings.TrimSpace(info.Username) == "" {
 		return rankMissingUsername
 	}
-	return info.Username
+	return legacyRankUserTag(info)
+}
+
+func legacyRankUserTag(info ports.DiscordUserInfo) string {
+	discriminator := strings.TrimSpace(info.Discriminator)
+	if discriminator == "" || discriminator == "0" {
+		return info.Username
+	}
+	return info.Username + "#" + discriminator
 }
 
 func (m RankModule) rankUserExists(ctx context.Context, guildID string, userID string) bool {

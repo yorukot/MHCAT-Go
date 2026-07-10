@@ -1,12 +1,15 @@
 package xp
 
 import (
+	"context"
 	"reflect"
 	"strconv"
 	"testing"
 
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/xp"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakebotinfo"
 )
 
 func TestRankComponentsPreserveLegacyRows(t *testing.T) {
@@ -84,6 +87,36 @@ func TestRankMissingUserMessagePreservesLegacyPayload(t *testing.T) {
 	}
 	if got := rankMissingUserMessage(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("rankMissingUserMessage() = %#v, want %#v", got, want)
+	}
+}
+
+func TestLookupRankUsernamePreservesLegacyUserTag(t *testing.T) {
+	tests := []struct {
+		name string
+		info ports.DiscordUserInfo
+		want string
+	}{
+		{name: "legacy discriminator", info: ports.DiscordUserInfo{Username: "Yoru", Nickname: "Guild Nick", Discriminator: "1234"}, want: "Yoru#1234"},
+		{name: "migrated username", info: ports.DiscordUserInfo{Username: "yoru", Discriminator: "0"}, want: "yoru"},
+		{name: "missing discriminator", info: ports.DiscordUserInfo{Username: "Yoru"}, want: "Yoru"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			provider := &fakebotinfo.DiscordInfoProvider{Users: map[string]ports.DiscordUserInfo{"user-1": test.info}}
+			module := RankModule{guilds: provider}
+			if got := module.lookupRankUsername(context.Background(), "guild-1", "user-1"); got != test.want {
+				t.Fatalf("lookupRankUsername() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestLookupRankUsernameUsesLegacyMissingText(t *testing.T) {
+	provider := &fakebotinfo.DiscordInfoProvider{Users: map[string]ports.DiscordUserInfo{}}
+	module := RankModule{guilds: provider}
+	if got := module.lookupRankUsername(context.Background(), "guild-1", "missing"); got != rankMissingUsername {
+		t.Fatalf("lookupRankUsername() = %q, want %q", got, rankMissingUsername)
 	}
 }
 
