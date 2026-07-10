@@ -307,6 +307,53 @@ func TestRoleHandlerRequiresManageMessages(t *testing.T) {
 	}
 }
 
+func TestStatsRoleMessagesMatchLegacyPayloads(t *testing.T) {
+	tests := []struct {
+		name            string
+		message         responses.Message
+		wantTitle       string
+		wantDescription string
+		wantColor       int
+	}{
+		{
+			name:            "success",
+			message:         statsRoleSuccessMessage("channel-1"),
+			wantTitle:       "統計特定身分組成功創建",
+			wantDescription: "已成功為您創建統計特定身分組\n頻道:<#channel-1> 名字可以更改喔，不要動到數字就好awa",
+			wantColor:       statsSuccessColor,
+		},
+		{
+			name:      "invalid channel type",
+			message:   statsRoleErrorMessage(domain.ErrInvalidStatsChannelType),
+			wantTitle: "<a:Discord_AnimatedNo:1015989839809757295> | 你沒有進行設置要文字頻道還是語音頻道!或是你打錯了!",
+			wantColor: statsErrorColor,
+		},
+		{
+			name:      "missing base stats",
+			message:   statsRoleErrorMessage(ports.ErrStatsConfigMissing),
+			wantTitle: "<a:Discord_AnimatedNo:1015989839809757295> | 你還沒創建過統計頻道，請先使用`/統計系統創建`",
+			wantColor: statsErrorColor,
+		},
+		{
+			name:      "unknown error",
+			message:   statsRoleErrorMessage(errors.New("database unavailable")),
+			wantTitle: "<a:Discord_AnimatedNo:1015989839809757295> | 很抱歉，出現了未知的錯誤，請重試!",
+			wantColor: statsErrorColor,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			message := test.message
+			if len(message.Embeds) != 1 || message.Embeds[0].Title != test.wantTitle || message.Embeds[0].Description != test.wantDescription || message.Embeds[0].Color != test.wantColor {
+				t.Fatalf("message = %#v", message)
+			}
+			if message.Content != "" || len(message.Components) != 0 || len(message.Files) != 0 || message.Ephemeral || message.AllowedMentions == nil {
+				t.Fatalf("unexpected payload fields = %#v", message)
+			}
+		})
+	}
+}
+
 func TestRoleHandlerMissingBaseStatsUsesLegacyError(t *testing.T) {
 	repo := fakemongo.NewStatsConfigRepository()
 	discord := fakediscord.NewSideEffects()
