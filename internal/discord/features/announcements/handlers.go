@@ -50,7 +50,7 @@ func (m Module) handleOnce(ctx context.Context, interaction interactions.Interac
 	if err := responder.EditOriginal(ctx, onceSuccessMessage(channelID, created)); err != nil {
 		return err
 	}
-	return m.track(ctx, interaction)
+	return nil
 }
 
 func (m Module) handleBound(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
@@ -72,7 +72,7 @@ func (m Module) handleBound(ctx context.Context, interaction interactions.Intera
 	if err := responder.EditOriginal(ctx, boundSuccessMessage(channelID, created)); err != nil {
 		return err
 	}
-	return m.track(ctx, interaction)
+	return nil
 }
 
 func (m Module) handleDeleteBound(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
@@ -87,7 +87,7 @@ func (m Module) handleDeleteBound(ctx context.Context, interaction interactions.
 	if err := responder.EditOriginal(ctx, boundDeleteSuccessMessage(channelID)); err != nil {
 		return err
 	}
-	return m.track(ctx, interaction)
+	return nil
 }
 
 func onceSuccessMessage(channelID string, created bool) responses.Message {
@@ -174,20 +174,4 @@ func firstRawOption(interaction interactions.Interaction, names ...string) strin
 		}
 	}
 	return ""
-}
-
-func (m Module) track(ctx context.Context, interaction interactions.Interaction) error {
-	return m.trackCommand(ctx, interaction, ConfigCommandName, "announcement-config")
-}
-
-func (m Module) trackCommand(ctx context.Context, interaction interactions.Interaction, commandName string, feature string) error {
-	if m.usage == nil {
-		return nil
-	}
-	return m.usage.TrackCommand(ctx, ports.UsageEvent{
-		CommandName: commandName,
-		UserID:      interaction.Actor.UserID,
-		GuildID:     interaction.Actor.GuildID,
-		Feature:     feature,
-	})
 }

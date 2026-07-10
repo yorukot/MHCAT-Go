@@ -619,11 +619,11 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	if opts.AnnouncementConfigRepository != nil || (opts.AnnouncementSendRepository != nil && opts.AnnouncementMessagePort != nil) {
 		var announcementModule featureannouncements.Module
 		if opts.AnnouncementConfigRepository != nil && opts.AnnouncementMessagePort != nil {
-			announcementModule = featureannouncements.NewModuleWithSend(opts.AnnouncementConfigRepository, opts.AnnouncementMessagePort, opts.UsageTracker)
+			announcementModule = featureannouncements.NewModuleWithSend(opts.AnnouncementConfigRepository, opts.AnnouncementMessagePort)
 		} else if opts.AnnouncementConfigRepository != nil {
-			announcementModule = featureannouncements.NewModule(opts.AnnouncementConfigRepository, opts.UsageTracker)
+			announcementModule = featureannouncements.NewModule(opts.AnnouncementConfigRepository)
 		} else {
-			announcementModule = featureannouncements.NewSendModule(opts.AnnouncementSendRepository, opts.AnnouncementMessagePort, opts.UsageTracker)
+			announcementModule = featureannouncements.NewSendModule(opts.AnnouncementSendRepository, opts.AnnouncementMessagePort)
 		}
 		if err := announcementModule.RegisterRoutes(router); err != nil {
 			return nil, err

@@ -13,7 +13,7 @@ import (
 )
 
 func TestSendHandlerShowsLegacyModal(t *testing.T) {
-	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects())
 	interaction := sendInteraction()
 	responder := fakediscord.NewResponder()
 
@@ -36,7 +36,7 @@ func TestSendHandlerShowsLegacyModal(t *testing.T) {
 }
 
 func TestSendHandlerRequiresManageMessages(t *testing.T) {
-	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects())
 	interaction := fakediscord.SlashInteraction(SendCommandName)
 	responder := fakediscord.NewResponder()
 
@@ -52,7 +52,7 @@ func TestSendModalPreviewsAndConfirmsAnnouncement(t *testing.T) {
 	repo := fakemongo.NewAnnouncementConfigRepository()
 	repo.AnnouncementChannels["guild-1"] = "announcement-channel"
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewSendModule(repo, sideEffects, nil)
+	module := NewSendModule(repo, sideEffects)
 	interaction := modalInteraction(map[string]string{
 		fieldTag:     "@everyone",
 		fieldColor:   "#53FF53",
@@ -105,7 +105,7 @@ func TestSendModalPreviewsAndConfirmsAnnouncement(t *testing.T) {
 }
 
 func TestSendModalDeletesConfirmationAtLegacyDeadline(t *testing.T) {
-	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects())
 	var delay time.Duration
 	module.after = func(got time.Duration, callback func()) {
 		delay = got
@@ -131,7 +131,7 @@ func TestUnauthorizedConfirmationDoesNotConsumeDraft(t *testing.T) {
 	repo := fakemongo.NewAnnouncementConfigRepository()
 	repo.AnnouncementChannels["guild-1"] = "announcement-channel"
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewSendModule(repo, sideEffects, nil)
+	module := NewSendModule(repo, sideEffects)
 	stateID, err := module.draftStore().Put(AnnouncementDraft{GuildID: "guild-1", UserID: "owner-1", Color: 0x53FF53, Title: "公告", Content: "內容", Tag: "@here"})
 	if err != nil {
 		t.Fatalf("put draft: %v", err)
@@ -160,7 +160,7 @@ func TestUnauthorizedConfirmationDoesNotConsumeDraft(t *testing.T) {
 }
 
 func TestUnauthorizedCancelDoesNotConsumeDraft(t *testing.T) {
-	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects())
 	stateID, err := module.draftStore().Put(AnnouncementDraft{GuildID: "guild-1", UserID: "owner-1", Color: 0x53FF53, Title: "公告", Content: "內容", Tag: "@here"})
 	if err != nil {
 		t.Fatalf("put draft: %v", err)
@@ -189,7 +189,7 @@ func TestUnauthorizedCancelDoesNotConsumeDraft(t *testing.T) {
 }
 
 func TestSendModalRejectsInvalidColor(t *testing.T) {
-	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects())
 	interaction := modalInteraction(map[string]string{
 		fieldTag:     "@here",
 		fieldColor:   "Random",
@@ -207,7 +207,7 @@ func TestSendModalRejectsInvalidColor(t *testing.T) {
 }
 
 func TestSendModalRejectsLegacyValidatorOrDiscordColorMismatch(t *testing.T) {
-	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects())
 	for _, color := range []string{"53FF53", "#fff", "red", "AliceBlue"} {
 		interaction := modalInteraction(map[string]string{
 			fieldTag:     "@here",
@@ -226,7 +226,7 @@ func TestSendModalRejectsLegacyValidatorOrDiscordColorMismatch(t *testing.T) {
 }
 
 func TestSendModalPreservesNonemptyWhitespaceFields(t *testing.T) {
-	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects())
 	interaction := modalInteraction(map[string]string{
 		fieldTag:     " ",
 		fieldColor:   "#53FF53",
@@ -257,7 +257,7 @@ func TestRelayColorPreservesLegacyRandomCasing(t *testing.T) {
 }
 
 func TestConfirmMissingAnnouncementChannel(t *testing.T) {
-	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects())
 	stateID, err := module.draftStore().Put(AnnouncementDraft{
 		GuildID: "guild-1",
 		UserID:  "user-1",
@@ -283,7 +283,7 @@ func TestConfirmMissingAnnouncementChannel(t *testing.T) {
 }
 
 func TestCancelDropsDraft(t *testing.T) {
-	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects(), nil)
+	module := NewSendModule(fakemongo.NewAnnouncementConfigRepository(), fakediscord.NewSideEffects())
 	stateID, err := module.draftStore().Put(AnnouncementDraft{GuildID: "guild-1", UserID: "user-1", Color: 0x53FF53, Title: "公告", Content: "內容", Tag: "@here"})
 	if err != nil {
 		t.Fatalf("put draft: %v", err)

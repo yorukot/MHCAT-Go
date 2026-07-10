@@ -9,13 +9,11 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestConfigHandlerSetsOnceAnnouncementChannel(t *testing.T) {
 	repo := fakemongo.NewAnnouncementConfigRepository()
-	usage := &fakeusage.Tracker{}
-	module := NewModule(repo, usage)
+	module := NewModule(repo)
 	interaction := announcementInteraction(subcommandOnce, map[string]string{optionChannel: "channel-1"})
 	responder := fakediscord.NewResponder()
 
@@ -32,15 +30,12 @@ func TestConfigHandlerSetsOnceAnnouncementChannel(t *testing.T) {
 	if repo.AnnouncementChannels["guild-1"] != "channel-1" {
 		t.Fatalf("repo state = %#v", repo.AnnouncementChannels)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != ConfigCommandName {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestConfigHandlerUpdatesOnceAnnouncementChannel(t *testing.T) {
 	repo := fakemongo.NewAnnouncementConfigRepository()
 	repo.AnnouncementChannels["guild-1"] = "old-channel"
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	interaction := announcementInteraction(subcommandOnce, map[string]string{optionChannel: "channel-2"})
 	responder := fakediscord.NewResponder()
 
@@ -57,7 +52,7 @@ func TestConfigHandlerUpdatesOnceAnnouncementChannel(t *testing.T) {
 
 func TestConfigHandlerSetsBoundAnnouncement(t *testing.T) {
 	repo := fakemongo.NewAnnouncementConfigRepository()
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	interaction := announcementInteraction(subcommandBound, map[string]string{
 		optionChannel: "channel-1",
 		optionTag:     "@here",
@@ -81,7 +76,7 @@ func TestConfigHandlerSetsBoundAnnouncement(t *testing.T) {
 
 func TestConfigHandlerAcceptsLegacyRandomColor(t *testing.T) {
 	repo := fakemongo.NewAnnouncementConfigRepository()
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	interaction := announcementInteraction(subcommandBound, map[string]string{
 		optionChannel: "channel-1",
 		optionTag:     "@everyone",
@@ -100,7 +95,7 @@ func TestConfigHandlerAcceptsLegacyRandomColor(t *testing.T) {
 
 func TestConfigHandlerPreservesLegacyRawBoundValues(t *testing.T) {
 	repo := fakemongo.NewAnnouncementConfigRepository()
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	interaction := announcementInteraction(subcommandBound, map[string]string{
 		optionChannel: "channel-1",
 		optionTag:     " ",
@@ -119,7 +114,7 @@ func TestConfigHandlerPreservesLegacyRawBoundValues(t *testing.T) {
 }
 
 func TestConfigHandlerDoesNotTrimColorIntoValidity(t *testing.T) {
-	module := NewModule(fakemongo.NewAnnouncementConfigRepository(), nil)
+	module := NewModule(fakemongo.NewAnnouncementConfigRepository())
 	for _, color := range []string{"53FF53", " #53FF53"} {
 		interaction := announcementInteraction(subcommandBound, map[string]string{
 			optionChannel: "channel-1",
@@ -138,7 +133,7 @@ func TestConfigHandlerDoesNotTrimColorIntoValidity(t *testing.T) {
 }
 
 func TestConfigHandlerRejectsPermissionAndInvalidColor(t *testing.T) {
-	module := NewModule(fakemongo.NewAnnouncementConfigRepository(), nil)
+	module := NewModule(fakemongo.NewAnnouncementConfigRepository())
 	interaction := fakediscord.SlashInteractionWithOptions(ConfigCommandName, subcommandOnce, map[string]string{optionChannel: "channel-1"})
 	responder := fakediscord.NewResponder()
 
@@ -167,7 +162,7 @@ func TestConfigHandlerRejectsPermissionAndInvalidColor(t *testing.T) {
 func TestConfigHandlerDeletesBoundAnnouncement(t *testing.T) {
 	repo := fakemongo.NewAnnouncementConfigRepository()
 	repo.BoundAnnouncements["guild-1:channel-1"] = domain.BoundAnnouncementConfig{GuildID: "guild-1", ChannelID: "channel-1"}
-	module := NewModule(repo, nil)
+	module := NewModule(repo)
 	interaction := announcementInteraction(subcommandDeleteBound, map[string]string{optionChannel: "channel-1"})
 	responder := fakediscord.NewResponder()
 

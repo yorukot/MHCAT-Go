@@ -16,7 +16,6 @@ type Module struct {
 	reader      ports.AnnouncementChannelReader
 	boundReader ports.BoundAnnouncementReader
 	messages    ports.DiscordMessagePort
-	usage       ports.UsageTracker
 	drafts      *DraftStore
 	after       func(time.Duration, func())
 	config      bool
@@ -24,35 +23,32 @@ type Module struct {
 	relay       bool
 }
 
-func NewModule(repo ports.AnnouncementConfigRepository, usage ports.UsageTracker) Module {
+func NewModule(repo ports.AnnouncementConfigRepository) Module {
 	return Module{
 		service:     coreservice.NewConfigService(repo),
 		reader:      repo,
 		boundReader: repo,
-		usage:       usage,
 		drafts:      NewDraftStore(),
 		config:      repo != nil,
 	}
 }
 
-func NewSendModule(reader ports.AnnouncementChannelReader, messages ports.DiscordMessagePort, usage ports.UsageTracker) Module {
+func NewSendModule(reader ports.AnnouncementChannelReader, messages ports.DiscordMessagePort) Module {
 	return Module{
 		reader:   reader,
 		messages: messages,
-		usage:    usage,
 		drafts:   NewDraftStore(),
 		after:    announcementAfter,
 		send:     reader != nil && messages != nil,
 	}
 }
 
-func NewModuleWithSend(repo ports.AnnouncementConfigRepository, messages ports.DiscordMessagePort, usage ports.UsageTracker) Module {
+func NewModuleWithSend(repo ports.AnnouncementConfigRepository, messages ports.DiscordMessagePort) Module {
 	return Module{
 		service:     coreservice.NewConfigService(repo),
 		reader:      repo,
 		boundReader: repo,
 		messages:    messages,
-		usage:       usage,
 		drafts:      NewDraftStore(),
 		after:       announcementAfter,
 		config:      repo != nil,
@@ -68,13 +64,12 @@ func NewRelayModule(reader ports.BoundAnnouncementReader, messages ports.Discord
 	}
 }
 
-func NewModuleWithRelay(repo ports.AnnouncementConfigRepository, messages ports.DiscordMessagePort, usage ports.UsageTracker) Module {
+func NewModuleWithRelay(repo ports.AnnouncementConfigRepository, messages ports.DiscordMessagePort) Module {
 	return Module{
 		service:     coreservice.NewConfigService(repo),
 		reader:      repo,
 		boundReader: repo,
 		messages:    messages,
-		usage:       usage,
 		drafts:      NewDraftStore(),
 		after:       announcementAfter,
 		config:      repo != nil,

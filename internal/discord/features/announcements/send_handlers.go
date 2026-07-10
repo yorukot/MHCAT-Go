@@ -108,7 +108,7 @@ func (m Module) ConfirmHandler() interactions.Handler {
 		if err := responder.EditOriginal(ctx, sendSuccessMessage()); err != nil {
 			return err
 		}
-		return m.trackCommand(ctx, interaction, SendCommandName, "announcement-send")
+		return nil
 	}
 }
 

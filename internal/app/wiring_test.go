@@ -1754,6 +1754,26 @@ func TestBuildRuntimeRoutesAnnouncementConfigOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeTracksAnnouncementSlashOnce(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                       validTestConfig(),
+		UsageTracker:                 tracker,
+		AnnouncementConfigRepository: fakemongo.NewAnnouncementConfigRepository(),
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("公告頻道設置", "一次性公告頻道", map[string]string{"頻道": "channel-1"})
+	interaction.Actor.PermissionBits = 8192
+	if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch announcement config: %v", err)
+	}
+	if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "公告頻道設置" {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+}
+
 func TestBuildRuntimeRoutesAnnouncementSendOnlyWithRepositoryAndMessagePort(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
