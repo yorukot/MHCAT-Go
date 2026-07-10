@@ -2,11 +2,13 @@ package stats
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
@@ -109,6 +111,78 @@ func TestCreateHandlerRequiresManageMessages(t *testing.T) {
 	}
 	if len(discord.Created) != 0 {
 		t.Fatalf("created channels = %#v", discord.Created)
+	}
+}
+
+func TestStatsCreateMessagesMatchLegacyPayloads(t *testing.T) {
+	tests := []struct {
+		name      string
+		message   func() responses.Message
+		wantTitle string
+		wantColor int
+	}{
+		{
+			name:      "loading",
+			message:   statsCreateLoadingMessage,
+			wantTitle: "<a:lodding:980493229592043581> | 正在進行設置中!",
+			wantColor: statsSuccessColor,
+		},
+		{
+			name:      "success",
+			message:   statsCreateSuccessMessage,
+			wantTitle: "<a:greentick:980496858445135893> | 成功創建!頻道(不要動到數字就沒問題)跟類別的名稱都能自行更改喔!",
+			wantColor: statsSuccessColor,
+		},
+		{
+			name:      "permission",
+			message:   func() responses.Message { return statsErrorMessage("你需要有`訊息管理`才能使用此指令") },
+			wantTitle: "<a:Discord_AnimatedNo:1015989839809757295> | 你需要有`訊息管理`才能使用此指令",
+			wantColor: statsErrorColor,
+		},
+		{
+			name:      "invalid channel type",
+			message:   func() responses.Message { return statsCreateErrorMessage(domain.ErrInvalidStatsChannelType) },
+			wantTitle: "<a:Discord_AnimatedNo:1015989839809757295> | 你沒有進行設置要文字頻道還是語音頻道!或是你打錯了!",
+			wantColor: statsErrorColor,
+		},
+		{
+			name:      "missing option",
+			message:   func() responses.Message { return statsCreateErrorMessage(domain.ErrStatsOptionRequired) },
+			wantTitle: "<a:Discord_AnimatedNo:1015989839809757295> | 由於你已經創建過了，所以你必須說明你要創建的統計名稱，或是刪除現有的統計資料(使用統計資料刪除)!",
+			wantColor: statsErrorColor,
+		},
+		{
+			name:      "duplicate option",
+			message:   func() responses.Message { return statsCreateErrorMessage(domain.ErrStatsChannelAlreadyExists) },
+			wantTitle: "<a:Discord_AnimatedNo:1015989839809757295> | 這個統計你已經創建過了!",
+			wantColor: statsErrorColor,
+		},
+		{
+			name:      "invalid option",
+			message:   func() responses.Message { return statsCreateErrorMessage(domain.ErrInvalidStatsOption) },
+			wantTitle: "<a:Discord_AnimatedNo:1015989839809757295> | 沒有這項統計可以創建欸QQ",
+			wantColor: statsErrorColor,
+		},
+		{
+			name:      "unknown error",
+			message:   func() responses.Message { return statsCreateErrorMessage(errors.New("database unavailable")) },
+			wantTitle: "<a:Discord_AnimatedNo:1015989839809757295> | 很抱歉，出現了未知的錯誤，請重試!",
+			wantColor: statsErrorColor,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			message := test.message()
+			if len(message.Embeds) != 1 || message.Embeds[0].Title != test.wantTitle || message.Embeds[0].Color != test.wantColor {
+				t.Fatalf("message = %#v", message)
+			}
+			if message.Content != "" || message.Embeds[0].Description != "" || len(message.Components) != 0 || len(message.Files) != 0 || message.Ephemeral {
+				t.Fatalf("unexpected payload fields = %#v", message)
+			}
+			if message.AllowedMentions == nil {
+				t.Fatal("allowed mentions must be disabled explicitly")
+			}
+		})
 	}
 }
 
