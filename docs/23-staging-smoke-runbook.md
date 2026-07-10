@@ -312,6 +312,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true
 
 Set both together only when testing `/抽獎設置` unavailable-response parity. This path performs no lottery creation, no `lotters` write, no public lottery panel send, and no `lotter*` component behavior.
 
+Optional existing-lottery component smoke flags:
+
+```bash
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED=true
+```
+
+This separate path operates only on existing numeric `<digits>lotter` message buttons and `lotters` rows. It can append `member`, set `end:true`, attach `discord.txt`, and send a winner message to the stored channel. It does not enable or sync `/抽獎設置` and must use disposable copied rows/channels with Node button ownership disabled for the staging guild.
+
 Optional stats query smoke flags:
 
 ```bash
@@ -873,6 +882,16 @@ For lottery disabled-command staging smoke, expected additionally:
 - `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`;
 - plan includes managed `抽獎設置`;
 - `/抽獎設置` returns the legacy unavailable embed and performs no lottery creation/write.
+
+For existing-lottery component staging smoke, expected additionally:
+
+- seed a disposable future-dated `lotters` row whose numeric ID ends in `lotter`, and post disposable enter/search buttons using that ID;
+- enter with an eligible member and verify one `{id,time}` participant append;
+- verify duplicate, ended, full, required-role, and forbidden-role responses do not mutate the row;
+- search and verify the participant count, self-entry status, `discord.txt`, and owner/guild-owner controls;
+- verify another user cannot invoke `<id>restart` or `<id>stop` by custom ID;
+- reroll as the owner, verify one winner message in `message_channel`, explicit winner mentions only, and `end:true`;
+- verify `/抽獎設置` remains unavailable or unrouted according to its independent command flag.
 
 For stats query staging smoke, expected additionally:
 

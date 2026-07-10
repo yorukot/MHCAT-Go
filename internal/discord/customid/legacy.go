@@ -25,7 +25,7 @@ var (
 	legacyPollRe         = regexp.MustCompile(`^poll_[^\x00-\x1F:]{1,80}$`)
 	legacyRoleButtonRe   = regexp.MustCompile(`^[0-9]{12,32}(add|delete)$`)
 	legacyRoleAddModalRe = regexp.MustCompile(`^roleaddcontent[0-9]{12,32}$`)
-	legacyLotteryRe      = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}(search|restart|stop)?$`)
+	legacyLotteryRe      = regexp.MustCompile(`^[0-9]{13,20}lotter(search|restart|stop)?$`)
 	legacyShopItemRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)
 	legacyShopDetailRe   = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}ghp$`)
 	legacyShopRawItemRe  = regexp.MustCompile(`^[0-9]{10,16}$`)
@@ -222,10 +222,7 @@ func parseLeaveRole(raw string) (ID, bool, error) {
 }
 
 func routeLottery(raw string) bool {
-	if !legacyLotteryRe.MatchString(raw) {
-		return false
-	}
-	return strings.HasPrefix(raw, "lotter") || strings.HasSuffix(raw, "search") || strings.HasSuffix(raw, "restart") || strings.HasSuffix(raw, "stop")
+	return legacyLotteryRe.MatchString(raw)
 }
 
 func legacyComponent(feature, action, raw string) ID {

@@ -1,51 +1,55 @@
-# Lottery Disabled Command Parity
+# Lottery Disabled Command and Existing Components
 
 ## Scope
 
-This slice ports only the current visible behavior of legacy `/抽獎設置`.
+Legacy `/抽獎設置` immediately returns an ephemeral unavailable embed, so Go keeps lottery creation and public panel generation disabled. Legacy `events/btn.js` still handles buttons on previously created lottery messages, so Go restores those existing-message actions behind a separate runtime gate.
 
 Legacy evidence:
 
-- `MHCAT/slashCommands/抽獎系統/lotter_create.js` defines the full slash command metadata and options.
-- The handler immediately runs `deferReply({ ephemeral: true })`, edits the original reply with one green embed, and returns.
-- The permission check, date parsing, `lotter` document creation, public lottery message, and buttons are unreachable in the current legacy behavior.
+- `MHCAT/slashCommands/抽獎系統/lotter_create.js` defines the option-rich command but returns before permission checks, date parsing, `lotters` creation, or panel sends.
+- `MHCAT/events/btn.js` still routes numeric `<id>lotter`, `search`, `restart`, and `stop` button IDs.
+- `MHCAT/models/lotter.js` stores string numeric fields, nullable role/cap fields, loose `member` entries, and `end`.
 
-## Implemented Behavior
+## Disabled Command
 
-- Runtime flag: `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=false` by default.
-- Command-sync flag: `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=false` by default.
-- Command name: `抽獎設置`.
-- Options are preserved in the legacy order.
-- The command defers ephemerally and edits the original reply with:
+- Runtime flag: `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=false`.
+- Command-sync flag: `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=false`.
+- The command defers ephemerally and returns the legacy green unavailable embed.
+- Runtime does not enforce Manage Messages because the legacy unavailable return occurs before that check.
+- It performs no `lotters` read/write and sends no public panel.
 
-```txt
-<a:green_tick:994529015652163614> | 這個指令暫時無法使用造成困擾非常抱歉!
-```
+## Existing Components
 
-- The embed color preserves legacy `client.color.greate` (`#53FF53`).
-- The command definition keeps Manage Messages metadata (`8192`), but the runtime handler intentionally does not enforce it because the legacy disabled return occurs before the permission check.
+- Runtime flag: `MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED=false`.
+- Gateway is required; no command-sync flag is involved.
+- Accepted legacy IDs are limited to `<13-20 digits>lotter` plus optional `search`, `restart`, or `stop` suffixes.
+- Enter validates end time, duplicate entry, capacity, required role, and forbidden role, then atomically appends `{id,time}`.
+- Search returns the legacy participant-count embed, `discord.txt`, self-entry status, and manager controls.
+- Reroll sends one legacy-style winner message to `message_channel` and sets `end:true`.
+- Stop sets `end:true` and returns the legacy success embed.
 
-## Not Implemented
+Legacy reroll attempted one progressively larger channel send per winner from inside its draw loop. Go emits one aggregate winner message and caps an oversized stored winner count at 50 to avoid duplicate pings and Discord message-limit failures while preserving the final visible winner layout.
 
-- No `lotters` reads or writes.
-- No lottery creation.
-- No public lottery panel send.
-- No `點我參加抽獎!` or `誰參加抽獎` buttons.
-- No legacy `lotter*` component routes (`enter`, `search`, `restart`, `stop`) beyond parser recognition.
-- No scheduler or auto-winner path.
+Destructive reroll/stop actions recheck authorization. Rows with `owner` require that owner or the guild owner; legacy rows without `owner` preserve the Manage Messages fallback. This intentionally closes the legacy custom-ID spoofing gap.
 
-## Safety
+## Compatibility
 
-- Bot startup still does not register commands.
-- Command sync includes this command only in staging guild scope with the explicit include flag.
-- Staging preflight and scripts reject unpaired command-sync/runtime flags.
-- No Mongo feature write or index creation is introduced.
+Go reads mixed string/number/null fields and skips malformed participant entries. It writes only existing fields:
+
+- `member`: appends `{id:<user>,time:<Unix milliseconds>}` with atomic duplicate/date/cap guards.
+- `end`: sets boolean `true`.
+
+No indexes, schema fields, migrations, or creation rows are added. Disabling the component gate returns ownership to Node without repair.
+
+## Staging
+
+Use disposable copied `lotters` rows and channels only. Verify enter, duplicate/cap/role errors, participant export, unauthorized stop/reroll denial, owner stop, and reroll winner sends. Do not enable Node and Go lottery button ownership for the same guild at the same time.
 
 ## Tests
 
-- Definition metadata and option order.
-- Handler ephemeral defer and legacy unavailable embed.
-- Handler does not require runtime Manage Messages permission for the disabled response.
-- Runtime route is unavailable by default and available only with explicit runtime option.
-- Command-sync dry-run includes `抽獎設置` only with explicit include flag.
-- Staging preflight rejects unpaired sync/runtime flags.
+- Legacy parser golden cases for all four IDs.
+- Mixed BSON decoding and guarded Mongo update shape.
+- Service entry and manager authorization rules.
+- Exact handler UI/export, reroll send, and end-state writes.
+- Independent command/component runtime wiring and safe-default config.
+- Gateway readiness in config and staging preflight.

@@ -1121,6 +1121,38 @@ func TestBuildRuntimeRoutesLotteryDisabledCommandOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRoutesLotteryComponentsSeparatelyFromDisabledCommand(t *testing.T) {
+	const id = "1700000000000999lotter"
+	now := time.Unix(1_700_000_000, 0)
+	repo := fakemongo.NewLotteryRepository()
+	repo.Lotteries["guild-1:"+id] = domain.Lottery{GuildID: "guild-1", ID: id, EndsAtUnix: now.Add(time.Hour).Unix()}
+	sideEffects := fakediscord.NewSideEffects()
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		LotteryComponentsEnabled: true,
+		LotteryRepository:        repo,
+		LotteryMemberReader:      sideEffects,
+		LotteryMessagePort:       sideEffects,
+		Clock:                    appFixedClock{now: now},
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), fakediscord.ComponentInteractionFromID(id), responder); err != nil {
+		t.Fatalf("dispatch lottery enter: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "成功參加抽獎") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if len(repo.Lotteries["guild-1:"+id].Participants) != 1 {
+		t.Fatalf("lottery = %#v", repo.Lotteries["guild-1:"+id])
+	}
+	if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction("抽獎設置"), fakediscord.NewResponder()); err == nil {
+		t.Fatal("component gate must not enable the disabled slash command route")
+	}
+}
+
 func TestBuildRuntimeRoutesStatsQueryOnlyWhenEnabled(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

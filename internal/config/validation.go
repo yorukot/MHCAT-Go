@@ -199,6 +199,9 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_FEATURE_STATS_RENAME_WORKER_ENABLED requires MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureLotteryComponentsEnabled && !cfg.DiscordEnableGateway {
+		return fmt.Errorf("%w: MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+	}
 	if err := ValidateStagingGatewaySmoke(cfg.Staging, cfg.DiscordGatewaySmokeTest); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
 	}

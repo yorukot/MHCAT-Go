@@ -104,6 +104,11 @@ type RuntimeOptions struct {
 	GachaPrizeEditRepository      ports.GachaPrizeEditRepository
 	GachaPrizeDeleteRepository    ports.GachaPrizeDeleteRepository
 	LotteryDisabledCommandEnabled bool
+	LotteryComponentsEnabled      bool
+	LotteryRepository             ports.LotteryRepository
+	LotteryDiscordInfo            ports.DiscordInfoProvider
+	LotteryMemberReader           ports.DiscordGuildMemberReader
+	LotteryMessagePort            ports.DiscordMessagePort
 	StatsQueryEnabled             bool
 	StatsCreateRepository         ports.StatsConfigRepository
 	StatsCreateChannelPort        ports.DiscordChannelPort
@@ -168,6 +173,10 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	coinResetGuilds := opts.EconomyCoinResetGuildInfo
 	if coinResetGuilds == nil {
 		coinResetGuilds = concreteDiscord
+	}
+	lotteryDiscord := opts.LotteryDiscordInfo
+	if lotteryDiscord == nil {
+		lotteryDiscord = concreteDiscord
 	}
 	definitions := commands.BuiltinDefinitions()
 	if opts.TicketConfigRepository != nil {
@@ -547,8 +556,16 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 			return nil, err
 		}
 	}
-	if opts.LotteryDisabledCommandEnabled {
-		lotteryModule := featurelottery.NewModule(opts.UsageTracker)
+	if opts.LotteryDisabledCommandEnabled || (opts.LotteryComponentsEnabled && opts.LotteryRepository != nil) {
+		var lotteryModule featurelottery.Module
+		switch {
+		case opts.LotteryDisabledCommandEnabled && opts.LotteryComponentsEnabled && opts.LotteryRepository != nil:
+			lotteryModule = featurelottery.NewModuleWithComponents(opts.LotteryRepository, lotteryDiscord, opts.LotteryMemberReader, opts.LotteryMessagePort, clockOrSystem(opts.Clock), opts.UsageTracker)
+		case opts.LotteryComponentsEnabled && opts.LotteryRepository != nil:
+			lotteryModule = featurelottery.NewComponentModule(opts.LotteryRepository, lotteryDiscord, opts.LotteryMemberReader, opts.LotteryMessagePort, clockOrSystem(opts.Clock))
+		default:
+			lotteryModule = featurelottery.NewModule(opts.UsageTracker)
+		}
 		if err := lotteryModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

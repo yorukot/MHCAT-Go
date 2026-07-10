@@ -538,7 +538,16 @@ MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true
 MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true
 ```
 
-This command preserves the current legacy unavailable embed. It does not create `lotters` documents, send public lottery panels, register lottery buttons, write usage counters to Mongo, create indexes, or enable old `lotter*` component behavior.
+This command preserves the current legacy unavailable embed. It does not create `lotters` documents, send public lottery panels, write usage counters to Mongo, create indexes, or enable old `lotter*` component behavior.
+
+Existing lottery-message buttons are a separate runtime:
+
+```bash
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED=true
+```
+
+This gate reads existing `lotters`, atomically appends eligible participants, returns the legacy participant embed and `discord.txt`, sets `end:true` on stop/reroll, and sends one winner message on reroll. It does not enable `/抽獎設置` or create new lottery panels. Test only with disposable copied rows and channels, and do not run Node and Go button ownership for the same guild simultaneously.
 
 Static `/統計系統查詢` parity is available only when both staging command sync and runtime flags are explicitly enabled:
 

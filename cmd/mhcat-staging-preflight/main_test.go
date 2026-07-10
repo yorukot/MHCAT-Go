@@ -1380,6 +1380,31 @@ func TestPreflightWarnsWhenLotteryDisabledRuntimeEnabledWithoutCommandSync(t *te
 	}
 }
 
+func TestPreflightRejectsLotteryComponentsWithoutGateway(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatal("expected non-zero exit")
+	}
+	if !strings.Contains(stdout, "lottery-components-runtime-readiness status=fail") {
+		t.Fatalf("expected lottery component readiness failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightAcceptsLotteryComponentsWithGateway(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "lottery-components-runtime-readiness status=pass") {
+		t.Fatalf("expected lottery component readiness pass, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsStatsQueryCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY"] = "true"

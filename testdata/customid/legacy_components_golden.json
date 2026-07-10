@@ -96,6 +96,38 @@
     "notes": "events/voice_create.js:53"
   },
   {
+    "name": "lottery enter",
+    "kind": "component",
+    "raw": "1700000000000999lotter",
+    "want": { "feature": "lottery", "action": "enter", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/btn.js:891"
+  },
+  {
+    "name": "lottery search",
+    "kind": "component",
+    "raw": "1700000000000999lottersearch",
+    "want": { "feature": "lottery", "action": "search", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/btn.js:726"
+  },
+  {
+    "name": "lottery reroll",
+    "kind": "component",
+    "raw": "1700000000000999lotterrestart",
+    "want": { "feature": "lottery", "action": "reroll", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/btn.js:799"
+  },
+  {
+    "name": "lottery stop",
+    "kind": "component",
+    "raw": "1700000000000999lotterstop",
+    "want": { "feature": "lottery", "action": "stop", "version": "legacy", "legacy": true },
+    "confidence": "high",
+    "notes": "events/btn.js:862"
+  },
+  {
     "name": "shop raw item",
     "kind": "component",
     "raw": "1710000000000",

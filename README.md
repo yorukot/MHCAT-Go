@@ -123,6 +123,7 @@ Implemented utility commands:
 - `/扭蛋獎品編輯` when explicitly enabled with `MHCAT_FEATURE_GACHA_PRIZE_EDIT_ENABLED=true`
 - `/扭蛋獎池刪除` when explicitly enabled with `MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=true`
 - `/抽獎設置` disabled-command parity response when explicitly enabled with `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`
+- existing numeric `lotter*` buttons when explicitly enabled with `MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED=true`
 - `/統計系統查詢` when explicitly enabled with `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`
 - `/統計系統創建` when explicitly enabled with `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`
 - `/統計身分組人數` when explicitly enabled with `MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=true`
@@ -166,7 +167,7 @@ Implemented event features:
 
 Not implemented yet:
 
-- remaining economy game/shop writes, voice XP restart reconciliation, rank cards, gacha draw/shop, gift delivery, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
+- remaining economy game/shop writes, rank cards, gift delivery, lottery creation/panel generation, announcement relay attachment handling/tag pings, recurring work scheduler ownership, recurring cron delivery, ChatGPT/chat worker, dashboard, and auto-chat runtime.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete, and the daily reset is either run by the explicit one-shot tool under an operator process or owned by a future lease-backed scheduler.
 
@@ -234,6 +235,7 @@ Safe defaults:
 - `MHCAT_FEATURE_GACHA_PRIZE_EDIT_ENABLED=false`
 - `MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=false`
 - `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=false`
+- `MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED=false`
 - `MHCAT_FEATURE_STATS_QUERY_ENABLED=false`
 - `MHCAT_FEATURE_STATS_CREATE_ENABLED=false`
 - `MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=false`
@@ -592,7 +594,9 @@ The `/扭蛋獎品編輯` command is available only when `MHCAT_FEATURE_GACHA_PR
 
 The `/扭蛋獎池刪除` command is available only when `MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_DELETE=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires Manage Messages and deletes one legacy `gifts` row matching `{guild,gift_name}`, returning the legacy success/error embeds. It does not draw prizes, decrement inventory counts, mutate coins, send DMs, create indexes, or enable shop behavior. Test only against disposable staging gacha data.
 
-The `/抽獎設置` disabled-command parity response is available only when `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command preserves the current legacy unavailable embed and does not create lottery rows, send lottery panels, register lottery buttons, write Mongo, or enable old `lotter*` component behavior.
+The `/抽獎設置` disabled-command parity response is available only when `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command preserves the current legacy unavailable embed and does not create lottery rows, send lottery panels, or enable old buttons.
+
+Existing numeric `lotter*` buttons are independently available only when `MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED=true` with Gateway enabled. This runtime reads existing rollback-compatible `lotters` rows, atomically appends eligible participants, returns participant search/export UI, sets `end:true` for stop/reroll, and sends one winner message on reroll. It does not enable lottery creation or command sync; test only against disposable staging rows and channels.
 
 The `/統計系統查詢` command is available only when `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command preserves the legacy static stats help embed and does not read/write Mongo, create/delete channels, rename channels, create indexes, or enable `channel_status` scheduler behavior.
 

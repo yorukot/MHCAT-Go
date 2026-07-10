@@ -53,6 +53,7 @@ const (
 	DefaultFeatureGachaPrizeEditEnabled         = false
 	DefaultFeatureGachaPrizeDeleteEnabled       = false
 	DefaultFeatureLotteryDisabledCommandEnabled = false
+	DefaultFeatureLotteryComponentsEnabled      = false
 	DefaultFeatureStatsQueryEnabled             = false
 	DefaultFeatureStatsCreateEnabled            = false
 	DefaultFeatureStatsRoleCountEnabled         = false
@@ -141,6 +142,7 @@ type Config struct {
 	FeatureGachaPrizeEditEnabled         bool
 	FeatureGachaPrizeDeleteEnabled       bool
 	FeatureLotteryDisabledCommandEnabled bool
+	FeatureLotteryComponentsEnabled      bool
 	FeatureStatsQueryEnabled             bool
 	FeatureStatsCreateEnabled            bool
 	FeatureStatsRoleCountEnabled         bool

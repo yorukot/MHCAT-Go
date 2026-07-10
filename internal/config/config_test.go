@@ -219,6 +219,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureLotteryDisabledCommandEnabled {
 		t.Fatal("lottery disabled-command feature must be disabled by default")
 	}
+	if cfg.FeatureLotteryComponentsEnabled {
+		t.Fatal("lottery component feature must be disabled by default")
+	}
 	if cfg.FeatureStatsQueryEnabled {
 		t.Fatal("stats query feature must be disabled by default")
 	}
@@ -971,6 +974,34 @@ func TestFeatureLotteryDisabledCommandConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureLotteryDisabledCommandEnabled {
 		t.Fatal("expected lottery disabled-command feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureLotteryComponentsConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                      "token",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":             "true",
+		"MHCAT_MONGODB_URI":                        "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                   "mhcat",
+		"MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureLotteryComponentsEnabled {
+		t.Fatal("expected lottery component feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureLotteryComponentsRequiresGateway(t *testing.T) {
+	_, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                      "token",
+		"MHCAT_MONGODB_URI":                        "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                   "mhcat",
+		"MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED": "true",
+	}))
+	if err == nil || !strings.Contains(err.Error(), "MHCAT_DISCORD_ENABLE_GATEWAY=true") {
+		t.Fatalf("error = %v", err)
 	}
 }
 

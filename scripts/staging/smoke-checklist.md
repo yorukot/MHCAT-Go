@@ -36,6 +36,7 @@
 - For balance query smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true` with `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true`.
 - For redeem smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true` with `MHCAT_FEATURE_REDEEM_ENABLED=true`; seed only disposable `codes` rows.
 - For lottery disabled-command smoke, pair `MHCAT_COMMAND_SYNC_INCLUDE_LOTTERY_DISABLED_COMMAND=true` with `MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED=true`; it should only return the legacy unavailable embed and must not create a lottery.
+- For existing-lottery component smoke, set `MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED=true` with Gateway, use only disposable copied `lotters` rows/channels, and disable Node button ownership for that guild.
 - For stats create smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true` with `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`; it creates Discord channels and writes `numbers`.
 - For stats role-count smoke, use an isolated staging guild/database with an existing stats `numbers` row and pair `MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT=true` with `MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=true`; it creates a Discord channel and writes `role_numbers`.
 - For stats delete smoke, use only disposable staging `numbers` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true` with `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`; it deletes guild-scoped config rows and does not delete Discord channels.
@@ -75,6 +76,7 @@
 - If balance query smoke is enabled, run `/查看餘額` and verify the ephemeral green author embed reads `伺服器目前剩於餘額: <price>` or `0` when `chatgpt_gets` has no guild row.
 - If redeem smoke is enabled, seed a fresh staging `codes` row, run `/兌換`, verify the ephemeral success embed, verify the code was deleted and `chatgpt_gets.price` was credited, then verify missing and expired codes return the legacy red embeds.
 - If lottery disabled-command smoke is enabled, run `/抽獎設置` with placeholder options and verify the ephemeral unavailable embed.
+- If lottery component smoke is enabled, test eligible/duplicate/role/cap entry, participant search plus `discord.txt`, unauthorized stop/reroll denial, owner stop, and one reroll winner send against the disposable row.
 - If stats create smoke is enabled, run `/統計系統創建` in the isolated staging guild, verify the stats category plus member/user/bot channels are created, verify the `numbers` row, then add one optional channel-count stat.
 - If stats role-count smoke is enabled, run `/統計身分組人數` for a disposable role, verify the success embed references the created channel, verify the channel name is `<role name>: <member count>`, and verify the `role_numbers` row is replaced for that guild/role.
 - If stats delete smoke is enabled, seed a disposable `numbers` row for the staging guild, run `/統計系統刪除`, verify the legacy success embed, confirm the guild `numbers` row is deleted, and confirm Discord channels are untouched.

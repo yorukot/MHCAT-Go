@@ -290,6 +290,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		DeleteDataFeatureEnabled:      cfg.FeatureDeleteDataEnabled,
 		TranslateFeatureEnabled:       cfg.FeatureTranslateEnabled,
 		LotteryDisabledCommandEnabled: cfg.FeatureLotteryDisabledCommandEnabled,
+		LotteryComponentsEnabled:      cfg.FeatureLotteryComponentsEnabled,
 		StatsQueryEnabled:             cfg.FeatureStatsQueryEnabled,
 	}
 	if cfg.FeatureTicketsEnabled {
@@ -536,6 +537,20 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		if cfg.FeatureGachaPrizeDeleteEnabled {
 			opts.GachaPrizeDeleteRepository = gachaRepo
 		}
+	}
+	if cfg.FeatureLotteryComponentsEnabled {
+		lotteryRepo, err := lotteryRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "lottery component feature")
+		if err != nil {
+			return nil, err
+		}
+		opts.LotteryRepository = lotteryRepo
+		opts.LotteryDiscordInfo = discordInfoProvider(session)
+		opts.LotteryMemberReader = sideEffects
+		opts.LotteryMessagePort = sideEffects
 	}
 	if cfg.FeatureStatsDeleteEnabled {
 		statsRepo, err := statsConfigRepositoryFromMongo(mongoClient)
@@ -1040,6 +1055,22 @@ func gachaRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.Gacha
 	repo, err := mongorepositories.NewGachaRepositoryFromDatabase(database)
 	if err != nil {
 		return nil, fmt.Errorf("gacha feature repository: %w", err)
+	}
+	return repo, nil
+}
+
+func lotteryRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.LotteryRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("lottery component feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("lottery component feature database: %w", err)
+	}
+	repo, err := mongorepositories.NewLotteryRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("lottery component feature repository: %w", err)
 	}
 	return repo, nil
 }

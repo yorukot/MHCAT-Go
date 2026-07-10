@@ -150,6 +150,7 @@ func buildReport(lookup lookupFunc) []checkResult {
 		gachaPrizeDeleteRuntimePairing(lookup),
 		lotteryDisabledCommandSync(lookup),
 		lotteryDisabledRuntimePairing(lookup),
+		lotteryComponentsRuntimeReadiness(lookup),
 		statsQueryCommandSync(lookup),
 		statsQueryRuntimePairing(lookup),
 		statsCreateCommandSync(lookup),
@@ -1373,6 +1374,24 @@ func lotteryDisabledRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "lottery-disabled-runtime-pairing", Status: statusWarn, Message: "lottery disabled command runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "lottery-disabled-runtime-pairing", Status: statusSkipped, Message: "lottery disabled command runtime and command sync include are disabled"}
+}
+
+func lotteryComponentsRuntimeReadiness(lookup lookupFunc) checkResult {
+	enabled, err := boolValue(lookup, "MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED")
+	if err != nil {
+		return checkResult{Name: "lottery-components-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !enabled {
+		return checkResult{Name: "lottery-components-runtime-readiness", Status: statusSkipped, Message: "lottery component runtime is disabled"}
+	}
+	gateway, err := boolValue(lookup, "MHCAT_DISCORD_ENABLE_GATEWAY")
+	if err != nil {
+		return checkResult{Name: "lottery-components-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !gateway {
+		return checkResult{Name: "lottery-components-runtime-readiness", Status: statusFail, Message: "lottery components require MHCAT_DISCORD_ENABLE_GATEWAY=true"}
+	}
+	return checkResult{Name: "lottery-components-runtime-readiness", Status: statusPass, Message: "lottery component gateway runtime is enabled"}
 }
 
 func statsQueryCommandSync(lookup lookupFunc) checkResult {
