@@ -91,6 +91,45 @@ func TestDeleteHandlerRequiresManageMessages(t *testing.T) {
 	}
 }
 
+func TestStatsDeleteMessagesMatchLegacyPayloads(t *testing.T) {
+	tests := []struct {
+		name      string
+		message   responses.Message
+		wantTitle string
+		wantColor int
+	}{
+		{
+			name:      "success",
+			message:   statsDeleteSuccessMessage("parent-1"),
+			wantTitle: "<a:greentick:980496858445135893> | 成功刪除，該類別以下的頻道我已經管不了囉!(類別id:parent-1)",
+			wantColor: statsSuccessColor,
+		},
+		{
+			name:      "missing config",
+			message:   statsErrorMessage("你還沒有創建過統計數據，是要刪除甚麼啦!"),
+			wantTitle: "<a:Discord_AnimatedNo:1015989839809757295> | 你還沒有創建過統計數據，是要刪除甚麼啦!",
+			wantColor: statsErrorColor,
+		},
+		{
+			name:      "unknown error",
+			message:   statsErrorMessage("很抱歉，出現了未知的錯誤，請重試!"),
+			wantTitle: "<a:Discord_AnimatedNo:1015989839809757295> | 很抱歉，出現了未知的錯誤，請重試!",
+			wantColor: statsErrorColor,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			message := test.message
+			if len(message.Embeds) != 1 || message.Embeds[0].Title != test.wantTitle || message.Embeds[0].Color != test.wantColor {
+				t.Fatalf("message = %#v", message)
+			}
+			if message.Content != "" || message.Embeds[0].Description != "" || len(message.Components) != 0 || len(message.Files) != 0 || message.Ephemeral || message.AllowedMentions == nil {
+				t.Fatalf("unexpected payload fields = %#v", message)
+			}
+		})
+	}
+}
+
 func TestCreateHandlerRequiresManageMessages(t *testing.T) {
 	repo := fakemongo.NewStatsConfigRepository()
 	discord := fakediscord.NewSideEffects()
