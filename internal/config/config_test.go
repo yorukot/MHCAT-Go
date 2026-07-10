@@ -186,6 +186,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeatureAutoNotificationConfigEnabled {
 		t.Fatal("auto-notification config feature must be disabled by default")
 	}
+	if cfg.FeatureAutoNotificationDelivery {
+		t.Fatal("auto-notification delivery feature must be disabled by default")
+	}
 	if cfg.FeatureAntiScamConfigEnabled {
 		t.Fatal("anti-scam config feature must be disabled by default")
 	}
@@ -1211,6 +1214,59 @@ func TestFeatureAutoNotificationConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureAutoNotificationConfigEnabled {
 		t.Fatal("expected auto-notification config feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureAutoNotificationDeliveryConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                              "token",
+		"MHCAT_MONGODB_URI":                                "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                           "mhcat",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":                     "true",
+		"MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED": "true",
+		"MHCAT_SCHEDULER_LEASE_ENABLED":                    "true",
+		"MHCAT_SCHEDULER_LEASE_OWNER":                      "worker-a",
+		"MHCAT_SCHEDULER_LEASE_TTL":                        "3m",
+		"MHCAT_SCHEDULER_LEASE_TIMEOUT":                    "8s",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureAutoNotificationDelivery || !cfg.SchedulerLeaseEnabled || cfg.SchedulerLeaseOwner != "worker-a" || cfg.SchedulerLeaseTTL != 3*time.Minute || cfg.SchedulerLeaseTimeout != 8*time.Second {
+		t.Fatalf("delivery config = %#v", cfg)
+	}
+}
+
+func TestFeatureAutoNotificationDeliveryRequiresGatewayLeaseAndOwner(t *testing.T) {
+	base := map[string]string{
+		"MHCAT_DISCORD_TOKEN":                              "token",
+		"MHCAT_MONGODB_URI":                                "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":                           "mhcat",
+		"MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED": "true",
+	}
+	tests := []struct {
+		name    string
+		values  map[string]string
+		wantKey string
+	}{
+		{name: "gateway", values: map[string]string{}, wantKey: "MHCAT_DISCORD_ENABLE_GATEWAY"},
+		{name: "lease", values: map[string]string{"MHCAT_DISCORD_ENABLE_GATEWAY": "true"}, wantKey: "MHCAT_SCHEDULER_LEASE_ENABLED"},
+		{name: "owner", values: map[string]string{"MHCAT_DISCORD_ENABLE_GATEWAY": "true", "MHCAT_SCHEDULER_LEASE_ENABLED": "true"}, wantKey: "MHCAT_SCHEDULER_LEASE_OWNER"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			values := make(map[string]string, len(base)+len(test.values))
+			for key, value := range base {
+				values[key] = value
+			}
+			for key, value := range test.values {
+				values[key] = value
+			}
+			_, err := LoadWithLookup(mapLookup(values))
+			if err == nil || !strings.Contains(err.Error(), test.wantKey) {
+				t.Fatalf("expected %s error, got %v", test.wantKey, err)
+			}
+		})
 	}
 }
 

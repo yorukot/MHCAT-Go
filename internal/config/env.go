@@ -55,6 +55,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureAutoChatConfigEnabled:         DefaultFeatureAutoChatConfigEnabled,
 		FeatureAutoChatFallbackEnabled:       DefaultFeatureAutoChatFallbackEnabled,
 		FeatureAutoNotificationConfigEnabled: DefaultFeatureAutoNotificationConfigEnabled,
+		FeatureAutoNotificationDelivery:      DefaultFeatureAutoNotificationDelivery,
 		FeatureAntiScamConfigEnabled:         DefaultFeatureAntiScamConfigEnabled,
 		FeatureAntiScamReportEnabled:         DefaultFeatureAntiScamReportEnabled,
 		FeatureAntiScamMessageDeleteEnabled:  DefaultFeatureAntiScamMessageDeleteEnabled,
@@ -100,6 +101,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureAccountAgePolicyEnabled:       DefaultFeatureAccountAgePolicyEnabled,
 		FeatureRoleSelectionEnabled:          DefaultFeatureRoleSelectionEnabled,
 		JobsDailyResetEnabled:                DefaultJobsDailyResetEnabled,
+		SchedulerLeaseEnabled:                DefaultSchedulerLeaseEnabled,
+		SchedulerLeaseTTL:                    DefaultSchedulerLeaseTTL,
+		SchedulerLeaseTimeout:                DefaultSchedulerLeaseTimeout,
 		MongoConnectTimeout:                  DefaultMongoConnectTimeout,
 		MongoPingTimeout:                     DefaultMongoPingTimeout,
 		ShutdownTimeout:                      DefaultShutdownTimeout,
@@ -109,6 +113,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 	cfg.MongoDBURI = getAliasedString(lookup, "MHCAT_MONGODB_URI", "MONGOOSE_CONNECTION_STRING", &cfg)
 	cfg.MongoDBDatabase = getString(lookup, "MHCAT_MONGODB_DATABASE", "")
 	cfg.ReportWebhookURL = getAliasedString(lookup, "MHCAT_REPORT_WEBHOOK_URL", "REPORT_WEBHOOK", &cfg)
+	cfg.SchedulerLeaseOwner = getString(lookup, "MHCAT_SCHEDULER_LEASE_OWNER", "")
 
 	var err error
 	if cfg.DiscordEnableGateway, err = getBool(lookup, "MHCAT_DISCORD_ENABLE_GATEWAY", DefaultDiscordEnableGateway); err != nil {
@@ -217,6 +222,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureAutoNotificationConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED", DefaultFeatureAutoNotificationConfigEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureAutoNotificationDelivery, err = getBool(lookup, "MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED", DefaultFeatureAutoNotificationDelivery); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureAntiScamConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED", DefaultFeatureAntiScamConfigEnabled); err != nil {
@@ -352,6 +360,15 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.JobsDailyResetEnabled, err = getBool(lookup, "MHCAT_JOBS_DAILY_RESET_ENABLED", DefaultJobsDailyResetEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.SchedulerLeaseEnabled, err = getBool(lookup, "MHCAT_SCHEDULER_LEASE_ENABLED", DefaultSchedulerLeaseEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.SchedulerLeaseTTL, err = getDuration(lookup, "MHCAT_SCHEDULER_LEASE_TTL", DefaultSchedulerLeaseTTL); err != nil {
+		return Config{}, err
+	}
+	if cfg.SchedulerLeaseTimeout, err = getDuration(lookup, "MHCAT_SCHEDULER_LEASE_TIMEOUT", DefaultSchedulerLeaseTimeout); err != nil {
 		return Config{}, err
 	}
 	if cfg.Staging, err = loadStagingWithLookup(lookup); err != nil {

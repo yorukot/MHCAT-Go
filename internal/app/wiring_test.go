@@ -54,6 +54,17 @@ func TestAutoChatFallbackEventRuntimeRequiresDefaultAdapters(t *testing.T) {
 	}
 }
 
+func TestAutoNotificationDeliveryEventRuntimeRequiresDefaultAdapters(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.FeatureAutoNotificationDelivery = true
+	cfg.SchedulerLeaseOwner = "worker-a"
+	cfg.SchedulerLeaseTTL = config.DefaultSchedulerLeaseTTL
+	cfg.SchedulerLeaseTimeout = config.DefaultSchedulerLeaseTimeout
+	if _, err := defaultEventRuntimeFactory(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil); err == nil {
+		t.Fatal("expected auto-notification delivery to reject non-default adapters")
+	}
+}
+
 func TestBuildRuntimeRoutesHelpDetail(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

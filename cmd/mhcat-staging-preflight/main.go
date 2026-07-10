@@ -134,6 +134,7 @@ func buildReport(lookup lookupFunc) []checkResult {
 		autoChatFallbackRuntimeReadiness(lookup),
 		autoNotificationConfigCommandSync(lookup),
 		autoNotificationConfigRuntimePairing(lookup),
+		autoNotificationDeliveryRuntimeReadiness(lookup),
 		antiScamConfigCommandSync(lookup),
 		antiScamConfigRuntimePairing(lookup),
 		antiScamReportCommandSync(lookup),
@@ -1140,6 +1141,39 @@ func autoNotificationConfigRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "auto-notification-config-runtime-pairing", Status: statusWarn, Message: "auto-notification config runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "auto-notification-config-runtime-pairing", Status: statusSkipped, Message: "auto-notification config runtime and command sync include are disabled"}
+}
+
+func autoNotificationDeliveryRuntimeReadiness(lookup lookupFunc) checkResult {
+	enabled, err := boolValue(lookup, "MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED")
+	if err != nil {
+		return checkResult{Name: "auto-notification-delivery-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !enabled {
+		return checkResult{Name: "auto-notification-delivery-runtime-readiness", Status: statusSkipped, Message: "auto-notification delivery runtime is disabled"}
+	}
+	gateway, err := boolValue(lookup, "MHCAT_DISCORD_ENABLE_GATEWAY")
+	if err != nil {
+		return checkResult{Name: "auto-notification-delivery-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !gateway {
+		return checkResult{Name: "auto-notification-delivery-runtime-readiness", Status: statusFail, Message: "MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true requires MHCAT_DISCORD_ENABLE_GATEWAY=true"}
+	}
+	leaseEnabled, err := boolValue(lookup, "MHCAT_SCHEDULER_LEASE_ENABLED")
+	if err != nil {
+		return checkResult{Name: "auto-notification-delivery-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !leaseEnabled {
+		return checkResult{Name: "auto-notification-delivery-runtime-readiness", Status: statusFail, Message: "MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true requires MHCAT_SCHEDULER_LEASE_ENABLED=true"}
+	}
+	owner, _ := lookup("MHCAT_SCHEDULER_LEASE_OWNER")
+	if strings.TrimSpace(owner) == "" {
+		return checkResult{Name: "auto-notification-delivery-runtime-readiness", Status: statusFail, Message: "MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true requires MHCAT_SCHEDULER_LEASE_OWNER"}
+	}
+	return checkResult{
+		Name:    "auto-notification-delivery-runtime-readiness",
+		Status:  statusWarn,
+		Message: "delivery sends persisted cron_sets messages and writes mhcat_scheduler_locks; confirm the Node handler/cron.js owner is disabled and staging channels are disposable",
+	}
 }
 
 func antiScamConfigCommandSync(lookup lookupFunc) checkResult {

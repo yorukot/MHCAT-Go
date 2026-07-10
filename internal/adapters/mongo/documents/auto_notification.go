@@ -1,6 +1,7 @@
 package documents
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,29 @@ type AutoNotificationScheduleDocument struct {
 	Channel string        `bson:"channel" json:"channel"`
 	ID      string        `bson:"id" json:"id"`
 	Cron    bson.RawValue `bson:"cron" json:"cron"`
+}
+
+type AutoNotificationDeliveryDocument struct {
+	Guild   string                           `bson:"guild" json:"guild"`
+	Channel string                           `bson:"channel" json:"channel"`
+	ID      string                           `bson:"id" json:"id"`
+	Cron    bson.RawValue                    `bson:"cron" json:"cron"`
+	Message *AutoNotificationMessageDocument `bson:"message" json:"message"`
+}
+
+type AutoNotificationMessageDocument struct {
+	Content bson.RawValue                   `bson:"content" json:"content"`
+	Embeds  []AutoNotificationEmbedEnvelope `bson:"embeds" json:"embeds"`
+}
+
+type AutoNotificationEmbedEnvelope struct {
+	Data AutoNotificationEmbedDocument `bson:"data" json:"data"`
+}
+
+type AutoNotificationEmbedDocument struct {
+	Title       bson.RawValue `bson:"title" json:"title"`
+	Description bson.RawValue `bson:"description" json:"description"`
+	Color       bson.RawValue `bson:"color" json:"color"`
 }
 
 type AutoNotificationPendingWriteDocument struct {
@@ -30,6 +54,28 @@ func (d AutoNotificationScheduleDocument) ToDomain() domain.AutoNotificationSche
 		ID:        d.ID,
 		Cron:      cron,
 		ChannelID: d.Channel,
+		Pending:   pending,
+	}
+}
+
+func (d AutoNotificationDeliveryDocument) ToDomain() domain.AutoNotificationSchedule {
+	cron, pending := legacyNullableString(d.Cron)
+	message := domain.AutoNotificationMessage{}
+	if d.Message != nil {
+		message.Content, _ = legacyNullableString(d.Message.Content)
+		if len(d.Message.Embeds) > 0 {
+			embed := d.Message.Embeds[0].Data
+			message.EmbedTitle, _ = legacyNullableString(embed.Title)
+			message.EmbedDescription, _ = legacyNullableString(embed.Description)
+			message.EmbedColor = legacyAutoNotificationColor(embed.Color)
+		}
+	}
+	return domain.AutoNotificationSchedule{
+		GuildID:   d.Guild,
+		ID:        d.ID,
+		Cron:      cron,
+		ChannelID: d.Channel,
+		Message:   message,
 		Pending:   pending,
 	}
 }
@@ -58,7 +104,11 @@ func AutoNotificationMessageBSON(message domain.AutoNotificationMessage) bson.D 
 		embedData = append(embedData, bson.E{Key: "description", Value: message.EmbedDescription})
 	}
 	if message.EmbedColor != "" {
-		embedData = append(embedData, bson.E{Key: "color", Value: message.EmbedColor})
+		color := any(message.EmbedColor)
+		if parsed, ok := domain.ParseLegacyColorValue(message.EmbedColor); ok {
+			color = int32(parsed)
+		}
+		embedData = append(embedData, bson.E{Key: "color", Value: color})
 	}
 	return bson.D{
 		{Key: "content", Value: nullableString(message.Content)},
@@ -87,4 +137,17 @@ func legacyNullableString(value bson.RawValue) (string, bool) {
 		return strings.TrimRight(strings.TrimRight(strconv.FormatFloat(parsed, 'f', 6, 64), "0"), "."), false
 	}
 	return "", false
+}
+
+func legacyAutoNotificationColor(value bson.RawValue) string {
+	if text, ok := value.StringValueOK(); ok {
+		return strings.TrimSpace(text)
+	}
+	if parsed, ok := value.AsInt64OK(); ok {
+		return fmt.Sprintf("#%06X", parsed&0xFFFFFF)
+	}
+	if parsed, ok := value.DoubleOK(); ok {
+		return fmt.Sprintf("#%06X", int64(parsed)&0xFFFFFF)
+	}
+	return ""
 }

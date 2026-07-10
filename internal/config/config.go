@@ -42,6 +42,7 @@ const (
 	DefaultFeatureAutoChatConfigEnabled         = false
 	DefaultFeatureAutoChatFallbackEnabled       = false
 	DefaultFeatureAutoNotificationConfigEnabled = false
+	DefaultFeatureAutoNotificationDelivery      = false
 	DefaultFeatureAntiScamConfigEnabled         = false
 	DefaultFeatureAntiScamReportEnabled         = false
 	DefaultFeatureAntiScamMessageDeleteEnabled  = false
@@ -133,6 +134,7 @@ type Config struct {
 	FeatureAutoChatConfigEnabled         bool
 	FeatureAutoChatFallbackEnabled       bool
 	FeatureAutoNotificationConfigEnabled bool
+	FeatureAutoNotificationDelivery      bool
 	FeatureAntiScamConfigEnabled         bool
 	FeatureAntiScamReportEnabled         bool
 	FeatureAntiScamMessageDeleteEnabled  bool
@@ -178,6 +180,10 @@ type Config struct {
 	FeatureAccountAgePolicyEnabled       bool
 	FeatureRoleSelectionEnabled          bool
 	JobsDailyResetEnabled                bool
+	SchedulerLeaseEnabled                bool
+	SchedulerLeaseOwner                  string
+	SchedulerLeaseTTL                    time.Duration
+	SchedulerLeaseTimeout                time.Duration
 	Staging                              StagingConfig
 	MongoDBURI                           string
 	MongoDBDatabase                      string

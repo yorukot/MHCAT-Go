@@ -72,6 +72,23 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED requires MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureAutoNotificationDelivery {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+		if !cfg.SchedulerLeaseEnabled {
+			return fmt.Errorf("%w: MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED requires MHCAT_SCHEDULER_LEASE_ENABLED=true", ErrInvalidConfig)
+		}
+		if strings.TrimSpace(cfg.SchedulerLeaseOwner) == "" {
+			return fmt.Errorf("%w: MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED requires MHCAT_SCHEDULER_LEASE_OWNER", ErrInvalidConfig)
+		}
+		if cfg.SchedulerLeaseTTL <= 0 {
+			return fmt.Errorf("%w: MHCAT_SCHEDULER_LEASE_TTL must be positive", ErrInvalidConfig)
+		}
+		if cfg.SchedulerLeaseTimeout <= 0 {
+			return fmt.Errorf("%w: MHCAT_SCHEDULER_LEASE_TIMEOUT must be positive", ErrInvalidConfig)
+		}
+	}
 	if cfg.FeatureXPResetEnabled {
 		if !cfg.DiscordEnableGateway {
 			return fmt.Errorf("%w: MHCAT_FEATURE_XP_RESET_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)

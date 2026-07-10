@@ -8,6 +8,7 @@ import (
 	discordadapter "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/discordgo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/config"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	corenotifications "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/notifications"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/onboarding"
 	corestats "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/stats"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
@@ -1023,6 +1024,37 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 			return nil, err
 		}
 		module.RegisterEventRoutes(dispatcher)
+	}
+	if cfg.FeatureAutoNotificationDelivery {
+		const feature = "auto-notification delivery feature"
+		repo, err := autoNotificationScheduleRepositoryFromMongoForFeature(mongoClient, feature)
+		if err != nil {
+			return nil, err
+		}
+		leases, err := schedulerLeaseStoreFromMongo(mongoClient, feature)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, feature)
+		if err != nil {
+			return nil, err
+		}
+		worker, err := corenotifications.NewDeliveryWorker(
+			corenotifications.DeliveryService{Repository: repo, Messages: sideEffects},
+			leases,
+			cfg.SchedulerLeaseOwner,
+			cfg.SchedulerLeaseTTL,
+			cfg.SchedulerLeaseTimeout,
+			logger,
+		)
+		if err != nil {
+			return nil, err
+		}
+		worker.Start(context.Background())
+		dispatcher.RegisterShutdown(worker.Stop)
+		if logger != nil {
+			logger.Info("auto-notification delivery worker started", "lease", corenotifications.AutoNotificationDeliveryLeaseName, "timezone", corenotifications.AutoNotificationDeliveryLocationName)
+		}
 	}
 	return dispatcher, nil
 }

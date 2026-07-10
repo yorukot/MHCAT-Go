@@ -53,7 +53,7 @@ func TestAutoNotificationMessageBSONPreservesLegacyEmbedDataShape(t *testing.T) 
 		Content:          "hello",
 		EmbedTitle:       "Title",
 		EmbedDescription: "Content",
-		EmbedColor:       "Random",
+		EmbedColor:       "#123456",
 	})
 	raw, err := bson.Marshal(payload)
 	if err != nil {
@@ -65,7 +65,7 @@ func TestAutoNotificationMessageBSONPreservesLegacyEmbedDataShape(t *testing.T) 
 			Data struct {
 				Title       string `bson:"title"`
 				Description string `bson:"description"`
-				Color       string `bson:"color"`
+				Color       int32  `bson:"color"`
 			} `bson:"data"`
 		} `bson:"embeds"`
 	}
@@ -75,7 +75,35 @@ func TestAutoNotificationMessageBSONPreservesLegacyEmbedDataShape(t *testing.T) 
 	if decoded.Content == nil || *decoded.Content != "hello" || len(decoded.Embeds) != 1 {
 		t.Fatalf("decoded = %#v", decoded)
 	}
-	if decoded.Embeds[0].Data.Title != "Title" || decoded.Embeds[0].Data.Description != "Content" || decoded.Embeds[0].Data.Color != "Random" {
+	if decoded.Embeds[0].Data.Title != "Title" || decoded.Embeds[0].Data.Description != "Content" || decoded.Embeds[0].Data.Color != 0x123456 {
 		t.Fatalf("embed data = %#v", decoded.Embeds[0].Data)
+	}
+}
+
+func TestAutoNotificationDeliveryDocumentDecodesLegacyNumericEmbedColor(t *testing.T) {
+	raw, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: "guild-1"},
+		{Key: "id", Value: "schedule-1"},
+		{Key: "cron", Value: "0 9 * * 1"},
+		{Key: "channel", Value: "channel-1"},
+		{Key: "message", Value: bson.D{
+			{Key: "content", Value: "hello"},
+			{Key: "embeds", Value: bson.A{bson.D{{Key: "data", Value: bson.D{
+				{Key: "title", Value: "Title"},
+				{Key: "description", Value: "Content"},
+				{Key: "color", Value: int32(0xA6FFA6)},
+			}}}}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("marshal fixture: %v", err)
+	}
+	var document AutoNotificationDeliveryDocument
+	if err := bson.Unmarshal(raw, &document); err != nil {
+		t.Fatalf("decode document: %v", err)
+	}
+	message := document.ToDomain().Message
+	if message.Content != "hello" || message.EmbedTitle != "Title" || message.EmbedDescription != "Content" || message.EmbedColor != "#A6FFA6" {
+		t.Fatalf("message = %#v", message)
 	}
 }

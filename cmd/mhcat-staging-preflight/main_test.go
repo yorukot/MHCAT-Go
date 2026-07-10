@@ -1094,6 +1094,34 @@ func TestPreflightWarnsWhenAutoNotificationConfigRuntimeEnabledWithoutCommandSyn
 	}
 }
 
+func TestPreflightRejectsAutoNotificationDeliveryWithoutLease(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	code, stdout, _ := runPreflight(t, nil, env)
+	if code == 0 {
+		t.Fatalf("expected delivery without lease to fail, stdout=%q", stdout)
+	}
+	if !strings.Contains(stdout, "auto-notification-delivery-runtime-readiness status=fail") || !strings.Contains(stdout, "MHCAT_SCHEDULER_LEASE_ENABLED") {
+		t.Fatalf("expected lease readiness failure, stdout=%q", stdout)
+	}
+}
+
+func TestPreflightWarnsWhenAutoNotificationDeliveryEnabled(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED"] = "true"
+	env["MHCAT_DISCORD_ENABLE_GATEWAY"] = "true"
+	env["MHCAT_SCHEDULER_LEASE_ENABLED"] = "true"
+	env["MHCAT_SCHEDULER_LEASE_OWNER"] = "worker-a"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "auto-notification-delivery-runtime-readiness status=warn") || !strings.Contains(stdout, "cron_sets") || !strings.Contains(stdout, "mhcat_scheduler_locks") {
+		t.Fatalf("expected delivery ownership warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsAntiScamConfigCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_ANTI_SCAM_CONFIG"] = "true"

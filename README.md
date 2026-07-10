@@ -53,7 +53,7 @@ This module currently provides:
 - gated `/翻譯` utility command with legacy loading/final embed shape and safe external-provider error handling.
 - gated `/兌換` redeem-code command with legacy ephemeral success/error embeds and rollback-compatible `codes`/`chatgpt_gets` writes.
 - gated auto-chat local fallback MessageCreate runtime with the legacy response corpus, `說出` replies, typing delay, and read-only `chats`/`chatgpt_gets` gating.
-- gated `/自動通知列表` and `/自動通知刪除` config-maintenance commands with rollback-compatible `cron_sets` reads/deletes.
+- gated `automatic-notification`, `/自動通知列表`, and `/自動通知刪除` setup/list/delete commands plus a separately gated lease-backed recurring delivery worker for legacy `cron_sets` rows.
 - gated `/set-log-channel` logging-configuration command and `loggin_create`-compatible select route; event log emitters remain disabled.
 - gated read-only `/扭蛋獎池查詢` prize-pool query with legacy embed text and rollback-compatible `gifts`/`gift_changes` reads.
 - gated `/扭蛋獎池增加` prize add command with legacy Manage Messages permission, ephemeral success/error embeds, and rollback-compatible `gifts` inserts.
@@ -73,7 +73,7 @@ This module currently provides:
 - gated `guildMemberRemove` leave-message delivery from legacy `leave_messages`, disabled by default and requiring explicit Gateway + Guild Members intent.
 - dry-run-first `mhcat-economy-reset` one-shot operational tool for the legacy Asia/Taipei daily `coins.today` reset and `work_users.energi` refill/clamp path.
 - dry-run-first, lease-gated `mhcat-work-payout` one-shot operational tool for the legacy `handler/gift.js` completed-work payout path.
-- Mongo-backed scheduler lease primitive and read-only-by-default diagnostic CLI for future single-owner recurring jobs.
+- Mongo-backed scheduler lease primitive, read-only-by-default diagnostic CLI, and the first lease-backed recurring consumer for automatic-notification delivery.
 - staging guild command sync apply completed for managed `help`, `info`, and `ping`.
 - gateway smoke completed with the gateway explicitly enabled for the smoke invocation.
 
@@ -87,7 +87,7 @@ Not implemented yet:
 - production feature writes.
 - ticket and poll runtime commands/components unless their explicit feature flags are enabled.
 - economy query/rank/sign-in/settings/coin-admin runtime and command sync unless their explicit feature flags are enabled.
-- recurring scheduler loops for daily reset, work payout, and automatic notifications; the lease primitive exists but is not wired into bot startup.
+- recurring scheduler loops for daily reset and work payout; automatic-notification delivery is the first lease-backed recurring worker wired into bot startup behind disabled-by-default gates.
 - reaction-role moderation commands.
 - message/channel/voice logging event emitters.
 - announcement relay tag pings; relay messages suppress mentions by default.
@@ -117,7 +117,7 @@ Implemented utility commands:
 - `/刪除資料` when explicitly enabled with `MHCAT_FEATURE_DELETE_DATA_ENABLED=true`
 - `/翻譯` when explicitly enabled with `MHCAT_FEATURE_TRANSLATE_ENABLED=true`
 - `/兌換` when explicitly enabled with `MHCAT_FEATURE_REDEEM_ENABLED=true`
-- `/自動通知列表` and `/自動通知刪除` when explicitly enabled with `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true`
+- `automatic-notification`, `/自動通知列表`, and `/自動通知刪除` when explicitly enabled with `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true`
 - `/set-log-channel` when explicitly enabled with `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true`
 - `/扭蛋獎池查詢` when explicitly enabled with `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true`
 - `/扭蛋獎池增加` when explicitly enabled with `MHCAT_FEATURE_GACHA_PRIZE_CREATE_ENABLED=true`
@@ -168,7 +168,7 @@ Implemented event features:
 
 Not implemented yet:
 
-- remaining economy game/shop writes, rank cards, gift delivery, lottery creation/panel generation, announcement relay attachment handling/tag pings, recurring work scheduler ownership, recurring cron delivery, the paid ChatGPT handoff worker, and dashboard.
+- remaining economy game/shop writes, rank cards, gift delivery, lottery creation/panel generation, announcement relay attachment handling/tag pings, recurring work scheduler ownership, the paid ChatGPT handoff worker, and dashboard.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete, and the daily reset is either run by the explicit one-shot tool under an operator process or owned by a future lease-backed scheduler.
 
@@ -180,7 +180,7 @@ Not implemented yet:
 
 Role selection is a disabled-by-default staging slice. `/選取身分組-表情符號` writes legacy-compatible `message_reactions` rows and adds the configured reaction to the target message; `/選取身分組刪除-表情符號` deletes the matching row; `/選取身分組-按鈕` writes legacy-compatible `btns` rows and opens the legacy `nal` modal to publish an add/delete button panel. The runtime must be paired with `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true`, `MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true` for staging smoke.
 
-`/自動通知列表` and `/自動通知刪除` are config-maintenance commands only. They read/delete legacy `cron_sets` rows behind `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`; they do not implement `automatic-notification`, cron setup modals/selects, scheduler ownership, or notification sends.
+Auto-notification setup/list/delete and delivery are independent, disabled-by-default paths. `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true` enables `automatic-notification`, `/自動通知列表`, and `/自動通知刪除`. Recurring sends require `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true`, Gateway, scheduler lease enablement, and a non-empty lease owner; the worker uses the `auto-notification-delivery` lease and `Asia/Taipei` schedule time. Disable the Node `handler/cron.js` owner before enabling Go delivery. See `docs/66-auto-notification-config.md`.
 
 `/兌換` is disabled by default and is available only when paired with `MHCAT_FEATURE_REDEEM_ENABLED=true` and `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true` in staging command sync. It consumes legacy `codes` rows, credits `chatgpt_gets.price`, enforces the legacy 7-day expiry check, and does not itself enable either auto-chat runtime.
 
@@ -232,6 +232,7 @@ Safe defaults:
 - `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=false`
 - `MHCAT_FEATURE_REDEEM_ENABLED=false`
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=false`
+- `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=false`
 - `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=false`
 - `MHCAT_FEATURE_GACHA_PRIZE_CREATE_ENABLED=false`
@@ -526,12 +527,13 @@ MHCAT_SCHEDULER_LEASE_OWNER=staging-worker \
 go run ./cmd/mhcat-scheduler-lease --name daily-reset --action acquire --apply
 ```
 
-This is still infrastructure only:
+Current consumers and boundaries:
 
-- no recurring scheduler starts from `cmd/mhcat-bot`;
-- `mhcat-work-payout --apply` uses the lease, but no recurring bot-startup job uses it yet;
+- automatic-notification delivery starts from `cmd/mhcat-bot` only when its delivery, Gateway, and lease gates are enabled;
+- the recurring worker owns the `auto-notification-delivery` lease, renews it while active, and releases it during graceful shutdown;
+- `mhcat-work-payout --apply` uses a lease, but its recurring bot-startup job remains unimplemented;
 - no lease indexes are created beyond MongoDB's default `_id` index;
-- no lease write action runs without `MHCAT_SCHEDULER_LEASE_ENABLED=true --apply`.
+- diagnostic CLI lease writes require `MHCAT_SCHEDULER_LEASE_ENABLED=true --apply`; the delivery worker writes its lease only when all delivery prerequisites pass config validation.
 
 ## Command Sync
 

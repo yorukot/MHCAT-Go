@@ -61,6 +61,55 @@ func (r *AutoNotificationScheduleRepository) ListAutoNotificationSchedules(ctx c
 	return schedules, ctx.Err()
 }
 
+func (r *AutoNotificationScheduleRepository) ListAutoNotificationDeliveries(ctx context.Context) ([]domain.AutoNotificationSchedule, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	cursor, err := r.collection.Find(ctx, autoNotificationDeliveryFilter())
+	if err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("list auto-notification deliveries: %w", err))
+	}
+	defer cursor.Close(ctx)
+	var schedules []domain.AutoNotificationSchedule
+	for cursor.Next(ctx) {
+		var document documents.AutoNotificationDeliveryDocument
+		if err := cursor.Decode(&document); err != nil {
+			return nil, mhcatmongo.MapError(fmt.Errorf("decode auto-notification delivery: %w", err))
+		}
+		schedules = append(schedules, document.ToDomain())
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, mhcatmongo.MapError(fmt.Errorf("iterate auto-notification deliveries: %w", err))
+	}
+	return schedules, ctx.Err()
+}
+
+func autoNotificationDeliveryFilter() bson.D {
+	return bson.D{
+		{Key: "cron", Value: bson.D{{Key: "$type", Value: "string"}}},
+		{Key: "message", Value: bson.D{{Key: "$type", Value: "object"}}},
+	}
+}
+
+func (r *AutoNotificationScheduleRepository) GetAutoNotificationDelivery(ctx context.Context, guildID string, id string) (domain.AutoNotificationSchedule, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.AutoNotificationSchedule{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	id = strings.TrimSpace(id)
+	if err := domain.ValidateAutoNotificationDelete(guildID, id); err != nil {
+		return domain.AutoNotificationSchedule{}, err
+	}
+	var document documents.AutoNotificationDeliveryDocument
+	if err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "id", Value: id}}).Decode(&document); err != nil {
+		if err == drivermongo.ErrNoDocuments {
+			return domain.AutoNotificationSchedule{}, ports.ErrAutoNotificationScheduleMissing
+		}
+		return domain.AutoNotificationSchedule{}, mhcatmongo.MapError(fmt.Errorf("get auto-notification delivery: %w", err))
+	}
+	return document.ToDomain(), ctx.Err()
+}
+
 func (r *AutoNotificationScheduleRepository) DeleteAutoNotificationSchedule(ctx context.Context, guildID string, id string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -145,3 +194,4 @@ func (r *AutoNotificationScheduleRepository) DeletePendingAutoNotificationSchedu
 }
 
 var _ ports.AutoNotificationScheduleRepository = (*AutoNotificationScheduleRepository)(nil)
+var _ ports.AutoNotificationDeliveryRepository = (*AutoNotificationScheduleRepository)(nil)

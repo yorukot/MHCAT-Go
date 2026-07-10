@@ -45,6 +45,7 @@ Primary Go env vars:
 - `MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED`
 - `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED`
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED`
+- `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED`
 - `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED`
 - `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED`
 - `MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED`
@@ -467,7 +468,20 @@ MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true
 MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true
 ```
 
-These commands read/write/delete legacy `cron_sets` rows. `automatic-notification` creates a pending setup row, opens the legacy modal, accepts direct cron expressions or the five-minute owner-scoped weekday/hour/minute wizard, writes the rollback-compatible message payload, and sends a best-effort preview message. `/自動通知列表` filters abandoned setup drafts from the response and cleans rows whose `cron` is null or missing. `/自動通知刪除` deletes one `{guild,id}` row. This does not enable Message Content intent, recurring scheduler ownership, or recurring notification sends. See `docs/66-auto-notification-config.md`.
+These commands read/write/delete legacy `cron_sets` rows. `automatic-notification` creates a pending setup row, opens the legacy modal, accepts direct cron expressions or the five-minute owner-scoped weekday/hour/minute wizard, writes the rollback-compatible message payload, and sends a best-effort preview message. `/自動通知列表` filters abandoned setup drafts from the response and cleans rows whose `cron` is null or missing. `/自動通知刪除` deletes one `{guild,id}` row. Config maintenance does not require Message Content intent and does not enable recurring delivery by itself.
+
+Recurring automatic-notification delivery is an independent runtime:
+
+```bash
+MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_SCHEDULER_LEASE_ENABLED=true
+MHCAT_SCHEDULER_LEASE_OWNER=staging-auto-notification
+MHCAT_SCHEDULER_LEASE_TTL=2m
+MHCAT_SCHEDULER_LEASE_TIMEOUT=10s
+```
+
+The worker acquires `auto-notification-delivery`, interprets five-field cron in fixed UTC+8 named `Asia/Taipei`, and reconciles active `cron_sets` rows every 30 seconds or one-third of the lease TTL, whichever is shorter. It reloads `{guild,id}` immediately before each channel send, allows the same user/role/everyone mentions as legacy `channel.send`, removes schedules after row deletion or lease loss, and releases the lease during graceful shutdown. It writes only `mhcat_scheduler_locks`; it does not mutate active `cron_sets` rows or require Message Content intent. Disable the Node `handler/cron.js` owner before enabling this runtime. See `docs/66-auto-notification-config.md` for isolated staging and rollback steps.
 
 `/set-log-channel` is available only when both staging command sync and runtime flags are explicitly enabled:
 
@@ -833,7 +847,7 @@ Run `mhcat-staging-preflight` before command sync. It rejects `MHCAT_COMMAND_SYN
 
 ## Scheduler Lease
 
-The scheduler lease foundation is implemented in code but not wired into bot startup.
+The scheduler lease foundation is wired into bot startup only for the separately gated automatic-notification delivery worker. Daily reset and work payout still have no recurring bot-startup loops.
 
 - Collection: `mhcat_scheduler_locks`.
 - Identity: `_id` equals `lock_name`.
@@ -841,7 +855,7 @@ The scheduler lease foundation is implemented in code but not wired into bot sta
 - Expiry: UTC `expires_at`.
 - Release behavior: marks the lease expired and clears owner; it does not delete the document.
 
-No recurring job should be enabled until it uses the lease and has job-specific idempotency tests. This applies to work payout, automatic notifications, and any future background daily reset loop.
+The automatic-notification worker owns lease name `auto-notification-delivery`, renews before expiry, removes its cron entries after lease loss, and releases ownership on graceful shutdown. Its lease does not coordinate with Node, so `handler/cron.js` must remain disabled while Go owns delivery. Any future recurring work-payout or daily-reset loop must use a separate lease and have job-specific idempotency tests before enablement.
 
 Read-only status:
 

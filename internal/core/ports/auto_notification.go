@@ -18,3 +18,8 @@ type AutoNotificationScheduleRepository interface {
 	DeleteAutoNotificationSchedule(ctx context.Context, guildID string, id string) error
 	DeletePendingAutoNotificationSchedules(ctx context.Context, guildID string) error
 }
+
+type AutoNotificationDeliveryRepository interface {
+	ListAutoNotificationDeliveries(ctx context.Context) ([]domain.AutoNotificationSchedule, error)
+	GetAutoNotificationDelivery(ctx context.Context, guildID string, id string) (domain.AutoNotificationSchedule, error)
+}

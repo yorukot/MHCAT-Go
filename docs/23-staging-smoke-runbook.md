@@ -236,7 +236,20 @@ export MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true
 ```
 
-Set both together only when testing `automatic-notification`, `/自動通知列表`, and `/自動通知刪除`. This path writes pending `cron_sets` setup rows, completes direct cron or owner-scoped weekday/hour/minute wizard submissions, sends setup previews, reads/deletes `cron_sets` rows, and may clean abandoned setup drafts whose `cron` is null or missing. It does not enable Message Content intent, recurring scheduler ownership, or recurring notification sends.
+Set both together only when testing `automatic-notification`, `/自動通知列表`, and `/自動通知刪除`. This path writes pending `cron_sets` setup rows, completes direct cron or owner-scoped weekday/hour/minute wizard submissions, sends setup previews, reads/deletes `cron_sets` rows, and may clean abandoned setup drafts whose `cron` is null or missing. It does not enable Message Content intent or recurring delivery by itself.
+
+Optional auto-notification delivery smoke flags:
+
+```bash
+export MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_SCHEDULER_LEASE_ENABLED=true
+export MHCAT_SCHEDULER_LEASE_OWNER=staging-auto-notification
+export MHCAT_SCHEDULER_LEASE_TTL=2m
+export MHCAT_SCHEDULER_LEASE_TIMEOUT=10s
+```
+
+Delivery may be tested without syncing the config commands. It reads active `cron_sets`, sends their persisted messages to Discord, and writes the `auto-notification-delivery` row in `mhcat_scheduler_locks`. Disable the Node `handler/cron.js` process before setting this gate, and use only a disposable schedule and channel.
 
 Optional logging-config smoke flags:
 
@@ -636,6 +649,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true` and the staging database has only disposable `codes` fixtures for `/兌換`.
 - If `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true`, confirm gateway, Guild Messages, and Message Content are enabled; `chats.channel` targets a disposable staging channel; `chatgpt_gets` fixtures are safe; and the Node Chatbot handler is not concurrently active for that guild.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database/channel targets are disposable for auto-notification setup/list/delete.
+- If `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true`, confirm Gateway and scheduler leases are enabled, the lease owner is unique, the Node `handler/cron.js` owner is stopped, and every active staging `cron_sets` target/payload is safe to send.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`, confirm `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true` and the selected log channel is staging-only.
 - If `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, and `loggings.channel_id` points to a staging-only log channel.
 - If `MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `loggings.channel_id` points to a staging-only log channel.
@@ -854,6 +868,8 @@ For auto-notification config staging smoke, expected additionally:
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true`;
 - plan includes managed `automatic-notification`, `自動通知列表`, and `自動通知刪除`;
 - plan still performs no create/update/delete during dry-run.
+
+Auto-notification delivery has no command-sync include flag and should not change the dry-run plan. With delivery enabled, staging preflight must warn that the runtime sends persisted `cron_sets` payloads, writes `mhcat_scheduler_locks`, and requires the Node `handler/cron.js` owner to be disabled.
 
 For logging-config staging smoke, expected additionally:
 
@@ -1386,7 +1402,21 @@ If auto-notification config flags were enabled and command sync apply was review
 - verify the pending draft row was cleaned from staging data;
 - run `/自動通知刪除 id:<active id>` and verify the legacy green delete embed appears;
 - run `/自動通知刪除 id:<missing id>` and verify the legacy red missing-id tutorial embed appears;
-- verify no recurring scheduler job, recurring channel send, index creation, or Message Content intent was involved.
+- verify no recurring channel send occurred unless the independent delivery gate was explicitly enabled, and verify no index creation or Message Content intent was involved.
+
+If auto-notification delivery was explicitly enabled:
+
+- stop the legacy Node process that loads `handler/cron.js` before starting the Go bot;
+- use an isolated database and audit all active `cron_sets` rows so only the intended disposable row can send;
+- seed one active row with a unique `{guild,id}`, the disposable channel, and a five-field cron for the next `Asia/Taipei` minute; use a payload containing visible `content` plus `embeds:[{data:{title,description,color:10944422}}]` to exercise legacy numeric color decoding;
+- run `go run ./cmd/mhcat-staging-preflight --format text` and require the auto-notification delivery warning, then start exactly one Go lease owner;
+- inspect `mhcat_scheduler_locks` or run `go run ./cmd/mhcat-scheduler-lease --name auto-notification-delivery --action status` and verify that owner holds an unexpired lease;
+- at the scheduled UTC+8 minute, verify exactly one channel message has the expected content, embed title/description, and color `#A6FFA6`;
+- start no second sender; if testing contention with another Go process, give it a different owner and verify only the lease holder schedules/sends;
+- change the cron and allow up to 30 seconds for reconciliation, then verify only the changed schedule is active;
+- delete the `{guild,id}` row before its next occurrence and verify no future send occurs, including if an already-registered callback reaches its tick;
+- stop the Go bot gracefully and verify `auto-notification-delivery` is no longer held before any Node rollback;
+- keep the delivery gate off after smoke and remove the disposable row; no index should have been created and Message Content intent is not required.
 
 If announcement relay was explicitly enabled:
 
@@ -1601,6 +1631,7 @@ Verify:
   - Exception: logging voice-event smoke sends join/leave embeds to the configured staging log channel only.
   - Exception: delete-data smoke deletes selected disposable staging config rows only.
   - Exception: auto-notification config smoke writes/completes disposable setup `cron_sets` rows, sends a setup preview, and deletes selected rows and abandoned pending drafts only.
+  - Exception: auto-notification delivery smoke sends persisted disposable messages and acquires/renews/releases `mhcat_scheduler_locks`; it does not mutate `cron_sets`.
   - Exception: voice-room config smoke writes/deletes legacy-compatible `voice_channels` rows and, with gateway Voice State events enabled, creates/moves/deletes disposable dynamic rooms plus `voice_channel_ids`/lock seed rows.
   - Exception: XP reset smoke deletes disposable staging `text_xps`/`voice_xps` rows only after an individual reset command or full-reset `^確認^` confirmation.
   - Exception: global usage tracking smoke increments `all_use_counts` once per slash attempt when `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`.

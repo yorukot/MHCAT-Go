@@ -79,7 +79,7 @@ func TestSetupModalCompletesDirectCronAndSendsPreview(t *testing.T) {
 	if !strings.Contains(responder.Edits[0].Content, "1700000000000") || !strings.Contains(responder.Edits[0].Content, "訊息預覽") {
 		t.Fatalf("edit = %#v", responder.Edits[0])
 	}
-	if len(repo.Completed) != 1 || repo.Completed[0].Cron != "*/30 * * * *" || repo.Completed[0].Message.EmbedTitle != "Title" {
+	if len(repo.Completed) != 1 || repo.Completed[0].Cron != "*/30 * * * *" || repo.Completed[0].Message.EmbedTitle != "Title" || repo.Completed[0].Message.EmbedColor != "#123456" {
 		t.Fatalf("completed = %#v", repo.Completed)
 	}
 	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].ChannelID != "source-channel" {
@@ -194,7 +194,7 @@ func TestSimplifiedCronWizardCompletesDraftAndSendsPreview(t *testing.T) {
 	if err := module.MinuteSelectHandler()(context.Background(), minute, minuteResponder); err != nil {
 		t.Fatalf("minute handler: %v", err)
 	}
-	if len(repo.Completed) != 1 || repo.Completed[0].Cron != "0,30 8,0 * * 1,3,0" || repo.Completed[0].Message.EmbedTitle != "Title" {
+	if len(repo.Completed) != 1 || repo.Completed[0].Cron != "0,30 8,0 * * 1,3,0" || repo.Completed[0].Message.EmbedTitle != "Title" || repo.Completed[0].Message.EmbedColor != "#123456" {
 		t.Fatalf("completed = %#v", repo.Completed)
 	}
 	if len(minuteResponder.Updates) != 1 || len(minuteResponder.Updates[0].Components) != 0 || !strings.Contains(minuteResponder.Updates[0].Embeds[0].Description, "1700000000000") {

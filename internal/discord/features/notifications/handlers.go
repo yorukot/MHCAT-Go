@@ -107,6 +107,9 @@ func (m Module) SetupModalHandler() interactions.Handler {
 		if message.Empty() {
 			return responder.EditOriginal(ctx, autoNotificationErrorMessage("你都沒輸入你要發送甚麼，我要怎麼發送啦!"))
 		}
+		if message.HasEmbed() && message.EmbedColor == "Random" {
+			message = resolveAutoNotificationMessageColor(message, m.color())
+		}
 		cron := strings.TrimSpace(fields[fieldCron])
 		switch validateDirectCron(cron, m.now()) {
 		case directCronTooFrequent:
@@ -131,6 +134,14 @@ func (m Module) SetupModalHandler() interactions.Handler {
 		}
 		return nil
 	}
+}
+
+func resolveAutoNotificationMessageColor(message domain.AutoNotificationMessage, randomColor int) domain.AutoNotificationMessage {
+	message = message.Normalized()
+	if message.HasEmbed() && message.EmbedColor == "Random" {
+		message.EmbedColor = fmt.Sprintf("#%06X", randomColor&0xFFFFFF)
+	}
+	return message
 }
 
 func (m Module) guildName(ctx context.Context, guildID string) string {

@@ -989,19 +989,39 @@ func autoChatFallbackRepositoriesFromMongo(mongoClient MongoClient) (*mongorepos
 }
 
 func autoNotificationScheduleRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.AutoNotificationScheduleRepository, error) {
+	return autoNotificationScheduleRepositoryFromMongoForFeature(mongoClient, "auto-notification config feature")
+}
+
+func autoNotificationScheduleRepositoryFromMongoForFeature(mongoClient MongoClient, feature string) (*mongorepositories.AutoNotificationScheduleRepository, error) {
 	concrete, ok := mongoClient.(*mongoadapter.Client)
 	if !ok {
-		return nil, fmt.Errorf("auto-notification config feature requires default mongo client")
+		return nil, fmt.Errorf("%s requires default mongo client", feature)
 	}
 	database, err := concrete.Database()
 	if err != nil {
-		return nil, fmt.Errorf("auto-notification config feature database: %w", err)
+		return nil, fmt.Errorf("%s database: %w", feature, err)
 	}
 	repo, err := mongorepositories.NewAutoNotificationScheduleRepositoryFromDatabase(database)
 	if err != nil {
-		return nil, fmt.Errorf("auto-notification config feature repository: %w", err)
+		return nil, fmt.Errorf("%s repository: %w", feature, err)
 	}
 	return repo, nil
+}
+
+func schedulerLeaseStoreFromMongo(mongoClient MongoClient, feature string) (*mongoadapter.SchedulerLeaseStore, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("%s requires default mongo client", feature)
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("%s database: %w", feature, err)
+	}
+	store, err := mongoadapter.NewSchedulerLeaseStoreFromDatabase(database)
+	if err != nil {
+		return nil, fmt.Errorf("%s lease store: %w", feature, err)
+	}
+	return store, nil
 }
 
 func balanceRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.BalanceRepository, error) {
