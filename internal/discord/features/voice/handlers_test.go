@@ -525,6 +525,40 @@ func TestRoomEventHandlerCreatesTracksMovesAndDMsLockableRoom(t *testing.T) {
 	}
 }
 
+func TestRoomEventHandlerCreatesDynamicRoomForBotLikeLegacy(t *testing.T) {
+	configs := fakemongo.NewVoiceRoomConfigRepository()
+	configs.Configs["guild-1\x00trigger-1"] = domain.VoiceRoomConfig{
+		GuildID:          "guild-1",
+		TriggerChannelID: "trigger-1",
+		ParentID:         "parent-1",
+		Name:             "{name} room",
+	}
+	states := fakemongo.NewVoiceRoomStateRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.Channels = append(sideEffects.Channels, portsChannel("guild-1", "parent-1", "", "parent", 4, nil))
+	module := NewRoomEventModule(configs, states, fakemongo.NewVoiceRoomLockRepository(), sideEffects, sideEffects, sideEffects)
+	err := module.VoiceStateHandler()(context.Background(), events.Event{
+		Type:    events.TypeVoiceState,
+		GuildID: "guild-1",
+		IsBot:   true,
+		Member:  &events.Member{UserID: "bot-1", Username: "Helper", IsBot: true},
+		VoiceState: &events.VoiceState{
+			GuildID:   "guild-1",
+			UserID:    "bot-1",
+			ChannelID: "trigger-1",
+		},
+	})
+	if err != nil {
+		t.Fatalf("voice state handler: %v", err)
+	}
+	if len(sideEffects.Created) != 1 || sideEffects.Created[0].Name != "Helper room" {
+		t.Fatalf("created channels = %#v", sideEffects.Created)
+	}
+	if len(sideEffects.MovedMembers) != 1 || sideEffects.MovedMembers[0].UserID != "bot-1" {
+		t.Fatalf("moved members = %#v", sideEffects.MovedMembers)
+	}
+}
+
 func TestRoomEventHandlerDeletesEmptyTrackedRoom(t *testing.T) {
 	configs := fakemongo.NewVoiceRoomConfigRepository()
 	states := fakemongo.NewVoiceRoomStateRepository()

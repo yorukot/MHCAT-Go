@@ -226,9 +226,7 @@ func (m RoomEventModule) VoiceStateHandler() events.Handler {
 			userID = strings.TrimSpace(event.UserID)
 		}
 		username := event.UserTag
-		isBot := event.IsBot
 		if event.Member != nil {
-			isBot = event.Member.IsBot
 			if event.Member.UserID != "" {
 				userID = strings.TrimSpace(event.Member.UserID)
 			}
@@ -241,7 +239,7 @@ func (m RoomEventModule) VoiceStateHandler() events.Handler {
 		if guildID == "" || channelID == beforeChannelID {
 			return nil
 		}
-		if channelID != "" && userID != "" && !isBot {
+		if channelID != "" && userID != "" {
 			if err := m.createDynamicRoom(ctx, guildID, channelID, userID, username); err != nil {
 				return err
 			}
