@@ -29,7 +29,8 @@ func TestRenameStatsChannelsUsesLegacyReplacementAndUpdatesCounters(t *testing.T
 		ports.ChannelRef{GuildID: "guild-1", ChannelID: "user-channel", Name: "custom-users"},
 		ports.ChannelRef{GuildID: "guild-1", ChannelID: "bot-channel", Name: "總BOT數: 2"},
 	)
-	service := RenameService{Repository: repo, Channels: discord, GuildStats: discord, RoleStats: discord}
+	channels := &cacheTrackingChannelPort{SideEffects: discord}
+	service := RenameService{Repository: repo, Channels: channels, GuildStats: discord, RoleStats: discord}
 
 	result, err := service.RunOnce(context.Background())
 	if err != nil {
@@ -40,6 +41,9 @@ func TestRenameStatsChannelsUsesLegacyReplacementAndUpdatesCounters(t *testing.T
 	}
 	if len(discord.Renamed) != 3 {
 		t.Fatalf("renamed channels = %#v", discord.Renamed)
+	}
+	if channels.cachedCalls != 3 || channels.genericCalls != 0 {
+		t.Fatalf("channel lookup calls = cached %d generic %d", channels.cachedCalls, channels.genericCalls)
 	}
 	wantNames := map[string]string{
 		"member-channel": "總人數: 12",
@@ -55,6 +59,22 @@ func TestRenameStatsChannelsUsesLegacyReplacementAndUpdatesCounters(t *testing.T
 	if saved.MemberNumberName != "12" || saved.UserNumberName != "9" || saved.BotNumberName != "3" {
 		t.Fatalf("saved counters = %#v", saved)
 	}
+}
+
+type cacheTrackingChannelPort struct {
+	*fakediscord.SideEffects
+	cachedCalls  int
+	genericCalls int
+}
+
+func (p *cacheTrackingChannelPort) FindChannelByID(ctx context.Context, guildID string, channelID string) (ports.ChannelRef, error) {
+	p.genericCalls++
+	return p.SideEffects.FindChannelByID(ctx, guildID, channelID)
+}
+
+func (p *cacheTrackingChannelPort) FindCachedChannelByID(ctx context.Context, guildID string, channelID string) (ports.ChannelRef, error) {
+	p.cachedCalls++
+	return p.SideEffects.FindCachedChannelByID(ctx, guildID, channelID)
 }
 
 func TestRenameStatsRoleChannelsUpdatesRoleNumber(t *testing.T) {

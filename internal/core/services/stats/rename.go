@@ -197,7 +197,7 @@ func (s RenameService) applyBaseCounter(ctx context.Context, result *RenameResul
 }
 
 func (s RenameService) renameConfiguredChannel(ctx context.Context, guildID string, channelID string, oldValue string, currentValue string) (bool, bool, error) {
-	channel, err := s.Channels.FindChannelByID(ctx, guildID, channelID)
+	channel, err := s.Channels.FindCachedChannelByID(ctx, guildID, channelID)
 	if err != nil {
 		if errors.Is(err, ports.ErrChannelNotFound) {
 			return false, false, nil
