@@ -109,6 +109,13 @@ func TestGuildStatsUsesLegacyGuildCaches(t *testing.T) {
 	}
 }
 
+func TestGuildStatsMissingCachedGuildDoesNotFallBackToREST(t *testing.T) {
+	client := SideEffectClient{Session: &Session{session: &dgo.Session{State: dgo.NewState()}}}
+	if _, err := client.GuildStats(context.Background(), "missing-guild"); err == nil {
+		t.Fatal("expected missing cached guild error")
+	}
+}
+
 func TestFindCachedChannelByIDDoesNotFallBackToREST(t *testing.T) {
 	state := dgo.NewState()
 	if err := state.GuildAdd(&dgo.Guild{

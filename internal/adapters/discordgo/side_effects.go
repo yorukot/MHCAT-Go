@@ -244,10 +244,7 @@ func (c SideEffectClient) GuildStats(ctx context.Context, guildID string) (domai
 	}
 	guild, err := stateGuild(session, guildID)
 	if err != nil {
-		guild, err = session.GuildWithCounts(guildID, dgo.WithContext(ctx))
-		if err != nil {
-			return domain.StatsSnapshot{}, fmt.Errorf("load discord guild stats: %w", err)
-		}
+		return domain.StatsSnapshot{}, fmt.Errorf("load cached discord guild stats: %w", err)
 	}
 	memberCount, userCount, botCount := legacyStatsMemberCounts(guild)
 	snapshot := domain.StatsSnapshot{
