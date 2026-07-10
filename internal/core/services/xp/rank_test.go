@@ -99,6 +99,23 @@ func TestRankServiceReversesLegacySourceOrderForTies(t *testing.T) {
 	}
 }
 
+func TestRankServiceKeepsHugeOutOfRangePageEmpty(t *testing.T) {
+	repo := orderedRankRepository{text: []domain.XPProfile{{GuildID: "guild", UserID: "viewer", XP: 1}}}
+	pageIndex := int(^uint(0) >> 1)
+	page, err := (RankService{Repository: repo}).Query(context.Background(), RankQuery{
+		GuildID:  "guild",
+		ViewerID: "viewer",
+		Kind:     RankKindText,
+		Page:     pageIndex,
+	})
+	if err != nil {
+		t.Fatalf("rank query: %v", err)
+	}
+	if page.Page != pageIndex || len(page.Entries) != 0 || page.TotalPages != 1 {
+		t.Fatalf("page = %#v", page)
+	}
+}
+
 func TestRankServiceRejectsInvalidQuery(t *testing.T) {
 	_, err := (RankService{Repository: fakemongo.NewXPAdminRepository()}).Query(context.Background(), RankQuery{GuildID: "guild", Kind: RankKindText})
 	if !errors.Is(err, domain.ErrInvalidXPRankQuery) {

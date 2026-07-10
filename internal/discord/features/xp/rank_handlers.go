@@ -112,7 +112,7 @@ func parseLegacyXPRankPageRequest(raw string) (string, int, coreservice.RankKind
 		return "", 0, "", domain.ErrInvalidXPRankQuery
 	}
 	page, err := strconv.Atoi(matches[pageIndex])
-	if err != nil || page < 0 {
+	if err != nil || !validLegacyXPRankPage(page) {
 		return "", 0, "", domain.ErrInvalidXPRankQuery
 	}
 	kind := coreservice.RankKindText
@@ -120,6 +120,11 @@ func parseLegacyXPRankPageRequest(raw string) (string, int, coreservice.RankKind
 		kind = coreservice.RankKindVoice
 	}
 	return matches[1], page, kind, nil
+}
+
+func validLegacyXPRankPage(page int) bool {
+	maxInt := int(^uint(0) >> 1)
+	return page >= 0 && page <= (maxInt-coreservice.RankPageSize)/coreservice.RankPageSize
 }
 
 func (m RankModule) rankMessage(ctx context.Context, interaction interactions.Interaction, viewerID string, kind coreservice.RankKind, page int) (responses.Message, error) {

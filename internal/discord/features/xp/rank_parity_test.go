@@ -143,6 +143,24 @@ func TestTruncateLegacyRankText(t *testing.T) {
 	}
 }
 
+func TestParseLegacyXPRankPageRequestBoundsPages(t *testing.T) {
+	const viewerID = "123456789012345678"
+	viewer, page, kind, err := parseLegacyXPRankPageRequest("[" + viewerID + "]voice_rank {12}")
+	if err != nil || viewer != viewerID || page != 12 || kind != coreservice.RankKindVoice {
+		t.Fatalf("valid target request = viewer %q page %d kind %q err %v", viewer, page, kind, err)
+	}
+
+	tooLarge := strconv.Itoa(int(^uint(0) >> 1))
+	for _, customID := range []string{
+		"[" + viewerID + "]{" + tooLarge + "}text_rank",
+		"[" + viewerID + "]text_rank {" + tooLarge + "}",
+	} {
+		if _, _, _, err := parseLegacyXPRankPageRequest(customID); err == nil {
+			t.Fatalf("parseLegacyXPRankPageRequest(%q) unexpectedly succeeded", customID)
+		}
+	}
+}
+
 func rankComponentRows(viewerID string, kind string, page int, totalPages int, targetPage string) []responses.ComponentRow {
 	button := func(customID string, label string, emoji string, style responses.ButtonStyle, disabled bool) responses.Component {
 		return responses.Component{Type: responses.ComponentTypeButton, CustomID: customID, Label: label, Emoji: emoji, Style: style, Disabled: disabled}

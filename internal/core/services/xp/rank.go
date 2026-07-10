@@ -82,8 +82,8 @@ func (s RankService) Query(ctx context.Context, query RankQuery) (RankPage, erro
 		totalPages = (len(profiles) + RankPageSize - 1) / RankPageSize
 	}
 	entries := []RankEntry{}
-	start := query.Page * RankPageSize
-	if start < len(profiles) {
+	if query.Page < totalPages {
+		start := query.Page * RankPageSize
 		end := start + RankPageSize
 		if end > len(profiles) {
 			end = len(profiles)
