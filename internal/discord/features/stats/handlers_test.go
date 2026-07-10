@@ -293,8 +293,14 @@ func TestRoleHandlerRequiresManageMessages(t *testing.T) {
 	if len(responder.Defers) != 1 {
 		t.Fatalf("defers = %#v", responder.Defers)
 	}
-	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "你需要有`訊息管理`") {
-		t.Fatalf("edits = %#v", responder.Edits)
+	if len(responder.Follow) != 1 || responder.Follow[0].Embeds[0].Title != "<a:lodding:980493229592043581> | 正在進行設置中!" {
+		t.Fatalf("followups = %#v", responder.Follow)
+	}
+	if len(responder.FollowEdits) != 1 || responder.FollowEdits[0].MessageID != responder.FollowIDs[0] || !strings.Contains(responder.FollowEdits[0].Message.Embeds[0].Title, "你需要有`訊息管理`") {
+		t.Fatalf("follow-up edits = %#v ids=%#v", responder.FollowEdits, responder.FollowIDs)
+	}
+	if len(responder.Edits) != 0 {
+		t.Fatalf("original edits = %#v", responder.Edits)
 	}
 	if len(discord.Created) != 0 {
 		t.Fatalf("created channels = %#v", discord.Created)
@@ -316,8 +322,11 @@ func TestRoleHandlerMissingBaseStatsUsesLegacyError(t *testing.T) {
 	if err := module.RoleHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "你還沒創建過統計頻道") {
-		t.Fatalf("edits = %#v", responder.Edits)
+	if len(responder.Follow) != 1 || len(responder.FollowEdits) != 1 || !strings.Contains(responder.FollowEdits[0].Message.Embeds[0].Title, "你還沒創建過統計頻道") {
+		t.Fatalf("followups=%#v follow-up edits=%#v", responder.Follow, responder.FollowEdits)
+	}
+	if responder.FollowEdits[0].MessageID != responder.FollowIDs[0] || len(responder.Edits) != 0 {
+		t.Fatalf("follow-up ids=%#v edits=%#v", responder.FollowIDs, responder.Edits)
 	}
 	if len(discord.Created) != 0 {
 		t.Fatalf("created channels = %#v", discord.Created)
@@ -344,10 +353,13 @@ func TestRoleHandlerCreatesLegacyRoleStatsChannel(t *testing.T) {
 	if err := module.RoleHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Defers) != 1 || len(responder.Edits) != 1 {
-		t.Fatalf("defers=%#v edits=%#v", responder.Defers, responder.Edits)
+	if len(responder.Defers) != 1 || len(responder.Follow) != 1 || len(responder.FollowEdits) != 1 {
+		t.Fatalf("defers=%#v followups=%#v follow-up edits=%#v", responder.Defers, responder.Follow, responder.FollowEdits)
 	}
-	embed := responder.Edits[0].Embeds[0]
+	if responder.Follow[0].Embeds[0].Title != "<a:lodding:980493229592043581> | 正在進行設置中!" || responder.FollowEdits[0].MessageID != responder.FollowIDs[0] || len(responder.Edits) != 0 {
+		t.Fatalf("followups=%#v follow-up edits=%#v original edits=%#v", responder.Follow, responder.FollowEdits, responder.Edits)
+	}
+	embed := responder.FollowEdits[0].Message.Embeds[0]
 	if embed.Title != "統計特定身分組成功創建" || !strings.Contains(embed.Description, "頻道:<#created-channel-1> 名字可以更改喔，不要動到數字就好awa") {
 		t.Fatalf("embed = %#v", embed)
 	}

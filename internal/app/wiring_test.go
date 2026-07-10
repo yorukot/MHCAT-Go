@@ -1349,8 +1349,11 @@ func TestBuildRuntimeRoutesStatsRoleOnlyWithDependencies(t *testing.T) {
 	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("dispatch stats role: %v", err)
 	}
-	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "統計特定身分組成功創建") {
-		t.Fatalf("stats role response = %#v", responder.Edits)
+	if len(responder.Follow) != 1 || len(responder.FollowEdits) != 1 || len(responder.FollowEdits[0].Message.Embeds) != 1 || !strings.Contains(responder.FollowEdits[0].Message.Embeds[0].Title, "統計特定身分組成功創建") {
+		t.Fatalf("stats role followups=%#v edits=%#v", responder.Follow, responder.FollowEdits)
+	}
+	if responder.FollowEdits[0].MessageID != responder.FollowIDs[0] || len(responder.Edits) != 0 {
+		t.Fatalf("stats role follow-up ids=%#v original edits=%#v", responder.FollowIDs, responder.Edits)
 	}
 	if len(sideEffects.Created) != 1 || repo.RoleConfigs["guild-1/role-1"].ChannelName != "5" {
 		t.Fatalf("created=%#v repo=%#v", sideEffects.Created, repo.RoleConfigs)

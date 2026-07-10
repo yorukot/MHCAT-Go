@@ -76,8 +76,12 @@ func (m Module) RoleHandler() interactions.Handler {
 		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
 			return err
 		}
+		loadingMessageID, err := responder.CreateFollowUp(ctx, statsCreateLoadingMessage())
+		if err != nil {
+			return err
+		}
 		if !interaction.Actor.HasPermission(permissionManageMessages) {
-			return responder.EditOriginal(ctx, statsErrorMessage("你需要有`訊息管理`才能使用此指令"))
+			return responder.EditFollowUp(ctx, loadingMessageID, statsErrorMessage("你需要有`訊息管理`才能使用此指令"))
 		}
 		config, err := m.roleService.Create(ctx, corestats.RoleCreateRequest{
 			GuildID:     interaction.Actor.GuildID,
@@ -86,9 +90,9 @@ func (m Module) RoleHandler() interactions.Handler {
 			BotUserID:   statsBotUserID(interaction.ApplicationID, m.botUserID),
 		})
 		if err != nil {
-			return responder.EditOriginal(ctx, statsRoleErrorMessage(err))
+			return responder.EditFollowUp(ctx, loadingMessageID, statsRoleErrorMessage(err))
 		}
-		if err := responder.EditOriginal(ctx, statsRoleSuccessMessage(config.ChannelID)); err != nil {
+		if err := responder.EditFollowUp(ctx, loadingMessageID, statsRoleSuccessMessage(config.ChannelID)); err != nil {
 			return err
 		}
 		return m.track(ctx, interaction, StatsRoleCommandName, "stats-role-count")
