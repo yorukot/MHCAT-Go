@@ -32,7 +32,12 @@ func (s JoinRoleAssignmentService) AssignOnJoin(ctx context.Context, guildID str
 	}
 	var errs []error
 	for _, config := range configs {
-		config = normalizeJoinRoleConfig(config)
+		config.GuildID = strings.TrimSpace(config.GuildID)
+		config.RoleID = strings.TrimSpace(config.RoleID)
+		config.GiveTo = strings.TrimSpace(config.GiveTo)
+		if config.GiveTo == "" {
+			config.GiveTo = domain.JoinRoleGiveAllUsers
+		}
 		if err := config.Validate(); err != nil {
 			continue
 		}

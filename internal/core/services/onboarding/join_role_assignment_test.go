@@ -11,8 +11,10 @@ import (
 func TestJoinRoleAssignmentServiceAppliesLegacyAudienceRules(t *testing.T) {
 	repo := fakeJoinRoleAssignmentRepo{configs: []domain.JoinRoleConfig{
 		{GuildID: "guild", RoleID: "all", GiveTo: domain.JoinRoleGiveAllUsers},
+		{GuildID: "guild", RoleID: "default"},
 		{GuildID: "guild", RoleID: "bot", GiveTo: domain.JoinRoleGiveBots},
 		{GuildID: "guild", RoleID: "member", GiveTo: domain.JoinRoleGiveMembers},
+		{GuildID: "guild", RoleID: "unknown", GiveTo: "unknown"},
 	}}
 	roles := &fakeRolePort{}
 	service := JoinRoleAssignmentService{Repository: repo, Roles: roles}
@@ -20,7 +22,7 @@ func TestJoinRoleAssignmentServiceAppliesLegacyAudienceRules(t *testing.T) {
 	if err := service.AssignOnJoin(context.Background(), "guild", "user", false); err != nil {
 		t.Fatalf("assign member: %v", err)
 	}
-	if got := roles.roleIDs(); len(got) != 2 || got[0] != "all" || got[1] != "member" {
+	if got := roles.roleIDs(); len(got) != 3 || got[0] != "all" || got[1] != "default" || got[2] != "member" {
 		t.Fatalf("member roles = %#v", got)
 	}
 
@@ -28,7 +30,7 @@ func TestJoinRoleAssignmentServiceAppliesLegacyAudienceRules(t *testing.T) {
 	if err := service.AssignOnJoin(context.Background(), "guild", "bot-user", true); err != nil {
 		t.Fatalf("assign bot: %v", err)
 	}
-	if got := roles.roleIDs(); len(got) != 2 || got[0] != "all" || got[1] != "bot" {
+	if got := roles.roleIDs(); len(got) != 3 || got[0] != "all" || got[1] != "default" || got[2] != "bot" {
 		t.Fatalf("bot roles = %#v", got)
 	}
 }

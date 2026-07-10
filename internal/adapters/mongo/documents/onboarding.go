@@ -51,10 +51,14 @@ func JoinRoleDocumentFromDomain(config domain.JoinRoleConfig) JoinRoleDocument {
 }
 
 func (d JoinRoleDocument) ToDomain() domain.JoinRoleConfig {
+	giveTo := strings.TrimSpace(d.GiveToWho)
+	if giveTo == "" {
+		giveTo = domain.JoinRoleGiveAllUsers
+	}
 	return domain.JoinRoleConfig{
 		GuildID: d.Guild,
 		RoleID:  d.Role,
-		GiveTo:  domain.NormalizeJoinRoleGiveTo(d.GiveToWho),
+		GiveTo:  giveTo,
 	}
 }
 

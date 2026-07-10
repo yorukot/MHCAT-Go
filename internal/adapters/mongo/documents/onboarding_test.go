@@ -30,6 +30,13 @@ func TestJoinRoleDocumentDefaultsGiveTo(t *testing.T) {
 	}
 }
 
+func TestJoinRoleDocumentPreservesUnknownStoredAudience(t *testing.T) {
+	back := JoinRoleDocument{Guild: "guild", Role: "role", GiveToWho: " unknown "}.ToDomain()
+	if back.GiveTo != "unknown" {
+		t.Fatalf("give to = %q", back.GiveTo)
+	}
+}
+
 func TestJoinMessageDocumentToDomain(t *testing.T) {
 	enabled := true
 	content := "welcome"
