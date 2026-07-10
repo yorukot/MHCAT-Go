@@ -25,7 +25,7 @@ Features that truly require Message Content if preserved as-is:
 - Chatbot/autochat prompt capture.
 - Anti-scam URL scanning.
 - Message create/update/delete logging with content.
-- Legacy announcement/chat message handlers. The Go bound announcement relay is implemented only when `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true` and requires `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`.
+- Legacy announcement/chat message handlers. The Go bound announcement relay requires `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, Gateway, Guild Messages, Message Content, and exclusive Node/Go event ownership; see the [announcement parity contract](76-announcement.md).
 - XP reset full-server confirmation. The Go `/經驗值重製` slice is implemented only when `MHCAT_FEATURE_XP_RESET_ENABLED=true` and requires `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`.
 
 Logging config itself requires no gateway intent. Its message, channel, and voice event families are independently gated; message logging needs Guild Messages and Message Content, channel logging needs Gateway channel updates, and voice logging needs Voice State intent. Do not overlap any enabled Go event family with Node `events/LoggingSystem.js`; see the [logging parity contract](48-logging-config.md).
@@ -94,6 +94,7 @@ Current approved Message Content exception:
 Announcement bound relay: MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true
 Required flags: MHCAT_DISCORD_ENABLE_GATEWAY=true, MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true, MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 Default: disabled
+Ownership: stop/gate Node events/ann_message.js for the same bot/guild; follow docs/76-announcement.md
 
 XP reset confirmation: MHCAT_FEATURE_XP_RESET_ENABLED=true
 Required flags: MHCAT_DISCORD_ENABLE_GATEWAY=true, MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true, MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true

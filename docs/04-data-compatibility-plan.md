@@ -194,3 +194,14 @@ Poll compatibility is parity-audited through the gated create/vote/result/owner 
 | `polls` | `guild`, `messageid`, `question`, `create_member_id`, `many_choose`, `can_change_choose`, `can_see_result`, `end`, `anonymous`, `choose_data`, `join_member` | none | separate Mongoose-compatible scalar/loose-array read DTO; malformed Mixed entries are skipped | typed insert plus targeted conditional `$push`/`$pull` and atomic toggle pipelines; no full replacement | no | stop all Go poll routes before restoring Node; typed rows are readable, but Go-rendered versioned component IDs require a separate message rollback plan | dashboard backup already exports `polls`; preserve collection and fields |
 
 Raw question/choice whitespace and misspelled `join_member[].choise` remain exact. Candidate `polls_guild_message` remains blocked on duplicate/key/scalar/array audit and exclusive ownership; no startup or TTL index is created. See the [poll parity contract](75-poll.md) for component migration, atomic predicates, staging, and rollback.
+
+## Announcement Compatibility
+
+Announcement compatibility is parity-audited across config, one-time send, confirmation, and bound relay routes.
+
+| Collection | Legacy fields | New fields | Read strategy | Write strategy | Backfill needed | Rollback strategy | Dashboard impact |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `guilds` | `guild`, `announcement_id`, shared `voice_detection` and unknown dashboard fields | none | separate Mongoose-compatible String scalar DTO; compound values remain unusable | typed `$set` patch of `announcement_id` across duplicate matches, preserving unrelated fields | no | stop Go config/send ownership before restoring Node; typed strings remain readable | shared collection: confirm every dashboard writer and preserve unknown fields |
+| `ann_all_sets` | `guild`, `announcement_id`, `tag`, `color`, `title` | none | separate Mongoose-compatible String scalar DTO; raw whitespace/case remains exact | typed updates/deletes across duplicate exact matches, upsert only when absent | no | stop Go config/relay ownership before restoring Node; typed rows remain readable | confirm external writers before rollout |
+
+No startup index, repair, deduplication, or backfill is authorized. Candidate unique indexes remain blocked on duplicate keys, scalar drift, malformed values, shared writers, and exclusive ownership. Process-local confirmation state has no Mongo migration; wait six seconds during rollback. See the [announcement parity contract](76-announcement.md).

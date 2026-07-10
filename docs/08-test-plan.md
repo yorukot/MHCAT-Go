@@ -68,6 +68,7 @@ Status: Phase 1 consolidated. Legacy has only a live Discord login smoke test; t
   - text/voice XP lookup/rank
   - warning add/list/remove
   - poll create/vote/result/owner/export, including initial-versus-rerender text and component migration
+  - announcement config/send/modal/confirmation/relay, including exact permissions, color semantics, six-second state, scalar reads, send-before-delete, and mention suppression
   - verification
   - ticket setup/panel/open/close
   - reaction-role setup/delete/events and button-role modal/add/remove
@@ -75,6 +76,8 @@ Status: Phase 1 consolidated. Legacy has only a live Discord login smoke test; t
   - cron notification setup/list/delete
   - welcome/leave templates
   - gacha draw/shop purchase
+
+The canonical announcement fixtures, focused package commands, race coverage, and staging checklist are recorded in the [announcement parity contract](76-announcement.md). The locked boundary test is `internal/discord/features/announcements/parity_test.go`.
 
 ## Golden Fixture Tests
 

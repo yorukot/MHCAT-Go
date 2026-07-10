@@ -60,8 +60,7 @@ This module currently provides:
 - gated `/扭蛋獎池增加` prize add command with legacy Manage Messages permission, ephemeral success/error embeds, and rollback-compatible `gifts` inserts.
 - gated `/扭蛋獎品編輯` prize edit command with legacy Manage Messages permission, ephemeral success/error embeds, and one-row `gifts` replacement by `{guild,gift_name}`.
 - gated `/扭蛋獎池刪除` prize delete command with legacy Manage Messages permission, success/error embeds, and one-row `gifts` deletion by `{guild,gift_name}`.
-- gated config-only `/公告頻道設置` command with legacy subcommands, embeds, and rollback-compatible `guilds`/`ann_all_sets` writes.
-- gated bound announcement message relay from legacy `ann_message.js`, disabled by default and requiring explicit gateway/message-content flags.
+- parity-audited announcement config, one-time send, confirmation, and bound relay flows; exact UI, data compatibility, ownership, safety differences, and rollback are in the [announcement parity contract](docs/76-announcement.md).
 - gated config-only `/聊天經驗設定` and `/聊天經驗刪除` commands with legacy embed/preview UI and rollback-compatible `text_xp_channels` writes.
 - gated text XP message accrual from legacy `events/text_xp.js`, disabled by default and requiring explicit gateway/Guild Messages/Message Content flags; it updates `text_xps` profile XP/levels, sends configured level-up announcements and fallback errors, applies configured text reward roles, and grants legacy XP coin rewards from `gift_changes.xp_multiple` after the configured announcement path succeeds.
 - gated voice XP runtime from legacy `events/voice_xp.js`, disabled by default and requiring explicit gateway/Voice State intent flags; it maintains `voice_xps.leavejoin`, starts the legacy 30-second voice XP loop on join, stops it on leave/shutdown, and preserves legacy voice announcements, owner fallbacks, roles, and XP coin rewards.
@@ -85,7 +84,7 @@ Deliberately unavailable by default or still outstanding:
 - default Mongo index creation and automatic data repair;
 - production feature writes and recurring workers; implemented write paths remain behind disabled-by-default runtime, sync, ownership, and lease gates;
 - production ticket/poll/economy rollout and live staging smoke, despite their gated runtime handlers and repositories being implemented;
-- announcement relay attachment forwarding and tag pings; relay messages intentionally suppress mentions;
+- announcement attachment-only messages are intentionally retained and tag text is visible without pinging, as recorded in the announcement parity contract;
 - external ChatGPT worker confirmation/deployment and dashboard-owned workflows.
 
 Implemented utility commands:
@@ -162,7 +161,7 @@ Implemented event features:
 
 `/info user` and `/info guild` use the legacy embed layouts with read-only Discord snapshots. Lookup failures return a red safe error embed and do not expose internal errors.
 
-Known external, intentionally inactive, or rollout gaps include lottery creation/panel generation, the disabled legacy XP profile-card branches, commented-out birthday delivery, announcement relay attachment forwarding/tag pings, production scheduler ownership, external ChatGPT worker confirmation/deployment, and dashboard-owned workflows. Economy game/shop writes, economy/profile/XP leaderboard images, and gacha prize delivery are implemented behind their explicit gates.
+Known external, intentionally inactive, or rollout gaps include lottery creation/panel generation, the disabled legacy XP profile-card branches, commented-out birthday delivery, production scheduler ownership, external ChatGPT worker confirmation/deployment, and dashboard-owned workflows. Announcement attachment-only retention and mention suppression are reviewed intentional behavior, not rollout gaps. Economy game/shop writes, economy/profile/XP leaderboard images, and gacha prize delivery are implemented behind their explicit gates.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete and daily-reset ownership is assigned exclusively to the lease-backed one-shot or recurring Go path after Node cron is stopped.
 
@@ -621,7 +620,7 @@ The `/統計身分組人數` command is available only when `MHCAT_FEATURE_STATS
 
 The `/統計系統刪除` command is available only when `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires Manage Messages, deletes legacy `numbers` rows for the guild, and preserves the legacy success/error embeds. It does not delete Discord channels, create indexes, or enable `channel_status`.
 
-The `/公告頻道設置` command is available only when `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes only the legacy-compatible `guilds.announcement_id` and `ann_all_sets` config rows and does not enable Message Content relay, user-message deletion, or bound announcement sends.
+The `/公告頻道設置` command is available only when `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes only the legacy-compatible `guilds.announcement_id` and `ann_all_sets` config rows and does not enable Message Content relay, user-message deletion, or bound announcement sends. The full parity, ownership, data-audit, and rollback requirements are in the [announcement parity contract](docs/76-announcement.md).
 
 The `/公告發送` command is available only when `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_SEND=true`; staging preflight and scripts reject unpaired sync/runtime flags. It preserves the legacy modal labels, preview embed, confirmation title, button labels/emojis, missing-config text, and success text, but uses versioned custom IDs and suppresses mentions in the preview and final send as an intentional safety fix for legacy tag-ping behavior.
 

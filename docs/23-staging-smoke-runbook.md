@@ -469,6 +469,8 @@ Set both together only in an isolated staging database when testing `/公告頻�
 
 For one-time `/公告發送` staging tests, pair `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true` with `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_SEND=true`. This path preserves the legacy modal/preview/confirm/send UI and sends to `guilds.announcement_id`, but uses versioned confirmation IDs and suppresses tag mentions as an intentional safety fix. It still does not enable Message Content relay or user-message deletion.
 
+Before either command test, stop the matching Node command/modal owner, audit duplicate and scalar-drift keys in `guilds` and `ann_all_sets`, and confirm shared dashboard writers preserve unrelated `guilds` fields. The canonical config/send/relay smoke and rollback sequence is in the [announcement parity contract](76-announcement.md).
+
 Optional text-XP config smoke flags:
 
 ```bash
@@ -727,8 +729,9 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true`, confirm `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`, the staging guild can safely receive new stat channels, and the staging database has disposable `numbers` rows.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT=true`, confirm `MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=true`, the staging guild can safely receive a role-count stat channel, and the staging database has disposable `role_numbers` rows plus an existing stats base `numbers` row.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true`, confirm `MHCAT_FEATURE_STATS_DELETE_ENABLED=true` and the staging database has disposable `numbers` rows.
-- If `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG=true`, confirm `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`, the staging database can safely write `guilds` and `ann_all_sets`, and the expected result is only config changes.
-- If `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, the staging bound channel is safe for message deletion tests, and tag pings are expected to be suppressed.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_CONFIG=true`, confirm `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`, matching Node command ownership is stopped, duplicate/type/shared-writer audits are reviewed, and the staging database can safely patch `guilds` and `ann_all_sets`.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_ANNOUNCEMENT_SEND=true`, confirm `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true`, matching Node command/modal ownership is stopped, and the six-second confirmation flow can send to a disposable channel.
+- If `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, confirm Gateway/Guild Messages/Message Content flags, stop Node `events/ann_message.js` ownership for the same bot/guild, review duplicate/type findings, and use a bound channel safe for send-before-delete tests. Follow [76-announcement.md](76-announcement.md).
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true`, confirm `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true` and the staging database can safely write `text_xp_channels`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true`, confirm `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true` and the staging database can safely write `voice_xp_channels`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true`, confirm `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`, the staging database can safely write `chat_roles`/`voice_roles`, and the test roles are below the bot's highest role.
@@ -1513,12 +1516,8 @@ If daily-reset scheduling was explicitly enabled:
 
 If announcement relay was explicitly enabled:
 
-- create or confirm a staging `ann_all_sets` row for a non-production channel;
-- send a text-only test message in that bound channel;
-- verify the bot sends a legacy-style announcement embed with footer `來自<author tag>的公告`;
-- verify the original user message is deleted only after the bot relay appears;
-- verify stored `tag` text such as `@everyone` is visible but does not ping;
-- verify attachment-only or empty-content messages are not deleted by this Go slice.
+- execute the bound-relay cases in the canonical [announcement staging smoke](76-announcement.md#staging-smoke), including exact/legacy random colors, unsupported colors, send-before-delete failures, visible non-pinging tags, empty/attachment-only retention, ignored bot/DM/unconfigured messages, and exclusive Node/Go ownership;
+- preserve `guilds` and `ann_all_sets`, create no index or automatic repair, then disable the relay and intents according to the canonical rollback sequence.
 
 If join-role assignment was explicitly enabled:
 

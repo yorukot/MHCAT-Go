@@ -60,7 +60,7 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `numbers` | `numbers_guild` | `{guild:1}` | candidate | no | no | guild stats config singleton | singleton duplicates | audit duplicates, dry-run, explicit apply |
 | `all_use_counts` | `all_use_counts_command` | `{slashcommand_name:1}` | candidate | no | no | slash usage counter | null/undefined command names | audit invalid names before unique |
-| `ann_all_sets` | `ann_all_sets_guild_announcement` | `{guild:1,announcement_id:1}` | candidate | no | no | announcement config lookup | duplicate announcement IDs | audit, dry-run, explicit apply |
+| `ann_all_sets` | `ann_all_sets_guild_announcement` | `{guild:1,announcement_id:1}` | candidate | no | no | announcement config/relay lookup | duplicate or scalar-drift keys, malformed values, shared Node writer | audit types/duplicates and exclusive ownership; no startup apply; see [contract](76-announcement.md) |
 | `birthdays` | `birthdays_guild_user` | `{guild:1,user:1}` | candidate | no | no | user birthday lookup | duplicate birthdays | audit, dry-run, explicit apply |
 | `birthday_sets` | `birthday_sets_guild` | `{guild:1}` | candidate | no | no | birthday guild config | singleton duplicates | audit, dry-run, explicit apply |
 | `btns` | `btns_guild_number` | `{guild:1,number:1}` | candidate | no | no | role button lookup | duplicate button IDs | audit, dry-run, explicit apply |
@@ -79,7 +79,7 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | `gift_changes` | `gift_changes_guild` | `{guild:1}` | candidate | no | no | economy/gacha config | singleton duplicates | audit, dry-run, explicit apply |
 | `gift_changes` | `gift_changes_time_guild` | `{time:1,guild:1}` | no | optional partial `time != 0` only after ADR | no | legacy reset exclusion; not required by current Go normalized scan | partial semantics risk and no current Go query benefit | dry-run only until data known |
 | `good_webs` | `good_webs_guild` | `{guild:1}` | candidate | no | no | anti-scam toggle | singleton duplicates | audit, dry-run, explicit apply |
-| `guilds` | `guilds_guild` | `{guild:1}` | candidate | no | no | guild config and dashboard voice detection | singleton duplicates/dashboard writes | audit with dashboard compatibility review |
+| `guilds` | `guilds_guild` | `{guild:1}` | candidate | no | no | announcement channel config and dashboard voice detection | scalar-drift keys, singleton duplicates, dashboard/shared writers | audit with dashboard compatibility and announcement ownership review; no startup apply; see [contract](76-announcement.md) |
 | `join_messages` | `join_messages_guild` | `{guild:1}` | candidate | no | no | welcome message config/dashboard writes | singleton duplicates; unsafe `enable` unique | do not create `enable` unique; audit first |
 | `join_roles` | `join_roles_guild_role` | `{guild:1,role:1}` | candidate | no | no | join role config setup/delete and future member-add role assignment | duplicate `{guild,role}` rows may exist from legacy find-then-save races | audit duplicates first, dry-run, explicit apply only; not created by app startup |
 | `leave_messages` | `leave_messages_guild` | `{guild:1}` | candidate | no | no | leave message config | singleton duplicates | audit, dry-run, explicit apply |

@@ -233,3 +233,18 @@ Additional audit before enabling poll writes:
 - clean duplicate/type/shape results before any reviewed `polls_guild_message` unique-index apply.
 
 Do not rewrite loose arrays or deduplicate production rows merely to enable Go. Runtime reads are permissive, writes preserve the legacy field shape, and no channel ID exists for automatic bulk message rewrites. Follow the [poll parity contract](75-poll.md) for staging and rollback.
+
+## Announcement Rollout Audit
+
+Announcement runtime is parity-audited but remains disabled by default. No production repair, deduplication, backfill, or automatic index mutation is authorized.
+
+Audit before enabling any announcement owner:
+
+- duplicate `guilds` documents grouped by `guild` and duplicate `ann_all_sets` documents grouped by `{guild,announcement_id}`;
+- missing, null, compound, blank, and non-string keys plus Mongoose-compatible scalar drift in all announcement String fields;
+- unsupported or malformed stored colors and null/compound `tag` or `title` values;
+- all dashboard/external writers of shared `guilds` fields, especially `voice_detection`, and whether they replace whole documents;
+- exclusive Node/Go ownership for config, send/modal/component, and relay route families;
+- clean duplicate/type/shared-writer findings before any reviewed `guilds_guild` or `ann_all_sets_guild_announcement` unique-index apply.
+
+Do not normalize raw values or repair malformed production rows merely to enable Go. Runtime reads are permissive, writes are typed patches, and unsupported relay colors leave originals unchanged. Follow the [announcement parity contract](76-announcement.md) for smoke and rollback.

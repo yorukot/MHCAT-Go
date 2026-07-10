@@ -1,6 +1,6 @@
 # Announcement Slice
 
-Status: implemented behind explicit runtime and command-sync gates.
+Status: historical implementation note, superseded by the parity-audited [announcement contract](76-announcement.md). Runtime and command sync remain behind explicit gates.
 
 ## Scope
 
