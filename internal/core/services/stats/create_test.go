@@ -169,6 +169,30 @@ func TestCreateStatsConfigAddsOptionalChannelUnderExistingParent(t *testing.T) {
 	}
 }
 
+func TestCreateStatsConfigAddsOptionalChannelWithoutMissingParent(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "missing-parent"})
+	discord := fakediscord.NewSideEffects()
+	discord.ChannelCount = 12
+	service := CreateService{Repository: repo, Channels: discord, GuildStats: discord}
+
+	config, err := service.Create(context.Background(), CreateRequest{
+		GuildID:     "guild-1",
+		ChannelType: domain.StatsChannelTypeText,
+		Option:      domain.StatsOptionChannelCount,
+		BotUserID:   "bot-1",
+	})
+	if err != nil {
+		t.Fatalf("create optional stats: %v", err)
+	}
+	if len(discord.Created) != 1 || discord.Created[0].ParentID != "" || discord.Created[0].Name != "總頻道數: 12" {
+		t.Fatalf("created channels = %#v", discord.Created)
+	}
+	if config.ParentID != "missing-parent" || config.ChannelNumberID == "" || config.ChannelNumberName != "12" {
+		t.Fatalf("config = %#v", config)
+	}
+}
+
 func TestCreateStatsConfigRejectsDuplicateOptionalChannel(t *testing.T) {
 	repo := fakemongo.NewStatsConfigRepository()
 	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "parent-1", TextNumberID: "text-stat"})
