@@ -155,7 +155,7 @@ func TestVerificationLegacyAnswerAndWrongAnswer(t *testing.T) {
 	if err := module.VerificationAnswerHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("wrong answer handler: %v", err)
 	}
-	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你的驗證碼輸入錯誤") {
+	if title := responder.Edits[0].Embeds[0].Title; title != "你的驗證碼輸入錯誤，請重試(如果看不清楚的話可以重打指令)" {
 		t.Fatalf("wrong answer response = %#v", responder.Edits)
 	}
 
@@ -166,6 +166,22 @@ func TestVerificationLegacyAnswerAndWrongAnswer(t *testing.T) {
 	}
 	if len(sideEffects.AddedRoles) != 1 {
 		t.Fatalf("roles = %#v", sideEffects.AddedRoles)
+	}
+}
+
+func TestVerificationAnswerErrorsUseLegacyModalTitles(t *testing.T) {
+	tests := map[error]string{
+		ports.ErrDiscordRoleMissing:               "驗證身分組已經不存在了，請通管理員!",
+		ports.ErrDiscordRoleNotAssignable:         "請通知群主管裡員我沒有權限給你這個身分組(請把我的身分組調高)!",
+		coreservice.ErrVerificationAnswerMismatch: "你的驗證碼輸入錯誤，請重試(如果看不清楚的話可以重打指令)",
+		coreservice.ErrVerificationOwnerNickname:  "你是伺服器服主，我沒有權限改你的名字!",
+		domain.ErrInvalidVerificationChallenge:    "很抱歉，出現了未知的錯誤，請重試!",
+	}
+	for err, want := range tests {
+		message := verificationAnswerErrorFromError(err)
+		if len(message.Embeds) != 1 || message.Embeds[0].Title != want || message.Embeds[0].Color != joinRoleErrorColor {
+			t.Fatalf("verificationAnswerErrorFromError(%v) = %#v", err, message)
+		}
 	}
 }
 

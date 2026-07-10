@@ -82,7 +82,7 @@ func (m Module) VerificationAnswerHandler() interactions.Handler {
 			}
 		}
 		if err != nil {
-			return responder.EditOriginal(ctx, verificationFlowErrorFromError(err))
+			return responder.EditOriginal(ctx, verificationAnswerErrorFromError(err))
 		}
 		return responder.EditOriginal(ctx, verificationFlowSuccessMessage())
 	}
@@ -167,21 +167,29 @@ func verificationFlowSuccessMessage() responses.Message {
 }
 
 func verificationFlowErrorFromError(err error) responses.Message {
+	return verificationFlowErrorMessage(verificationFlowErrorContent(err))
+}
+
+func verificationAnswerErrorFromError(err error) responses.Message {
+	return verificationAnswerErrorMessage(verificationFlowErrorContent(err))
+}
+
+func verificationFlowErrorContent(err error) string {
 	switch {
 	case errors.Is(err, ports.ErrVerificationConfigMissing):
-		return verificationFlowErrorMessage("這服的管理員沒有設置驗證系統，所以不能使用喔!")
+		return "這服的管理員沒有設置驗證系統，所以不能使用喔!"
 	case errors.Is(err, ports.ErrDiscordRoleMissing):
-		return verificationFlowErrorMessage("驗證身分組已經不存在了，請通管理員!")
+		return "驗證身分組已經不存在了，請通管理員!"
 	case errors.Is(err, ports.ErrDiscordRoleNotAssignable):
-		return verificationFlowErrorMessage("請通知群主管裡員我沒有權限給你這個身分組(請把我的身分組調高)!")
+		return "請通知群主管裡員我沒有權限給你這個身分組(請把我的身分組調高)!"
 	case errors.Is(err, coreservice.ErrVerificationAnswerMismatch):
-		return verificationFlowErrorMessage("你的驗證碼輸入錯誤，請重試(如果看不清楚的話可以重打指令)")
+		return "你的驗證碼輸入錯誤，請重試(如果看不清楚的話可以重打指令)"
 	case errors.Is(err, coreservice.ErrVerificationOwnerNickname):
-		return verificationFlowErrorMessage("你是伺服器服主，我沒有權限改你的名字!")
+		return "你是伺服器服主，我沒有權限改你的名字!"
 	case errors.Is(err, domain.ErrInvalidVerificationChallenge), errors.Is(err, domain.ErrInvalidVerificationConfig):
-		return verificationFlowErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+		return "很抱歉，出現了未知的錯誤，請重試!"
 	default:
-		return verificationFlowErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+		return "很抱歉，出現了未知的錯誤，請重試!"
 	}
 }
 
@@ -189,6 +197,16 @@ func verificationFlowErrorMessage(content string) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title: "<a:Discord_AnimatedNo:1015989839809757295> | " + content,
+			Color: joinRoleErrorColor,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+}
+
+func verificationAnswerErrorMessage(content string) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: content,
 			Color: joinRoleErrorColor,
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
