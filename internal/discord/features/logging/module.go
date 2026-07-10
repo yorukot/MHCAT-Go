@@ -14,15 +14,24 @@ type Module struct {
 	messages             ports.DiscordMessagePort
 	auditLogs            ports.DiscordAuditLogPort
 	usage                ports.UsageTracker
+	clock                ports.Clock
 	messageEventsEnabled bool
 	channelEventsEnabled bool
 	voiceEventsEnabled   bool
 }
 
 func NewModule(repo ports.LoggingConfigRepository, usage ports.UsageTracker) Module {
+	return NewModuleWithClock(repo, usage, nil)
+}
+
+func NewModuleWithClock(repo ports.LoggingConfigRepository, usage ports.UsageTracker, clock ports.Clock) Module {
+	if clock == nil {
+		clock = ports.SystemClock{}
+	}
 	return Module{
 		service: moderationservice.NewLoggingConfigService(repo),
 		usage:   usage,
+		clock:   clock,
 	}
 }
 

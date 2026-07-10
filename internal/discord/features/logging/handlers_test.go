@@ -4,7 +4,9 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
@@ -25,7 +27,8 @@ func TestLoggingConfigPromptRequiresManageMessages(t *testing.T) {
 }
 
 func TestLoggingConfigPromptRendersLegacySelect(t *testing.T) {
-	module := NewModule(&fakemongo.LoggingConfigRepository{}, nil)
+	now := time.UnixMilli(1_700_000_000_000)
+	module := NewModuleWithClock(&fakemongo.LoggingConfigRepository{}, nil, loggingFixedClock{now: now})
 	responder := fakediscord.NewResponder()
 	interaction := loggingSlash("channel-1")
 
@@ -50,14 +53,19 @@ func TestLoggingConfigPromptRendersLegacySelect(t *testing.T) {
 	if !strings.HasPrefix(selectMenu.CustomID, "mhcat:v1:logging:configure:") {
 		t.Fatalf("custom id = %q", selectMenu.CustomID)
 	}
+	channelID, ownerID, expiresAt, ok := loggingConfigPayload(selectMenu.CustomID)
+	if !ok || channelID != "channel-1" || ownerID != interaction.Actor.UserID || !expiresAt.Equal(now.Add(loggingConfigCollectorTTL)) {
+		t.Fatalf("custom id payload = channel:%q owner:%q expiry:%v ok:%v", channelID, ownerID, expiresAt, ok)
+	}
 }
 
 func TestLoggingConfigSelectSavesConfigAndUpdatesMessage(t *testing.T) {
 	repo := &fakemongo.LoggingConfigRepository{}
 	usage := &fakeusage.Tracker{}
-	module := NewModule(repo, usage)
+	now := time.UnixMilli(1_700_000_000_000)
+	module := NewModuleWithClock(repo, usage, loggingFixedClock{now: now})
 	responder := fakediscord.NewResponder()
-	interaction := fakediscord.ComponentInteractionFromID(loggingConfigCustomID("channel-9"))
+	interaction := fakediscord.ComponentInteractionFromID(loggingConfigCustomID("channel-9", "user-1", now.Add(loggingConfigCollectorTTL)))
 	interaction.RouteKey = interactions.RouteKey{Kind: interactions.TypeComponent, Version: "v1", Feature: "logging", Action: "configure"}
 	interaction.Values = []string{"訊息更新", "用戶語音更新"}
 
@@ -79,6 +87,57 @@ func TestLoggingConfigSelectSavesConfigAndUpdatesMessage(t *testing.T) {
 	}
 	if len(usage.Events) != 1 || usage.Events[0].Feature != "logging" || usage.Events[0].CommandName != LoggingConfigCommandName {
 		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
+func TestLoggingConfigSelectRejectsAnotherUser(t *testing.T) {
+	now := time.UnixMilli(1_700_000_000_000)
+	repo := &fakemongo.LoggingConfigRepository{}
+	module := NewModuleWithClock(repo, nil, loggingFixedClock{now: now})
+	interaction := fakediscord.ComponentInteractionFromID(loggingConfigCustomID("channel-9", "owner-1", now.Add(loggingConfigCollectorTTL)))
+	interaction.Actor.UserID = "other-1"
+	interaction.Values = []string{"訊息更新"}
+	responder := fakediscord.NewResponder()
+
+	if err := module.ConfigSelectHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(repo.Saved) != 0 {
+		t.Fatalf("saved = %#v", repo.Saved)
+	}
+	if len(responder.Replies) != 1 || !responder.Replies[0].Ephemeral || !strings.Contains(responder.Replies[0].Embeds[0].Title, "不能操作") {
+		t.Fatalf("replies = %#v", responder.Replies)
+	}
+}
+
+func TestLoggingConfigSelectExpiresAtLegacyDeadline(t *testing.T) {
+	deadline := time.UnixMilli(1_700_000_600_000)
+	repo := &fakemongo.LoggingConfigRepository{}
+	module := NewModuleWithClock(repo, nil, loggingFixedClock{now: deadline})
+	interaction := fakediscord.ComponentInteractionFromID(loggingConfigCustomID("channel-9", "user-1", deadline))
+	interaction.Values = []string{"訊息更新"}
+	responder := fakediscord.NewResponder()
+
+	if err := module.ConfigSelectHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(repo.Saved) != 0 {
+		t.Fatalf("saved = %#v", repo.Saved)
+	}
+	if len(responder.Replies) != 1 || !responder.Replies[0].Ephemeral || !strings.Contains(responder.Replies[0].Embeds[0].Title, "重新執行") {
+		t.Fatalf("replies = %#v", responder.Replies)
+	}
+}
+
+func TestLoggingConfigCustomIDFitsDiscordLimit(t *testing.T) {
+	deadline := time.UnixMilli(9_999_999_999_999)
+	customID := loggingConfigCustomID("1234567890123456789", "9876543210987654321", deadline)
+	if len(customID) > customid.MaxCustomIDLength {
+		t.Fatalf("custom id length = %d: %q", len(customID), customID)
+	}
+	channelID, ownerID, expiresAt, ok := loggingConfigPayload(customID)
+	if !ok || channelID != "1234567890123456789" || ownerID != "9876543210987654321" || !expiresAt.Equal(deadline) {
+		t.Fatalf("payload = channel:%q owner:%q expiry:%v ok:%v", channelID, ownerID, expiresAt, ok)
 	}
 }
 
@@ -105,4 +164,12 @@ func loggingSlash(channelID string) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(LoggingConfigCommandName, "", map[string]string{"channel": channelID})
 	interaction.Actor.PermissionBits = permissionManageMessages
 	return interaction
+}
+
+type loggingFixedClock struct {
+	now time.Time
+}
+
+func (c loggingFixedClock) Now() time.Time {
+	return c.now
 }

@@ -3,7 +3,9 @@ package logging
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -13,10 +15,11 @@ import (
 )
 
 const (
-	permissionManageMessages = int64(8192)
-	loggingEmbedColor        = 0xFFDC35
-	loggingErrorColor        = 0xED4245
-	loggingFooterText        = "MHCAT帶給你最棒的Discord體驗!"
+	permissionManageMessages  = int64(8192)
+	loggingEmbedColor         = 0xFFDC35
+	loggingErrorColor         = 0xED4245
+	loggingFooterText         = "MHCAT帶給你最棒的Discord體驗!"
+	loggingConfigCollectorTTL = 10 * time.Minute
 )
 
 var logValueToField = map[string]func(*domain.LoggingConfig){
@@ -38,15 +41,19 @@ func (m Module) ConfigPromptHandler() interactions.Handler {
 		if channelID == "" {
 			return responder.EditOriginal(ctx, loggingErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 		}
-		return responder.EditOriginal(ctx, loggingPromptMessage(channelID, nil))
+		expiresAt := m.now().Add(loggingConfigCollectorTTL)
+		return responder.EditOriginal(ctx, loggingPromptMessage(channelID, interaction.Actor.UserID, expiresAt, nil))
 	}
 }
 
 func (m Module) ConfigSelectHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
-		channelID := channelIDFromCustomID(interaction.CustomID)
-		if channelID == "" {
-			return responder.UpdateMessage(ctx, loggingErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
+		channelID, ownerID, expiresAt, ok := loggingConfigPayload(interaction.CustomID)
+		if !ok || !m.now().Before(expiresAt) {
+			return responder.Reply(ctx, loggingConfigInteractionError("請重新執行`/set-log-channel`設定日誌頻道"))
+		}
+		if strings.TrimSpace(interaction.Actor.UserID) != ownerID {
+			return responder.Reply(ctx, loggingConfigInteractionError("你不能操作這個日誌設定選單!"))
 		}
 		if err := responder.DeferUpdate(ctx); err != nil {
 			return err
@@ -55,7 +62,7 @@ func (m Module) ConfigSelectHandler() interactions.Handler {
 		if err := m.service.Save(ctx, config); err != nil {
 			return responder.EditOriginal(ctx, loggingErrorFromError(err))
 		}
-		if err := responder.EditOriginal(ctx, loggingPromptMessage(channelID, interaction.Values)); err != nil {
+		if err := responder.EditOriginal(ctx, loggingPromptMessage(channelID, ownerID, expiresAt, interaction.Values)); err != nil {
 			return err
 		}
 		return m.track(ctx, interaction)
@@ -78,7 +85,7 @@ func loggingConfigFromValues(guildID string, channelID string, values []string) 
 	return config
 }
 
-func loggingPromptMessage(channelID string, selected []string) responses.Message {
+func loggingPromptMessage(channelID string, ownerID string, expiresAt time.Time, selected []string) responses.Message {
 	selectedText := ""
 	if len(selected) > 0 {
 		selectedText = "`" + strings.Join(selected, "`,`") + "`"
@@ -95,7 +102,7 @@ func loggingPromptMessage(channelID string, selected []string) responses.Message
 		Components: []responses.ComponentRow{{
 			Components: []responses.Component{{
 				Type:        responses.ComponentTypeSelect,
-				CustomID:    loggingConfigCustomID(channelID),
+				CustomID:    loggingConfigCustomID(channelID, ownerID, expiresAt),
 				Placeholder: "請選擇您需要的日誌",
 				MinValues:   1,
 				MaxValues:   4,
@@ -123,8 +130,12 @@ func loggingSelectOptions(selected []string) []responses.SelectOption {
 	return options
 }
 
-func loggingConfigCustomID(channelID string) string {
-	payload, err := customid.KeyValuePayload(map[string]string{"c": strings.TrimSpace(channelID)})
+func loggingConfigCustomID(channelID string, ownerID string, expiresAt time.Time) string {
+	payload, err := customid.KeyValuePayload(map[string]string{
+		"c": strings.TrimSpace(channelID),
+		"e": strconv.FormatInt(expiresAt.UnixMilli(), 10),
+		"u": strings.TrimSpace(ownerID),
+	})
 	if err != nil {
 		return "mhcat:v1:logging:configure:"
 	}
@@ -135,12 +146,25 @@ func loggingConfigCustomID(channelID string) string {
 	return id
 }
 
-func channelIDFromCustomID(raw string) string {
+func loggingConfigPayload(raw string) (string, string, time.Time, bool) {
 	parsed, err := customid.ParseComponent(raw)
-	if err != nil {
-		return ""
+	if err != nil || parsed.Feature != "logging" || parsed.Action != "configure" || parsed.Payload.Kind != customid.PayloadKV {
+		return "", "", time.Time{}, false
 	}
-	return strings.TrimSpace(parsed.Payload.Values["c"])
+	channelID := strings.TrimSpace(parsed.Payload.Values["c"])
+	ownerID := strings.TrimSpace(parsed.Payload.Values["u"])
+	expiresMillis, err := strconv.ParseInt(parsed.Payload.Values["e"], 10, 64)
+	if channelID == "" || ownerID == "" || err != nil || expiresMillis <= 0 {
+		return "", "", time.Time{}, false
+	}
+	return channelID, ownerID, time.UnixMilli(expiresMillis), true
+}
+
+func (m Module) now() time.Time {
+	if m.clock == nil {
+		return time.Now()
+	}
+	return m.clock.Now()
 }
 
 func loggingErrorFromError(err error) responses.Message {
@@ -160,6 +184,12 @@ func loggingErrorMessage(content string) responses.Message {
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
+}
+
+func loggingConfigInteractionError(content string) responses.Message {
+	message := loggingErrorMessage(content)
+	message.Ephemeral = true
+	return message
 }
 
 func firstOption(interaction interactions.Interaction, names ...string) string {
