@@ -46,6 +46,19 @@ func TestDefaultEventRuntimeFactoryHasNoHandlersWhenRelayDisabled(t *testing.T) 
 	}
 }
 
+func TestRoleSelectionRuntimeUsesOneOwnershipGate(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.DiscordEnableGateway = true
+	cfg.DiscordMessageReactionsIntent = true
+	if roleSelectionOwnershipEnabled(cfg) {
+		t.Fatal("gateway prerequisites must not enable role selection without its ownership gate")
+	}
+	cfg.FeatureRoleSelectionEnabled = true
+	if !roleSelectionOwnershipEnabled(cfg) {
+		t.Fatal("role-selection ownership gate must enable both interaction and event provisioning")
+	}
+}
+
 func TestAutoChatFallbackEventRuntimeRequiresDefaultAdapters(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.FeatureAutoChatFallbackEnabled = true

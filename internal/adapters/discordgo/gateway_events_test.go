@@ -160,14 +160,19 @@ func TestRememberReactionMemberMakesBotIdentityAvailableToRemoveEvent(t *testing
 	}
 }
 
-func TestReactionMemberFromStateLeavesUnknownRemoveIdentityUnresolved(t *testing.T) {
+func TestReactionRemoveFirstSeenAfterRestartHasUnknownBotIdentity(t *testing.T) {
 	state := dgo.NewState()
 	if err := state.GuildAdd(&dgo.Guild{ID: "guild-1"}); err != nil {
 		t.Fatalf("seed guild state: %v", err)
 	}
-	member := reactionMemberFromState(&dgo.Session{State: state}, &dgo.MessageReaction{GuildID: "guild-1", UserID: "unknown"})
+	reaction := &dgo.MessageReaction{GuildID: "guild-1", UserID: "unknown"}
+	member := reactionMemberFromState(&dgo.Session{State: state}, reaction)
 	if member != nil {
 		t.Fatalf("member = %#v", member)
+	}
+	event := eventFromReaction(events.TypeReactionRemove, reaction, member)
+	if event.Member != nil || event.IsBot {
+		t.Fatalf("first-seen remove event should retain unknown identity: %#v", event)
 	}
 }
 

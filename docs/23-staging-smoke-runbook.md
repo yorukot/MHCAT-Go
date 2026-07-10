@@ -652,7 +652,7 @@ export MHCAT_DISCORD_ENABLE_GATEWAY=true
 export MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true
 ```
 
-Set all four together only in an isolated staging guild/database when testing `/選取身分組-表情符號`, `/選取身分組刪除-表情符號`, and `/選取身分組-按鈕`. This path writes `message_reactions` and `btns`, adds reactions to staging messages, and changes roles on reaction/button use. Use roles below the bot's highest role.
+Set all four together only in an isolated staging guild/database when testing `/選取身分組-表情符號`, `/選取身分組刪除-表情符號`, and `/選取身分組-按鈕`. The single role-selection runtime flag owns setup commands, modal/buttons, and reaction events together; do not split ownership or run the corresponding Node paths concurrently. This path writes `message_reactions` and `btns`, adds reactions to staging messages, and changes roles on reaction/button use. Use roles below the bot's highest role.
 
 Optional leave-message delivery smoke flags:
 
@@ -1558,6 +1558,8 @@ If role-selection flags were enabled and command sync apply was reviewed:
 - verify the bot adds the configured reaction to the target message;
 - verify `message_reactions` stores `guild`, `message`, `react`, and `role`;
 - react and unreact as a test member, then verify the configured role is added and removed;
+- react and unreact as a bot in the same Go process, then verify neither event changes the configured role;
+- record that a reaction-remove event first observed after a Go process restart has no member payload and bot detection is best-effort when the member is absent from Discord state;
 - run `/選取身分組刪除-表情符號` and verify the matching `message_reactions` row is deleted;
 - run `/選取身分組-按鈕`, submit the legacy `領取身分系統!` modal, verify the public `選取身分組` panel appears, click add/delete, and verify `btns` stores the add/delete IDs with the configured role;
 - verify unassignable roles and missing reaction config return legacy red errors.

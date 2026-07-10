@@ -786,7 +786,7 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		}
 		opts.AccountAgeConfigRepository = accountAgeRepo
 	}
-	if cfg.FeatureRoleSelectionEnabled {
+	if roleSelectionOwnershipEnabled(cfg) {
 		roleRepo, err := roleSelectionRepositoryFromMongo(mongoClient)
 		if err != nil {
 			return nil, err

@@ -800,7 +800,9 @@ MHCAT_DISCORD_ENABLE_GATEWAY=true
 MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true
 ```
 
-This slice writes legacy-compatible `message_reactions` rows for reaction-role mappings and `btns` rows for role-button add/delete mappings. It preserves the legacy `nal` modal and legacy `<id>add`/`<id>delete` button IDs, checks the bot can assign the configured role, adds the configured reaction to the target message, and handles reaction add/remove events by adding or removing the configured role. Test only with staging roles below the bot's highest role and staging messages; it does not create indexes or usage-counter writes.
+This slice writes legacy-compatible `message_reactions` rows for reaction-role mappings and `btns` rows for role-button add/delete mappings. It preserves the legacy `nal` modal and legacy `<id>add`/`<id>delete` button IDs, checks the bot can assign the configured role, adds the configured reaction to the target message, and handles reaction add/remove events by adding or removing the configured role. `MHCAT_FEATURE_ROLE_SELECTION_ENABLED` is deliberately one ownership boundary for setup commands, modal/buttons, and reaction events. Do not split these paths into separate Go gates or leave the corresponding Node interaction/reaction handlers active while Go owns the feature.
+
+Reaction-add gateway payloads include the member and are retained in Discord state so a later remove from the same process can still identify and ignore bots. Discord reaction-remove payloads do not include the member. A remove first observed after a process restart is therefore best-effort: when the member is absent from state, bot identity is unknown and the event is handled as a non-bot. Test only with staging roles below the bot's highest role and staging messages; this slice does not create indexes or route-level usage-counter writes.
 
 Welcome-message member-add delivery is a separate event path. Enable it only when existing dashboard/legacy `join_messages` rows are safe for the staging guild:
 

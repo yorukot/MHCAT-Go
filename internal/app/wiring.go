@@ -755,6 +755,11 @@ func coinResetRuntimeEnabled(opts RuntimeOptions, guilds ports.DiscordInfoProvid
 	return opts.EconomyCoinResetRepository != nil && opts.EconomyCoinResetMessagePort != nil && guilds != nil
 }
 
+// Role setup interactions and reaction events share one runtime ownership boundary.
+func roleSelectionOwnershipEnabled(cfg config.Config) bool {
+	return cfg.FeatureRoleSelectionEnabled
+}
+
 func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session DiscordSession, mongoClient MongoClient) (_ *discordevents.Dispatcher, returnErr error) {
 	dispatcher := discordevents.NewDispatcher(logger)
 	defer func() {
@@ -942,7 +947,7 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 			WithCoinRewards(economyRepo).
 			RegisterEventRoutes(dispatcher)
 	}
-	if cfg.FeatureRoleSelectionEnabled {
+	if roleSelectionOwnershipEnabled(cfg) {
 		repo, err := roleSelectionRepositoryFromMongo(mongoClient)
 		if err != nil {
 			return nil, err
