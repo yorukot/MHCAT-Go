@@ -217,6 +217,7 @@ func TestHourSelectUpdatesToMinuteSelect(t *testing.T) {
 	hourCustomID := start.Edits[0].Components[0].Components[0].CustomID
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.ComponentInteractionFromID(hourCustomID)
+	interaction.Actor.AvatarURL = "https://example.test/new-avatar.png"
 	interaction.Values = []string{"8"}
 
 	if err := module.HourSelectHandler()(context.Background(), interaction, responder); err != nil {
@@ -226,7 +227,7 @@ func TestHourSelectUpdatesToMinuteSelect(t *testing.T) {
 		t.Fatalf("updates = %#v", responder.Updates)
 	}
 	update := responder.Updates[0]
-	if !strings.Contains(update.Embeds[0].Description, "<:60minutes:1022059603153924156>") {
+	if !strings.Contains(update.Embeds[0].Description, "<:60minutes:1022059603153924156>") || update.Embeds[0].Footer == nil || update.Embeds[0].Footer.IconURL != "https://example.test/avatar.png" {
 		t.Fatalf("embed = %#v", update.Embeds[0])
 	}
 	selectMenu := update.Components[0].Components[0]

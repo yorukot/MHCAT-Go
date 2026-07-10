@@ -82,6 +82,7 @@ func (m Module) handleAdd(ctx context.Context, interaction interactions.Interact
 	expiresAt := now.Add(birthdayAddTimeout)
 	stateID := m.pendingAdds.create(now, pendingBirthdayAdd{
 		OwnerUserID: interaction.Actor.UserID,
+		AvatarURL:   interaction.Actor.AvatarURL,
 		Profile:     profile,
 		ExpiresAt:   expiresAt,
 	})
@@ -123,7 +124,7 @@ func (m Module) HourSelectHandler() interactions.Handler {
 		if err != nil {
 			return responder.Reply(ctx, birthdayAddEphemeralError("很抱歉，出現了未知的錯誤，請重試!"))
 		}
-		return responder.UpdateMessage(ctx, m.minuteSelectMessage(customID, entry.ExpiresAt, interaction.Actor.AvatarURL))
+		return responder.UpdateMessage(ctx, m.minuteSelectMessage(customID, entry.ExpiresAt, entry.AvatarURL))
 	}
 }
 

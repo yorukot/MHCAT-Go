@@ -72,6 +72,7 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 
 type pendingBirthdayAdd struct {
 	OwnerUserID string
+	AvatarURL   string
 	Profile     domain.BirthdayProfile
 	Hour        int
 	HasHour     bool
