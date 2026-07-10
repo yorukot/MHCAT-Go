@@ -107,28 +107,20 @@ func loggingPromptMessage(channelID string, ownerID string, expiresAt time.Time,
 				Placeholder: "請選擇您需要的日誌",
 				MinValues:   1,
 				MaxValues:   4,
-				Options:     loggingSelectOptions(selected),
+				Options:     loggingSelectOptions(),
 			}},
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
 }
 
-func loggingSelectOptions(selected []string) []responses.SelectOption {
-	selectedSet := map[string]struct{}{}
-	for _, value := range selected {
-		selectedSet[value] = struct{}{}
-	}
-	options := []responses.SelectOption{
+func loggingSelectOptions() []responses.SelectOption {
+	return []responses.SelectOption{
 		{Label: "訊息更新", Description: "當訊息編輯時發送日誌", Value: "訊息更新"},
 		{Label: "訊息刪除", Description: "當訊息刪除時發送日誌", Value: "訊息刪除"},
 		{Label: "頻道更新", Description: "當頻道更新時發送日誌", Value: "頻道更新"},
 		{Label: "用戶語音狀態更新", Description: "當用戶離開或加入或是靜音之類的時發送這個通知", Value: "用戶語音更新"},
 	}
-	for index := range options {
-		_, options[index].Default = selectedSet[options[index].Value]
-	}
-	return options
 }
 
 func loggingConfigCustomID(channelID string, ownerID string, expiresAt time.Time) string {

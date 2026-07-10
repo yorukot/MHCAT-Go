@@ -93,6 +93,11 @@ func TestLoggingConfigSelectSavesConfigAndUpdatesMessage(t *testing.T) {
 	if footer := responder.Edits[0].Embeds[0].Footer; footer == nil || footer.IconURL != interaction.BotAvatarURL {
 		t.Fatalf("footer = %#v", footer)
 	}
+	for _, option := range responder.Edits[0].Components[0].Components[0].Options {
+		if option.Default {
+			t.Fatalf("legacy update should not persist selected defaults: %#v", option)
+		}
+	}
 	if len(usage.Events) != 1 || usage.Events[0].Feature != "logging" || usage.Events[0].CommandName != LoggingConfigCommandName {
 		t.Fatalf("usage = %#v", usage.Events)
 	}
