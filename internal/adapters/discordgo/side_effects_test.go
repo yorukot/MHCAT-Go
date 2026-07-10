@@ -14,11 +14,31 @@ func TestSideEffectClientRequiresSession(t *testing.T) {
 	if _, err := client.SendMessage(context.Background(), "channel-1", ports.OutboundMessage{Content: "hello"}); err == nil {
 		t.Fatal("expected send error")
 	}
+	if err := client.SendTyping(context.Background(), "channel-1"); err == nil {
+		t.Fatal("expected typing error")
+	}
 	if err := client.DeleteChannel(context.Background(), "channel-1"); err == nil {
 		t.Fatal("expected delete channel error")
 	}
 	if err := client.AddRole(context.Background(), "guild-1", "user-1", "role-1"); err == nil {
 		t.Fatal("expected add role error")
+	}
+}
+
+func TestOutboundMessageSendIncludesReplyReference(t *testing.T) {
+	send := outboundMessageSend(" channel-1 ", ports.OutboundMessage{
+		Content:          "hello",
+		ReplyToMessageID: " message-1 ",
+		AllowedMentions:  ports.AllowedMentions{},
+	})
+	if send.Reference == nil || send.Reference.ChannelID != "channel-1" || send.Reference.MessageID != "message-1" {
+		t.Fatalf("reference = %#v", send.Reference)
+	}
+	if send.Reference.FailIfNotExists == nil || !*send.Reference.FailIfNotExists {
+		t.Fatalf("fail if not exists = %#v", send.Reference.FailIfNotExists)
+	}
+	if send.AllowedMentions == nil || len(send.AllowedMentions.Parse) != 0 || send.AllowedMentions.RepliedUser {
+		t.Fatalf("allowed mentions = %#v", send.AllowedMentions)
 	}
 }
 

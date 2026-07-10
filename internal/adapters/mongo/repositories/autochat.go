@@ -35,6 +35,24 @@ func NewAutoChatConfigRepositoryFromDatabase(database *drivermongo.Database) (*A
 	return NewAutoChatConfigRepository(database.Collection(AutoChatConfigCollectionName))
 }
 
+func (r *AutoChatConfigRepository) GetAutoChatConfig(ctx context.Context, guildID string) (domain.AutoChatConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.AutoChatConfig{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return domain.AutoChatConfig{}, domain.ErrInvalidAutoChatConfig
+	}
+	var document documents.AutoChatConfigDocument
+	if err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document); err != nil {
+		if err == drivermongo.ErrNoDocuments {
+			return domain.AutoChatConfig{}, ports.ErrAutoChatConfigMissing
+		}
+		return domain.AutoChatConfig{}, mhcatmongo.MapError(fmt.Errorf("get autochat config: %w", err))
+	}
+	return document.ToDomain(), ctx.Err()
+}
+
 func (r *AutoChatConfigRepository) SaveAutoChatConfig(ctx context.Context, config domain.AutoChatConfig) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -92,3 +110,4 @@ func mhcatAutoChatConfigUpdate(document documents.AutoChatConfigDocument, upsert
 }
 
 var _ ports.AutoChatConfigRepository = (*AutoChatConfigRepository)(nil)
+var _ ports.AutoChatConfigReader = (*AutoChatConfigRepository)(nil)

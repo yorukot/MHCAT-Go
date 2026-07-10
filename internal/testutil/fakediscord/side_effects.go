@@ -17,6 +17,7 @@ type SideEffects struct {
 	Renamed           []ChannelRename
 	Deleted           []string
 	Sent              []SentMessage
+	TypingChannels    []string
 	DirectMessages    []DirectMessage
 	Edited            []EditedMessage
 	DeletedMessage    []ports.MessageRef
@@ -457,6 +458,16 @@ func (s *SideEffects) SendMessage(ctx context.Context, channelID string, msg por
 	return ref, nil
 }
 
+func (s *SideEffects) SendTyping(ctx context.Context, channelID string) error {
+	if err := s.ready(ctx); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.TypingChannels = append(s.TypingChannels, channelID)
+	return nil
+}
+
 func (s *SideEffects) SendDirectMessage(ctx context.Context, userID string, msg ports.OutboundMessage) (ports.MessageRef, error) {
 	if err := s.ready(ctx); err != nil {
 		return ports.MessageRef{}, err
@@ -545,6 +556,7 @@ func (s *SideEffects) ready(ctx context.Context) error {
 
 var _ ports.DiscordChannelPort = (*SideEffects)(nil)
 var _ ports.DiscordMessagePort = (*SideEffects)(nil)
+var _ ports.DiscordTypingPort = (*SideEffects)(nil)
 var _ ports.DiscordReactionPort = (*SideEffects)(nil)
 var _ ports.DiscordMessageCleaner = (*SideEffects)(nil)
 var _ ports.DiscordDirectMessagePort = (*SideEffects)(nil)

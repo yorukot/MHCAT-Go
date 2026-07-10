@@ -9,10 +9,11 @@ import (
 var ErrChannelNotFound = errors.New("channel not found")
 
 type OutboundMessage struct {
-	Content         string
-	Embeds          []OutboundEmbed
-	Components      []OutboundComponentRow
-	AllowedMentions AllowedMentions
+	Content          string
+	Embeds           []OutboundEmbed
+	Components       []OutboundComponentRow
+	AllowedMentions  AllowedMentions
+	ReplyToMessageID string
 }
 
 type OutboundEmbed struct {
@@ -129,6 +130,10 @@ type DiscordMessagePort interface {
 	SendMessage(ctx context.Context, channelID string, msg OutboundMessage) (MessageRef, error)
 	EditMessage(ctx context.Context, ref MessageRef, msg OutboundMessage) error
 	DeleteMessage(ctx context.Context, ref MessageRef) error
+}
+
+type DiscordTypingPort interface {
+	SendTyping(ctx context.Context, channelID string) error
 }
 
 type DiscordReactionPort interface {

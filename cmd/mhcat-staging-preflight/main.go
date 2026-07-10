@@ -130,6 +130,7 @@ func buildReport(lookup lookupFunc) []checkResult {
 		redeemRuntimePairing(lookup),
 		autoChatConfigCommandSync(lookup),
 		autoChatConfigRuntimePairing(lookup),
+		autoChatFallbackRuntimeReadiness(lookup),
 		autoNotificationConfigCommandSync(lookup),
 		autoNotificationConfigRuntimePairing(lookup),
 		antiScamConfigCommandSync(lookup),
@@ -255,6 +256,10 @@ func messageContentIntent(lookup lookupFunc) checkResult {
 	if err != nil {
 		return checkResult{Name: "message-content-intent", Status: statusFail, Message: err.Error()}
 	}
+	autoChatFallbackEnabled, err := boolValue(lookup, "MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED")
+	if err != nil {
+		return checkResult{Name: "message-content-intent", Status: statusFail, Message: err.Error()}
+	}
 	xpResetEnabled, err := boolValue(lookup, "MHCAT_FEATURE_XP_RESET_ENABLED")
 	if err != nil {
 		return checkResult{Name: "message-content-intent", Status: statusFail, Message: err.Error()}
@@ -269,13 +274,16 @@ func messageContentIntent(lookup lookupFunc) checkResult {
 	if relayEnabled {
 		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for announcement relay only"}
 	}
+	if autoChatFallbackEnabled {
+		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for the autochat local fallback only"}
+	}
 	if xpResetEnabled {
 		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for XP reset confirmation only"}
 	}
 	if coinResetEnabled {
 		return checkResult{Name: "message-content-intent", Status: statusPass, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT is enabled for economy coin reset confirmation only"}
 	}
-	return checkResult{Name: "message-content-intent", Status: statusFail, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT must be false unless MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true, MHCAT_FEATURE_XP_RESET_ENABLED=true, or MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true"}
+	return checkResult{Name: "message-content-intent", Status: statusFail, Message: "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT must be false unless MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true, MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true, MHCAT_FEATURE_XP_RESET_ENABLED=true, or MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true"}
 }
 
 func ticketCommandSync(lookup lookupFunc) checkResult {
@@ -1048,6 +1056,42 @@ func autoChatConfigRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "autochat-config-runtime-pairing", Status: statusWarn, Message: "autochat config runtime is enabled but command sync include is disabled"}
 	}
 	return checkResult{Name: "autochat-config-runtime-pairing", Status: statusSkipped, Message: "autochat config runtime and command sync include are disabled"}
+}
+
+func autoChatFallbackRuntimeReadiness(lookup lookupFunc) checkResult {
+	enabled, err := boolValue(lookup, "MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED")
+	if err != nil {
+		return checkResult{Name: "autochat-fallback-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !enabled {
+		return checkResult{Name: "autochat-fallback-runtime-readiness", Status: statusSkipped, Message: "autochat local fallback runtime is disabled"}
+	}
+	gatewayEnabled, err := boolValue(lookup, "MHCAT_DISCORD_ENABLE_GATEWAY")
+	if err != nil {
+		return checkResult{Name: "autochat-fallback-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	guildMessages, err := boolValue(lookup, "MHCAT_DISCORD_GUILD_MESSAGES_INTENT")
+	if err != nil {
+		return checkResult{Name: "autochat-fallback-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	messageContent, err := boolValue(lookup, "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT")
+	if err != nil {
+		return checkResult{Name: "autochat-fallback-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	var missing []string
+	if !gatewayEnabled {
+		missing = append(missing, "MHCAT_DISCORD_ENABLE_GATEWAY=true")
+	}
+	if !guildMessages {
+		missing = append(missing, "MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true")
+	}
+	if !messageContent {
+		missing = append(missing, "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true")
+	}
+	if len(missing) > 0 {
+		return checkResult{Name: "autochat-fallback-runtime-readiness", Status: statusFail, Message: "autochat local fallback requires " + strings.Join(missing, ", ")}
+	}
+	return checkResult{Name: "autochat-fallback-runtime-readiness", Status: statusPass, Message: "autochat local fallback gateway and privileged intent gates are explicit"}
 }
 
 func autoNotificationConfigCommandSync(lookup lookupFunc) checkResult {

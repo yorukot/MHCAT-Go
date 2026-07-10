@@ -208,7 +208,18 @@ export MHCAT_FEATURE_REDEEM_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true
 ```
 
-Set both together only in an isolated staging database when testing `/兌換`. Seed a safe staging `codes` row with `code`, numeric `price`, and numeric millisecond `time`; the command deletes that row and credits `chatgpt_gets.price`. It does not enable ChatGPT/autochat message runtime or require Message Content intent.
+Set both together only in an isolated staging database when testing `/兌換`. Seed a safe staging `codes` row with `code`, numeric `price`, and numeric millisecond `time`; the command deletes that row and credits `chatgpt_gets.price`. It does not itself enable either auto-chat runtime or require Message Content intent.
+
+Optional auto-chat local fallback smoke flags:
+
+```bash
+export MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
+export MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
+```
+
+This event-only path registers no commands and writes no Mongo data. Configure a disposable staging `chats` channel first, seed no `chatgpt_gets` row or a negative/malformed `price`, and verify a human `你好` message receives the legacy local reply. Also verify `price: 0` and positive prices remain silent. Do not run the Node and Go Chatbot handlers against the same guild during this smoke test.
 
 Optional auto-notification config smoke flags:
 
@@ -590,7 +601,7 @@ Do not paste real values into committed docs.
 - Confirm token belongs to a staging Discord application.
 - Confirm staging guild is not production.
 - Confirm `MHCAT_COMMAND_SYNC_SCOPE` is unset or set to `guild`.
-- Confirm `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT` is unset or `false`, unless testing bound announcement relay with `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, economy coin reset confirmation with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, or XP reset confirmation with `MHCAT_FEATURE_XP_RESET_ENABLED=true`.
+- Confirm `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT` is unset or `false`, unless testing bound announcement relay with `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, the local auto-chat fallback with `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true`, economy coin reset confirmation with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, or XP reset confirmation with `MHCAT_FEATURE_XP_RESET_ENABLED=true`.
 - Confirm `MHCAT_COMMAND_SYNC_ALLOW_DELETE=false`.
 - Confirm `MHCAT_COMMAND_SYNC_ALLOW_BULK_OVERWRITE=false`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TICKETS=true`, confirm `MHCAT_FEATURE_TICKETS_ENABLED=true`.
@@ -614,6 +625,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`, confirm `MHCAT_FEATURE_TRANSLATE_ENABLED=true` and external translate calls are allowed for the staging bot.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true` and the staging database has only disposable `codes` fixtures for `/兌換`.
+- If `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true`, confirm gateway, Guild Messages, and Message Content are enabled; `chats.channel` targets a disposable staging channel; `chatgpt_gets` fixtures are safe; and the Node Chatbot handler is not concurrently active for that guild.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database/channel targets are disposable for auto-notification setup/list/delete.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`, confirm `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true` and the selected log channel is staging-only.
 - If `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, and `loggings.channel_id` points to a staging-only log channel.

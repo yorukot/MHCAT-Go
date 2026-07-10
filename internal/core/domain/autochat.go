@@ -12,6 +12,11 @@ type AutoChatConfig struct {
 	ChannelID string
 }
 
+type AutoChatFallbackReply struct {
+	Content        string
+	UseTypingDelay bool
+}
+
 func (c AutoChatConfig) Validate() error {
 	if strings.TrimSpace(c.GuildID) == "" || strings.TrimSpace(c.ChannelID) == "" {
 		return ErrInvalidAutoChatConfig

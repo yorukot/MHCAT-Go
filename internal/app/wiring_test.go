@@ -45,6 +45,14 @@ func TestDefaultEventRuntimeFactoryHasNoHandlersWhenRelayDisabled(t *testing.T) 
 	}
 }
 
+func TestAutoChatFallbackEventRuntimeRequiresDefaultAdapters(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.FeatureAutoChatFallbackEnabled = true
+	if _, err := defaultEventRuntimeFactory(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil); err == nil {
+		t.Fatal("expected autochat fallback to reject non-default adapters")
+	}
+}
+
 func TestBuildRuntimeRoutesHelpDetail(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

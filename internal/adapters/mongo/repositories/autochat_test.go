@@ -1,6 +1,8 @@
 package repositories
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo/documents"
@@ -22,6 +24,13 @@ func TestNewAutoChatConfigRepositoryRequiresCollection(t *testing.T) {
 func TestNewAutoChatConfigRepositoryFromDatabaseRequiresDatabase(t *testing.T) {
 	if _, err := NewAutoChatConfigRepositoryFromDatabase(nil); err == nil {
 		t.Fatal("expected nil database error")
+	}
+}
+
+func TestAutoChatConfigGetRejectsBlankGuild(t *testing.T) {
+	repo := &AutoChatConfigRepository{}
+	if _, err := repo.GetAutoChatConfig(context.Background(), " "); !errors.Is(err, domain.ErrInvalidAutoChatConfig) {
+		t.Fatalf("expected ErrInvalidAutoChatConfig, got %v", err)
 	}
 }
 

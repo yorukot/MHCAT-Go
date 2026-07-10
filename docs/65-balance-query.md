@@ -14,7 +14,7 @@ Status: gated read-only legacy `/查看餘額`.
 
 ## Scope
 
-This slice only implements the visible `/查看餘額` query. It does not enable ChatGPT/autochat message runtime, does not use Message Content intent, does not write `chatgpts` or `chatgpt_gets`, and does not create indexes.
+This slice only implements the visible `/查看餘額` query. It does not itself enable either auto-chat runtime, does not use Message Content intent, does not write `chatgpts` or `chatgpt_gets`, and does not create indexes. The separately gated local fallback may read the same balance row.
 
 ## Staging
 

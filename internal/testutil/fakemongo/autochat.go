@@ -18,6 +18,18 @@ func NewAutoChatConfigRepository() *AutoChatConfigRepository {
 	return &AutoChatConfigRepository{Configs: map[string]domain.AutoChatConfig{}}
 }
 
+func (r *AutoChatConfigRepository) GetAutoChatConfig(ctx context.Context, guildID string) (domain.AutoChatConfig, error) {
+	if err := r.ready(ctx); err != nil {
+		return domain.AutoChatConfig{}, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	config, ok := r.Configs[guildID]
+	if !ok {
+		return domain.AutoChatConfig{}, ports.ErrAutoChatConfigMissing
+	}
+	return config, nil
+}
+
 func (r *AutoChatConfigRepository) SaveAutoChatConfig(ctx context.Context, config domain.AutoChatConfig) error {
 	if err := r.ready(ctx); err != nil {
 		return err
@@ -64,3 +76,4 @@ func (r *AutoChatConfigRepository) ready(ctx context.Context) error {
 }
 
 var _ ports.AutoChatConfigRepository = (*AutoChatConfigRepository)(nil)
+var _ ports.AutoChatConfigReader = (*AutoChatConfigRepository)(nil)

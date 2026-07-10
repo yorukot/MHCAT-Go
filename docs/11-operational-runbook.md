@@ -41,6 +41,8 @@ Primary Go env vars:
 - `MHCAT_FEATURE_DELETE_DATA_ENABLED`
 - `MHCAT_FEATURE_TRANSLATE_ENABLED`
 - `MHCAT_FEATURE_REDEEM_ENABLED`
+- `MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED`
+- `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED`
 - `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED`
 - `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED`
 - `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED`
@@ -427,7 +429,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true
 MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true
 ```
 
-This command reads `chatgpt_gets.price` only. It does not enable ChatGPT/autochat message runtime, does not require Message Content intent, and writes no Mongo feature data.
+This command reads `chatgpt_gets.price` only. It does not itself enable either auto-chat runtime, does not require Message Content intent, and writes no Mongo feature data.
 
 `/兌換` is available only when both staging command sync and runtime flags are explicitly enabled:
 
@@ -436,7 +438,18 @@ MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true
 MHCAT_FEATURE_REDEEM_ENABLED=true
 ```
 
-This command reads and deletes `codes` by `code`, then credits `chatgpt_gets.price` for the guild. It preserves the legacy 7-day expiry check and ephemeral success/error embeds. It does not enable ChatGPT/autochat message runtime, does not require Message Content intent, and creates no indexes.
+This command reads and deletes `codes` by `code`, then credits `chatgpt_gets.price` for the guild. It preserves the legacy 7-day expiry check and ephemeral success/error embeds. It does not itself enable either auto-chat runtime, does not require Message Content intent, and creates no indexes.
+
+The event-only local auto-chat fallback is available only with all message runtime prerequisites enabled:
+
+```bash
+MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
+MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
+```
+
+This gate registers no slash commands and performs no Mongo writes. It reads `chats.channel` and `chatgpt_gets.price`, replies from the bundled legacy corpus for a missing, negative, or malformed balance, and preserves the legacy silent state for zero/nonnegative balances. The paid `chatgpts` worker handoff is not implemented. Keep Node and Go MessageCreate ownership exclusive and see `docs/62-autochat-config.md` before staging.
 
 Auto-notification setup/list/delete commands are available only when both staging command sync and runtime flags are explicitly enabled:
 

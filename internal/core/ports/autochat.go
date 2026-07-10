@@ -13,3 +13,7 @@ type AutoChatConfigRepository interface {
 	SaveAutoChatConfig(ctx context.Context, config domain.AutoChatConfig) error
 	DeleteAutoChatConfig(ctx context.Context, guildID string) error
 }
+
+type AutoChatConfigReader interface {
+	GetAutoChatConfig(ctx context.Context, guildID string) (domain.AutoChatConfig, error)
+}

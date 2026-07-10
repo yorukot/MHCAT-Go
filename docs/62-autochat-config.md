@@ -1,88 +1,91 @@
-# Auto-Chat Config Slice
+# Auto-Chat Config and Local Fallback
 
-Status: implemented behind explicit runtime and command-sync gates.
+Status: config commands and the local fallback runtime are implemented behind separate explicit gates. The paid ChatGPT handoff remains disabled.
 
 ## Legacy References
 
 - Set command: `MHCAT/slashCommands/實用工具/chat.js`
 - Delete command: `MHCAT/slashCommands/實用工具/chat_delete.js`
-- Config model: `MHCAT/models/chat.js`
-- Runtime message handler: `MHCAT/events/Chatbot.js`
+- Runtime message handler and local matcher: `MHCAT/events/Chatbot.js`
+- Local response corpus: `MHCAT/chat.json`
 - External handoff models: `MHCAT/models/chatgpt.js`, `MHCAT/models/chatgpt_get.js`
 
 ## Implemented Surface
 
-This slice implements only the config commands:
+Config commands:
 
 - `/自動聊天頻道`
 - `/自動聊天頻道刪除`
 
-The `messageCreate` chatbot runtime is not implemented in this slice.
+The separately gated MessageCreate runtime restores the legacy local fallback path. It:
 
-## UI/UX Parity
+- ignores DMs and bot-authored messages
+- reads the configured `chats.channel`
+- reads `chatgpt_gets.price` without writing it
+- uses the bundled legacy response corpus when the balance row is missing, negative, or not numeric
+- preserves the legacy no-response state when the balance is zero
+- leaves positive-balance messages for the still-disabled paid handoff path
+- preserves the legacy `說出` echo behavior and fuzzy response matching
+- sends a typing indicator and waits a legacy-randomized 1 to 5 seconds for corpus matches
+- replies to the source message with all mentions suppressed
 
-The implemented command paths preserve:
+The legacy report-error button was constructed but never attached to a sent response, so there is no active report component to restore.
 
-- command names and descriptions
-- required `頻道` channel option for `/自動聊天頻道`
-- text/news channel type restriction (`0`, `5`)
-- runtime Manage Messages permission check
-- public defer/edit response flow
-- red permission and missing-config error embeds
-- green `自動聊天系統` success embeds
-- delete missing-config text `你沒有設定過，我不知道要刪除甚麼!`
+## Config UI Parity
+
+The command paths preserve the legacy names/options, text/news channel restriction, Manage Messages check, public defer/edit flow, green `自動聊天系統` success embeds, and the missing-config text `你沒有設定過，我不知道要刪除甚麼!`.
 
 ## Mongo Compatibility
 
-Collection: `chats`
+Collections read by the local runtime:
 
-Fields:
+- `chats`: `guild`, `channel`
+- `chatgpt_gets`: `guild`, `price`
 
-- `guild`
-- `channel`
+The runtime performs no Mongo writes. The config commands continue to update all duplicate `{guild}` `chats` rows before falling back to an upsert, delete all duplicate rows for a guild, and create no indexes during startup.
 
-The Go repository writes the same fields as legacy. It updates all duplicate `{guild}` rows before falling back to an upsert, deletes all duplicate rows for a guild on delete, and does not create indexes during bot startup.
-
-The candidate `{guild:1}` singleton index remains duplicate-audit gated.
+The candidate `{guild:1}` singleton indexes remain duplicate-audit gated.
 
 ## Gates
 
-Runtime:
+Config command runtime and staging command sync:
 
 ```bash
 MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=true
-```
-
-Command sync:
-
-```bash
 MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG=true
 ```
 
-Both flags must be paired in staging. `mhcat-staging-preflight` and the staging command-sync scripts reject auto-chat command sync when the runtime flag is not enabled.
+Local fallback runtime:
+
+```bash
+MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
+MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
+```
+
+The fallback gate registers no commands and can be staged independently after a `chats` row exists. Configuration validation rejects the fallback gate unless all three gateway/message prerequisites are enabled.
 
 ## Not Implemented
 
-This slice does not implement:
+The following paid path remains unavailable:
 
-- `events/Chatbot.js`
-- Message Content intent enablement
-- Guild Messages gateway runtime
-- local keyword auto-replies
-- ChatGPT handoff writes/reads in `chatgpts`
-- `chatgpt_gets.price` accounting
-- the inferred external ChatGPT worker contract
-- chatbot report-error button behavior
+- request writes and response polling through `chatgpts`
+- per-message debit writes to `chatgpt_gets.price`
+- the 10-second in-flight guard and 40-second conversation reset
+- the inferred external ChatGPT worker and its ownership/completion protocol
 
-The config commands can be staged independently, but production chatbot runtime still requires a separate review for privacy, worker ownership, rate limits, mention safety, and duplicate `chats` data.
+Guilds with positive balance therefore receive no Go auto-chat reply. Do not enable the local fallback expecting paid ChatGPT behavior.
 
 ## Staging Checklist
 
-1. Use an isolated staging guild and staging database.
-2. Run command sync dry-run with `MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG=true`.
-3. Enable `MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=true` before applying command definitions.
-4. Run `mhcat-staging-preflight`.
-5. Apply guild-scoped command sync only after paired gate checks pass.
-6. Verify `/自動聊天頻道` writes `chats.guild` and `chats.channel`.
-7. Verify `/自動聊天頻道刪除` deletes the staging guild config and preserves the legacy missing-config error.
-8. Confirm no chatbot replies are emitted by Go; message runtime remains intentionally disabled.
+1. Use an isolated staging guild and database.
+2. Configure a staging channel with `/自動聊天頻道` or seed one `chats` row.
+3. Seed no `chatgpt_gets` row or a negative/malformed `price` to test local replies.
+4. Enable the fallback gate and all required gateway/message intents.
+5. Verify bot and DM messages are ignored.
+6. Verify messages outside the configured channel are ignored.
+7. Verify `你好` produces the legacy corpus response as a Discord reply after typing.
+8. Verify `說出我是誰` responds immediately and does not ping mentions.
+9. Verify `price: 0` and positive prices produce no local reply.
+10. Keep Node and Go MessageCreate ownership exclusive during smoke testing.

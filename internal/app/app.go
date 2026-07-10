@@ -959,6 +959,26 @@ func autoChatConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositor
 	return repo, nil
 }
 
+func autoChatFallbackRepositoriesFromMongo(mongoClient MongoClient) (*mongorepositories.AutoChatConfigRepository, *mongorepositories.BalanceRepository, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, nil, fmt.Errorf("autochat fallback feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, nil, fmt.Errorf("autochat fallback feature database: %w", err)
+	}
+	configRepo, err := mongorepositories.NewAutoChatConfigRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, nil, fmt.Errorf("autochat fallback config repository: %w", err)
+	}
+	balanceRepo, err := mongorepositories.NewBalanceRepositoryFromDatabase(database)
+	if err != nil {
+		return nil, nil, fmt.Errorf("autochat fallback balance repository: %w", err)
+	}
+	return configRepo, balanceRepo, nil
+}
+
 func autoNotificationScheduleRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.AutoNotificationScheduleRepository, error) {
 	concrete, ok := mongoClient.(*mongoadapter.Client)
 	if !ok {

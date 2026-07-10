@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	dgo "github.com/bwmarrin/discordgo"
@@ -21,12 +22,7 @@ func (c SideEffectClient) SendMessage(ctx context.Context, channelID string, msg
 	if err != nil {
 		return ports.MessageRef{}, err
 	}
-	sent, err := session.ChannelMessageSendComplex(channelID, &dgo.MessageSend{
-		Content:         msg.Content,
-		Embeds:          outboundEmbeds(msg.Embeds),
-		Components:      outboundComponents(msg.Components),
-		AllowedMentions: coreAllowedMentions(msg.AllowedMentions),
-	}, dgo.WithContext(ctx))
+	sent, err := session.ChannelMessageSendComplex(channelID, outboundMessageSend(channelID, msg), dgo.WithContext(ctx))
 	if err != nil {
 		return ports.MessageRef{}, fmt.Errorf("send discord message: %w", err)
 	}
@@ -42,16 +38,22 @@ func (c SideEffectClient) SendDirectMessage(ctx context.Context, userID string, 
 	if err != nil {
 		return ports.MessageRef{}, fmt.Errorf("create discord direct message channel: %w", err)
 	}
-	sent, err := session.ChannelMessageSendComplex(channel.ID, &dgo.MessageSend{
-		Content:         msg.Content,
-		Embeds:          outboundEmbeds(msg.Embeds),
-		Components:      outboundComponents(msg.Components),
-		AllowedMentions: coreAllowedMentions(msg.AllowedMentions),
-	}, dgo.WithContext(ctx))
+	sent, err := session.ChannelMessageSendComplex(channel.ID, outboundMessageSend(channel.ID, msg), dgo.WithContext(ctx))
 	if err != nil {
 		return ports.MessageRef{}, fmt.Errorf("send discord direct message: %w", err)
 	}
 	return ports.MessageRef{ChannelID: sent.ChannelID, MessageID: sent.ID}, ctx.Err()
+}
+
+func (c SideEffectClient) SendTyping(ctx context.Context, channelID string) error {
+	session, err := c.session()
+	if err != nil {
+		return err
+	}
+	if err := session.ChannelTyping(channelID, dgo.WithContext(ctx)); err != nil {
+		return fmt.Errorf("send discord typing indicator: %w", err)
+	}
+	return ctx.Err()
 }
 
 func (c SideEffectClient) EditMessage(ctx context.Context, ref ports.MessageRef, msg ports.OutboundMessage) error {
@@ -902,8 +904,27 @@ func coreAllowedMentions(allowed ports.AllowedMentions) *dgo.MessageAllowedMenti
 	return out
 }
 
+func outboundMessageSend(channelID string, msg ports.OutboundMessage) *dgo.MessageSend {
+	send := &dgo.MessageSend{
+		Content:         msg.Content,
+		Embeds:          outboundEmbeds(msg.Embeds),
+		Components:      outboundComponents(msg.Components),
+		AllowedMentions: coreAllowedMentions(msg.AllowedMentions),
+	}
+	if messageID := strings.TrimSpace(msg.ReplyToMessageID); messageID != "" {
+		failIfNotExists := true
+		send.Reference = &dgo.MessageReference{
+			MessageID:       messageID,
+			ChannelID:       strings.TrimSpace(channelID),
+			FailIfNotExists: &failIfNotExists,
+		}
+	}
+	return send
+}
+
 var _ ports.DiscordChannelPort = SideEffectClient{}
 var _ ports.DiscordMessagePort = SideEffectClient{}
+var _ ports.DiscordTypingPort = SideEffectClient{}
 var _ ports.DiscordReactionPort = SideEffectClient{}
 var _ ports.DiscordMessageCleaner = SideEffectClient{}
 var _ ports.DiscordDirectMessagePort = SideEffectClient{}

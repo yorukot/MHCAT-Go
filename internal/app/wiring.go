@@ -1006,6 +1006,22 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 			logger.Info("stats rename worker started", "interval", corestats.LegacyStatsRenameInterval.String())
 		}
 	}
+	// Keep delayed chat replies behind all other MessageCreate handlers.
+	if cfg.FeatureAutoChatFallbackEnabled {
+		configRepo, balanceRepo, err := autoChatFallbackRepositoriesFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "autochat fallback feature")
+		if err != nil {
+			return nil, err
+		}
+		module, err := featureautochat.NewRuntimeModule(configRepo, balanceRepo, sideEffects, sideEffects)
+		if err != nil {
+			return nil, err
+		}
+		module.RegisterEventRoutes(dispatcher)
+	}
 	return dispatcher, nil
 }
 

@@ -39,6 +39,7 @@ const (
 	DefaultFeatureBalanceQueryEnabled           = false
 	DefaultFeatureRedeemEnabled                 = false
 	DefaultFeatureAutoChatConfigEnabled         = false
+	DefaultFeatureAutoChatFallbackEnabled       = false
 	DefaultFeatureAutoNotificationConfigEnabled = false
 	DefaultFeatureAntiScamConfigEnabled         = false
 	DefaultFeatureAntiScamReportEnabled         = false
@@ -128,6 +129,7 @@ type Config struct {
 	FeatureBalanceQueryEnabled           bool
 	FeatureRedeemEnabled                 bool
 	FeatureAutoChatConfigEnabled         bool
+	FeatureAutoChatFallbackEnabled       bool
 	FeatureAutoNotificationConfigEnabled bool
 	FeatureAntiScamConfigEnabled         bool
 	FeatureAntiScamReportEnabled         bool
