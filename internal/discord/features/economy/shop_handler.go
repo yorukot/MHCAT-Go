@@ -75,7 +75,7 @@ func (m Module) handleShopAdd(ctx context.Context, interaction interactions.Inte
 		return responder.EditOriginal(ctx, shopErrorMessage("`商品所需代幣`不可為負數或0!!!", shopAddDocsPath))
 	}
 	count := int64(1)
-	if value, ok := integerOption(interaction, shopOptionCount); ok {
+	if value, ok := integerOption(interaction, shopOptionCount); ok && value != 0 {
 		count = value
 	}
 	if count <= 0 {
