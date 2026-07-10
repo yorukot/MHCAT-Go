@@ -158,7 +158,7 @@ func (m Module) ReactionEventHandler(remove bool) events.Handler {
 			return nil
 		}
 		if err != nil && m.direct != nil {
-			_, _ = m.direct.SendDirectMessage(ctx, event.UserID, roleSelectionRoleErrorOutbound())
+			_, _ = m.direct.SendDirectMessage(ctx, event.UserID, roleSelectionRoleErrorOutbound(remove))
 			return nil
 		}
 		return err
@@ -196,10 +196,14 @@ func roleSelectionButtonPanelOutbound(baseID string, content string, color int) 
 	}
 }
 
-func roleSelectionRoleErrorOutbound() ports.OutboundMessage {
+func roleSelectionRoleErrorOutbound(remove bool) ports.OutboundMessage {
+	prefix := "<a:error:980086028113182730> | "
+	if remove {
+		prefix = roleSelectionErrorPrefix
+	}
 	return ports.OutboundMessage{
 		Embeds: []ports.OutboundEmbed{{
-			Title: roleSelectionErrorPrefix + "我沒有權限給大家這個身分組或是身分組被刪除了(請把我的身分組調高)!",
+			Title: prefix + "我沒有權限給大家這個身分組或是身分組被刪除了(請把我的身分組調高)!",
 			Color: roleSelectionErrorColor,
 		}},
 		AllowedMentions: ports.AllowedMentions{},

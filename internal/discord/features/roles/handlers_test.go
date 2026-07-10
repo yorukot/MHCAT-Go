@@ -183,6 +183,43 @@ func TestReactionEventsApplyRolesAndIgnoreMissingConfig(t *testing.T) {
 	}
 }
 
+func TestReactionEventFailureDMUsesLegacyDirectionIcon(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		remove     bool
+		eventType  events.Type
+		wantPrefix string
+	}{
+		{name: "add", eventType: events.TypeReactionAdd, wantPrefix: "<a:error:980086028113182730> | "},
+		{name: "remove", remove: true, eventType: events.TypeReactionRemove, wantPrefix: roleSelectionErrorPrefix},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := fakemongo.NewRoleSelectionRepository()
+			repo.Reactions["guild-1/message-1/emoji-1"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "emoji-1", RoleID: "role-1"}
+			discord := fakediscord.NewSideEffects()
+			module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+
+			err := module.ReactionEventHandler(tc.remove)(context.Background(), events.Event{
+				Type:      tc.eventType,
+				GuildID:   "guild-1",
+				MessageID: "message-1",
+				UserID:    "user-1",
+				Reaction:  &events.Reaction{EmojiID: "emoji-1"},
+			})
+			if err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+			if len(discord.DirectMessages) != 1 || len(discord.DirectMessages[0].Message.Embeds) != 1 {
+				t.Fatalf("direct messages = %#v", discord.DirectMessages)
+			}
+			want := tc.wantPrefix + "我沒有權限給大家這個身分組或是身分組被刪除了(請把我的身分組調高)!"
+			if got := discord.DirectMessages[0].Message.Embeds[0].Title; got != want {
+				t.Fatalf("title = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 func TestButtonApplyAlreadyAssignedUsesLegacyError(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	repo.Buttons["guild-1/button-add"] = domain.RoleButtonConfig{GuildID: "guild-1", Number: "button-add", RoleID: "role-1"}
