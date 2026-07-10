@@ -73,11 +73,15 @@ type VoiceState struct {
 }
 
 type Handler func(ctx context.Context, event Event) error
+type ShutdownFunc func(ctx context.Context) error
 
 type Dispatcher struct {
-	mu       sync.RWMutex
-	handlers map[Type][]Handler
-	logger   *slog.Logger
+	mu           sync.RWMutex
+	handlers     map[Type][]Handler
+	shutdowns    []ShutdownFunc
+	shutdownOnce sync.Once
+	shutdownErr  error
+	logger       *slog.Logger
 }
 
 func NewDispatcher(logger *slog.Logger) *Dispatcher {
@@ -97,6 +101,15 @@ func (d *Dispatcher) Register(eventType Type, handler Handler) {
 		d.handlers = map[Type][]Handler{}
 	}
 	d.handlers[eventType] = append(d.handlers[eventType], handler)
+}
+
+func (d *Dispatcher) RegisterShutdown(fn ShutdownFunc) {
+	if d == nil || fn == nil {
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.shutdowns = append(d.shutdowns, fn)
 }
 
 func (d *Dispatcher) HasHandlers(eventType Type) bool {
@@ -136,4 +149,26 @@ func (d *Dispatcher) DispatchSafe(ctx context.Context, event Event) {
 	if err := d.Dispatch(ctx, event); err != nil && !errors.Is(err, ErrNoHandler) {
 		d.logger.WarnContext(ctx, "discord event handler failed", "type", event.Type, "error", err.Error())
 	}
+}
+
+func (d *Dispatcher) Shutdown(ctx context.Context) error {
+	if d == nil {
+		return nil
+	}
+	d.shutdownOnce.Do(func() {
+		d.mu.RLock()
+		shutdowns := append([]ShutdownFunc(nil), d.shutdowns...)
+		d.mu.RUnlock()
+		var errs []error
+		for i := len(shutdowns) - 1; i >= 0; i-- {
+			if shutdowns[i] == nil {
+				continue
+			}
+			if err := shutdowns[i](ctx); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		d.shutdownErr = errors.Join(errs...)
+	})
+	return d.shutdownErr
 }

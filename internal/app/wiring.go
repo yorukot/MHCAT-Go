@@ -885,7 +885,30 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		if err != nil {
 			return nil, err
 		}
-		featurexp.NewVoiceEventModule(repo).RegisterEventRoutes(dispatcher)
+		configRepo, err := voiceXPConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "voice XP sessions feature")
+		if err != nil {
+			return nil, err
+		}
+		rewardRoleRepo, err := voiceXPRewardRoleRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		economyRepo, err := economyRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		module := featurexp.NewVoiceEventModule(repo).
+			WithAccrual(repo, configRepo, sideEffects).
+			WithAnnouncementFallbacks(sideEffects, sideEffects, discordInfoProvider(session)).
+			WithRewardRoles(rewardRoleRepo, sideEffects).
+			WithCoinRewards(economyRepo).
+			WithRuntimeWorker(featurexp.LegacyVoiceXPInterval, logger)
+		module.RegisterEventRoutes(dispatcher)
+		dispatcher.RegisterShutdown(module.StopRuntimeWorker)
 	}
 	return dispatcher, nil
 }

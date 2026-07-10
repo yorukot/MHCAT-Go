@@ -371,6 +371,42 @@ func TestGatewayUsesConfiguredEventRuntimeFactory(t *testing.T) {
 	}
 }
 
+func TestGatewayShutdownRunsEventDispatcherShutdownHooks(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.DiscordEnableGateway = true
+	mongo := &fakeMongo{}
+	discord := &fakeDiscord{}
+	eventDispatcher := discordevents.NewDispatcher(nil)
+	shutdowns := 0
+	eventDispatcher.RegisterShutdown(func(context.Context) error {
+		shutdowns++
+		return nil
+	})
+	application, err := New(
+		cfg,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		WithMongoFactory(func(config.Config) (MongoClient, error) { return mongo, nil }),
+		WithDiscordFactory(func(config.Config) (DiscordSession, error) { return discord, nil }),
+		WithEventRuntimeFactory(func(config.Config, *slog.Logger, DiscordSession, MongoClient) (*discordevents.Dispatcher, error) {
+			return eventDispatcher, nil
+		}),
+	)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- application.Run(ctx) }()
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatalf("run app: %v", err)
+	}
+	if shutdowns != 1 {
+		t.Fatalf("dispatcher shutdowns = %d", shutdowns)
+	}
+}
+
 func TestGatewaySmokeWaitsReadyAndShutsDown(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.DiscordEnableGateway = true

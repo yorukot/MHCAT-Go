@@ -19,9 +19,9 @@ Status: implemented behind explicit runtime and command-sync gates.
 - Permission: Manage Messages (`8192`) at command definition and runtime check
 - Discord behavior: public defer, legacy-style green/red embeds, optional preview message
 
-This command slice is announcement-config only. It does not enable voice-state XP accrual, rank cards, runtime automatic reward-role assignment/removal, coin rewards, or Voice State intent. Voice reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
+This command slice is announcement-config only. It does not enable Voice State intent, rank cards, or voice XP runtime by itself. Voice reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
 
-Voice XP session tracking is implemented separately behind `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`, with `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`. That event slice mirrors the legacy join/leave session flag by upserting missing `voice_xps` rows with `xp:"0"`, `leavel:"0"`, and `leavejoin:"join"`/`"leave"`, but it does not start the legacy periodic XP interval. The core voice-XP tick and explicit tick side-effect path now preserve the legacy `+5 XP` tick, `xp:"5"` on level-up, configured/default voice level-up announcements, owner DM fallbacks for missing/unusable level-up channels, `voice_roles` changes, and XP coin rewards after the configured announcement path succeeds; a runtime interval/reconciliation loop is still pending.
+Voice XP runtime is implemented separately behind `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`, with `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`. That event slice mirrors the legacy join/leave session flag by upserting missing `voice_xps` rows with `xp:"0"`, `leavel:"0"`, and `leavejoin:"join"`/`"leave"`, starts one legacy 30-second XP loop per active joined user, and stops that loop on leave or app shutdown. The runtime preserves the legacy `+5 XP` tick, `xp:"5"` on level-up, configured/default voice level-up announcements, owner DM fallbacks for missing/unusable level-up channels, `voice_roles` changes, and XP coin rewards after the configured announcement path succeeds. Restart reconciliation for already-joined rows after process restart is still pending.
 
 ## Legacy UI/UX Preserved
 
@@ -59,10 +59,8 @@ Voice XP session tracking is implemented separately behind `MHCAT_FEATURE_VOICE_
 
 ## Not Implemented
 
-- runtime periodic `events/voice_xp.js` interval ownership/reconciliation that calls the implemented tick side-effect path.
+- restart reconciliation for `voice_xps.leavejoin:"join"` rows that were already active before the Go process started.
 - `/語音排行榜`, rank image rendering, rank buttons, and the old XP profile card lookup behind `/語音經驗`; the current `/語音經驗` command is implemented separately as a disabled replacement response only.
-- runtime automatic voice reward-role assignment/removal.
-- runtime XP-to-coin rewards.
 - Voice State intent enablement by the config commands; session tracking has its own explicit event gate.
 - Usage counter writes to `all_use_count`.
 

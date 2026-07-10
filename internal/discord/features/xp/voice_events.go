@@ -37,10 +37,29 @@ func (m VoiceEventModule) VoiceStateHandler() events.Handler {
 			return nil
 		}
 		if channelID == "" {
-			return m.service.Leave(ctx, guildID, userID)
+			if err := m.service.Leave(ctx, guildID, userID); err != nil {
+				return err
+			}
+			if m.worker != nil {
+				m.worker.Stop(guildID, userID)
+			}
+			return ctx.Err()
 		}
-		return m.service.Join(ctx, guildID, userID)
+		if err := m.service.Join(ctx, guildID, userID); err != nil {
+			return err
+		}
+		if m.worker != nil {
+			m.worker.Start(guildID, userID, voiceEventRoleIDs(event.Member))
+		}
+		return ctx.Err()
 	}
+}
+
+func voiceEventRoleIDs(member *events.Member) []string {
+	if member == nil {
+		return nil
+	}
+	return member.RoleIDs
 }
 
 func (m VoiceEventModule) TickVoiceXP(ctx context.Context, guildID string, userID string, currentRoleIDs []string) (coreservice.VoiceAccrualResult, error) {

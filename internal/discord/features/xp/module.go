@@ -73,6 +73,7 @@ type VoiceEventModule struct {
 	guilds      ports.DiscordInfoProvider
 	rewardRoles coreservice.VoiceRewardRoleService
 	coinRewards coreservice.VoiceCoinRewardService
+	worker      *VoiceXPWorker
 }
 
 func NewModule(repo ports.TextXPConfigRepository, messages ports.DiscordMessagePort, usage ports.UsageTracker) Module {

@@ -52,6 +52,7 @@ type App struct {
 	discord                   DiscordSession
 	removeInteractionHandler  func()
 	removeGatewayEventHandler func()
+	eventDispatcher           *discordevents.Dispatcher
 
 	shutdownOnce sync.Once
 	shutdownErr  error
@@ -152,10 +153,11 @@ func (a *App) Start(ctx context.Context) error {
 	}
 	removeHandler := func() {}
 	removeEventHandler := func() {}
+	var eventDispatcher *discordevents.Dispatcher
 	if a.cfg.DiscordEnableGateway {
 		removeHandler = discordSession.RegisterInteractionHandler(dispatcher.Handler())
 		if gatewayEvents, ok := discordSession.(GatewayEventSession); ok {
-			eventDispatcher, err := a.eventFactory(a.cfg, a.logger, discordSession, mongoClient)
+			eventDispatcher, err = a.eventFactory(a.cfg, a.logger, discordSession, mongoClient)
 			if err != nil {
 				removeHandler()
 				_ = mongoClient.Disconnect(context.Background())
@@ -172,6 +174,9 @@ func (a *App) Start(ctx context.Context) error {
 		if err := openWithTimeout(ctx, discordSession, a.cfg.DiscordGatewayConnectTimeout); err != nil {
 			removeHandler()
 			removeEventHandler()
+			if eventDispatcher != nil {
+				_ = eventDispatcher.Shutdown(context.Background())
+			}
 			_ = mongoClient.Disconnect(context.Background())
 			return fmt.Errorf("open discord gateway: %w", err)
 		}
@@ -182,6 +187,7 @@ func (a *App) Start(ctx context.Context) error {
 	a.discord = discordSession
 	a.removeInteractionHandler = removeHandler
 	a.removeGatewayEventHandler = removeEventHandler
+	a.eventDispatcher = eventDispatcher
 	a.mu.Unlock()
 
 	a.logger.Info("mhcat skeleton initialized", "gateway_enabled", a.cfg.DiscordEnableGateway)
@@ -193,6 +199,7 @@ func (a *App) Shutdown(ctx context.Context) error {
 		a.mu.Lock()
 		mongoClient := a.mongo
 		discordSession := a.discord
+		eventDispatcher := a.eventDispatcher
 		a.mu.Unlock()
 
 		var errs []error
@@ -202,6 +209,11 @@ func (a *App) Shutdown(ctx context.Context) error {
 			}
 			if a.removeGatewayEventHandler != nil {
 				a.removeGatewayEventHandler()
+			}
+			if eventDispatcher != nil {
+				if err := eventDispatcher.Shutdown(ctx); err != nil {
+					errs = append(errs, err)
+				}
 			}
 			if err := discordSession.Close(); err != nil {
 				errs = append(errs, err)

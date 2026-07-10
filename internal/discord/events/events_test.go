@@ -3,6 +3,7 @@ package events_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
@@ -58,5 +59,29 @@ func TestDispatcherStopPropagationDoesNotRunLaterHandlers(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Fatalf("calls = %d, want 1", calls)
+	}
+}
+
+func TestDispatcherShutdownRunsRegisteredCallbacksOnceInReverseOrder(t *testing.T) {
+	dispatcher := events.NewDispatcher(nil)
+	var calls []string
+	dispatcher.RegisterShutdown(func(context.Context) error {
+		calls = append(calls, "first")
+		return nil
+	})
+	dispatcher.RegisterShutdown(func(context.Context) error {
+		calls = append(calls, "second")
+		return errors.New("shutdown failed")
+	})
+
+	err := dispatcher.Shutdown(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "shutdown failed") {
+		t.Fatalf("expected shutdown error, got %v", err)
+	}
+	if err := dispatcher.Shutdown(context.Background()); err == nil || !strings.Contains(err.Error(), "shutdown failed") {
+		t.Fatalf("expected cached shutdown error, got %v", err)
+	}
+	if len(calls) != 2 || calls[0] != "second" || calls[1] != "first" {
+		t.Fatalf("calls = %#v", calls)
 	}
 }

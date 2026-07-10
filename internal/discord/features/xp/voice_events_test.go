@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/xp"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakebotinfo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
@@ -78,6 +80,76 @@ func TestVoiceXPEventRegisteredOnlyWithRepository(t *testing.T) {
 	VoiceEventModule{}.RegisterEventRoutes(empty)
 	if empty.HasHandlers(events.TypeVoiceState) {
 		t.Fatal("unexpected voice XP event handler")
+	}
+}
+
+func TestVoiceXPEventStartsAndStopsRuntimeWorker(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	module := NewVoiceEventModule(repo).WithRuntimeWorker(time.Hour, nil)
+	t.Cleanup(func() { _ = module.StopRuntimeWorker(context.Background()) })
+
+	event := voiceXPEvent("voice-1", "")
+	event.Member = &events.Member{UserID: "user-1", RoleIDs: []string{"role-1"}}
+	if err := module.VoiceStateHandler()(context.Background(), event); err != nil {
+		t.Fatalf("join: %v", err)
+	}
+	if module.worker.ActiveCount() != 1 {
+		t.Fatalf("active workers after join = %d", module.worker.ActiveCount())
+	}
+	if err := module.VoiceStateHandler()(context.Background(), voiceXPEvent("voice-2", "voice-1")); err != nil {
+		t.Fatalf("move: %v", err)
+	}
+	if module.worker.ActiveCount() != 1 {
+		t.Fatalf("active workers after move = %d", module.worker.ActiveCount())
+	}
+	if err := module.VoiceStateHandler()(context.Background(), voiceXPEvent("", "voice-2")); err != nil {
+		t.Fatalf("leave: %v", err)
+	}
+	if module.worker.ActiveCount() != 0 {
+		t.Fatalf("active workers after leave = %d", module.worker.ActiveCount())
+	}
+}
+
+func TestVoiceXPWorkerTicksAndStopsWhenProfileInactive(t *testing.T) {
+	calls := make(chan []string, 1)
+	worker := NewVoiceXPWorker(time.Millisecond, func(ctx context.Context, guildID string, userID string, currentRoleIDs []string) (coreservice.VoiceAccrualResult, error) {
+		calls <- append([]string(nil), currentRoleIDs...)
+		return coreservice.VoiceAccrualResult{}, nil
+	}, nil)
+	t.Cleanup(func() { _ = worker.StopAll(context.Background()) })
+
+	if !worker.Start(" guild-1 ", " user-1 ", []string{" role-1 ", ""}) {
+		t.Fatal("expected worker to start")
+	}
+	if worker.Start("guild-1", "user-1", nil) {
+		t.Fatal("duplicate worker should not start")
+	}
+	select {
+	case roles := <-calls:
+		if len(roles) != 1 || roles[0] != "role-1" {
+			t.Fatalf("roles = %#v", roles)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timed out waiting for voice XP tick")
+	}
+	waitUntil(t, 100*time.Millisecond, func() bool { return worker.ActiveCount() == 0 })
+}
+
+func TestVoiceXPWorkerStopAllPreventsNewStarts(t *testing.T) {
+	worker := NewVoiceXPWorker(time.Hour, func(ctx context.Context, guildID string, userID string, currentRoleIDs []string) (coreservice.VoiceAccrualResult, error) {
+		return coreservice.VoiceAccrualResult{Active: true}, nil
+	}, nil)
+	if !worker.Start("guild-1", "user-1", nil) {
+		t.Fatal("expected worker to start")
+	}
+	if err := worker.StopAll(context.Background()); err != nil {
+		t.Fatalf("stop all: %v", err)
+	}
+	if worker.ActiveCount() != 0 {
+		t.Fatalf("active workers = %d", worker.ActiveCount())
+	}
+	if worker.Start("guild-1", "user-2", nil) {
+		t.Fatal("worker should not start after StopAll")
 	}
 }
 
@@ -217,5 +289,19 @@ func voiceXPEvent(channelID string, beforeChannelID string) events.Event {
 			ChannelID:     channelID,
 			BeforeChannel: beforeChannelID,
 		},
+	}
+}
+
+func waitUntil(t *testing.T, timeout time.Duration, condition func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if condition() {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if !condition() {
+		t.Fatal("condition was not met before timeout")
 	}
 }
