@@ -24,6 +24,10 @@ func (m Module) JoinRoleAssignmentHandler() events.Handler {
 		if strings.TrimSpace(event.GuildID) == "" || userID == "" {
 			return nil
 		}
-		return m.assignmentService.AssignOnJoin(ctx, event.GuildID, userID, isBot)
+		err := m.assignmentService.AssignOnJoin(ctx, event.GuildID, userID, isBot)
+		if err != nil && ctx.Err() == nil {
+			return events.ContinueOnError(err)
+		}
+		return err
 	}
 }

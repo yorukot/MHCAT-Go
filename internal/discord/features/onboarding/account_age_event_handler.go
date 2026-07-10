@@ -45,6 +45,9 @@ func (m Module) AccountAgeGateHandler() events.Handler {
 			AccountCreatedAt: accountCreatedAt,
 		})
 		if err != nil {
+			if !result.Matched && ctx.Err() == nil {
+				return events.ContinueOnError(err)
+			}
 			return err
 		}
 		if result.Matched {

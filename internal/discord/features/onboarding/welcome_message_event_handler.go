@@ -39,7 +39,7 @@ func (m Module) WelcomeMessageDeliveryHandler() events.Handler {
 		if strings.TrimSpace(event.GuildID) == "" || userID == "" {
 			return nil
 		}
-		return m.welcomeService.SendOnJoin(ctx, coreservice.WelcomeMemberEvent{
+		err := m.welcomeService.SendOnJoin(ctx, coreservice.WelcomeMemberEvent{
 			GuildID:       event.GuildID,
 			GuildName:     event.GuildName,
 			GuildIconURL:  event.GuildIconURL,
@@ -52,5 +52,9 @@ func (m Module) WelcomeMessageDeliveryHandler() events.Handler {
 			AvatarURL:     avatarURL,
 			Now:           event.CreatedAt,
 		})
+		if err != nil && ctx.Err() == nil {
+			return events.ContinueOnError(err)
+		}
+		return err
 	}
 }

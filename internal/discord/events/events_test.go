@@ -62,6 +62,27 @@ func TestDispatcherStopPropagationDoesNotRunLaterHandlers(t *testing.T) {
 	}
 }
 
+func TestDispatcherContinueOnErrorRunsLaterHandlersAndReturnsError(t *testing.T) {
+	dispatcher := events.NewDispatcher(nil)
+	wantErr := errors.New("best-effort handler failed")
+	calls := 0
+	dispatcher.Register(events.TypeMemberAdd, func(ctx context.Context, event events.Event) error {
+		calls++
+		return events.ContinueOnError(wantErr)
+	})
+	dispatcher.Register(events.TypeMemberAdd, func(ctx context.Context, event events.Event) error {
+		calls++
+		return nil
+	})
+	err := dispatcher.Dispatch(context.Background(), events.Event{Type: events.TypeMemberAdd})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("error = %v, want wrapped failure", err)
+	}
+	if calls != 2 {
+		t.Fatalf("calls = %d, want 2", calls)
+	}
+}
+
 func TestDispatcherShutdownRunsRegisteredCallbacksOnceInReverseOrder(t *testing.T) {
 	dispatcher := events.NewDispatcher(nil)
 	var calls []string

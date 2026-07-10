@@ -28,6 +28,25 @@ const (
 var ErrNoHandler = errors.New("discord event handler not found")
 var ErrStopPropagation = errors.New("discord event propagation stopped")
 
+type continueOnError struct {
+	err error
+}
+
+func (e continueOnError) Error() string {
+	return e.err.Error()
+}
+
+func (e continueOnError) Unwrap() error {
+	return e.err
+}
+
+func ContinueOnError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return continueOnError{err: err}
+}
+
 type Event struct {
 	Type          Type
 	ID            string
@@ -165,15 +184,24 @@ func (d *Dispatcher) Dispatch(ctx context.Context, event Event) error {
 	if len(handlers) == 0 {
 		return fmt.Errorf("%w: %s", ErrNoHandler, event.Type)
 	}
+	var continuedErrors []error
 	for _, handler := range handlers {
 		if err := handler(ctx, event); err != nil {
 			if errors.Is(err, ErrStopPropagation) {
-				return ctx.Err()
+				return errors.Join(continuedErrors...)
 			}
-			return err
+			var continued continueOnError
+			if errors.As(err, &continued) {
+				continuedErrors = append(continuedErrors, continued.err)
+				continue
+			}
+			return errors.Join(append(continuedErrors, err)...)
 		}
 	}
-	return ctx.Err()
+	if err := ctx.Err(); err != nil {
+		continuedErrors = append(continuedErrors, err)
+	}
+	return errors.Join(continuedErrors...)
 }
 
 func (d *Dispatcher) DispatchSafe(ctx context.Context, event Event) {

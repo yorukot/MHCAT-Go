@@ -2,6 +2,7 @@ package onboarding
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -100,6 +101,32 @@ func TestWelcomeMessageDeliveryHandlerIgnoresMemberRemove(t *testing.T) {
 	}
 	if len(sideEffects.Sent) != 0 {
 		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+}
+
+func TestWelcomeMessageFailureDoesNotSuppressLaterMemberAddHandler(t *testing.T) {
+	repo := fakemongo.NewJoinMessageConfigRepository()
+	wantErr := errors.New("join message read failed")
+	repo.Err = wantErr
+	sideEffects := fakediscord.NewSideEffects()
+	dispatcher := discordevents.NewDispatcher(nil)
+	NewWelcomeMessageDeliveryModule(repo, sideEffects, emptySpecialWelcome()).RegisterEventRoutes(dispatcher)
+	laterCalled := false
+	dispatcher.Register(discordevents.TypeMemberAdd, func(context.Context, discordevents.Event) error {
+		laterCalled = true
+		return nil
+	})
+
+	err := dispatcher.Dispatch(context.Background(), discordevents.Event{
+		Type:    discordevents.TypeMemberAdd,
+		GuildID: "guild-1",
+		Member:  &discordevents.Member{UserID: "user-1", Username: "Tester"},
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("dispatch error = %v", err)
+	}
+	if !laterCalled {
+		t.Fatal("later member-add handler was suppressed")
 	}
 }
 

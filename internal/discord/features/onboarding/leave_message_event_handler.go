@@ -35,7 +35,7 @@ func (m Module) LeaveMessageDeliveryHandler() events.Handler {
 		if strings.TrimSpace(event.GuildID) == "" || userID == "" {
 			return nil
 		}
-		return m.deliveryService.SendOnLeave(ctx, coreservice.LeaveMemberEvent{
+		err := m.deliveryService.SendOnLeave(ctx, coreservice.LeaveMemberEvent{
 			GuildID:   event.GuildID,
 			UserID:    userID,
 			Username:  username,
@@ -43,6 +43,10 @@ func (m Module) LeaveMessageDeliveryHandler() events.Handler {
 			AvatarURL: avatarURL,
 			Now:       event.CreatedAt,
 		})
+		if err != nil && ctx.Err() == nil {
+			return events.ContinueOnError(err)
+		}
+		return err
 	}
 }
 

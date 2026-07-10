@@ -2,6 +2,7 @@ package onboarding
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -150,5 +151,32 @@ func TestAccountAgeGateAllowsLaterHandlersForInvalidLegacyConfig(t *testing.T) {
 	}
 	if len(sideEffects.Kicked) != 0 {
 		t.Fatalf("kicked = %#v", sideEffects.Kicked)
+	}
+}
+
+func TestAccountAgeReadFailureDoesNotSuppressLaterMemberAddHandler(t *testing.T) {
+	repo := fakemongo.NewAccountAgeConfigRepository()
+	wantErr := errors.New("account age read failed")
+	repo.Err = wantErr
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{})
+	dispatcher := discordevents.NewDispatcher(nil)
+	module.RegisterEventRoutes(dispatcher)
+	laterCalled := false
+	dispatcher.Register(discordevents.TypeMemberAdd, func(context.Context, discordevents.Event) error {
+		laterCalled = true
+		return nil
+	})
+
+	err := dispatcher.Dispatch(context.Background(), discordevents.Event{
+		Type:    discordevents.TypeMemberAdd,
+		GuildID: "guild-1",
+		Member:  &discordevents.Member{UserID: "user-1", AccountCreatedAt: time.Unix(1_000_000, 0)},
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("dispatch error = %v", err)
+	}
+	if !laterCalled {
+		t.Fatal("later member-add handler was suppressed")
 	}
 }
