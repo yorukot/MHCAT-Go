@@ -78,10 +78,13 @@ func TestLegacyRankAmount(t *testing.T) {
 	tests := map[int64]string{
 		999:           "999",
 		1000:          "1K",
-		1250:          "1.2K",
+		1150:          "1.1K",
+		1250:          "1.3K",
 		1_000_000:     "1M",
+		1_250_000:     "1.3M",
 		2_500_000:     "2.5M",
 		1_000_000_000: "1G",
+		1_250_000_000: "1.3G",
 	}
 	for value, want := range tests {
 		if got := LegacyRankAmount(value); got != want {

@@ -2,7 +2,7 @@ package xp
 
 import (
 	"context"
-	"fmt"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -185,7 +185,18 @@ func LegacyRankAmount(value int64) string {
 }
 
 func legacyRankScaled(value int64, divisor int64, suffix string) string {
-	text := fmt.Sprintf("%.1f", float64(value)/float64(divisor))
-	text = strings.TrimSuffix(text, ".0")
-	return text + suffix
+	// JavaScript toFixed rounds the exact binary float with ties upward, unlike Go's tie-to-even formatter.
+	scaled := new(big.Rat).SetFloat64(float64(value) / float64(divisor))
+	scaled.Mul(scaled, big.NewRat(10, 1))
+	rounded, remainder := new(big.Int), new(big.Int)
+	rounded.QuoRem(scaled.Num(), scaled.Denom(), remainder)
+	if new(big.Int).Lsh(new(big.Int).Set(remainder), 1).Cmp(scaled.Denom()) >= 0 {
+		rounded.Add(rounded, big.NewInt(1))
+	}
+	whole, fraction := new(big.Int), new(big.Int)
+	whole.QuoRem(rounded, big.NewInt(10), fraction)
+	if fraction.Sign() == 0 {
+		return whole.String() + suffix
+	}
+	return whole.String() + "." + fraction.String() + suffix
 }
