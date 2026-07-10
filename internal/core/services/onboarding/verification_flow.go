@@ -170,24 +170,27 @@ func (s VerificationFlowService) completeConfigured(ctx context.Context, guildID
 }
 
 func legacyVerificationNickname(template string, username string) string {
-	const placeholder = "{name}"
-	index := strings.Index(template, placeholder)
+	return legacyStringReplace(template, "{name}", username)
+}
+
+func legacyStringReplace(value string, search string, replacementValue string) string {
+	index := strings.Index(value, search)
 	if index < 0 {
-		return template
+		return value
 	}
-	prefix := template[:index]
-	suffix := template[index+len(placeholder):]
+	prefix := value[:index]
+	suffix := value[index+len(search):]
 	var replacement strings.Builder
-	for i := 0; i < len(username); i++ {
-		if username[i] != '$' || i+1 >= len(username) {
-			replacement.WriteByte(username[i])
+	for i := 0; i < len(replacementValue); i++ {
+		if replacementValue[i] != '$' || i+1 >= len(replacementValue) {
+			replacement.WriteByte(replacementValue[i])
 			continue
 		}
-		switch username[i+1] {
+		switch replacementValue[i+1] {
 		case '$':
 			replacement.WriteByte('$')
 		case '&':
-			replacement.WriteString(placeholder)
+			replacement.WriteString(search)
 		case '`':
 			replacement.WriteString(prefix)
 		case '\'':

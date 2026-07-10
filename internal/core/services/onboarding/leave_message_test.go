@@ -117,6 +117,28 @@ func TestLeaveMessageDeliveryServiceNoopsForMissingOrIncompleteConfig(t *testing
 	}
 }
 
+func TestLeaveMessagePlaceholdersPreserveJavaScriptReplacementTokens(t *testing.T) {
+	tests := []struct {
+		name     string
+		username string
+		want     string
+	}{
+		{name: "dollar", username: "$$", want: "pre$post"},
+		{name: "matched text", username: "$&", want: "pre{MEMBERNAME}post"},
+		{name: "prefix", username: "$`", want: "preprepost"},
+		{name: "suffix", username: "$'", want: "prepostpost"},
+		{name: "raw whitespace", username: "  Yoru  ", want: "pre  Yoru  post"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := replaceLeaveMessageDescriptionPlaceholders("pre{MEMBERNAME}post", LeaveMemberEvent{UserID: "user", Username: tc.username})
+			if got != tc.want {
+				t.Fatalf("description = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 type fakeLeaveMessageRepo struct {
 	preparedGuild   string
 	preparedChannel string

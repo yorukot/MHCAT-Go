@@ -15,11 +15,15 @@ func (m Module) WelcomeMessageDeliveryHandler() events.Handler {
 		}
 		member := event.Member
 		userID := strings.TrimSpace(event.UserID)
+		username := event.Username
 		userTag := strings.TrimSpace(event.UserTag)
 		avatarURL := strings.TrimSpace(event.AvatarURL)
 		if member != nil {
 			if member.UserID != "" {
 				userID = member.UserID
+			}
+			if member.Username != "" {
+				username = member.Username
 			}
 			if member.UserTag != "" {
 				userTag = member.UserTag
@@ -38,7 +42,7 @@ func (m Module) WelcomeMessageDeliveryHandler() events.Handler {
 			BotUserID:    event.BotUserID,
 			BotAvatarURL: event.BotAvatarURL,
 			UserID:       userID,
-			Username:     usernameFromTag(userTag),
+			Username:     username,
 			UserTag:      userTag,
 			AvatarURL:    avatarURL,
 			Now:          event.CreatedAt,

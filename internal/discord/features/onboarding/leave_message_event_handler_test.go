@@ -30,6 +30,7 @@ func TestLeaveMessageDeliveryHandlerSendsLegacyEmbed(t *testing.T) {
 		CreatedAt: now,
 		Member: &events.Member{
 			UserID:    "user-1",
+			Username:  "Tester",
 			UserTag:   "Tester#0001",
 			AvatarURL: "https://cdn.example/avatar.png",
 		},

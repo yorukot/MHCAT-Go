@@ -37,6 +37,7 @@ func TestWelcomeMessageDeliveryHandlerSendsOnMemberAdd(t *testing.T) {
 		CreatedAt:    now,
 		Member: &discordevents.Member{
 			UserID:    "user-1",
+			Username:  "Tester",
 			UserTag:   "Tester#0001",
 			AvatarURL: "https://example.test/avatar.png",
 		},
@@ -50,6 +51,35 @@ func TestWelcomeMessageDeliveryHandlerSendsOnMemberAdd(t *testing.T) {
 	embed := sideEffects.Sent[0].Message.Embeds[0]
 	if !strings.Contains(embed.Description, "歡迎 Tester <@user-1>") || embed.AuthorName != "🪂 歡迎加入 測試伺服器" {
 		t.Fatalf("embed = %#v", embed)
+	}
+}
+
+func TestWelcomeMessageDeliveryHandlerPreservesRawUsername(t *testing.T) {
+	repo := fakemongo.NewJoinMessageConfigRepository()
+	repo.Configs["guild-1"] = domain.JoinMessageConfig{
+		GuildID:        "guild-1",
+		Enabled:        true,
+		ChannelID:      "channel-1",
+		MessageContent: "歡迎 {MEMBERNAME}",
+		Color:          "#53FF53",
+	}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewWelcomeMessageDeliveryModule(repo, sideEffects, emptySpecialWelcome())
+
+	err := module.WelcomeMessageDeliveryHandler()(context.Background(), discordevents.Event{
+		Type:    discordevents.TypeMemberAdd,
+		GuildID: "guild-1",
+		Member: &discordevents.Member{
+			UserID:   "user-1",
+			Username: "  $&  ",
+			UserTag:  "fallback#0001",
+		},
+	})
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if got := sideEffects.Sent[0].Message.Embeds[0].Description; got != "歡迎   {MEMBERNAME}  " {
+		t.Fatalf("description = %q", got)
 	}
 }
 

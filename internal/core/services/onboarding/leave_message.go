@@ -108,7 +108,7 @@ func leaveMessageDeliveryEmbed(config domain.LeaveMessageConfig, event LeaveMemb
 }
 
 func replaceLeaveMessageDescriptionPlaceholders(value string, event LeaveMemberEvent) string {
-	memberName := strings.TrimSpace(event.Username)
+	memberName := event.Username
 	if memberName == "" {
 		memberName = strings.TrimSpace(event.UserTag)
 	}
@@ -116,10 +116,10 @@ func replaceLeaveMessageDescriptionPlaceholders(value string, event LeaveMemberE
 		memberName = strings.TrimSpace(event.UserID)
 	}
 	out := value
-	out = strings.Replace(out, "(MEMBERNAME)", memberName, 1)
-	out = strings.Replace(out, "(ID)", strings.TrimSpace(event.UserID), 1)
-	out = strings.Replace(out, "{ID}", strings.TrimSpace(event.UserID), 1)
-	out = strings.Replace(out, "{MEMBERNAME}", memberName, 1)
+	out = legacyStringReplace(out, "(MEMBERNAME)", memberName)
+	out = legacyStringReplace(out, "(ID)", strings.TrimSpace(event.UserID))
+	out = legacyStringReplace(out, "{ID}", strings.TrimSpace(event.UserID))
+	out = legacyStringReplace(out, "{MEMBERNAME}", memberName)
 	return out
 }
 

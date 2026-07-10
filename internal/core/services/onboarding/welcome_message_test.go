@@ -136,3 +136,25 @@ func TestWelcomeMessageDeliverySpecialLegacyEmbed(t *testing.T) {
 		t.Fatalf("embed = %#v", embed)
 	}
 }
+
+func TestWelcomeMessagePlaceholdersPreserveJavaScriptReplacementTokens(t *testing.T) {
+	tests := []struct {
+		name     string
+		username string
+		want     string
+	}{
+		{name: "dollar", username: "$$", want: "pre$post"},
+		{name: "matched text", username: "$&", want: "pre(MEMBERNAME)post"},
+		{name: "prefix", username: "$`", want: "preprepost"},
+		{name: "suffix", username: "$'", want: "prepostpost"},
+		{name: "raw whitespace", username: "  Yoru  ", want: "pre  Yoru  post"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := replaceWelcomeMessagePlaceholders("pre(MEMBERNAME)post", WelcomeMemberEvent{UserID: "user", Username: tc.username})
+			if got != tc.want {
+				t.Fatalf("description = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

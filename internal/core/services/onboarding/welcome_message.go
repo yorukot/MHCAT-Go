@@ -118,7 +118,7 @@ func specialWelcomeMessage(event WelcomeMemberEvent, special SpecialWelcomeConfi
 }
 
 func replaceWelcomeMessagePlaceholders(value string, event WelcomeMemberEvent) string {
-	memberName := strings.TrimSpace(event.Username)
+	memberName := event.Username
 	if memberName == "" {
 		memberName = usernameFromUserTag(event.UserTag)
 	}
@@ -127,12 +127,12 @@ func replaceWelcomeMessagePlaceholders(value string, event WelcomeMemberEvent) s
 	}
 	tag := "<@" + strings.TrimSpace(event.UserID) + ">"
 	out := value
-	out = strings.Replace(out, "(MEMBERNAME)", memberName, 1)
-	out = strings.Replace(out, "{MEMBERNAME}", memberName, 1)
-	out = strings.Replace(out, "{membername}", memberName, 1)
-	out = strings.Replace(out, "(TAG)", tag, 1)
-	out = strings.Replace(out, "{TAG}", tag, 1)
-	out = strings.Replace(out, "{tag}", tag, 1)
+	out = legacyStringReplace(out, "(MEMBERNAME)", memberName)
+	out = legacyStringReplace(out, "{MEMBERNAME}", memberName)
+	out = legacyStringReplace(out, "{membername}", memberName)
+	out = legacyStringReplace(out, "(TAG)", tag)
+	out = legacyStringReplace(out, "{TAG}", tag)
+	out = legacyStringReplace(out, "{tag}", tag)
 	return out
 }
 
