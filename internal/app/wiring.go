@@ -103,6 +103,7 @@ type RuntimeOptions struct {
 	GachaDrawRepository           ports.GachaDrawRepository
 	GachaDrawMessagePort          ports.DiscordMessagePort
 	GachaDrawDirectMessagePort    ports.DiscordDirectMessagePort
+	GachaDrawWait                 func(context.Context, time.Duration) error
 	GachaPrizeCreateRepository    ports.GachaPrizeCreateRepository
 	GachaPrizeEditRepository      ports.GachaPrizeEditRepository
 	GachaPrizeDeleteRepository    ports.GachaPrizeDeleteRepository
@@ -565,6 +566,7 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 			opts.GachaDrawDirectMessagePort,
 			opts.UsageTracker,
 		)
+		gachaModule = gachaModule.WithDrawWait(opts.GachaDrawWait)
 		if err := gachaModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

@@ -1,8 +1,10 @@
 package gacha
 
 import (
+	"context"
 	"crypto/rand"
 	"math/big"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/gacha"
@@ -21,6 +23,7 @@ type Module struct {
 	direct        ports.DiscordDirectMessagePort
 	usage         ports.UsageTracker
 	color         func() int
+	drawWait      func(context.Context, time.Duration) error
 }
 
 func NewModule(repo ports.GachaPrizePoolRepository, discord ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
@@ -39,6 +42,7 @@ func NewDrawModule(repo ports.GachaDrawRepository, messages ports.DiscordMessage
 		direct:      direct,
 		usage:       usage,
 		color:       legacyRandomColor,
+		drawWait:    waitForGachaDraw,
 	}
 }
 
@@ -78,6 +82,7 @@ func NewModuleWithRepositories(listRepo ports.GachaPrizePoolRepository, drawRepo
 		direct:        direct,
 		usage:         usage,
 		color:         legacyRandomColor,
+		drawWait:      waitForGachaDraw,
 	}
 }
 
@@ -87,6 +92,13 @@ func NewModuleWithColor(repo ports.GachaPrizePoolRepository, discord ports.Disco
 		module.color = color
 	}
 	return module
+}
+
+func (m Module) WithDrawWait(wait func(context.Context, time.Duration) error) Module {
+	if wait != nil {
+		m.drawWait = wait
+	}
+	return m
 }
 
 func (m Module) Name() string {
@@ -180,4 +192,15 @@ func legacyRandomColor() int {
 		return 0x5865F2
 	}
 	return int(value.Int64())
+}
+
+func waitForGachaDraw(ctx context.Context, duration time.Duration) error {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }

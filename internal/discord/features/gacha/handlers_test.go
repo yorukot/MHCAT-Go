@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -132,6 +133,15 @@ func TestDrawRendersLegacyResultAndSendsSideEffects(t *testing.T) {
 	module.drawService.Random = func() float64 { return 0 }
 	module.color = func() int { return 0x123456 }
 	responder := fakediscord.NewResponder()
+	module.drawWait = func(_ context.Context, duration time.Duration) error {
+		if duration != legacyGachaDrawRevealDelay {
+			t.Fatalf("reveal delay = %s", duration)
+		}
+		if len(responder.Edits) != 1 || responder.Edits[0].Content != legacyGachaDrawLoadingGIF {
+			t.Fatalf("loading was not visible before wait: %#v", responder.Edits)
+		}
+		return nil
+	}
 	interaction := fakediscord.SlashInteraction(GachaDrawCommandName)
 	interaction.Actor.AvatarURL = "https://example.invalid/avatar.png"
 
@@ -184,6 +194,7 @@ func TestDrawChoiceUsesPaidCostAndActualResultCount(t *testing.T) {
 	module := NewDrawModule(repo, nil, nil, nil)
 	module.drawService.Random = func() float64 { return 0 }
 	module.color = func() int { return 0 }
+	module.drawWait = func(context.Context, time.Duration) error { return nil }
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(GachaDrawCommandName, "", map[string]string{gachaDrawMultiOption: "11"})
 

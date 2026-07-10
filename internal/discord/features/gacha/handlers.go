@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -23,6 +24,7 @@ const (
 	legacyDoneEmoji                  = "<a:green_tick:994529015652163614>"
 	legacyGachaFallbackGuild         = "這個伺服器"
 	legacyGachaDrawLoadingGIF        = "https://cdn.discordapp.com/attachments/991337796960784424/997105505640136794/giphy.gif"
+	legacyGachaDrawRevealDelay       = 8500 * time.Millisecond
 	discordEmbedFieldLimit           = 25
 )
 
@@ -66,6 +68,13 @@ func (m Module) DrawHandler() interactions.Handler {
 			Content:         legacyGachaDrawLoadingGIF,
 			AllowedMentions: &responses.AllowedMentions{},
 		}); err != nil {
+			return err
+		}
+		wait := m.drawWait
+		if wait == nil {
+			wait = waitForGachaDraw
+		}
+		if err := wait(ctx, legacyGachaDrawRevealDelay); err != nil {
 			return err
 		}
 		if err := responder.EditOriginal(ctx, legacyGachaDrawResultMessage(result, interaction.Actor.AvatarURL, m.color())); err != nil {

@@ -1001,9 +1001,17 @@ func TestBuildRuntimeRoutesGachaDrawOnlyWithRepository(t *testing.T) {
 	repo.Balances["guild-1/user-1"] = domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 1000}
 	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "大獎", Chance: 100, Count: 1}}
 	repo.PrizeConfigs["guild-1"] = []domain.GachaPrizeConfig{{GuildID: "guild-1", Name: "大獎", Chance: 100, AutoDelete: true, Count: 1}}
+	waited := false
 	dispatcher, err = BuildRuntime(RuntimeOptions{
 		Config:              validTestConfig(),
 		GachaDrawRepository: repo,
+		GachaDrawWait: func(_ context.Context, duration time.Duration) error {
+			waited = true
+			if duration != 8500*time.Millisecond {
+				t.Fatalf("gacha draw wait = %s", duration)
+			}
+			return nil
+		},
 	})
 	if err != nil {
 		t.Fatalf("build runtime with gacha draw repo: %v", err)
@@ -1014,6 +1022,9 @@ func TestBuildRuntimeRoutesGachaDrawOnlyWithRepository(t *testing.T) {
 	}
 	if len(responder.Edits) != 2 || len(responder.Edits[1].Embeds) != 1 || !strings.Contains(responder.Edits[1].Embeds[0].Title, "扭蛋系統") {
 		t.Fatalf("gacha draw response = %#v", responder.Edits)
+	}
+	if !waited {
+		t.Fatal("gacha draw did not wait before revealing results")
 	}
 
 	responder = fakediscord.NewResponder()
