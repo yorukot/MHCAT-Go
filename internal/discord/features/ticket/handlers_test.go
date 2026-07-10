@@ -240,20 +240,32 @@ func TestLegacyPanelSubmitRejectsInvalidColor(t *testing.T) {
 	}
 }
 
-func TestParseLegacyColorMatchesHTMLColorNames(t *testing.T) {
+func TestParseLegacyColorMatchesSuccessfulLegacyBuilderInputs(t *testing.T) {
 	tests := []struct {
 		name string
 		in   string
 		want int
 	}{
-		{name: "basic name", in: "red", want: 0xFF0000},
-		{name: "legacy validate-color name", in: "aqua", want: 0x00FFFF},
-		{name: "modern css name", in: "rebeccapurple", want: 0x663399},
-		{name: "case insensitive", in: "DarkSlateGray", want: 0x2F4F4F},
-		{name: "grey alias", in: "lightgrey", want: 0xD3D3D3},
-		{name: "three digit hex", in: "#0f0", want: 0x00FF00},
 		{name: "six digit hex", in: "#00ff00", want: 0x00FF00},
 		{name: "uppercase hex", in: "#ABCDEF", want: 0xABCDEF},
+		{name: "discord white", in: "White", want: 0xFFFFFF},
+		{name: "discord red", in: "Red", want: 0xED4245},
+		{name: "discord aqua", in: "Aqua", want: 0x1ABC9C},
+		{name: "discord green", in: "Green", want: 0x57F287},
+		{name: "discord blue", in: "Blue", want: 0x3498DB},
+		{name: "discord yellow", in: "Yellow", want: 0xFEE75C},
+		{name: "discord purple", in: "Purple", want: 0x9B59B6},
+		{name: "discord fuchsia", in: "Fuchsia", want: 0xEB459E},
+		{name: "discord gold", in: "Gold", want: 0xF1C40F},
+		{name: "discord orange", in: "Orange", want: 0xE67E22},
+		{name: "discord grey", in: "Grey", want: 0x95A5A6},
+		{name: "discord navy", in: "Navy", want: 0x34495E},
+		{name: "discord dark green", in: "DarkGreen", want: 0x1F8B4C},
+		{name: "discord dark blue", in: "DarkBlue", want: 0x206694},
+		{name: "discord dark orange", in: "DarkOrange", want: 0xA84300},
+		{name: "discord dark red", in: "DarkRed", want: 0x992D22},
+		{name: "discord dark grey", in: "DarkGrey", want: 0x979C9F},
+		{name: "discord light grey", in: "LightGrey", want: 0xBCC0C0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -269,7 +281,20 @@ func TestParseLegacyColorMatchesHTMLColorNames(t *testing.T) {
 }
 
 func TestParseLegacyColorRejectsUnsupportedForms(t *testing.T) {
-	for _, value := range []string{"", "not-a-color"} {
+	for _, value := range []string{
+		"",
+		"not-a-color",
+		"#0f0",
+		"#00ff0080",
+		"00ff00",
+		"red",
+		"aqua",
+		"RebeccaPurple",
+		"rebeccapurple",
+		"DarkSlateGray",
+		"rgb(1,2,3)",
+		" #00ff00 ",
+	} {
 		t.Run(value, func(t *testing.T) {
 			if got, ok := parseLegacyColor(value); ok {
 				t.Fatalf("parseLegacyColor(%q) = %#06x, want reject", value, got)

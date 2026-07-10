@@ -1,32 +1,29 @@
 # Ticket Color Parity Follow-up
 
-Status: implemented. Legacy source was not modified.
+Status: corrected after executable dependency audit. Legacy source was not modified.
 
 ## Legacy Evidence
 
-`events/modal.js` validates ticket panel colors through:
+`events/modal.js` first validates through `validate-color@2.2.4` and then passes the same raw string to `discord.js@14.25.1`:
 
 ```txt
 validateHTMLColorName(color) || validateHTMLColor(color)
+new EmbedBuilder().setColor(color)
 ```
 
-The previous Go ticket slice accepted 3/6-digit hex plus a small hand-written list of eight color names. That rejected common legacy-accepted names such as `aqua`, `rebeccapurple`, and `darkslategray`.
+Both stages must accept the value. The validator alone accepts more forms than Discord's builder, so the earlier conclusion that all CSS names and 3-digit hex values worked was incorrect.
+
+Successful legacy inputs are:
+
+- exactly `#RRGGBB`, case-insensitive for the six hexadecimal digits;
+- exact case-sensitive names present in both the HTML-name validator and Discord's `Colors` object, such as `Red`, `Aqua`, `DarkGreen`, and `LightGrey`.
+
+Discord names resolve to Discord palette values. For example, `Red` is `0xED4245`, not CSS red `0xFF0000`. Values such as `red`, `#0f0`, `rebeccapurple`, `DarkSlateGray`, and `rgb(1,2,3)` pass one stage at most and do not produce a legacy panel.
 
 ## Change
 
-The Go ticket color parser now includes the standard CSS/HTML named color table and remains case-insensitive. It still supports 3-digit and 6-digit hex values.
+The Go parser now models the successful two-stage intersection. It does not trim input, accepts only 6-digit hash-prefixed hex, and uses the exact Discord palette for the shared case-sensitive names.
 
 ## Tests
 
-Added table tests for:
-
-- legacy basic name `red`;
-- names outside the previous small list: `aqua`, `rebeccapurple`, `darkslategray`;
-- case-insensitive names;
-- `grey` alias names;
-- 3-digit, 6-digit, and uppercase hex;
-- empty and unknown values rejected.
-
-## Remaining Work
-
-The legacy `validate-color` package is not installed in the local repository, so exact behavior for non-name CSS forms was not tested locally. The legacy code calls only `validateHTMLColorName` and `validateHTMLColor`, not RGB/HSL validators, so this slice intentionally covers named colors and hex values only.
+Table tests cover successful hex and named inputs, Discord palette values, case sensitivity, whitespace, short/alpha hex rejection, CSS-only names, and CSS functional forms.
