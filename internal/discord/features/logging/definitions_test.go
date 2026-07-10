@@ -14,8 +14,8 @@ func TestLoggingConfigDefinitionMatchesLegacyShape(t *testing.T) {
 	if definition.Description != "Set where log messages should send" || definition.DescriptionLocalizations["zh-TW"] != "設置日誌訊息要在哪發送" {
 		t.Fatalf("definition description/localizations = %#v", definition)
 	}
-	if definition.DefaultMemberPermissions == nil || *definition.DefaultMemberPermissions != manageMessagesPermission {
-		t.Fatalf("default permissions = %#v", definition.DefaultMemberPermissions)
+	if definition.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy logging command should remain publicly discoverable: %#v", definition.DefaultMemberPermissions)
 	}
 	if definition.Ownership == nil || !definition.Ownership.Managed {
 		t.Fatalf("ownership = %#v", definition.Ownership)

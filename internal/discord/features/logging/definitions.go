@@ -2,10 +2,7 @@ package logging
 
 import "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 
-const (
-	LoggingConfigCommandName = "set-log-channel"
-	manageMessagesPermission = "8192"
-)
+const LoggingConfigCommandName = "set-log-channel"
 
 func Definitions() []commands.Definition {
 	return []commands.Definition{LoggingConfigDefinition()}
@@ -28,8 +25,7 @@ func LoggingConfigDefinition() commands.Definition {
 			"zh-TW": "設置日誌訊息要在哪發送",
 			"zh-CN": "设置日志讯息要在哪发送",
 		},
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		Ownership:                commands.ManagedOwnership("logging-config", commands.ScopeGuild),
+		Ownership: commands.ManagedOwnership("logging-config", commands.ScopeGuild),
 		Options: []commands.Option{{
 			Type:        commands.OptionTypeChannel,
 			Name:        "channel",
@@ -50,8 +46,4 @@ func LoggingConfigDefinition() commands.Definition {
 			ChannelTypes: []int{0, 5},
 		}},
 	}
-}
-
-func stringPtr(value string) *string {
-	return &value
 }
