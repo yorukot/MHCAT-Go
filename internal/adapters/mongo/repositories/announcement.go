@@ -53,7 +53,7 @@ func (r *AnnouncementConfigRepository) GetAnnouncementChannel(ctx context.Contex
 	if guildID == "" {
 		return domain.AnnouncementChannelConfig{}, domain.ErrInvalidAnnouncementConfig
 	}
-	var document documents.GuildAnnouncementDocument
+	var document documents.GuildAnnouncementReadDocument
 	err := r.guilds.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document)
 	if errors.Is(err, drivermongo.ErrNoDocuments) {
 		return domain.AnnouncementChannelConfig{}, ports.ErrAnnouncementChannelMissing
@@ -61,10 +61,7 @@ func (r *AnnouncementConfigRepository) GetAnnouncementChannel(ctx context.Contex
 	if err != nil {
 		return domain.AnnouncementChannelConfig{}, mhcatmongo.MapError(fmt.Errorf("get announcement channel: %w", err))
 	}
-	config := domain.AnnouncementChannelConfig{
-		GuildID:   strings.TrimSpace(document.Guild),
-		ChannelID: strings.TrimSpace(document.AnnouncementID),
-	}
+	config := document.ToDomain()
 	if config.GuildID == "" {
 		config.GuildID = guildID
 	}
@@ -83,7 +80,7 @@ func (r *AnnouncementConfigRepository) GetBoundAnnouncement(ctx context.Context,
 	if guildID == "" || channelID == "" {
 		return domain.BoundAnnouncementConfig{}, domain.ErrInvalidAnnouncementConfig
 	}
-	var document documents.BoundAnnouncementDocument
+	var document documents.BoundAnnouncementReadDocument
 	err := r.annAllSets.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "announcement_id", Value: channelID}}).Decode(&document)
 	if errors.Is(err, drivermongo.ErrNoDocuments) {
 		return domain.BoundAnnouncementConfig{}, ports.ErrBoundAnnouncementConfigMissing
@@ -91,25 +88,12 @@ func (r *AnnouncementConfigRepository) GetBoundAnnouncement(ctx context.Context,
 	if err != nil {
 		return domain.BoundAnnouncementConfig{}, mhcatmongo.MapError(fmt.Errorf("get bound announcement: %w", err))
 	}
-	color := strings.TrimSpace(document.Color)
-	if strings.EqualFold(color, "random") {
-		color = "Random"
-	}
-	config := domain.BoundAnnouncementConfig{
-		GuildID:   strings.TrimSpace(document.Guild),
-		ChannelID: strings.TrimSpace(document.AnnouncementID),
-		Tag:       document.Tag,
-		Color:     color,
-		Title:     document.Title,
-	}
+	config := document.ToDomain()
 	if config.GuildID == "" {
 		config.GuildID = guildID
 	}
 	if config.ChannelID == "" {
 		config.ChannelID = channelID
-	}
-	if err := config.Validate(); err != nil {
-		return domain.BoundAnnouncementConfig{}, err
 	}
 	return config, ctx.Err()
 }
