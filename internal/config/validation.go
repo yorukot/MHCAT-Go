@@ -288,6 +288,22 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_FEATURE_LOGGING_VOICE_EVENTS_ENABLED requires MHCAT_DISCORD_VOICE_STATE_INTENT=true", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureStatsCreateEnabled {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_STATS_CREATE_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordGuildMembersIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_STATS_CREATE_ENABLED requires MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true", ErrInvalidConfig)
+		}
+	}
+	if cfg.FeatureStatsRoleCountEnabled {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordGuildMembersIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED requires MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true", ErrInvalidConfig)
+		}
+	}
 	if cfg.FeatureStatsRenameWorkerEnabled {
 		if !cfg.DiscordEnableGateway {
 			return fmt.Errorf("%w: MHCAT_FEATURE_STATS_RENAME_WORKER_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)

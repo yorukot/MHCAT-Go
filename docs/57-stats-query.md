@@ -13,9 +13,9 @@ Legacy evidence:
 Go behavior:
 - Runtime route is available only when `MHCAT_FEATURE_STATS_QUERY_ENABLED=true`.
 - Command sync includes the command only when `MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=true`.
-- `/統計系統創建` is available only when `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`.
+- `/統計系統創建` is available only when `MHCAT_FEATURE_STATS_CREATE_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`.
 - Command sync includes the create command only when `MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true`.
-- `/統計身分組人數` is available only when `MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=true`.
+- `/統計身分組人數` is available only when `MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`.
 - Command sync includes the role-count command only when `MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT=true`.
 - `/統計系統刪除` is available only when `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`.
 - Command sync includes the delete command only when `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true`.

@@ -410,18 +410,22 @@ Optional stats create smoke flags:
 ```bash
 export MHCAT_FEATURE_STATS_CREATE_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 ```
 
-Set both together only when testing `/統計系統創建` in an isolated staging guild. This path creates the legacy stats category/base channels, can add channel-count/text-count/voice-count channels, and writes `numbers`; it does not write `role_numbers` rows or enable `channel_status`.
+Set these together only when testing `/統計系統創建` in an isolated staging guild. This path creates the legacy stats category/base channels, can add channel-count/text-count/voice-count channels, and writes `numbers`; it does not write `role_numbers` rows or enable `channel_status`.
 
 Optional stats role-count smoke flags:
 
 ```bash
 export MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 ```
 
-Set both together only when testing `/統計身分組人數` in an isolated staging guild with an existing stats base config. This path creates a text or voice role-count channel and replaces one `role_numbers` row by `{guild,role}`; it does not delete old channels or enable `channel_status`.
+Set these together only when testing `/統計身分組人數` in an isolated staging guild with an existing stats base config. This path creates a text or voice role-count channel and replaces one `role_numbers` row by `{guild,role}`; it does not delete old channels or enable `channel_status`.
 
 Optional stats delete smoke flags:
 

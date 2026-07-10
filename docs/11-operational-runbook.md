@@ -610,20 +610,24 @@ MHCAT_FEATURE_STATS_QUERY_ENABLED=true
 
 This command preserves the legacy static stats help embed. It does not create `Number`/`role_number` rows, create/delete channels, rename channels, write usage counters to Mongo, create indexes, or enable the `channel_status` scheduler.
 
-Channel-create `/統計系統創建` parity is available only when both staging command sync and runtime flags are explicitly enabled:
+Channel-create `/統計系統創建` parity is available only when all required command, runtime, gateway, and intent flags are explicitly enabled:
 
 ```bash
 MHCAT_COMMAND_SYNC_INCLUDE_STATS_CREATE=true
 MHCAT_FEATURE_STATS_CREATE_ENABLED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 ```
 
 This command creates the legacy stats category and base member/user/bot counter channels, can add channel-count/text-count/voice-count stat channels, and writes `numbers` rows. It does not write `role_numbers`, create indexes, or enable the `channel_status` scheduler. Use an isolated staging guild and disposable `numbers` rows.
 
-Role-count `/統計身分組人數` parity is available only when both staging command sync and runtime flags are explicitly enabled:
+Role-count `/統計身分組人數` parity is available only when all required command, runtime, gateway, and intent flags are explicitly enabled:
 
 ```bash
 MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT=true
 MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=true
+MHCAT_DISCORD_ENABLE_GATEWAY=true
+MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 ```
 
 This command requires Manage Messages and an existing stats base config, creates a text or voice channel named `<role name>: <member count>`, and replaces the legacy `role_numbers` row for `{guild,role}`. It does not delete old stat channels, create indexes, or enable the `channel_status` scheduler. Use an isolated staging guild and disposable `role_numbers` rows.

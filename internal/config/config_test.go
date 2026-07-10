@@ -1134,6 +1134,8 @@ func TestFeatureStatsDeleteConfigParses(t *testing.T) {
 func TestFeatureStatsCreateConfigParses(t *testing.T) {
 	cfg, err := LoadWithLookup(mapLookup(map[string]string{
 		"MHCAT_DISCORD_TOKEN":                "token",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":       "true",
+		"MHCAT_DISCORD_GUILD_MEMBERS_INTENT": "true",
 		"MHCAT_MONGODB_URI":                  "mongodb://localhost:27017/mhcat",
 		"MHCAT_MONGODB_DATABASE":             "mhcat",
 		"MHCAT_FEATURE_STATS_CREATE_ENABLED": "true",
@@ -1149,6 +1151,8 @@ func TestFeatureStatsCreateConfigParses(t *testing.T) {
 func TestFeatureStatsRoleCountConfigParses(t *testing.T) {
 	cfg, err := LoadWithLookup(mapLookup(map[string]string{
 		"MHCAT_DISCORD_TOKEN":                    "token",
+		"MHCAT_DISCORD_ENABLE_GATEWAY":           "true",
+		"MHCAT_DISCORD_GUILD_MEMBERS_INTENT":     "true",
 		"MHCAT_MONGODB_URI":                      "mongodb://localhost:27017/mhcat",
 		"MHCAT_MONGODB_DATABASE":                 "mhcat",
 		"MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED": "true",
@@ -1158,6 +1162,41 @@ func TestFeatureStatsRoleCountConfigParses(t *testing.T) {
 	}
 	if !cfg.FeatureStatsRoleCountEnabled {
 		t.Fatal("expected stats role-count feature to be enabled explicitly")
+	}
+}
+
+func TestStatsMemberCacheFeaturesRequireGatewayAndGuildMembersIntent(t *testing.T) {
+	for _, feature := range []string{
+		"MHCAT_FEATURE_STATS_CREATE_ENABLED",
+		"MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED",
+	} {
+		t.Run(feature, func(t *testing.T) {
+			base := map[string]string{
+				"MHCAT_DISCORD_TOKEN":                "token",
+				"MHCAT_DISCORD_ENABLE_GATEWAY":       "true",
+				"MHCAT_DISCORD_GUILD_MEMBERS_INTENT": "true",
+				"MHCAT_MONGODB_URI":                  "mongodb://localhost:27017/mhcat",
+				"MHCAT_MONGODB_DATABASE":             "mhcat",
+				feature:                              "true",
+			}
+			for key, want := range map[string]string{
+				"MHCAT_DISCORD_ENABLE_GATEWAY":       "MHCAT_DISCORD_ENABLE_GATEWAY=true",
+				"MHCAT_DISCORD_GUILD_MEMBERS_INTENT": "MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true",
+			} {
+				env := map[string]string{}
+				for name, value := range base {
+					env[name] = value
+				}
+				env[key] = "false"
+				_, err := LoadWithLookup(mapLookup(env))
+				if !errors.Is(err, ErrInvalidConfig) {
+					t.Fatalf("expected ErrInvalidConfig for %s, got %v", key, err)
+				}
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("expected error to mention %q, got %v", want, err)
+				}
+			}
+		})
 	}
 }
 
