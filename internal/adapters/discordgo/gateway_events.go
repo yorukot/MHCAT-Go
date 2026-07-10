@@ -38,14 +38,14 @@ func (s *Session) RegisterGatewayEventHandlers(dispatcher *events.Dispatcher, op
 	)
 	if opts.Messages {
 		removers = append(removers,
-			s.session.AddHandler(func(_ *dgo.Session, event *dgo.MessageCreate) {
-				dispatcher.DispatchSafe(context.Background(), eventFromMessage(events.TypeMessageCreate, event.Message))
+			s.session.AddHandler(func(session *dgo.Session, event *dgo.MessageCreate) {
+				dispatcher.DispatchSafe(context.Background(), eventFromMessage(events.TypeMessageCreate, event.Message, botFromState(session)))
 			}),
-			s.session.AddHandler(func(_ *dgo.Session, event *dgo.MessageUpdate) {
-				dispatcher.DispatchSafe(context.Background(), eventFromMessage(events.TypeMessageUpdate, event.Message))
+			s.session.AddHandler(func(session *dgo.Session, event *dgo.MessageUpdate) {
+				dispatcher.DispatchSafe(context.Background(), eventFromMessageUpdate(event, botFromState(session)))
 			}),
-			s.session.AddHandler(func(_ *dgo.Session, event *dgo.MessageDelete) {
-				dispatcher.DispatchSafe(context.Background(), eventFromMessage(events.TypeMessageDelete, event.Message))
+			s.session.AddHandler(func(session *dgo.Session, event *dgo.MessageDelete) {
+				dispatcher.DispatchSafe(context.Background(), eventFromMessageDelete(event, botFromState(session)))
 			}),
 		)
 	}
@@ -91,7 +91,7 @@ func (s *Session) RegisterGatewayEventHandlers(dispatcher *events.Dispatcher, op
 	}
 }
 
-func eventFromMessage(eventType events.Type, message *dgo.Message) events.Event {
+func eventFromMessage(eventType events.Type, message *dgo.Message, bot *dgo.User) events.Event {
 	if message == nil {
 		return events.Event{Type: eventType}
 	}
@@ -104,12 +104,18 @@ func eventFromMessage(eventType events.Type, message *dgo.Message) events.Event 
 		Content:   message.Content,
 		CreatedAt: message.Timestamp,
 	}
+	if bot != nil {
+		event.BotUserID = bot.ID
+		event.BotAvatarURL = bot.AvatarURL("")
+	}
 	if message.Author != nil {
 		event.UserID = message.Author.ID
+		event.Username = message.Author.Username
 		event.UserTag = userTag(message.Author)
 		event.AvatarURL = message.Author.AvatarURL("")
 		event.IsBot = message.Author.Bot
 	}
+	event.Attachments = attachmentsFromDiscord(message.Attachments)
 	if message.Member != nil {
 		member := *message.Member
 		if member.User == nil {
@@ -118,6 +124,59 @@ func eventFromMessage(eventType events.Type, message *dgo.Message) events.Event 
 		event.Member = memberFromDiscord(&member)
 	}
 	return event
+}
+
+func eventFromMessageUpdate(update *dgo.MessageUpdate, bot *dgo.User) events.Event {
+	if update == nil {
+		return events.Event{Type: events.TypeMessageUpdate}
+	}
+	event := eventFromMessage(events.TypeMessageUpdate, update.Message, bot)
+	if update.BeforeUpdate != nil {
+		event.OldContent = update.BeforeUpdate.Content
+		event.HasOldContent = true
+		if event.UserID == "" && update.BeforeUpdate.Author != nil {
+			event.UserID = update.BeforeUpdate.Author.ID
+			event.Username = update.BeforeUpdate.Author.Username
+			event.UserTag = userTag(update.BeforeUpdate.Author)
+			event.AvatarURL = update.BeforeUpdate.Author.AvatarURL("")
+			event.IsBot = update.BeforeUpdate.Author.Bot
+		}
+	}
+	return event
+}
+
+func eventFromMessageDelete(deleted *dgo.MessageDelete, bot *dgo.User) events.Event {
+	if deleted == nil {
+		return events.Event{Type: events.TypeMessageDelete}
+	}
+	message := deleted.Message
+	if deleted.BeforeDelete != nil {
+		message = deleted.BeforeDelete
+		if message.ID == "" && deleted.Message != nil {
+			message.ID = deleted.Message.ID
+		}
+		if message.ChannelID == "" && deleted.Message != nil {
+			message.ChannelID = deleted.Message.ChannelID
+		}
+		if message.GuildID == "" && deleted.Message != nil {
+			message.GuildID = deleted.Message.GuildID
+		}
+	}
+	return eventFromMessage(events.TypeMessageDelete, message, bot)
+}
+
+func attachmentsFromDiscord(attachments []*dgo.MessageAttachment) []events.Attachment {
+	if len(attachments) == 0 {
+		return nil
+	}
+	out := make([]events.Attachment, 0, len(attachments))
+	for _, attachment := range attachments {
+		if attachment == nil || attachment.URL == "" {
+			continue
+		}
+		out = append(out, events.Attachment{URL: attachment.URL})
+	}
+	return out
 }
 
 func eventFromReaction(eventType events.Type, reaction *dgo.MessageReaction, member *dgo.Member) events.Event {

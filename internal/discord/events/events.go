@@ -28,25 +28,33 @@ var ErrNoHandler = errors.New("discord event handler not found")
 var ErrStopPropagation = errors.New("discord event propagation stopped")
 
 type Event struct {
-	Type         Type
-	ID           string
-	GuildID      string
-	GuildName    string
-	GuildIconURL string
-	BotUserID    string
-	BotAvatarURL string
-	ChannelID    string
-	MessageID    string
-	UserID       string
-	UserTag      string
-	AvatarURL    string
-	Content      string
-	IsBot        bool
-	CreatedAt    time.Time
+	Type          Type
+	ID            string
+	GuildID       string
+	GuildName     string
+	GuildIconURL  string
+	BotUserID     string
+	BotAvatarURL  string
+	ChannelID     string
+	MessageID     string
+	UserID        string
+	Username      string
+	UserTag       string
+	AvatarURL     string
+	Content       string
+	OldContent    string
+	HasOldContent bool
+	IsBot         bool
+	CreatedAt     time.Time
+	Attachments   []Attachment
 
 	Reaction   *Reaction
 	Member     *Member
 	VoiceState *VoiceState
+}
+
+type Attachment struct {
+	URL string
 }
 
 type Reaction struct {

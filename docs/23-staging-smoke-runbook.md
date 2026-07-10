@@ -226,7 +226,18 @@ export MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true
 ```
 
-Set both together only when testing `/set-log-channel`. This path writes the legacy-compatible `loggings` config row for the staging guild. It does not enable message/channel/voice logging event emitters.
+Set both together only when testing `/set-log-channel`. This path writes the legacy-compatible `loggings` config row for the staging guild. It does not enable logging event emitters by itself.
+
+Optional logging message-event smoke flags:
+
+```bash
+export MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
+export MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
+```
+
+Set these only when the staging guild has a disposable `loggings` row pointing to a staging-only log channel with `message_update` and/or `message_delete` enabled. This emits message edit/delete log embeds from cached gateway message data; it does not enable channel or voice logging.
 
 Optional gacha prize-list smoke flags:
 
@@ -577,6 +588,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true` and the staging database has only disposable `codes` fixtures for `/兌換`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database/channel targets are disposable for auto-notification setup/list/delete.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_LOGGING_CONFIG=true`, confirm `MHCAT_FEATURE_LOGGING_CONFIG_ENABLED=true` and the selected log channel is staging-only.
+- If `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`, and `loggings.channel_id` points to a staging-only log channel.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_LIST=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED=true` and the staging database has safe gacha fixtures.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_DRAW=true`, confirm `MHCAT_FEATURE_GACHA_DRAW_ENABLED=true`, the staging database has isolated `coins`/`gifts`/`gift_changes` fixtures, and DMs/notification-channel sends are acceptable for the test account.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_GACHA_PRIZE_CREATE=true`, confirm `MHCAT_FEATURE_GACHA_PRIZE_CREATE_ENABLED=true` and the staging database has only disposable `gifts` fixtures for the target prize name.
@@ -1412,7 +1424,14 @@ If logging-config flags were enabled and command sync apply was reviewed:
 - verify the legacy yellow setup embed and log-type select appear;
 - choose one or more staging log types;
 - verify `loggings.channel_id`, `message_update`, `message_delete`, `channel_update`, and `member_voice_update` reflect the selection in the staging database;
-- verify no message/channel/voice log event is emitted by the Go bot from this config slice.
+- verify no log event is emitted by this config slice unless `MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED=true` is also enabled.
+
+If logging message-event flags were enabled:
+
+- ensure the staging `loggings` row has `channel_id` pointing to the staging log channel and enables `message_update` and/or `message_delete`;
+- send then edit a staging message and verify the log channel receives the legacy-style `訊息編輯` embed with old/new content and no mention ping;
+- delete a staging message that was visible to the bot cache and verify the log channel receives the legacy-style `訊息刪除` embed with message content and best-effort deleter attribution;
+- verify no channel or voice log event is emitted.
 
 If XP reward-role config flags were enabled and command sync apply was reviewed:
 
@@ -1491,6 +1510,7 @@ Verify:
   - Exception: economy coin-reset smoke deletes or divides disposable staging `coins` rows only after the owner `^確認^` confirmation.
   - Exception: role-selection smoke writes staging `message_reactions` and `btns` rows only after setup commands.
   - Exception: logging-config smoke writes the legacy-compatible `loggings` config only after the setup select is submitted.
+  - Exception: logging message-event smoke sends edit/delete embeds to the configured staging log channel only.
   - Exception: delete-data smoke deletes selected disposable staging config rows only.
   - Exception: auto-notification config smoke writes/completes disposable setup `cron_sets` rows, sends a setup preview, and deletes selected rows and abandoned pending drafts only.
   - Exception: voice-room config smoke writes/deletes legacy-compatible `voice_channels` rows and, with gateway Voice State events enabled, creates/moves/deletes disposable dynamic rooms plus `voice_channel_ids`/lock seed rows.

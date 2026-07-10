@@ -90,7 +90,7 @@ No repair/backfill command is authorized at Gate B. Repair tooling may be added 
 | `dedupe-singleton-config` | duplicate singleton config rows | duplicate audit output | selected winner proposal | optional archive/mark/delete after ADR | explicit apply plus sample approval | yes | restore archived docs | no |
 | `backfill-canonical-numeric-fields` | future schema may need canonical numbers | mixed type audit | proposed canonical field writes | optional `$set` new fields, not replacing legacy | explicit apply | yes | unset backfilled fields | no |
 | `repair-undefined-command-counts` | `all_use_count` may contain undefined command names | find missing/null/undefined names | candidate rows | optional delete/archive after ADR | explicit apply | yes | restore archived docs | no |
-| `audit-logging-duplicates` | duplicate `loggings` singleton rows can make future event emitters choose different configs than setup writes | aggregate group by `guild` count > 1 | duplicate guild groups and sample `_id`s | none | read-only | no | none | no |
+| `audit-logging-duplicates` | duplicate `loggings` singleton rows can make message event emitters choose different configs than setup writes | aggregate group by `guild` count > 1 | duplicate guild groups and sample `_id`s | none | read-only | no | none | no |
 
 ## Work Payout Audit Checklist
 

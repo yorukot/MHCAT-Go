@@ -35,6 +35,22 @@ func (r *LoggingConfigRepository) SaveLoggingConfig(ctx context.Context, config 
 	return nil
 }
 
+func (r *LoggingConfigRepository) GetLoggingConfig(ctx context.Context, guildID string) (domain.LoggingConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.LoggingConfig{}, err
+	}
+	if r.Err != nil {
+		return domain.LoggingConfig{}, r.Err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	config, ok := r.Configs[guildID]
+	if !ok {
+		return domain.LoggingConfig{}, ports.ErrLoggingConfigMissing
+	}
+	return config, nil
+}
+
 func (r *LoggingConfigRepository) Last() (domain.LoggingConfig, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -45,3 +61,4 @@ func (r *LoggingConfigRepository) Last() (domain.LoggingConfig, bool) {
 }
 
 var _ ports.LoggingConfigRepository = (*LoggingConfigRepository)(nil)
+var _ ports.LoggingConfigReader = (*LoggingConfigRepository)(nil)

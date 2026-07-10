@@ -82,4 +82,20 @@ func (r *LoggingConfigRepository) SaveLoggingConfig(ctx context.Context, config 
 	return ctx.Err()
 }
 
+func (r *LoggingConfigRepository) GetLoggingConfig(ctx context.Context, guildID string) (domain.LoggingConfig, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.LoggingConfig{}, err
+	}
+	var document documents.LoggingConfigDocument
+	err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document)
+	if err != nil {
+		if err == drivermongo.ErrNoDocuments {
+			return domain.LoggingConfig{}, ports.ErrLoggingConfigMissing
+		}
+		return domain.LoggingConfig{}, mhcatmongo.MapError(fmt.Errorf("get logging config: %w", err))
+	}
+	return document.ToDomain(), ctx.Err()
+}
+
 var _ ports.LoggingConfigRepository = (*LoggingConfigRepository)(nil)
+var _ ports.LoggingConfigReader = (*LoggingConfigRepository)(nil)

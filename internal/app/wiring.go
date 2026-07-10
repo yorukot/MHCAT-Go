@@ -744,6 +744,17 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		}
 		featuresafety.NewMessageDeleteModule(configRepo, catalogRepo, sideEffects).RegisterEventRoutes(dispatcher)
 	}
+	if cfg.FeatureLoggingMessageEventsEnabled {
+		repo, err := loggingConfigRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		sideEffects, err := messageSideEffectsFromSession(session, "logging message events feature")
+		if err != nil {
+			return nil, err
+		}
+		featurelogging.NewMessageEventModule(repo, sideEffects, sideEffects).RegisterEventRoutes(dispatcher)
+	}
 	if cfg.FeatureAccountAgePolicyEnabled {
 		repo, err := accountAgeConfigRepositoryFromMongo(mongoClient)
 		if err != nil {

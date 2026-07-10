@@ -114,11 +114,12 @@ type AuditLogQuery struct {
 }
 
 type AuditLogEntry struct {
-	ID       string
-	UserID   string
-	TargetID string
-	Reason   string
-	Action   int
+	ID        string
+	UserID    string
+	TargetID  string
+	ChannelID string
+	Reason    string
+	Action    int
 }
 
 type DiscordMessagePort interface {

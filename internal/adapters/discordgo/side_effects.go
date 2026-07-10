@@ -694,14 +694,22 @@ func (c SideEffectClient) AuditLog(ctx context.Context, query ports.AuditLogQuer
 			action = int(*entry.ActionType)
 		}
 		entries = append(entries, ports.AuditLogEntry{
-			ID:       entry.ID,
-			UserID:   entry.UserID,
-			TargetID: entry.TargetID,
-			Reason:   entry.Reason,
-			Action:   action,
+			ID:        entry.ID,
+			UserID:    entry.UserID,
+			TargetID:  entry.TargetID,
+			ChannelID: auditLogChannelID(entry),
+			Reason:    entry.Reason,
+			Action:    action,
 		})
 	}
 	return entries, ctx.Err()
+}
+
+func auditLogChannelID(entry *dgo.AuditLogEntry) string {
+	if entry == nil || entry.Options == nil {
+		return ""
+	}
+	return entry.Options.ChannelID
 }
 
 func (c SideEffectClient) session() (*dgo.Session, error) {

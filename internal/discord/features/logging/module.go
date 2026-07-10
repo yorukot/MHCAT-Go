@@ -9,8 +9,12 @@ import (
 )
 
 type Module struct {
-	service moderationservice.LoggingConfigService
-	usage   ports.UsageTracker
+	service              moderationservice.LoggingConfigService
+	configReader         ports.LoggingConfigReader
+	messages             ports.DiscordMessagePort
+	auditLogs            ports.DiscordAuditLogPort
+	usage                ports.UsageTracker
+	messageEventsEnabled bool
 }
 
 func NewModule(repo ports.LoggingConfigRepository, usage ports.UsageTracker) Module {

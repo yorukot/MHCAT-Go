@@ -20,6 +20,7 @@ type SideEffects struct {
 	DirectMessages    []DirectMessage
 	Edited            []EditedMessage
 	DeletedMessage    []ports.MessageRef
+	AuditEntries      []ports.AuditLogEntry
 	CleanupRequests   []ports.MessageCleanupRequest
 	Reactions         []ReactionAdd
 	AddedRoles        []RoleChange
@@ -43,6 +44,7 @@ type SideEffects struct {
 	Err               error
 	KickErr           error
 	BanErr            error
+	AuditErr          error
 	CleanupErr        error
 	CleanupDeleted    int
 	ModerationErr     error
@@ -506,6 +508,31 @@ func (s *SideEffects) CleanupMessages(ctx context.Context, req ports.MessageClea
 	return req.Limit, nil
 }
 
+func (s *SideEffects) AuditLog(ctx context.Context, query ports.AuditLogQuery) ([]ports.AuditLogEntry, error) {
+	if err := s.ready(ctx); err != nil {
+		return nil, err
+	}
+	if s.AuditErr != nil {
+		return nil, s.AuditErr
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entries := []ports.AuditLogEntry{}
+	for _, entry := range s.AuditEntries {
+		if query.Action != 0 && entry.Action != query.Action {
+			continue
+		}
+		if query.UserID != "" && entry.UserID != query.UserID {
+			continue
+		}
+		entries = append(entries, entry)
+		if query.Limit > 0 && len(entries) >= query.Limit {
+			break
+		}
+	}
+	return entries, nil
+}
+
 func (s *SideEffects) ready(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -521,6 +548,7 @@ var _ ports.DiscordMessagePort = (*SideEffects)(nil)
 var _ ports.DiscordReactionPort = (*SideEffects)(nil)
 var _ ports.DiscordMessageCleaner = (*SideEffects)(nil)
 var _ ports.DiscordDirectMessagePort = (*SideEffects)(nil)
+var _ ports.DiscordAuditLogPort = (*SideEffects)(nil)
 var _ ports.DiscordRolePort = (*SideEffects)(nil)
 var _ ports.DiscordMemberPort = (*SideEffects)(nil)
 var _ ports.DiscordMemberHierarchyInspector = (*SideEffects)(nil)

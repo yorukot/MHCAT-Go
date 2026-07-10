@@ -57,6 +57,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureAntiScamReportEnabled:         DefaultFeatureAntiScamReportEnabled,
 		FeatureAntiScamMessageDeleteEnabled:  DefaultFeatureAntiScamMessageDeleteEnabled,
 		FeatureLoggingConfigEnabled:          DefaultFeatureLoggingConfigEnabled,
+		FeatureLoggingMessageEventsEnabled:   DefaultFeatureLoggingMessageEventsEnabled,
 		FeatureGachaPrizeListEnabled:         DefaultFeatureGachaPrizeListEnabled,
 		FeatureGachaDrawEnabled:              DefaultFeatureGachaDrawEnabled,
 		FeatureGachaPrizeCreateEnabled:       DefaultFeatureGachaPrizeCreateEnabled,
@@ -217,6 +218,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureLoggingConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_LOGGING_CONFIG_ENABLED", DefaultFeatureLoggingConfigEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureLoggingMessageEventsEnabled, err = getBool(lookup, "MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED", DefaultFeatureLoggingMessageEventsEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureGachaPrizeListEnabled, err = getBool(lookup, "MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED", DefaultFeatureGachaPrizeListEnabled); err != nil {
