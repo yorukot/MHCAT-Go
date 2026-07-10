@@ -3,6 +3,7 @@ package xp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -14,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/xp"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
@@ -165,6 +167,22 @@ func TestParseLegacyXPRankPageRequestBoundsPages(t *testing.T) {
 	} {
 		if _, _, _, err := parseLegacyXPRankPageRequest(customID); err == nil {
 			t.Fatalf("parseLegacyXPRankPageRequest(%q) unexpectedly succeeded", customID)
+		}
+	}
+}
+
+func TestParseLegacyXPRankPageRequestRejectsMalformedLegacyIDs(t *testing.T) {
+	const viewerID = "123456789012345678"
+	for _, customID := range []string{
+		"[" + viewerID + "]{-1}text_rank",
+		"[" + viewerID + "]{1.5}text_rank",
+		"[" + viewerID + "]text_rank {NaN}",
+		"[123]{1}text_rank",
+		"[" + viewerID + "]{1}text_rank-extra",
+		"prefix[" + viewerID + "]{1}voice_rank",
+	} {
+		if _, _, _, err := parseLegacyXPRankPageRequest(customID); !errors.Is(err, domain.ErrInvalidXPRankQuery) {
+			t.Fatalf("parseLegacyXPRankPageRequest(%q) error = %v", customID, err)
 		}
 	}
 }
