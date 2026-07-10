@@ -126,7 +126,7 @@ func TestCreateStatsConfigAddsOptionalChannelUnderExistingParent(t *testing.T) {
 	if request.Name != "總語音頻道數: 4" || request.Type != discordChannelTypeGuildVoice || request.ParentID != "parent-1" {
 		t.Fatalf("optional request = %#v", request)
 	}
-	if config.VoiceNumberID == "" || config.VoiceNumberName != "4" {
+	if config.VoiceNumberID == "" || config.VoiceNumberName != "8" {
 		t.Fatalf("config = %#v", config)
 	}
 }

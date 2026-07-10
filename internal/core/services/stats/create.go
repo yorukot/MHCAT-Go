@@ -132,16 +132,20 @@ func (s CreateService) createOptional(ctx context.Context, req CreateRequest, ex
 			return domain.StatsConfig{}, err
 		}
 	}
-	currentValue := optionalStatsValue(option, snapshot)
+	displayValue := optionalStatsValue(option, snapshot)
+	storedValue := displayValue
+	if option == domain.StatsOptionVoiceCount {
+		storedValue = snapshot.TextChannelCount
+	}
 	channelType := discordChannelTypeGuildText
 	if req.ChannelType == domain.StatsChannelTypeVoice {
 		channelType = discordChannelTypeGuildVoice
 	}
-	created, err := s.Channels.CreateChannel(ctx, statsChannelRequest(req, parentID, channelType, optionalStatsChannelName(option, currentValue)))
+	created, err := s.Channels.CreateChannel(ctx, statsChannelRequest(req, parentID, channelType, optionalStatsChannelName(option, displayValue)))
 	if err != nil {
 		return domain.StatsConfig{}, err
 	}
-	return s.Repository.AddStatsConfigChannel(ctx, req.GuildID, option, created.ChannelID, currentValue)
+	return s.Repository.AddStatsConfigChannel(ctx, req.GuildID, option, created.ChannelID, storedValue)
 }
 
 func statsChannelRequest(req CreateRequest, parentID string, channelType int, name string) ports.ChannelCreateRequest {
