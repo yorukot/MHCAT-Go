@@ -32,3 +32,16 @@ func TestPollCreateValidateUsesUTF16ChoiceLength(t *testing.T) {
 		})
 	}
 }
+
+func TestPollCreateValidatePreservesLegacyTextWhitespace(t *testing.T) {
+	err := (PollCreate{
+		GuildID:   "guild-1",
+		MessageID: "message-1",
+		Question:  " ",
+		CreatorID: "user-1",
+		Choices:   []string{" A ", " "},
+	}).Validate()
+	if err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}

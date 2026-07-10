@@ -72,15 +72,11 @@ func (r *PollRepository) Vote(ctx context.Context, guildID string, messageID str
 	guildID = strings.TrimSpace(guildID)
 	messageID = strings.TrimSpace(messageID)
 	userID = strings.TrimSpace(userID)
-	choice = strings.TrimSpace(choice)
 	if guildID == "" || messageID == "" || userID == "" || choice == "" {
 		return domain.PollVoteChange{}, domain.ErrInvalidPoll
 	}
 
-	removeFilter := append(pollActiveFilter(guildID, messageID),
-		bson.E{Key: "can_change_choose", Value: true},
-		bson.E{Key: "join_member", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "id", Value: userID}, {Key: "choise", Value: choice}}}}},
-	)
+	removeFilter := pollRemoveVoteFilter(guildID, messageID, userID, choice)
 	removeResult, err := r.collection.UpdateOne(ctx, removeFilter, bson.D{{Key: "$pull", Value: bson.D{{Key: "join_member", Value: bson.D{{Key: "id", Value: userID}, {Key: "choise", Value: choice}}}}}})
 	if err != nil {
 		return domain.PollVoteChange{}, mhcatmongo.MapError(fmt.Errorf("remove poll vote: %w", err))
@@ -90,18 +86,7 @@ func (r *PollRepository) Vote(ctx context.Context, guildID string, messageID str
 		return domain.PollVoteChange{Removed: true, Poll: poll}, err
 	}
 
-	addFilter := append(pollActiveFilter(guildID, messageID),
-		bson.E{Key: "choose_data", Value: choice},
-		bson.E{Key: "join_member", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "id", Value: userID}, {Key: "choise", Value: choice}}}}}}},
-		bson.E{Key: "$expr", Value: bson.D{{Key: "$lt", Value: bson.A{
-			bson.D{{Key: "$size", Value: bson.D{{Key: "$filter", Value: bson.D{
-				{Key: "input", Value: "$join_member"},
-				{Key: "as", Value: "vote"},
-				{Key: "cond", Value: bson.D{{Key: "$eq", Value: bson.A{"$$vote.id", userID}}}},
-			}}}}},
-			"$many_choose",
-		}}}},
-	)
+	addFilter := pollAddVoteFilter(guildID, messageID, userID, choice)
 	addResult, err := r.collection.UpdateOne(ctx, addFilter, bson.D{{Key: "$push", Value: bson.D{{Key: "join_member", Value: bson.D{
 		{Key: "id", Value: userID},
 		{Key: "choise", Value: choice},
@@ -116,6 +101,28 @@ func (r *PollRepository) Vote(ctx context.Context, guildID string, messageID str
 	}
 
 	return domain.PollVoteChange{}, r.voteMissReason(ctx, guildID, messageID, userID, choice)
+}
+
+func pollRemoveVoteFilter(guildID string, messageID string, userID string, choice string) bson.D {
+	return append(pollActiveFilter(guildID, messageID),
+		bson.E{Key: "can_change_choose", Value: true},
+		bson.E{Key: "join_member", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "id", Value: userID}, {Key: "choise", Value: choice}}}}},
+	)
+}
+
+func pollAddVoteFilter(guildID string, messageID string, userID string, choice string) bson.D {
+	return append(pollActiveFilter(guildID, messageID),
+		bson.E{Key: "choose_data", Value: choice},
+		bson.E{Key: "join_member", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "id", Value: userID}, {Key: "choise", Value: choice}}}}}}},
+		bson.E{Key: "$expr", Value: bson.D{{Key: "$lt", Value: bson.A{
+			bson.D{{Key: "$size", Value: bson.D{{Key: "$filter", Value: bson.D{
+				{Key: "input", Value: "$join_member"},
+				{Key: "as", Value: "vote"},
+				{Key: "cond", Value: bson.D{{Key: "$eq", Value: bson.A{"$$vote.id", userID}}}},
+			}}}}},
+			"$many_choose",
+		}}}},
+	)
 }
 
 func (r *PollRepository) TogglePoll(ctx context.Context, guildID string, messageID string, toggle domain.PollToggle) (domain.Poll, error) {

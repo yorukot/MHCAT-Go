@@ -93,12 +93,12 @@ func TestCreateHandlerSendsLegacyPollUIAndSavesDocument(t *testing.T) {
 	}
 }
 
-func TestCreateHandlerPreservesQuestionWhitespace(t *testing.T) {
+func TestCreateHandlerPreservesQuestionAndChoiceWhitespace(t *testing.T) {
 	repo := fakemongo.NewPollRepository()
 	sideEffects := fakediscord.NewSideEffects()
 	module := NewModuleWithSideEffects(repo, sideEffects, nil, nil)
 	responder := fakediscord.NewResponder()
-	interaction := pollCreateInteraction("  今天吃什麼?  ", "A^B")
+	interaction := pollCreateInteraction("  今天吃什麼?  ", " A ^ ")
 
 	if err := module.CreateHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("create handler: %v", err)
@@ -109,12 +109,19 @@ func TestCreateHandlerPreservesQuestionWhitespace(t *testing.T) {
 	if got := sideEffects.Sent[0].Message.Embeds[0].Title; got != "<:poll:1023968837965709312> | 投票\n  今天吃什麼?  " {
 		t.Fatalf("poll title = %q", got)
 	}
+	components := sideEffects.Sent[0].Message.Components[0].Components
+	if components[0].Label != " A " || components[1].Label != " " {
+		t.Fatalf("choice labels = %#v", components)
+	}
 	saved, err := repo.GetPoll(context.Background(), interaction.Actor.GuildID, sideEffects.Sent[0].Ref.MessageID)
 	if err != nil {
 		t.Fatalf("get saved poll: %v", err)
 	}
 	if saved.Question != "  今天吃什麼?  " {
 		t.Fatalf("saved question = %q", saved.Question)
+	}
+	if len(saved.Choices) != 2 || saved.Choices[0] != " A " || saved.Choices[1] != " " {
+		t.Fatalf("saved choices = %#v", saved.Choices)
 	}
 }
 
@@ -243,6 +250,35 @@ func TestVoteHandlerLegacyIDSupportsEightyCharacterChoice(t *testing.T) {
 		t.Fatalf("vote handler: %v", err)
 	}
 	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, choice) {
+		t.Fatalf("response = %#v", responder.Edits)
+	}
+}
+
+func TestVoteHandlerPreservesChoiceWhitespace(t *testing.T) {
+	repo := fakemongo.NewPollRepository()
+	if _, err := repo.CreatePoll(context.Background(), domain.PollCreate{
+		GuildID:   "guild-1",
+		MessageID: "message-1",
+		Question:  " ",
+		CreatorID: "owner-1",
+		Choices:   []string{" A ", " "},
+	}); err != nil {
+		t.Fatalf("seed poll: %v", err)
+	}
+	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), nil, fixedClock{now: time.UnixMilli(1700000000000)})
+	responder := fakediscord.NewResponder()
+
+	if err := module.VoteHandler()(context.Background(), pollButtonInteraction("mhcat:v1:poll:vote:i=0"), responder); err != nil {
+		t.Fatalf("vote handler: %v", err)
+	}
+	poll, err := repo.GetPoll(context.Background(), "guild-1", "message-1")
+	if err != nil {
+		t.Fatalf("get poll: %v", err)
+	}
+	if len(poll.Votes) != 1 || poll.Votes[0].Choice != " A " {
+		t.Fatalf("votes = %#v", poll.Votes)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "` A `") {
 		t.Fatalf("response = %#v", responder.Edits)
 	}
 }

@@ -56,7 +56,7 @@ const (
 func (p PollCreate) Validate() error {
 	if strings.TrimSpace(p.GuildID) == "" ||
 		strings.TrimSpace(p.MessageID) == "" ||
-		strings.TrimSpace(p.Question) == "" ||
+		p.Question == "" ||
 		strings.TrimSpace(p.CreatorID) == "" {
 		return ErrInvalidPoll
 	}
@@ -65,7 +65,7 @@ func (p PollCreate) Validate() error {
 	}
 	seen := map[string]struct{}{}
 	for _, choice := range p.Choices {
-		if strings.TrimSpace(choice) == "" || len(utf16.Encode([]rune(choice))) > 80 {
+		if choice == "" || len(utf16.Encode([]rune(choice))) > 80 {
 			return ErrInvalidPoll
 		}
 		if _, ok := seen[choice]; ok {
