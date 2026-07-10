@@ -102,7 +102,7 @@ func (m Module) SetupModalHandler() interactions.Handler {
 			EmbedColor:       fields[fieldColor],
 		}.Normalized()
 		if message.EmbedColor != "" {
-			if strings.TrimSpace(message.EmbedColor) == "" || message.EmbedColor != "Random" && !domain.ValidLegacyColor(message.EmbedColor) {
+			if !validLegacyAutoNotificationColor(message.EmbedColor) {
 				return responder.EditOriginal(ctx, autoNotificationErrorMessage("你傳送的並不是顏色(色碼)"))
 			}
 		}
@@ -135,6 +135,22 @@ func (m Module) SetupModalHandler() interactions.Handler {
 			_, _ = m.messages.SendMessage(ctx, interaction.ChannelID, autoNotificationPreviewOutbound(message, m.color()))
 		}
 		return nil
+	}
+}
+
+func validLegacyAutoNotificationColor(value string) bool {
+	if value == "Random" {
+		return true
+	}
+	if len(value) == 7 && value[0] == '#' {
+		_, ok := domain.ParseLegacyColorValue(value)
+		return ok
+	}
+	switch value {
+	case "White", "Aqua", "Green", "Blue", "Yellow", "Purple", "Fuchsia", "Gold", "Orange", "Red", "Navy", "DarkGreen", "DarkBlue", "DarkOrange", "DarkRed":
+		return true
+	default:
+		return false
 	}
 }
 

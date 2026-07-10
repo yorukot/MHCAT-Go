@@ -103,6 +103,29 @@ func TestSetupModalRejectsInvalidColor(t *testing.T) {
 	}
 }
 
+func TestLegacyAutoNotificationColorValidation(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		want  bool
+	}{
+		{value: "Random", want: true},
+		{value: "#123456", want: true},
+		{value: "Red", want: true},
+		{value: "DarkGreen", want: true},
+		{value: "Default"},
+		{value: "LuminousVividPink"},
+		{value: "123456"},
+		{value: "#fff"},
+		{value: "red"},
+		{value: "AliceBlue"},
+		{value: "   "},
+	} {
+		if got := validLegacyAutoNotificationColor(test.value); got != test.want {
+			t.Fatalf("validLegacyAutoNotificationColor(%q) = %v, want %v", test.value, got, test.want)
+		}
+	}
+}
+
 func TestSetupModalPreservesLegacyMessageWhitespace(t *testing.T) {
 	repo := fakemongo.NewAutoNotificationScheduleRepository()
 	repo.Schedules["guild-1"] = []domain.AutoNotificationSchedule{{GuildID: "guild-1", ID: "id-1", ChannelID: "channel-1", Pending: true}}
