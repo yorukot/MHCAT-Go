@@ -112,7 +112,7 @@ func (m Module) SetupModalHandler() interactions.Handler {
 		if message.HasEmbed() && message.EmbedColor == "Random" {
 			message = resolveAutoNotificationMessageColor(message, m.color())
 		}
-		cron := strings.TrimSpace(fields[fieldCron])
+		cron := fields[fieldCron]
 		switch validateDirectCron(cron, m.now()) {
 		case directCronTooFrequent:
 			return responder.EditOriginal(ctx, autoNotificationErrorMessage("傳送訊息的間隔必須大於15分鐘!"))

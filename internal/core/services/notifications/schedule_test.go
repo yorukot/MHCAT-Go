@@ -26,8 +26,8 @@ func TestListReturnsActiveSchedulesAndCleansPendingDrafts(t *testing.T) {
 	if len(schedules) != 2 {
 		t.Fatalf("schedules = %#v", schedules)
 	}
-	if schedules[0].ID != "active-1" || schedules[0].Cron != "*/30 * * * *" || schedules[0].ChannelID != "channel-1" {
-		t.Fatalf("first schedule not normalized: %#v", schedules[0])
+	if schedules[0].ID != "active-1" || schedules[0].Cron != " */30 * * * * " || schedules[0].ChannelID != "channel-1" {
+		t.Fatalf("first schedule normalization = %#v", schedules[0])
 	}
 	if len(repo.PendingCleanupGuilds) != 1 || repo.PendingCleanupGuilds[0] != "guild-1" {
 		t.Fatalf("cleanup guilds = %#v", repo.PendingCleanupGuilds)

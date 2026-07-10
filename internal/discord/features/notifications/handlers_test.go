@@ -150,6 +150,21 @@ func TestSetupModalPreservesLegacyMessageWhitespace(t *testing.T) {
 	}
 }
 
+func TestSetupModalPreservesLegacyCronWhitespace(t *testing.T) {
+	repo := fakemongo.NewAutoNotificationScheduleRepository()
+	repo.Schedules["guild-1"] = []domain.AutoNotificationSchedule{{GuildID: "guild-1", ID: "id-1", ChannelID: "channel-1", Pending: true}}
+	module := NewModule(repo, nil, nil)
+	responder := fakediscord.NewResponder()
+	const cron = "  */30   * * * *  "
+
+	if err := module.SetupModalHandler()(context.Background(), autoNotificationModal("id-1", cron, "hello", "", "", ""), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(repo.Completed) != 1 || repo.Completed[0].Cron != cron {
+		t.Fatalf("completed = %#v", repo.Completed)
+	}
+}
+
 func TestSetupModalAcceptsWhitespaceOnlyLegacyContentAndRejectsWhitespaceColor(t *testing.T) {
 	repo := fakemongo.NewAutoNotificationScheduleRepository()
 	repo.Schedules["guild-1"] = []domain.AutoNotificationSchedule{{GuildID: "guild-1", ID: "id-1", ChannelID: "channel-1", Pending: true}}

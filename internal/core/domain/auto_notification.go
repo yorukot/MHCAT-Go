@@ -39,7 +39,6 @@ type AutoNotificationMessage struct {
 func (s AutoNotificationSchedule) Normalized() AutoNotificationSchedule {
 	s.GuildID = strings.TrimSpace(s.GuildID)
 	s.ID = strings.TrimSpace(s.ID)
-	s.Cron = strings.TrimSpace(s.Cron)
 	s.ChannelID = strings.TrimSpace(s.ChannelID)
 	s.Message = s.Message.Normalized()
 	return s
@@ -55,7 +54,6 @@ func (d AutoNotificationSetupDraft) Normalized() AutoNotificationSetupDraft {
 func (s AutoNotificationSetup) Normalized() AutoNotificationSetup {
 	s.GuildID = strings.TrimSpace(s.GuildID)
 	s.ID = strings.TrimSpace(s.ID)
-	s.Cron = strings.TrimSpace(s.Cron)
 	s.Message = s.Message.Normalized()
 	return s
 }
@@ -96,7 +94,7 @@ func ValidateAutoNotificationSetupDraft(draft AutoNotificationSetupDraft) error 
 
 func ValidateAutoNotificationSetup(setup AutoNotificationSetup) error {
 	setup = setup.Normalized()
-	if setup.GuildID == "" || setup.ID == "" || setup.Cron == "" || setup.Message.Empty() {
+	if setup.GuildID == "" || setup.ID == "" || strings.TrimSpace(setup.Cron) == "" || setup.Message.Empty() {
 		return ErrInvalidAutoNotificationSchedule
 	}
 	return nil
@@ -104,7 +102,7 @@ func ValidateAutoNotificationSetup(setup AutoNotificationSetup) error {
 
 func ValidateAutoNotificationDelivery(schedule AutoNotificationSchedule) error {
 	schedule = schedule.Normalized()
-	if schedule.Pending || schedule.GuildID == "" || schedule.ID == "" || schedule.Cron == "" || schedule.ChannelID == "" || schedule.Message.Empty() {
+	if schedule.Pending || schedule.GuildID == "" || schedule.ID == "" || strings.TrimSpace(schedule.Cron) == "" || schedule.ChannelID == "" || schedule.Message.Empty() {
 		return ErrInvalidAutoNotificationSchedule
 	}
 	return nil

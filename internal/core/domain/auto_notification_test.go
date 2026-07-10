@@ -41,3 +41,14 @@ func TestAutoNotificationMessagePreservesLegacyWhitespace(t *testing.T) {
 		t.Fatalf("embed message = %#v", embed)
 	}
 }
+
+func TestAutoNotificationSchedulePreservesLegacyCronWhitespace(t *testing.T) {
+	schedule := (domain.AutoNotificationSchedule{GuildID: " guild-1 ", ID: " schedule-1 ", Cron: "  */30   * * * *  ", ChannelID: " channel-1 "}).Normalized()
+	if schedule.GuildID != "guild-1" || schedule.ID != "schedule-1" || schedule.ChannelID != "channel-1" || schedule.Cron != "  */30   * * * *  " {
+		t.Fatalf("schedule = %#v", schedule)
+	}
+	setup := (domain.AutoNotificationSetup{GuildID: " guild-1 ", ID: " schedule-1 ", Cron: "  0 9 * * 1  ", Message: domain.AutoNotificationMessage{Content: "hello"}}).Normalized()
+	if setup.GuildID != "guild-1" || setup.ID != "schedule-1" || setup.Cron != "  0 9 * * 1  " {
+		t.Fatalf("setup = %#v", setup)
+	}
+}
