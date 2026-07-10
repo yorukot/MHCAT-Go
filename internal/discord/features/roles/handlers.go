@@ -44,7 +44,7 @@ func (m Module) ReactionSetHandler() interactions.Handler {
 		if err := responder.EditOriginal(ctx, roleSelectionSuccessTitle(roleSelectionDoneEmoji+" | 表情符號選取身分組成功設定")); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, RoleReactionSetCommandName)
+		return nil
 	}
 }
 
@@ -67,7 +67,7 @@ func (m Module) ReactionDeleteHandler() interactions.Handler {
 		if err := responder.EditOriginal(ctx, roleSelectionSuccessTitle("表情符號選取身分組成功刪除")); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, RoleReactionDeleteCommandName)
+		return nil
 	}
 }
 
@@ -92,7 +92,7 @@ func (m Module) ButtonSetupHandler() interactions.Handler {
 		if err := responder.ShowModal(ctx, roleSelectionModal(baseID)); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, RoleButtonCommandName)
+		return nil
 	}
 }
 

@@ -1,7 +1,6 @@
 package roles
 
 import (
-	"context"
 	"fmt"
 	"math/rand/v2"
 	"strconv"
@@ -20,11 +19,10 @@ type Module struct {
 	service     coreservice.SelectionService
 	messages    ports.DiscordMessagePort
 	direct      ports.DiscordDirectMessagePort
-	usage       ports.UsageTracker
 	idGenerator func() string
 }
 
-func NewModule(repo ports.RoleSelectionRepository, roles ports.DiscordRolePort, inspector ports.DiscordRoleInspector, reactions ports.DiscordReactionPort, messages ports.DiscordMessagePort, direct ports.DiscordDirectMessagePort, usage ports.UsageTracker) Module {
+func NewModule(repo ports.RoleSelectionRepository, roles ports.DiscordRolePort, inspector ports.DiscordRoleInspector, reactions ports.DiscordReactionPort, messages ports.DiscordMessagePort, direct ports.DiscordDirectMessagePort) Module {
 	return Module{
 		service: coreservice.SelectionService{
 			Repository:    repo,
@@ -34,13 +32,12 @@ func NewModule(repo ports.RoleSelectionRepository, roles ports.DiscordRolePort, 
 		},
 		messages:    messages,
 		direct:      direct,
-		usage:       usage,
 		idGenerator: legacyRoleButtonID,
 	}
 }
 
-func NewModuleWithIDGenerator(repo ports.RoleSelectionRepository, roles ports.DiscordRolePort, inspector ports.DiscordRoleInspector, reactions ports.DiscordReactionPort, messages ports.DiscordMessagePort, direct ports.DiscordDirectMessagePort, usage ports.UsageTracker, idGenerator func() string) Module {
-	module := NewModule(repo, roles, inspector, reactions, messages, direct, usage)
+func NewModuleWithIDGenerator(repo ports.RoleSelectionRepository, roles ports.DiscordRolePort, inspector ports.DiscordRoleInspector, reactions ports.DiscordReactionPort, messages ports.DiscordMessagePort, direct ports.DiscordDirectMessagePort, idGenerator func() string) Module {
+	module := NewModule(repo, roles, inspector, reactions, messages, direct)
 	if idGenerator != nil {
 		module.idGenerator = idGenerator
 	}
@@ -80,18 +77,6 @@ func (m Module) RegisterEventRoutes(dispatcher *events.Dispatcher) {
 	}
 	dispatcher.Register(events.TypeReactionAdd, m.ReactionEventHandler(false))
 	dispatcher.Register(events.TypeReactionRemove, m.ReactionEventHandler(true))
-}
-
-func (m Module) track(ctx context.Context, interaction interactions.Interaction, commandName string) error {
-	if m.usage == nil {
-		return nil
-	}
-	return m.usage.TrackCommand(ctx, ports.UsageEvent{
-		GuildID:     interaction.Actor.GuildID,
-		UserID:      interaction.Actor.UserID,
-		CommandName: commandName,
-		Feature:     "role-selection",
-	})
 }
 
 func legacyRoleButtonID() string {

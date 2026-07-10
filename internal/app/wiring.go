@@ -728,7 +728,6 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 			opts.RoleSelectionReactionPort,
 			opts.RoleSelectionMessagePort,
 			opts.RoleSelectionDirectMessage,
-			opts.UsageTracker,
 		)
 		if err := roleModule.RegisterRoutes(router); err != nil {
 			return nil, err
@@ -952,7 +951,7 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		if err != nil {
 			return nil, err
 		}
-		featureroles.NewModule(repo, sideEffects, discordadapter.NewCachedRoleInspector(sideEffects), sideEffects, sideEffects, sideEffects, nil).RegisterEventRoutes(dispatcher)
+		featureroles.NewModule(repo, sideEffects, discordadapter.NewCachedRoleInspector(sideEffects), sideEffects, sideEffects, sideEffects).RegisterEventRoutes(dispatcher)
 	}
 	if cfg.FeatureVoiceRoomLockEnabled {
 		repo, err := voiceRoomLockRepositoryFromMongo(mongoClient)

@@ -23,7 +23,11 @@ func TestReactionSetHandlerStoresConfigAndAddsReaction(t *testing.T) {
 	discord.AssignableRoles["guild-1/role-1"] = true
 	seedRoleReactionMessage(discord, "guild-1", "channel-1", "message-1")
 	usage := &fakeusage.Tracker{}
-	module := NewModule(repo, discord, discord, discord, discord, discord, usage)
+	module := NewModule(repo, discord, discord, discord, discord, discord)
+	router := interactions.NewRouter(interactions.Usage(usage))
+	if err := module.RegisterRoutes(router); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
 	interaction := fakediscord.SlashInteractionWithOptions(RoleReactionSetCommandName, "", map[string]string{
 		"訊息url": "https://discord.com/channels/guild-1/channel-1/message-1",
 		"身分組":   "role-1",
@@ -32,7 +36,7 @@ func TestReactionSetHandlerStoresConfigAndAddsReaction(t *testing.T) {
 	interaction.Actor.PermissionBits = permissionManageMessages
 	responder := fakediscord.NewResponder()
 
-	if err := module.ReactionSetHandler()(context.Background(), interaction, responder); err != nil {
+	if err := router.Handle(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
 	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != roleSelectionDoneEmoji+" | 表情符號選取身分組成功設定" {
@@ -52,7 +56,7 @@ func TestReactionSetHandlerStoresConfigAndAddsReaction(t *testing.T) {
 func TestReactionSetHandlerReportsRoleHierarchyBeforeInvalidURL(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	discord := fakediscord.NewSideEffects()
-	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+	module := NewModule(repo, discord, discord, discord, discord, discord)
 	interaction := fakediscord.SlashInteractionWithOptions(RoleReactionSetCommandName, "", map[string]string{
 		"訊息url": "not-a-message-url",
 		"身分組":   "role-1",
@@ -75,7 +79,7 @@ func TestReactionSetHandlerReportsLegacyInvalidEmoji(t *testing.T) {
 	discord := fakediscord.NewSideEffects()
 	discord.AssignableRoles["guild-1/role-1"] = true
 	seedRoleReactionChannel(discord, "guild-1", "channel-1")
-	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+	module := NewModule(repo, discord, discord, discord, discord, discord)
 	interaction := fakediscord.SlashInteractionWithOptions(RoleReactionSetCommandName, "", map[string]string{
 		"訊息url": "https://discord.com/channels/guild-1/channel-1/message-1",
 		"身分組":   "role-1",
@@ -101,7 +105,7 @@ func TestReactionDeleteHandlerDeletesConfig(t *testing.T) {
 	repo.Reactions["guild-1/message-1/✅"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "✅", RoleID: "role-1"}
 	discord := fakediscord.NewSideEffects()
 	seedRoleReactionMessage(discord, "guild-1", "channel-1", "message-1")
-	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+	module := NewModule(repo, discord, discord, discord, discord, discord)
 	interaction := fakediscord.SlashInteractionWithOptions(RoleReactionDeleteCommandName, "", map[string]string{
 		"訊息url": "https://discord.com/channels/guild-1/channel-1/message-1",
 		"表情符號":  "✅",
@@ -123,7 +127,7 @@ func TestReactionDeleteHandlerDeletesConfig(t *testing.T) {
 func TestReactionDeleteHandlerRejectsLegacyDiscordAppHost(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	discord := fakediscord.NewSideEffects()
-	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+	module := NewModule(repo, discord, discord, discord, discord, discord)
 	interaction := fakediscord.SlashInteractionWithOptions(RoleReactionDeleteCommandName, "", map[string]string{
 		"訊息url": "https://discordapp.com/channels/guild-1/channel-1/message-1",
 		"表情符號":  "✅",
@@ -159,7 +163,7 @@ func TestReactionSetHandlerReportsMissingLegacyMessage(t *testing.T) {
 			if test.seedChannel {
 				seedRoleReactionChannel(discord, "guild-1", "channel-1")
 			}
-			module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+			module := NewModule(repo, discord, discord, discord, discord, discord)
 			interaction := fakediscord.SlashInteractionWithOptions(RoleReactionSetCommandName, "", map[string]string{
 				"訊息url": "https://discord.com/channels/guild-1/channel-1/message-1",
 				"身分組":   "role-1",
@@ -186,7 +190,7 @@ func TestButtonSetupShowsLegacyModalAndStoresButtonConfigs(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	discord := fakediscord.NewSideEffects()
 	discord.AssignableRoles["guild-1/role-1"] = true
-	module := NewModuleWithIDGenerator(repo, discord, discord, discord, discord, discord, nil, func() string { return "2026070901011234.567" })
+	module := NewModuleWithIDGenerator(repo, discord, discord, discord, discord, discord, func() string { return "2026070901011234.567" })
 	interaction := fakediscord.SlashInteractionWithOptions(RoleButtonCommandName, "", map[string]string{"身分組": "role-1"})
 	interaction.Actor.PermissionBits = permissionManageMessages
 	responder := fakediscord.NewResponder()
@@ -212,7 +216,7 @@ func TestButtonSetupShowsLegacyModalAndStoresButtonConfigs(t *testing.T) {
 func TestButtonModalSendsLegacyPanel(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	discord := fakediscord.NewSideEffects()
-	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+	module := NewModule(repo, discord, discord, discord, discord, discord)
 	interaction := fakediscord.ModalInteraction(interactions.ModalKey{})
 	interaction.ChannelID = "channel-1"
 	interaction.BotDisplayColor = 0x123456
@@ -243,7 +247,7 @@ func TestButtonApplyAddsAndRemovesRole(t *testing.T) {
 	repo.Buttons["guild-1/button-delete"] = domain.RoleButtonConfig{GuildID: "guild-1", Number: "button-delete", RoleID: "role-1"}
 	discord := fakediscord.NewSideEffects()
 	discord.AssignableRoles["guild-1/role-1"] = true
-	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+	module := NewModule(repo, discord, discord, discord, discord, discord)
 
 	add := fakediscord.ComponentInteractionFromID("button-add")
 	add.Actor.PermissionBits = 0
@@ -269,7 +273,7 @@ func TestReactionEventsApplyRolesAndIgnoreMissingConfig(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	repo.Reactions["guild-1/message-1/emoji-1"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "emoji-1", RoleID: "role-1"}
 	discord := fakediscord.NewSideEffects()
-	module := NewModule(repo, discord, nil, discord, discord, discord, nil)
+	module := NewModule(repo, discord, nil, discord, discord, discord)
 
 	err := module.ReactionEventHandler(false)(context.Background(), events.Event{
 		Type:      events.TypeReactionAdd,
@@ -300,7 +304,7 @@ func TestReactionEventsIgnoreBots(t *testing.T) {
 	repo := fakemongo.NewRoleSelectionRepository()
 	repo.Reactions["guild-1/message-1/emoji-1"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "emoji-1", RoleID: "role-1"}
 	discord := fakediscord.NewSideEffects()
-	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+	module := NewModule(repo, discord, discord, discord, discord, discord)
 
 	for _, remove := range []bool{false, true} {
 		err := module.ReactionEventHandler(remove)(context.Background(), events.Event{
@@ -339,7 +343,7 @@ func TestReactionEventFailureDMUsesLegacyDirectionIcon(t *testing.T) {
 			if tc.missing {
 				discord.MissingRoles["guild-1/role-1"] = true
 			}
-			module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+			module := NewModule(repo, discord, discord, discord, discord, discord)
 
 			err := module.ReactionEventHandler(tc.remove)(context.Background(), events.Event{
 				Type:      tc.eventType,
@@ -389,7 +393,7 @@ func TestReactionEventOperationalFailuresAreLoggedWithoutMisleadingDM(t *testing
 			repo.Reactions["guild-1/message-1/emoji-1"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "emoji-1", RoleID: "role-1"}
 			discord := fakediscord.NewSideEffects()
 			inspector := test.setup(repo, discord)
-			module := NewModule(repo, discord, inspector, discord, discord, discord, nil)
+			module := NewModule(repo, discord, inspector, discord, discord, discord)
 
 			err := module.ReactionEventHandler(false)(context.Background(), events.Event{
 				Type:      events.TypeReactionAdd,
@@ -413,7 +417,7 @@ func TestButtonApplyAlreadyAssignedUsesLegacyError(t *testing.T) {
 	repo.Buttons["guild-1/button-add"] = domain.RoleButtonConfig{GuildID: "guild-1", Number: "button-add", RoleID: "role-1"}
 	discord := fakediscord.NewSideEffects()
 	discord.AssignableRoles["guild-1/role-1"] = true
-	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
+	module := NewModule(repo, discord, discord, discord, discord, discord)
 	interaction := fakediscord.ComponentInteractionFromID("button-add")
 	interaction.Actor.RoleIDs = []string{"role-1"}
 	responder := fakediscord.NewResponder()
