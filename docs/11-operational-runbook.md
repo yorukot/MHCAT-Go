@@ -710,7 +710,7 @@ MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
 MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 ```
 
-This command requires the Discord guild owner. Individual text/voice reset subcommands delete only the selected member's `text_xps` or `voice_xps` rows. Full-server text/voice reset subcommands send the legacy destructive warning and require the same owner to type `^確認^` in the same channel within 60 seconds before deleting all staging guild XP rows for that collection. Test only against disposable staging XP rows; command sync and staging scripts reject unpaired sync/runtime flags.
+This command requires the Discord guild owner. Individual text/voice reset subcommands delete only the selected member's `text_xps` or `voice_xps` rows. Full-server text/voice reset subcommands send the legacy destructive warning and require the same owner to type `^確認^` in the same channel within 60 seconds before deleting all staging guild XP rows for that collection. Test only against disposable staging XP rows; command sync and staging scripts reject unpaired sync/runtime flags. Follow the payload, confirmation-state, compatibility, and staging audit in `docs/70-xp-reset.md`.
 
 XP rank `/聊天排行榜` and `/語音排行榜` are available only when both staging command sync and runtime flags are explicitly enabled:
 
