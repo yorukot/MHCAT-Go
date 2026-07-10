@@ -108,7 +108,7 @@ func (m Module) SetupModalHandler() interactions.Handler {
 				AdminRoleID:    adminRoleID,
 				EveryoneRoleID: interaction.Actor.GuildID,
 			}
-			return m.repo.SaveTicketConfig(ctx, config)
+			return m.repo.CreateTicketConfig(ctx, config)
 		})
 	}
 }
@@ -141,6 +141,9 @@ func (m Module) submitTicketPanel(ctx context.Context, interaction interactions.
 	}
 	if saveConfig != nil {
 		if err := saveConfig(ctx); err != nil {
+			if errors.Is(err, ports.ErrTicketConfigExists) {
+				return responder.EditOriginal(ctx, ticketDuplicateConfigEditMessage())
+			}
 			return err
 		}
 	}
@@ -379,6 +382,12 @@ func ticketDuplicateConfigMessage() responses.Message {
 			Color:       legacyDiscordNamedRed,
 		}},
 	}
+}
+
+func ticketDuplicateConfigEditMessage() responses.Message {
+	message := ticketDuplicateConfigMessage()
+	message.Ephemeral = false
+	return message
 }
 
 func ticketSetupSuccessMessage() responses.Message {

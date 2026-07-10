@@ -21,8 +21,8 @@ func TestTicketConfigRepositoryContractWithFake(t *testing.T) {
 		AdminRoleID:    "role-1",
 		EveryoneRoleID: "everyone-1",
 	}
-	if err := port.SaveTicketConfig(ctx, config); err != nil {
-		t.Fatalf("save config: %v", err)
+	if err := port.CreateTicketConfig(ctx, config); err != nil {
+		t.Fatalf("create config: %v", err)
 	}
 	got, err := port.GetTicketConfig(ctx, config.GuildID)
 	if err != nil {
@@ -31,17 +31,17 @@ func TestTicketConfigRepositoryContractWithFake(t *testing.T) {
 	if got != config {
 		t.Fatalf("config = %#v, want %#v", got, config)
 	}
-	updated := config
-	updated.CategoryID = "category-2"
-	if err := port.SaveTicketConfig(ctx, updated); err != nil {
-		t.Fatalf("save updated config: %v", err)
+	conflict := config
+	conflict.CategoryID = "category-2"
+	if err := port.CreateTicketConfig(ctx, conflict); !errors.Is(err, ports.ErrTicketConfigExists) {
+		t.Fatalf("create duplicate config error = %v", err)
 	}
 	got, err = port.GetTicketConfig(ctx, config.GuildID)
 	if err != nil {
-		t.Fatalf("get updated config: %v", err)
+		t.Fatalf("get original config: %v", err)
 	}
-	if got != updated {
-		t.Fatalf("updated config = %#v, want %#v", got, updated)
+	if got != config {
+		t.Fatalf("duplicate create changed config = %#v, want %#v", got, config)
 	}
 	if err := port.DeleteTicketConfig(ctx, config.GuildID); err != nil {
 		t.Fatalf("delete config: %v", err)
@@ -53,7 +53,7 @@ func TestTicketConfigRepositoryContractWithFake(t *testing.T) {
 
 func TestTicketConfigRepositoryContractValidation(t *testing.T) {
 	repo := fakemongo.NewTicketConfigRepository()
-	err := repo.SaveTicketConfig(context.Background(), domain.TicketConfig{GuildID: "guild-1"})
+	err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{GuildID: "guild-1"})
 	if !errors.Is(err, domain.ErrInvalidTicketConfig) {
 		t.Fatalf("expected invalid config, got %v", err)
 	}
@@ -66,8 +66,8 @@ func TestTicketConfigRepositoryContractContextCancellation(t *testing.T) {
 	if _, err := repo.GetTicketConfig(ctx, "guild-1"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("get canceled error = %v", err)
 	}
-	if err := repo.SaveTicketConfig(ctx, domain.TicketConfig{}); !errors.Is(err, context.Canceled) {
-		t.Fatalf("save canceled error = %v", err)
+	if err := repo.CreateTicketConfig(ctx, domain.TicketConfig{}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("create canceled error = %v", err)
 	}
 	if err := repo.DeleteTicketConfig(ctx, "guild-1"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("delete canceled error = %v", err)

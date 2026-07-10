@@ -34,7 +34,7 @@ func (r *TicketConfigRepository) GetTicketConfig(ctx context.Context, guildID st
 	return config, nil
 }
 
-func (r *TicketConfigRepository) SaveTicketConfig(ctx context.Context, config domain.TicketConfig) error {
+func (r *TicketConfigRepository) CreateTicketConfig(ctx context.Context, config domain.TicketConfig) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -46,6 +46,9 @@ func (r *TicketConfigRepository) SaveTicketConfig(ctx context.Context, config do
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if _, ok := r.configs[config.GuildID]; ok {
+		return ports.ErrTicketConfigExists
+	}
 	r.configs[config.GuildID] = config
 	return nil
 }

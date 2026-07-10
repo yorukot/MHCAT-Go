@@ -24,36 +24,29 @@ func TestNewTicketConfigRepositoryFromDatabaseRequiresDatabase(t *testing.T) {
 	}
 }
 
-func TestTicketConfigUpdateAlignsDuplicatesAndUpsertsGuild(t *testing.T) {
+func TestTicketConfigCreateUpdateOnlySetsFieldsOnInsert(t *testing.T) {
 	document := documents.TicketConfigDocument{
 		Guild:         "guild-1",
 		TicketChannel: "category-1",
 		AdminID:       "admin-role-1",
 		EveryoneID:    "everyone-role-1",
 	}
-	update, err := ticketConfigUpdate(document, false)
+	update, err := ticketConfigCreateUpdate(document)
 	if err != nil {
-		t.Fatalf("build duplicate update: %v", err)
+		t.Fatalf("build create update: %v", err)
 	}
-	if hasKey(update, "$setOnInsert") {
-		t.Fatalf("duplicate update should preserve existing guild keys: %#v", update)
+	if hasKey(update, "$set") {
+		t.Fatalf("create update must not mutate an existing config: %#v", update)
 	}
-	set := documentValue(t, update, "$set")
+	setOnInsert := documentValue(t, update, "$setOnInsert")
 	for key, want := range map[string]string{
+		"guild":          "guild-1",
 		"ticket_channel": "category-1",
 		"admin_id":       "admin-role-1",
 		"everyone_id":    "everyone-role-1",
 	} {
-		if got := documentValue(t, set, key); got != want {
+		if got := documentValue(t, setOnInsert, key); got != want {
 			t.Fatalf("%s = %#v, want %q", key, got, want)
 		}
-	}
-
-	upsert, err := ticketConfigUpdate(document, true)
-	if err != nil {
-		t.Fatalf("build upsert: %v", err)
-	}
-	if guild := documentValue(t, documentValue(t, upsert, "$setOnInsert"), "guild"); guild != "guild-1" {
-		t.Fatalf("upsert guild = %#v, want guild-1", guild)
 	}
 }

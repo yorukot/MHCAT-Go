@@ -187,6 +187,43 @@ func TestSetupModalRejectsInvalidColorWithoutSavingConfig(t *testing.T) {
 	}
 }
 
+func TestSetupModalDoesNotOverwriteConfigCreatedAfterModalWasShown(t *testing.T) {
+	repo := fakemongo.NewTicketConfigRepository()
+	existing := domain.TicketConfig{
+		GuildID:        testGuildID,
+		CategoryID:     "newer-category",
+		AdminRoleID:    "newer-admin-role",
+		EveryoneRoleID: testGuildID,
+	}
+	if err := repo.CreateTicketConfig(context.Background(), existing); err != nil {
+		t.Fatalf("seed newer config: %v", err)
+	}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewModuleWithSideEffects(repo, nil, sideEffects, "")
+	responder := fakediscord.NewResponder()
+	interaction := ticketModalInteraction(t, "#00ff00", "Stale panel", "Must not be sent")
+
+	if err := module.SetupModalHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("setup modal handler: %v", err)
+	}
+	got, err := repo.GetTicketConfig(context.Background(), testGuildID)
+	if err != nil {
+		t.Fatalf("get config: %v", err)
+	}
+	if got != existing {
+		t.Fatalf("stale modal changed config = %#v, want %#v", got, existing)
+	}
+	if len(sideEffects.Sent) != 0 {
+		t.Fatalf("stale modal sent panels = %#v", sideEffects.Sent)
+	}
+	if len(responder.Defers) != 1 || len(responder.Edits) != 1 {
+		t.Fatalf("defers=%#v edits=%#v", responder.Defers, responder.Edits)
+	}
+	if responder.Edits[0].Ephemeral || responder.Edits[0].Embeds[0].Title != "__**錯誤**__" {
+		t.Fatalf("duplicate edit = %#v", responder.Edits[0])
+	}
+}
+
 func TestLegacyPanelSubmitPreservesRawPanelTextAndEditsSuccess(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
 	module := NewModuleWithSideEffects(nil, nil, sideEffects, "")
@@ -321,7 +358,7 @@ func TestTicketFixedMessagesMatchLegacyDiscordNamedColors(t *testing.T) {
 
 func TestDeleteHandlerDeletesConfigWithLegacyMessage(t *testing.T) {
 	repo := fakemongo.NewTicketConfigRepository()
-	if err := repo.SaveTicketConfig(context.Background(), domain.TicketConfig{
+	if err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{
 		GuildID:        testGuildID,
 		CategoryID:     testCategoryID,
 		AdminRoleID:    testAdminRole,
@@ -402,8 +439,8 @@ func TestDeleteHandlerRequiresManageMessagesBeforeDeletingConfig(t *testing.T) {
 }
 
 func TestOpenHandlerCreatesTicketChannelAndSendsLegacyWelcome(t *testing.T) {
-	repo := seededTicketRepo(t)
-	if err := repo.SaveTicketConfig(context.Background(), domain.TicketConfig{
+	repo := fakemongo.NewTicketConfigRepository()
+	if err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{
 		GuildID:        testGuildID,
 		CategoryID:     testCategoryID,
 		AdminRoleID:    testAdminRole,
@@ -658,7 +695,7 @@ func ticketButtonInteraction(customID string) interactions.Interaction {
 func seededTicketRepo(t *testing.T) *fakemongo.TicketConfigRepository {
 	t.Helper()
 	repo := fakemongo.NewTicketConfigRepository()
-	if err := repo.SaveTicketConfig(context.Background(), domain.TicketConfig{
+	if err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{
 		GuildID:        testGuildID,
 		CategoryID:     testCategoryID,
 		AdminRoleID:    testAdminRole,

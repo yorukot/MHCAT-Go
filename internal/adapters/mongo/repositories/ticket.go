@@ -57,7 +57,7 @@ func (r *TicketConfigRepository) GetTicketConfig(ctx context.Context, guildID st
 	return config, ctx.Err()
 }
 
-func (r *TicketConfigRepository) SaveTicketConfig(ctx context.Context, config domain.TicketConfig) error {
+func (r *TicketConfigRepository) CreateTicketConfig(ctx context.Context, config domain.TicketConfig) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -65,29 +65,25 @@ func (r *TicketConfigRepository) SaveTicketConfig(ctx context.Context, config do
 		return err
 	}
 	document := documents.TicketConfigDocumentFromDomain(config)
-	update, err := ticketConfigUpdate(document, false)
+	update, err := ticketConfigCreateUpdate(document)
 	if err != nil {
 		return err
 	}
-	result, err := r.collection.UpdateMany(ctx, bson.D{{Key: "guild", Value: document.Guild}}, update)
-	if err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("save ticket config: %w", err))
-	}
-	if result.MatchedCount > 0 {
-		return ctx.Err()
-	}
-	upsert, err := ticketConfigUpdate(document, true)
-	if err != nil {
-		return err
-	}
-	_, err = r.collection.UpdateOne(
+	result, err := r.collection.UpdateOne(
 		ctx,
 		bson.D{{Key: "guild", Value: document.Guild}},
-		upsert,
+		update,
 		options.UpdateOne().SetUpsert(true),
 	)
 	if err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("upsert ticket config: %w", err))
+		mapped := mhcatmongo.MapError(fmt.Errorf("create ticket config: %w", err))
+		if mhcatmongo.ErrorIs(mapped, mhcatmongo.ErrorKindConflict) {
+			return ports.ErrTicketConfigExists
+		}
+		return mapped
+	}
+	if result.MatchedCount > 0 {
+		return ports.ErrTicketConfigExists
 	}
 	return ctx.Err()
 }
@@ -110,13 +106,11 @@ func (r *TicketConfigRepository) DeleteTicketConfig(ctx context.Context, guildID
 	return ctx.Err()
 }
 
-func ticketConfigUpdate(document documents.TicketConfigDocument, upsert bool) (bson.D, error) {
-	builder := mhcatmongo.NewUpdate().
-		Set("ticket_channel", document.TicketChannel).
-		Set("admin_id", document.AdminID).
-		Set("everyone_id", document.EveryoneID)
-	if upsert {
-		builder.SetOnInsert("guild", document.Guild)
-	}
-	return builder.Build()
+func ticketConfigCreateUpdate(document documents.TicketConfigDocument) (bson.D, error) {
+	return mhcatmongo.NewUpdate().
+		SetOnInsert("guild", document.Guild).
+		SetOnInsert("ticket_channel", document.TicketChannel).
+		SetOnInsert("admin_id", document.AdminID).
+		SetOnInsert("everyone_id", document.EveryoneID).
+		Build()
 }
