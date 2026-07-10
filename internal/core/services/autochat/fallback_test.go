@@ -148,3 +148,22 @@ func TestLegacySimilarityUsesUTF16CodeUnits(t *testing.T) {
 		t.Fatalf("empty similarity = %v", got)
 	}
 }
+
+func TestLegacySimilarityUsesJavaScriptUnicodeLowercase(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		left  string
+		right string
+		want  float64
+	}{
+		{name: "expanding lowercase", left: "İ", right: "i", want: 0},
+		{name: "contextual final sigma", left: "ΟΣ", right: "οσ", want: 0.5},
+		{name: "original utf16 denominator", left: "İ", right: "i̇", want: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := legacySimilarity(test.left, test.right); got != test.want {
+				t.Fatalf("legacySimilarity(%q, %q) = %v, want %v", test.left, test.right, got, test.want)
+			}
+		})
+	}
+}

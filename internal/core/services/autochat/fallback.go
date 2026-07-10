@@ -15,6 +15,8 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 //go:embed legacy_chat.json
@@ -165,17 +167,17 @@ func javascriptArrayIndex(value string) (uint64, bool) {
 }
 
 func legacySimilarity(left string, right string) float64 {
-	leftUnits := utf16.Encode([]rune(strings.ToLower(left)))
-	rightUnits := utf16.Encode([]rune(strings.ToLower(right)))
-	longer := leftUnits
-	shorter := rightUnits
-	if len(leftUnits) < len(rightUnits) {
-		longer, shorter = rightUnits, leftUnits
-	}
-	if len(longer) == 0 {
+	leftLength := len(utf16.Encode([]rune(left)))
+	rightLength := len(utf16.Encode([]rune(right)))
+	longerLength := max(leftLength, rightLength)
+	if longerLength == 0 {
 		return 1
 	}
-	return float64(len(longer)-legacyEditDistance(longer, shorter)) / float64(len(longer))
+
+	lower := cases.Lower(language.Und)
+	leftUnits := utf16.Encode([]rune(lower.String(left)))
+	rightUnits := utf16.Encode([]rune(lower.String(right)))
+	return float64(longerLength-legacyEditDistance(leftUnits, rightUnits)) / float64(longerLength)
 }
 
 func legacyEditDistance(left []uint16, right []uint16) int {
