@@ -95,7 +95,7 @@ func (r *RoleSelectionRepository) GetRoleReactionConfig(ctx context.Context, gui
 	if guildID == "" || messageID == "" || react == "" {
 		return domain.RoleReactionConfig{}, domain.ErrInvalidRoleSelectionConfig
 	}
-	var document documents.RoleReactionDocument
+	var document documents.RoleReactionReadDocument
 	if err := r.reactions.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "message", Value: messageID}, {Key: "react", Value: react}}).Decode(&document); err != nil {
 		if errors.Is(err, drivermongo.ErrNoDocuments) {
 			return domain.RoleReactionConfig{}, ports.ErrRoleReactionConfigMissing
@@ -146,7 +146,7 @@ func (r *RoleSelectionRepository) GetRoleButtonConfig(ctx context.Context, guild
 	if guildID == "" || number == "" {
 		return domain.RoleButtonConfig{}, domain.ErrInvalidRoleSelectionConfig
 	}
-	var document documents.RoleButtonDocument
+	var document documents.RoleButtonReadDocument
 	if err := r.buttons.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "number", Value: number}}).Decode(&document); err != nil {
 		if errors.Is(err, drivermongo.ErrNoDocuments) {
 			return domain.RoleButtonConfig{}, ports.ErrRoleButtonConfigMissing
