@@ -719,7 +719,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_XP_RANK=true
 MHCAT_FEATURE_XP_RANK_ENABLED=true
 ```
 
-Set both together only in an isolated staging database. This path reads `text_xps`/`voice_xps`, renders legacy-style `user-info.png` leaderboard pages with legacy rank buttons, and writes no Mongo data. It does not enable XP accrual, `/聊天經驗` profile cards, automatic reward roles, coin rewards, gateway intents, or usage-counter writes.
+Set both together only in an isolated staging database. This path reads `text_xps`/`voice_xps`, renders legacy-style `user-info.png` leaderboard pages with legacy rank buttons, and writes no Mongo data. It does not enable XP accrual, `/聊天經驗` profile cards, automatic reward roles, coin rewards, gateway intents, or usage-counter writes. Ensure the legacy rank background, fallback icon, and font files are available from the bot working directory, then follow the payload, ranking-math, asset, intentional-difference, and staging audit in `docs/71-xp-rank.md`.
 
 Voice-room `/語音包廂設置` and `/語音包廂刪除` are available only when both staging command sync and runtime flags are explicitly enabled:
 
