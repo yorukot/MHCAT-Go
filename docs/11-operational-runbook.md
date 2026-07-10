@@ -357,7 +357,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME=true
 MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true
 ```
 
-This command writes existing `coins` rows for two-player wagers in `21點`, `知識王`, and `比大小`, and uses process-local component session state. Test only against disposable staging balances; do not production-sync until duplicate audits, timeout behavior, and economy ownership are reviewed.
+This command writes existing `coins` rows for two-player wagers in `21點`, `知識王`, and `比大小`, and uses process-local component session state. Reserve and settlement update both players in one Mongo transaction, so the deployment must use a replica set or sharded cluster; standalone Mongo rejects game writes. Test only against disposable staging balances, do not blindly retry an unknown transaction commit result, and do not production-sync until duplicate audits, timeout behavior, and economy ownership are reviewed.
 
 `/代幣商店` is available only when both staging command sync and runtime flags are explicitly enabled:
 

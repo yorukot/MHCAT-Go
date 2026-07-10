@@ -139,7 +139,7 @@ export MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME=true
 ```
 
-Set both together only in an isolated staging database when testing `/代幣遊戲`. This path writes two-player `coins` wagers and uses process-local component session state, so use disposable balances only.
+Set both together only in an isolated staging database when testing `/代幣遊戲`. This path writes two-player `coins` wagers transactionally and uses process-local component session state, so use disposable balances on a transaction-capable replica set or sharded cluster only. Verify that a forced or observed failed settlement does not leave one player's balance changed; do not manually retry an unknown commit result.
 
 Optional economy shop smoke flags:
 

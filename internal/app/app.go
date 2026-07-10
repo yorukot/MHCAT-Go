@@ -358,6 +358,17 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 			opts.EconomyRPSRepository = economyRepo
 		}
 		if cfg.FeatureEconomyGameEnabled {
+			concreteMongo, ok := mongoClient.(*mongoadapter.Client)
+			if !ok {
+				return nil, fmt.Errorf("economy game feature requires default mongo client")
+			}
+			transactions, err := mongoadapter.NewTransactionRunner(concreteMongo)
+			if err != nil {
+				return nil, fmt.Errorf("economy game transaction runner: %w", err)
+			}
+			if err := economyRepo.SetCoinGameTransactionRunner(transactions); err != nil {
+				return nil, fmt.Errorf("configure economy game transactions: %w", err)
+			}
 			opts.EconomyGameRepository = economyRepo
 		}
 		if cfg.FeatureEconomyShopEnabled {

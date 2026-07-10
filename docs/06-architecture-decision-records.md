@@ -346,3 +346,14 @@ Blocked without audit/ADR:
 - Risks: The external worker implementation and current deployment remain manually unconfirmed. Node and Go do not share an event lease. A worker that changes `time`, takes longer than ten seconds, or uses undocumented fields may produce no reply. Duplicate legacy rows fail closed until audited.
 - Rollback: Disable the Go paid gate, allow in-flight ten-second reads to finish, then restore Node MessageCreate ownership. No data migration rollback is needed because only legacy fields are written and Mongoose accepts the deterministic `_id`.
 - Tests: pricing/eligibility/cooldown service tests, Discord warning/mention tests, BSON compatibility tests, config/preflight/app wiring tests, and replica-set Mongo integration tests for lifecycle timing, failed-write rollback, and concurrent enqueue exclusion.
+
+## ADR-029 Economy Game Wager Atomicity
+
+- Status: Accepted.
+- Context: Every accepted `21點`, `知識王`, or `比大小` game debits two `coins` balances and later credits both balances during settlement. The legacy implementation and the first Go implementation wrote those users sequentially, so a failed second update could reserve or settle only half of a game. Concurrent games could also read the same before-values and overwrite one another.
+- Decision: Run each two-player reserve and settlement operation in one Mongo transaction. Preserve the legacy `coins` schema and duplicate-row behavior: reads still resolve one logical balance and writes still update all matching `{guild,member}` rows together. Require an explicitly configured transaction runner whenever the economy game repository writes.
+- Options considered: preserve sequential writes; add a new game ledger collection and idempotency markers; use unordered bulk writes without a transaction; wrap the existing compatible reads and writes in a transaction.
+- Consequences: Both player updates commit or roll back together, and conflicting concurrent reservations are retried against current balances by the Mongo transaction driver. Enabling the game now requires a replica-set or sharded Mongo deployment. No data migration or new index is introduced.
+- Risks: Process-local game sessions still do not survive restart, duplicate logical balance rows remain an ownership/audit concern, and Node does not participate in the Go transaction boundary. An unknown commit result must fail closed rather than be blindly retried by application code.
+- Rollback: Disable the Go economy-game runtime and command sync before restoring Node ownership. No data migration rollback is required because only existing `coins.coin` fields are written.
+- Tests: transaction-runner guard tests and replica-set Mongo integration tests for reserve/settle lifecycle, forced second-player rollback in both phases, and concurrent reservation exclusion.

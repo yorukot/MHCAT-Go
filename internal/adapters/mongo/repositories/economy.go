@@ -23,11 +23,14 @@ const (
 	ShopItemCollectionName   = "ghps"
 )
 
+var ErrCoinGameTransactionsRequired = errors.New("coin game transaction runner is required")
+
 type EconomyRepository struct {
-	coins       *drivermongo.Collection
-	giftChanges *drivermongo.Collection
-	signLists   *drivermongo.Collection
-	shopItems   *drivermongo.Collection
+	coins                *drivermongo.Collection
+	giftChanges          *drivermongo.Collection
+	signLists            *drivermongo.Collection
+	shopItems            *drivermongo.Collection
+	coinGameTransactions ports.TransactionRunner
 }
 
 func NewEconomyRepository(coins *drivermongo.Collection, giftChanges *drivermongo.Collection, signLists *drivermongo.Collection, shopItems ...*drivermongo.Collection) (*EconomyRepository, error) {
@@ -52,6 +55,14 @@ func NewEconomyRepositoryFromDatabase(database *drivermongo.Database) (*EconomyR
 		return nil, fmt.Errorf("mongo database is required")
 	}
 	return NewEconomyRepository(database.Collection(CoinCollectionName), database.Collection(GiftChangeCollectionName), database.Collection(SignListCollectionName), database.Collection(ShopItemCollectionName))
+}
+
+func (r *EconomyRepository) SetCoinGameTransactionRunner(transactions ports.TransactionRunner) error {
+	if r == nil || transactions == nil {
+		return ErrCoinGameTransactionsRequired
+	}
+	r.coinGameTransactions = transactions
+	return nil
 }
 
 func (r *EconomyRepository) GetCoinBalance(ctx context.Context, guildID string, userID string) (domain.CoinBalance, error) {
@@ -384,19 +395,30 @@ func (r *EconomyRepository) ReserveCoinGameWager(ctx context.Context, command do
 	if err := command.Validate(); err != nil {
 		return domain.CoinGameBalanceResult{}, err
 	}
-	challenger, opponent, err := r.coinGameBalances(ctx, command)
+	if r.coinGameTransactions == nil {
+		return domain.CoinGameBalanceResult{}, ErrCoinGameTransactionsRequired
+	}
+	var reserved domain.CoinGameBalanceResult
+	err := r.coinGameTransactions.WithinTransaction(ctx, func(txCtx context.Context) error {
+		challenger, opponent, err := r.coinGameBalances(txCtx, command)
+		if err != nil {
+			return err
+		}
+		challenger.Coins -= command.Wager
+		opponent.Coins -= command.Wager
+		if err := r.setCoinGameBalance(txCtx, challenger); err != nil {
+			return err
+		}
+		if err := r.setCoinGameBalance(txCtx, opponent); err != nil {
+			return err
+		}
+		reserved = domain.CoinGameBalanceResult{Challenger: challenger, Opponent: opponent, Wager: command.Wager}
+		return txCtx.Err()
+	})
 	if err != nil {
 		return domain.CoinGameBalanceResult{}, err
 	}
-	challenger.Coins -= command.Wager
-	opponent.Coins -= command.Wager
-	if err := r.setCoinGameBalance(ctx, challenger); err != nil {
-		return domain.CoinGameBalanceResult{}, err
-	}
-	if err := r.setCoinGameBalance(ctx, opponent); err != nil {
-		return domain.CoinGameBalanceResult{}, err
-	}
-	return domain.CoinGameBalanceResult{Challenger: challenger, Opponent: opponent, Wager: command.Wager}, ctx.Err()
+	return reserved, ctx.Err()
 }
 
 func (r *EconomyRepository) SettleCoinGameWager(ctx context.Context, command domain.CoinGameSettlementCommand) (domain.CoinGameSettlementResult, error) {
@@ -407,23 +429,34 @@ func (r *EconomyRepository) SettleCoinGameWager(ctx context.Context, command dom
 	if err := command.Validate(); err != nil {
 		return domain.CoinGameSettlementResult{}, err
 	}
-	challenger, err := r.GetCoinBalance(ctx, command.GuildID, command.ChallengerID)
+	if r.coinGameTransactions == nil {
+		return domain.CoinGameSettlementResult{}, ErrCoinGameTransactionsRequired
+	}
+	var settled domain.CoinGameSettlementResult
+	err := r.coinGameTransactions.WithinTransaction(ctx, func(txCtx context.Context) error {
+		challenger, err := r.GetCoinBalance(txCtx, command.GuildID, command.ChallengerID)
+		if err != nil {
+			return err
+		}
+		opponent, err := r.GetCoinBalance(txCtx, command.GuildID, command.OpponentID)
+		if err != nil {
+			return err
+		}
+		challenger.Coins += command.ChallengerReturn
+		opponent.Coins += command.OpponentReturn
+		if err := r.setCoinGameBalance(txCtx, challenger); err != nil {
+			return err
+		}
+		if err := r.setCoinGameBalance(txCtx, opponent); err != nil {
+			return err
+		}
+		settled = domain.CoinGameSettlementResult{Challenger: challenger, Opponent: opponent}
+		return txCtx.Err()
+	})
 	if err != nil {
 		return domain.CoinGameSettlementResult{}, err
 	}
-	opponent, err := r.GetCoinBalance(ctx, command.GuildID, command.OpponentID)
-	if err != nil {
-		return domain.CoinGameSettlementResult{}, err
-	}
-	challenger.Coins += command.ChallengerReturn
-	opponent.Coins += command.OpponentReturn
-	if err := r.setCoinGameBalance(ctx, challenger); err != nil {
-		return domain.CoinGameSettlementResult{}, err
-	}
-	if err := r.setCoinGameBalance(ctx, opponent); err != nil {
-		return domain.CoinGameSettlementResult{}, err
-	}
-	return domain.CoinGameSettlementResult{Challenger: challenger, Opponent: opponent}, ctx.Err()
+	return settled, ctx.Err()
 }
 
 func (r *EconomyRepository) coinGameBalances(ctx context.Context, command domain.CoinGameCommand) (domain.CoinBalance, domain.CoinBalance, error) {
