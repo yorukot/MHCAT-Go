@@ -2,8 +2,10 @@ package poll
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
@@ -48,6 +50,41 @@ func TestModuleRegistersPollRoutes(t *testing.T) {
 	}
 	if len(sideEffects.Sent) != 1 {
 		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+}
+
+func TestModuleRoutesLegacyPollMenuButtonAsMenuChoiceVote(t *testing.T) {
+	repo := fakemongo.NewPollRepository()
+	if _, err := repo.CreatePoll(context.Background(), domain.PollCreate{
+		GuildID:   "guild-1",
+		MessageID: "message-1",
+		Question:  "question",
+		CreatorID: "owner-1",
+		Choices:   []string{"menu", "other"},
+	}); err != nil {
+		t.Fatalf("seed poll: %v", err)
+	}
+	module := NewModuleWithSideEffects(repo, fakediscord.NewSideEffects(), nil, nil)
+	router := interactions.NewRouter()
+	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
+	if err := module.RegisterRoutes(router); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+	interaction := pollButtonInteraction("poll_menu")
+	responder := fakediscord.NewResponder()
+
+	if err := router.Handle(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("route legacy menu vote: %v", err)
+	}
+	poll, err := repo.GetPoll(context.Background(), "guild-1", "message-1")
+	if err != nil {
+		t.Fatalf("get poll: %v", err)
+	}
+	if len(poll.Votes) != 1 || poll.Votes[0].Choice != "menu" {
+		t.Fatalf("votes = %#v", poll.Votes)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "`menu`") {
+		t.Fatalf("response = %#v", responder.Edits)
 	}
 }
 

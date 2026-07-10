@@ -157,6 +157,9 @@ func (m Module) ResultHandler() interactions.Handler {
 
 func (m Module) OwnerMenuHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if interaction.CustomID == "poll_menu" && len(interaction.Values) == 0 {
+			return m.VoteHandler()(ctx, interaction, responder)
+		}
 		if m.repo == nil {
 			return ErrPollRepositoryNotConfigured
 		}
