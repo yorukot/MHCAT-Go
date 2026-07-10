@@ -242,16 +242,10 @@ func pollResultEmbedMessage(poll domain.Poll, color int) responses.Message {
 }
 
 func pollChoiceVoters(poll domain.Poll, choice string) string {
-	if poll.Anonymous {
-		if poll.CountChoice(choice) == 0 {
-			return "<a:Discord_AnimatedNo:1015989839809757295> | 還沒有人投給這個選項"
-		}
+	if poll.Anonymous && len(poll.Votes) > 0 {
 		return "該投票為匿名，無法查看誰有進行投票"
 	}
 	if len(poll.Votes) > 50 {
-		if poll.CountChoice(choice) == 0 {
-			return "<a:Discord_AnimatedNo:1015989839809757295> | 還沒有人投給這個選項"
-		}
 		return "由於人數過多，無法顯示所有人"
 	}
 	var voters []string
