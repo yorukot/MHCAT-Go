@@ -253,18 +253,19 @@ func rankComponents(page coreservice.RankPage) []responses.ComponentRow {
 			legacyRankButton(fmt.Sprintf("[%s]{%d}%s", page.ViewerID, page.Page+10, kind), "", legacyRankYearForwardEmoji, responses.ButtonStyleSuccess, page.Page+10 >= page.TotalPages),
 		},
 	}}
+	targetPage := "NaN"
 	if page.ViewerHasProfile {
-		targetPage := page.ViewerRank / coreservice.RankPageSize
-		components = append(components, responses.ComponentRow{
-			Components: []responses.Component{
-				legacyRankButton("text_rank1", "", legacyRankSpacerEmoji, responses.ButtonStyleSecondary, true),
-				legacyRankButton("text_rank2", "", legacyRankSpacerEmoji, responses.ButtonStyleSecondary, true),
-				legacyRankButton(fmt.Sprintf("[%s]%s {%d}", page.ViewerID, kind, targetPage), "", legacyRankTargetViewerEmoji, responses.ButtonStyleSecondary, false),
-				legacyRankButton("text_rank4", "", legacyRankSpacerEmoji, responses.ButtonStyleSecondary, true),
-				legacyRankButton("text_rank5", "", legacyRankSpacerEmoji, responses.ButtonStyleSecondary, true),
-			},
-		})
+		targetPage = strconv.Itoa(page.ViewerRank / coreservice.RankPageSize)
 	}
+	components = append(components, responses.ComponentRow{
+		Components: []responses.Component{
+			legacyRankButton("text_rank1", "", legacyRankSpacerEmoji, responses.ButtonStyleSecondary, true),
+			legacyRankButton("text_rank2", "", legacyRankSpacerEmoji, responses.ButtonStyleSecondary, true),
+			legacyRankButton(fmt.Sprintf("[%s]%s {%s}", page.ViewerID, kind, targetPage), "", legacyRankTargetViewerEmoji, responses.ButtonStyleSecondary, false),
+			legacyRankButton("text_rank4", "", legacyRankSpacerEmoji, responses.ButtonStyleSecondary, true),
+			legacyRankButton("text_rank5", "", legacyRankSpacerEmoji, responses.ButtonStyleSecondary, true),
+		},
+	})
 	return components
 }
 
