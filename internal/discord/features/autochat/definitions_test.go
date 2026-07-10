@@ -12,20 +12,20 @@ func TestDefinitionsMatchLegacyCommandShape(t *testing.T) {
 		t.Fatalf("definitions = %#v", definitions)
 	}
 	set := definitions[0]
-	if set.Name != AutoChatSetCommandName || set.Description != "設定自動聊天頻道要在哪裡發送" {
+	if set.Type != commands.CommandTypeChatInput || set.Name != AutoChatSetCommandName || set.Description != "設定自動聊天頻道要在哪裡發送" || set.DocsURL != "https://docsmhcat.yorukot.me/docs/chat_xp_set" {
 		t.Fatalf("set definition = %#v", set)
 	}
 	if set.DefaultMemberPermissions != nil {
 		t.Fatalf("legacy set command should not have default permissions: %#v", set.DefaultMemberPermissions)
 	}
-	if len(set.Options) != 1 || set.Options[0].Name != optionChannel || set.Options[0].Type != commands.OptionTypeChannel || !set.Options[0].Required {
+	if len(set.Options) != 1 || set.Options[0].Name != optionChannel || set.Options[0].Type != commands.OptionTypeChannel || set.Options[0].Description != "輸入頻道!" || !set.Options[0].Required {
 		t.Fatalf("channel option = %#v", set.Options)
 	}
 	if len(set.Options[0].ChannelTypes) != 2 || set.Options[0].ChannelTypes[0] != 0 || set.Options[0].ChannelTypes[1] != 5 {
 		t.Fatalf("channel types = %#v", set.Options[0].ChannelTypes)
 	}
 	deleteCommand := definitions[1]
-	if deleteCommand.Name != AutoChatDeleteCommandName || deleteCommand.Description != "刪除自動聊天頻道要在哪裡發送" {
+	if deleteCommand.Type != commands.CommandTypeChatInput || deleteCommand.Name != AutoChatDeleteCommandName || deleteCommand.Description != "刪除自動聊天頻道要在哪裡發送" || deleteCommand.DocsURL != "https://docsmhcat.yorukot.me/docs/chat_xp_set" || len(deleteCommand.Options) != 0 {
 		t.Fatalf("delete definition = %#v", deleteCommand)
 	}
 	if deleteCommand.DefaultMemberPermissions != nil {
