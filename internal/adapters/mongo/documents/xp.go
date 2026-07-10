@@ -39,6 +39,23 @@ type XPRewardRoleDocument struct {
 	DeleteWhenNot bool   `bson:"delete_when_not" json:"delete_when_not"`
 }
 
+func (d *XPRewardRoleDocument) UnmarshalBSON(data []byte) error {
+	var raw struct {
+		Guild         string        `bson:"guild"`
+		Leavel        bson.RawValue `bson:"leavel"`
+		Role          string        `bson:"role"`
+		DeleteWhenNot bool          `bson:"delete_when_not"`
+	}
+	if err := bson.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	d.Guild = raw.Guild
+	d.Leavel = legacyRewardRoleLevelString(raw.Leavel)
+	d.Role = raw.Role
+	d.DeleteWhenNot = raw.DeleteWhenNot
+	return nil
+}
+
 func TextXPChannelDocumentFromDomain(config domain.TextXPConfig) TextXPChannelDocument {
 	return TextXPChannelDocument{
 		Guild:   config.GuildID,
@@ -103,4 +120,17 @@ func (d XPRewardRoleDocument) ToDomain() domain.XPRewardRoleConfig {
 		RoleID:        d.Role,
 		DeleteWhenNot: d.DeleteWhenNot,
 	}.Normalize()
+}
+
+func legacyRewardRoleLevelString(value bson.RawValue) string {
+	if text, ok := value.StringValueOK(); ok {
+		return text
+	}
+	if parsed, ok := value.AsInt64OK(); ok {
+		return strconv.FormatInt(parsed, 10)
+	}
+	if parsed, ok := value.DoubleOK(); ok {
+		return strconv.FormatFloat(parsed, 'f', -1, 64)
+	}
+	return ""
 }
