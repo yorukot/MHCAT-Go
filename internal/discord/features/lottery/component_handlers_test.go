@@ -183,6 +183,41 @@ func TestLotteryRerollSendsOneLegacyWinnerMessageAndEndsLottery(t *testing.T) {
 	}
 }
 
+func TestLotteryRerollCapsOversizedWinnerCount(t *testing.T) {
+	repo := fakemongo.NewLotteryRepository()
+	repo.Lotteries["guild-1:"+lotteryTestID] = domain.Lottery{
+		GuildID:      "guild-1",
+		ID:           lotteryTestID,
+		OwnerID:      "user-1",
+		WinnerCount:  legacyLotteryWinnerLimit + 1,
+		ChannelID:    "channel-1",
+		Participants: []domain.LotteryParticipant{{UserID: "user-1"}},
+	}
+	messages := fakediscord.NewSideEffects()
+	module := NewComponentModule(repo, &fakebotinfo.DiscordInfoProvider{}, nil, messages, lotteryFixedClock{})
+	draws := 0
+	module.randomIndex = func(int) (int, error) {
+		draws++
+		return 0, nil
+	}
+	interaction := fakediscord.ComponentInteractionFromID(lotteryTestID + "restart")
+	responder := fakediscord.NewResponder()
+
+	if err := module.RerollHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("reroll: %v", err)
+	}
+	if draws != legacyLotteryWinnerLimit || len(messages.Sent) != 1 {
+		t.Fatalf("draws=%d sent=%#v", draws, messages.Sent)
+	}
+	sent := messages.Sent[0].Message
+	if strings.Count(sent.Content, "<@user-1>") != legacyLotteryWinnerLimit || strings.Count(sent.Embeds[0].Description, "<@user-1>") != legacyLotteryWinnerLimit || len(sent.AllowedMentions.UserIDs) != 1 {
+		t.Fatalf("winner message = %#v", sent)
+	}
+	if !repo.Lotteries["guild-1:"+lotteryTestID].Ended || len(responder.Edits) != 1 {
+		t.Fatalf("lottery=%#v edits=%#v", repo.Lotteries["guild-1:"+lotteryTestID], responder.Edits)
+	}
+}
+
 func TestLotteryRerollPreservesLegacyEmptyParticipantMessage(t *testing.T) {
 	repo := fakemongo.NewLotteryRepository()
 	repo.Lotteries["guild-1:"+lotteryTestID] = domain.Lottery{
