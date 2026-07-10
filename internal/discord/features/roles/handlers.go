@@ -157,11 +157,13 @@ func (m Module) ReactionEventHandler(remove bool) events.Handler {
 		if errors.Is(err, ports.ErrRoleReactionConfigMissing) {
 			return nil
 		}
-		if err != nil && m.direct != nil {
-			_, _ = m.direct.SendDirectMessage(ctx, event.UserID, roleSelectionRoleErrorOutbound(remove))
+		if errors.Is(err, ports.ErrDiscordRoleMissing) || errors.Is(err, ports.ErrDiscordRoleNotAssignable) {
+			if m.direct != nil {
+				_, _ = m.direct.SendDirectMessage(ctx, event.UserID, roleSelectionRoleErrorOutbound(remove))
+			}
 			return nil
 		}
-		return err
+		return events.ContinueOnError(err)
 	}
 }
 

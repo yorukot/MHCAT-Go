@@ -2,6 +2,7 @@ package roles
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -325,14 +326,19 @@ func TestReactionEventFailureDMUsesLegacyDirectionIcon(t *testing.T) {
 		remove     bool
 		eventType  events.Type
 		wantPrefix string
+		missing    bool
 	}{
-		{name: "add", eventType: events.TypeReactionAdd, wantPrefix: "<a:error:980086028113182730> | "},
-		{name: "remove", remove: true, eventType: events.TypeReactionRemove, wantPrefix: roleSelectionErrorPrefix},
+		{name: "add hierarchy", eventType: events.TypeReactionAdd, wantPrefix: "<a:error:980086028113182730> | "},
+		{name: "add missing role", eventType: events.TypeReactionAdd, wantPrefix: "<a:error:980086028113182730> | ", missing: true},
+		{name: "remove hierarchy", remove: true, eventType: events.TypeReactionRemove, wantPrefix: roleSelectionErrorPrefix},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := fakemongo.NewRoleSelectionRepository()
 			repo.Reactions["guild-1/message-1/emoji-1"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "emoji-1", RoleID: "role-1"}
 			discord := fakediscord.NewSideEffects()
+			if tc.missing {
+				discord.MissingRoles["guild-1/role-1"] = true
+			}
 			module := NewModule(repo, discord, discord, discord, discord, discord, nil)
 
 			err := module.ReactionEventHandler(tc.remove)(context.Background(), events.Event{
@@ -351,6 +357,52 @@ func TestReactionEventFailureDMUsesLegacyDirectionIcon(t *testing.T) {
 			want := tc.wantPrefix + "我沒有權限給大家這個身分組或是身分組被刪除了(請把我的身分組調高)!"
 			if got := discord.DirectMessages[0].Message.Embeds[0].Title; got != want {
 				t.Fatalf("title = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestReactionEventOperationalFailuresAreLoggedWithoutMisleadingDM(t *testing.T) {
+	wantErr := errors.New("role event dependency failed")
+	tests := []struct {
+		name  string
+		setup func(*fakemongo.RoleSelectionRepository, *fakediscord.SideEffects) ports.DiscordRoleInspector
+	}{
+		{
+			name: "repository failure",
+			setup: func(repo *fakemongo.RoleSelectionRepository, _ *fakediscord.SideEffects) ports.DiscordRoleInspector {
+				repo.Err = wantErr
+				return nil
+			},
+		},
+		{
+			name: "discord role API failure",
+			setup: func(_ *fakemongo.RoleSelectionRepository, discord *fakediscord.SideEffects) ports.DiscordRoleInspector {
+				discord.Err = wantErr
+				return nil
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewRoleSelectionRepository()
+			repo.Reactions["guild-1/message-1/emoji-1"] = domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "emoji-1", RoleID: "role-1"}
+			discord := fakediscord.NewSideEffects()
+			inspector := test.setup(repo, discord)
+			module := NewModule(repo, discord, inspector, discord, discord, discord, nil)
+
+			err := module.ReactionEventHandler(false)(context.Background(), events.Event{
+				Type:      events.TypeReactionAdd,
+				GuildID:   "guild-1",
+				MessageID: "message-1",
+				UserID:    "user-1",
+				Reaction:  &events.Reaction{EmojiID: "emoji-1"},
+			})
+			if !errors.Is(err, wantErr) {
+				t.Fatalf("handler error = %v", err)
+			}
+			if len(discord.DirectMessages) != 0 {
+				t.Fatalf("direct messages = %#v", discord.DirectMessages)
 			}
 		})
 	}
