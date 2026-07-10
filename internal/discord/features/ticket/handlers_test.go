@@ -293,6 +293,7 @@ func TestDeleteHandlerDeletesConfigWithLegacyMessage(t *testing.T) {
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteraction("私人頻道刪除")
 	interaction.Actor.GuildID = testGuildID
+	interaction.Actor.PermissionBits = permissionManageMessages
 
 	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("delete handler: %v", err)
@@ -317,6 +318,7 @@ func TestDeleteHandlerMissingConfigUsesLegacyFailureMessage(t *testing.T) {
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteraction("私人頻道刪除")
 	interaction.Actor.GuildID = testGuildID
+	interaction.Actor.PermissionBits = permissionManageMessages
 
 	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("delete handler: %v", err)
@@ -327,6 +329,39 @@ func TestDeleteHandlerMissingConfigUsesLegacyFailureMessage(t *testing.T) {
 	description := responder.Edits[0].Embeds[0].Description
 	if !strings.Contains(description, "你還沒有創建私人頻道的設定") {
 		t.Fatalf("delete missing description = %q", description)
+	}
+}
+
+func TestDeleteHandlerRequiresManageMessagesBeforeDeletingConfig(t *testing.T) {
+	repo := seededTicketRepo(t)
+	usage := &fakeusage.Tracker{}
+	module := NewModule(repo, usage)
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteraction("私人頻道刪除")
+	interaction.Actor.GuildID = testGuildID
+
+	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("delete handler: %v", err)
+	}
+	config, err := repo.GetTicketConfig(context.Background(), testGuildID)
+	if err != nil {
+		t.Fatalf("config was deleted without permission: %v", err)
+	}
+	if config.CategoryID != testCategoryID || config.AdminRoleID != testAdminRole {
+		t.Fatalf("config changed without permission: %#v", config)
+	}
+	if len(responder.Defers) != 1 || responder.Defers[0].Ephemeral {
+		t.Fatalf("permission defers = %#v", responder.Defers)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Ephemeral {
+		t.Fatalf("permission edits = %#v", responder.Edits)
+	}
+	wantTitle := "<a:Discord_AnimatedNo:1015989839809757295> | 你需要有`訊息管理`才能使用此指令"
+	if got := responder.Edits[0].Embeds[0].Title; got != wantTitle {
+		t.Fatalf("permission title = %q, want %q", got, wantTitle)
+	}
+	if len(usage.Events) != 0 {
+		t.Fatalf("route-level usage events = %#v", usage.Events)
 	}
 }
 

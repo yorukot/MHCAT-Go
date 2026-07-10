@@ -158,6 +158,9 @@ func (m Module) DeleteHandler() interactions.Handler {
 		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
 			return err
 		}
+		if !interaction.Actor.HasPermission(permissionManageMessages) {
+			return responder.EditOriginal(ctx, ticketPermissionDeniedEditMessage("訊息管理"))
+		}
 		err := m.repo.DeleteTicketConfig(ctx, interaction.Actor.GuildID)
 		description := "成功刪除私人頻道的設置\n現在你可以重新創建了!"
 		if errors.Is(err, ports.ErrTicketConfigNotFound) {
@@ -348,6 +351,12 @@ func ticketPermissionDeniedMessage(permission string) responses.Message {
 			Color: 0xFF0000,
 		}},
 	}
+}
+
+func ticketPermissionDeniedEditMessage(permission string) responses.Message {
+	message := ticketPermissionDeniedMessage(permission)
+	message.Ephemeral = false
+	return message
 }
 
 func ticketDuplicateConfigMessage() responses.Message {
