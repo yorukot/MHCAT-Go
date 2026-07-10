@@ -56,6 +56,19 @@ func TestBuildPollTextExportPreservesAnonymousText(t *testing.T) {
 	}
 }
 
+func TestPollMemberTagPreservesLegacyDiscriminatorFormat(t *testing.T) {
+	tags := map[string]string{
+		"classic": "Alice#1234",
+		"modern":  "alice",
+	}
+	if got := pollMemberTag("classic", tags); got != "Alice#1234" {
+		t.Fatalf("classic tag = %q", got)
+	}
+	if got := pollMemberTag("modern", tags); got != "alice#0" {
+		t.Fatalf("modern tag = %q", got)
+	}
+}
+
 func TestPollExcelMessageCreatesValidWorkbook(t *testing.T) {
 	poll := pollWithVotes(t)
 	members := fakediscord.NewSideEffects()

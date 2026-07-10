@@ -111,6 +111,9 @@ func pollMemberTag(userID string, tags map[string]string) string {
 	if strings.TrimSpace(tag) == "" {
 		return "使用者已退出伺服器!"
 	}
+	if !strings.Contains(tag, "#") {
+		return tag + "#0"
+	}
 	return tag
 }
 
