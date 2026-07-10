@@ -95,6 +95,41 @@ func TestDrawServiceReturnsAirAndKeepsInventory(t *testing.T) {
 	}
 }
 
+func TestDrawServiceReloadsPoolAfterEachPrizeDepletion(t *testing.T) {
+	repo := fakemongo.NewGachaRepository()
+	repo.Balances["guild-1/user-1"] = domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 1000}
+	repo.Configs["guild-1"] = domain.EconomyConfig{GuildID: "guild-1", GachaCost: 100}
+	repo.PrizeConfigs["guild-1"] = []domain.GachaPrizeConfig{{
+		GuildID:    "guild-1",
+		Name:       "限量獎品",
+		Chance:     100,
+		AutoDelete: true,
+		Count:      1,
+		GiveCoin:   25,
+	}}
+	repo.Prizes["guild-1"] = []domain.GachaPrize{{GuildID: "guild-1", Name: "限量獎品", Chance: 100, Count: 1}}
+	service := DrawService{Repository: repo, Random: func() float64 { return 0 }}
+
+	result, err := service.Draw(context.Background(), domain.GachaDrawCommand{GuildID: "guild-1", UserID: "user-1", Choice: "5"})
+	if err != nil {
+		t.Fatalf("draw: %v", err)
+	}
+	if len(result.Prizes) != 5 || result.Prizes[0].Name != "限量獎品" || result.Prizes[0].Air {
+		t.Fatalf("prizes = %#v", result.Prizes)
+	}
+	for _, prize := range result.Prizes[1:] {
+		if !prize.Air {
+			t.Fatalf("depleted prize was drawn again: %#v", result.Prizes)
+		}
+	}
+	if len(repo.PrizeConfigs["guild-1"]) != 0 || len(repo.Prizes["guild-1"]) != 0 {
+		t.Fatalf("depleted inventory remains: configs=%#v prizes=%#v", repo.PrizeConfigs["guild-1"], repo.Prizes["guild-1"])
+	}
+	if result.BalanceAfter != 525 || repo.Balances["guild-1/user-1"].Coins != 525 {
+		t.Fatalf("coin reward should apply once: result=%#v stored=%#v", result, repo.Balances["guild-1/user-1"])
+	}
+}
+
 func TestDrawServiceValidationAndRepositoryErrors(t *testing.T) {
 	if _, err := (DrawService{Repository: fakemongo.NewGachaRepository()}).Draw(context.Background(), domain.GachaDrawCommand{}); !errors.Is(err, domain.ErrInvalidGachaDraw) {
 		t.Fatalf("missing command error = %v", err)

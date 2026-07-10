@@ -162,18 +162,17 @@ func (r *GachaRepository) DrawGacha(ctx context.Context, request domain.GachaDra
 		return domain.GachaDrawResult{GuildID: request.GuildID, UserID: request.UserID, PaidDraws: request.PaidDraws, ActualDraws: request.ActualDraws, Cost: cost, BalanceBefore: balance.Coins, Config: config, ConfigFound: configFound}, ports.ErrGachaInsufficientCoins
 	}
 	results := make([]domain.GachaDrawPrizeResult, 0, request.ActualDraws)
-	drawnByName := map[string]int64{}
 	giveCoinTotal := int64(0)
 	for index := 0; index < request.ActualDraws; index++ {
+		prizes = r.gachaPrizeConfigs(request.GuildID)
 		drawn := domain.ResolveGachaDraw(prizes, request.RandomValues[index])
 		results = append(results, drawn)
 		if drawn.Air {
 			continue
 		}
-		drawnByName[drawn.Name]++
 		giveCoinTotal += drawn.GiveCoin
+		r.applyFakeGachaInventoryDraw(request.GuildID, drawn.Name, prizes)
 	}
-	r.applyFakeGachaInventoryDraws(request.GuildID, drawnByName, prizes)
 	balance.Coins = balance.Coins - cost + giveCoinTotal
 	r.Balances[gachaBalanceKey(request.GuildID, request.UserID)] = balance
 	return domain.GachaDrawResult{
@@ -209,20 +208,16 @@ func (r *GachaRepository) gachaPrizeConfigs(guildID string) []domain.GachaPrizeC
 	return configs
 }
 
-func (r *GachaRepository) applyFakeGachaInventoryDraws(guildID string, drawnByName map[string]int64, prizes []domain.GachaPrizeConfig) {
-	initial := map[string]domain.GachaPrizeConfig{}
+func (r *GachaRepository) applyFakeGachaInventoryDraw(guildID string, prizeName string, prizes []domain.GachaPrizeConfig) {
 	for _, prize := range prizes {
-		if _, ok := initial[prize.Name]; !ok {
-			initial[prize.Name] = prize
-		}
-	}
-	for prizeName, draws := range drawnByName {
-		prize, ok := initial[prizeName]
-		if !ok || !prize.AutoDelete || draws <= 0 {
+		if prize.Name != prizeName {
 			continue
 		}
-		nextCount := prize.Count - draws
-		r.updateFakeGachaPrizeCount(guildID, prizeName, nextCount)
+		if !prize.AutoDelete {
+			return
+		}
+		r.updateFakeGachaPrizeCount(guildID, prizeName, prize.Count-1)
+		return
 	}
 }
 
