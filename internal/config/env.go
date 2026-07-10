@@ -31,6 +31,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		DiscordGatewaySmokeTimeout:           DefaultGatewaySmokeTimeout,
 		FeatureTicketsEnabled:                DefaultFeatureTicketsEnabled,
 		FeaturePollsEnabled:                  DefaultFeaturePollsEnabled,
+		FeatureUsageTrackingEnabled:          DefaultFeatureUsageTrackingEnabled,
 		FeatureEconomyQueryEnabled:           DefaultFeatureEconomyQueryEnabled,
 		FeatureEconomySignInEnabled:          DefaultFeatureEconomySignInEnabled,
 		FeatureEconomySettingsEnabled:        DefaultFeatureEconomySettingsEnabled,
@@ -144,6 +145,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeaturePollsEnabled, err = getBool(lookup, "MHCAT_FEATURE_POLLS_ENABLED", DefaultFeaturePollsEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureUsageTrackingEnabled, err = getBool(lookup, "MHCAT_FEATURE_USAGE_TRACKING_ENABLED", DefaultFeatureUsageTrackingEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureEconomyQueryEnabled, err = getBool(lookup, "MHCAT_FEATURE_ECONOMY_QUERY_ENABLED", DefaultFeatureEconomyQueryEnabled); err != nil {

@@ -22,6 +22,7 @@ Primary Go env vars:
 - `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT`
 - `MHCAT_FEATURE_TICKETS_ENABLED`
 - `MHCAT_FEATURE_POLLS_ENABLED`
+- `MHCAT_FEATURE_USAGE_TRACKING_ENABLED`
 - `MHCAT_FEATURE_ECONOMY_QUERY_ENABLED`
 - `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED`
 - `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED`
@@ -100,6 +101,14 @@ Legacy aliases to support:
 - `LEAVE_WEBHOOK` -> `LEAVE_WEBHOOK_URL`
 - `READY_WEBHOOK` -> `READY_WEBHOOK_URL`
 - `REPORT_WEBHOOK` -> `REPORT_WEBHOOK_URL`
+
+### Slash Usage Tracking
+
+`MHCAT_FEATURE_USAGE_TRACKING_ENABLED=false` is the default and uses the no-op tracker. There is no command-sync companion flag. When enabled, the global interaction middleware writes one best-effort atomic increment to `all_use_counts` for every slash attempt before route lookup, permission checks, and command handling. Components, modals, and autocomplete interactions do not increment the counter. Tracking errors are ignored by the command path, and each write is bounded to 500 ms.
+
+Before enabling the gate, stop the Node `events/SlashCommands.js` usage-counter owner for the same application/guilds and confirm the target database is disposable staging data. Run `go run ./cmd/mhcat-staging-preflight --format text`; the expected `usage-tracking-runtime-readiness` warning records that ownership check. Audit duplicate and null/blank `slashcommand_name` rows before any unique index apply. The runtime does not create the candidate index.
+
+Statements in feature-specific sections that a command does not write usage counters describe that feature handler and assume this global gate is disabled. With the gate enabled, invoking any slash command can still update `all_use_counts` independently of the feature's own Mongo behavior.
 
 ## How to Run Locally
 

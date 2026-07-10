@@ -14,6 +14,7 @@ import (
 	mongorepositories "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo/repositories"
 	usageadapter "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/usage"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/config"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	discordevents "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	discordruntime "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/runtime"
 )
@@ -276,11 +277,19 @@ func openWithTimeout(ctx context.Context, session DiscordSession, timeout time.D
 }
 
 func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session DiscordSession, mongoClient MongoClient) (*discordruntime.Dispatcher, error) {
+	usageTracker := ports.UsageTracker(usageadapter.NoopTracker{})
+	if cfg.FeatureUsageTrackingEnabled {
+		tracker, err := usageTrackerFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		usageTracker = tracker
+	}
 	opts := RuntimeOptions{
 		Config:                        cfg,
 		Logger:                        logger,
 		Session:                       session,
-		UsageTracker:                  usageadapter.NoopTracker{},
+		UsageTracker:                  usageTracker,
 		WorkFeatureEnabled:            cfg.FeatureWorkEnabled,
 		WarningsFeatureEnabled:        cfg.FeatureWarningsEnabled,
 		WarningSettingsFeatureEnabled: cfg.FeatureWarningSettingsEnabled,
@@ -1009,6 +1018,22 @@ func balanceRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.Bal
 		return nil, fmt.Errorf("balance query feature repository: %w", err)
 	}
 	return repo, nil
+}
+
+func usageTrackerFromMongo(mongoClient MongoClient) (*mongorepositories.UsageTracker, error) {
+	concrete, ok := mongoClient.(*mongoadapter.Client)
+	if !ok {
+		return nil, fmt.Errorf("usage tracking feature requires default mongo client")
+	}
+	database, err := concrete.Database()
+	if err != nil {
+		return nil, fmt.Errorf("usage tracking feature database: %w", err)
+	}
+	tracker, err := mongorepositories.NewUsageTrackerFromDatabase(database, mongorepositories.DefaultUsageTrackTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("usage tracking feature adapter: %w", err)
+	}
+	return tracker, nil
 }
 
 func redeemRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.RedeemRepository, error) {

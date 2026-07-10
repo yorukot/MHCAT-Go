@@ -252,6 +252,18 @@ func TestPreflightWarnsWhenPollRuntimeEnabledWithoutCommandSync(t *testing.T) {
 	}
 }
 
+func TestPreflightWarnsWhenUsageTrackingEnabled(t *testing.T) {
+	env := validEnv()
+	env["MHCAT_FEATURE_USAGE_TRACKING_ENABLED"] = "true"
+	code, stdout, stderr := runPreflight(t, nil, env)
+	if code != 0 {
+		t.Fatalf("expected warning-only exit 0, stderr=%q stdout=%q", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "usage-tracking-runtime-readiness status=warn") || !strings.Contains(stdout, "all_use_counts") {
+		t.Fatalf("expected usage tracking write warning, stdout=%q", stdout)
+	}
+}
+
 func TestPreflightRejectsEconomyQueryCommandSyncWithoutRuntimeFlag(t *testing.T) {
 	env := validEnv()
 	env["MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_QUERY"] = "true"

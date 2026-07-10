@@ -18,6 +18,14 @@ Optional safety pin:
 export MHCAT_STAGING_ALLOWED_APPLICATION_ID="$MHCAT_DISCORD_APPLICATION_ID"
 ```
 
+Optional global slash usage-tracking smoke flag:
+
+```bash
+export MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true
+```
+
+Enable this only with disposable staging `all_use_counts` rows after stopping the Node `events/SlashCommands.js` counter owner. There is no command-sync companion flag. The preflight should emit `usage-tracking-runtime-readiness status=warn`. All later statements that expect no usage-counter write assume this gate is unset or `false`; when it is `true`, expect one global increment per slash attempt and no increment for components, modals, or autocomplete interactions.
+
 Optional ticket smoke flags:
 
 ```bash
@@ -604,6 +612,7 @@ Do not paste real values into committed docs.
 - Confirm `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT` is unset or `false`, unless testing bound announcement relay with `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, the local auto-chat fallback with `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true`, economy coin reset confirmation with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, or XP reset confirmation with `MHCAT_FEATURE_XP_RESET_ENABLED=true`.
 - Confirm `MHCAT_COMMAND_SYNC_ALLOW_DELETE=false`.
 - Confirm `MHCAT_COMMAND_SYNC_ALLOW_BULK_OVERWRITE=false`.
+- If `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`, confirm the Node `events/SlashCommands.js` counter owner is stopped, the target `all_use_counts` rows are disposable, and duplicate/null/blank command-name rows have been reviewed.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TICKETS=true`, confirm `MHCAT_FEATURE_TICKETS_ENABLED=true`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_QUERY=true`, confirm `MHCAT_FEATURE_ECONOMY_QUERY_ENABLED=true`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true`, confirm `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true` and the database is isolated staging data.
@@ -1280,7 +1289,7 @@ Expected:
 - `InteractionCreate` handler is registered;
 - ready or timeout is reported;
 - no command sync or command registration;
-- no Mongo feature write;
+- no Mongo feature write unless `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`, in which case gateway startup alone still writes nothing;
 - clean shutdown.
 
 ## 5. Manual Interactions
@@ -1296,6 +1305,14 @@ With the bot running in staging gateway mode, run:
 - click the `/info shard` `更新` button
 - `/info user`
 - `/info guild`
+
+If global usage tracking was enabled:
+
+- record the staging `all_use_counts` values for `ping` and `info` before invoking either command;
+- run `/ping` once and verify exactly one `ping` row increases by one with a numeric `count`;
+- run `/info bot` once and verify exactly one `info` row increases by one;
+- click the `botinfoupdate` refresh component and verify neither usage row changes;
+- confirm the preflight ownership warning was reviewed and no second Node owner produced a double increment.
 
 If economy query flags were enabled and command sync apply was reviewed:
 
@@ -1573,7 +1590,7 @@ Verify:
 - no raw internal error displayed;
 - no Message Content intent required;
 - no command deletion happened;
-- no Mongo feature write happened.
+- no Mongo feature write happened unless an explicitly enabled feature below owns one.
   - Exception: ticket smoke writes the legacy-compatible `tickets` config only after successful modal submit.
   - Exception: economy coin-admin smoke writes disposable staging `coins` rows only.
   - Exception: economy coin-reset smoke deletes or divides disposable staging `coins` rows only after the owner `^確認^` confirmation.
@@ -1586,6 +1603,7 @@ Verify:
   - Exception: auto-notification config smoke writes/completes disposable setup `cron_sets` rows, sends a setup preview, and deletes selected rows and abandoned pending drafts only.
   - Exception: voice-room config smoke writes/deletes legacy-compatible `voice_channels` rows and, with gateway Voice State events enabled, creates/moves/deletes disposable dynamic rooms plus `voice_channel_ids`/lock seed rows.
   - Exception: XP reset smoke deletes disposable staging `text_xps`/`voice_xps` rows only after an individual reset command or full-reset `^確認^` confirmation.
+  - Exception: global usage tracking smoke increments `all_use_counts` once per slash attempt when `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`.
 
 ## 6. Record Result
 

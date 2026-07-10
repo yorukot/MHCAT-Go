@@ -18,6 +18,7 @@ const (
 	DefaultGatewaySmokeTimeout                  = 30 * time.Second
 	DefaultFeatureTicketsEnabled                = false
 	DefaultFeaturePollsEnabled                  = false
+	DefaultFeatureUsageTrackingEnabled          = false
 	DefaultFeatureEconomyQueryEnabled           = false
 	DefaultFeatureEconomySignInEnabled          = false
 	DefaultFeatureEconomySettingsEnabled        = false
@@ -108,6 +109,7 @@ type Config struct {
 	DiscordGatewaySmokeTimeout           time.Duration
 	FeatureTicketsEnabled                bool
 	FeaturePollsEnabled                  bool
+	FeatureUsageTrackingEnabled          bool
 	FeatureEconomyQueryEnabled           bool
 	FeatureEconomySignInEnabled          bool
 	FeatureEconomySettingsEnabled        bool

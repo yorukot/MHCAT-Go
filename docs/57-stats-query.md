@@ -27,7 +27,7 @@ Go behavior:
 - The role-count handler creates the legacy role stat channel, stores `channel_name` as the current member count string, and replaces duplicate `{guild,role}` `role_numbers` rows.
 - The delete handler deletes legacy `numbers` rows for the guild, returning the first row's `parent` in the legacy success title. It does not delete Discord channels, matching the legacy command's actual behavior.
 - The rename worker scans `numbers` and `role_numbers`, renames configured stat channels with the legacy replace-old-number-or-use-new-number rule, updates stored old-number fields after successful rename/no-op decisions, and skips missing channels or Discord/API failures.
-- Usage tracking remains the no-op production tracker unless a future usage repository is approved.
+- Stats handlers do not own usage writes. The separate global middleware increments `all_use_counts` only when `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`.
 
 Implemented separately in the create slice:
 - `統計系統創建` creates the legacy category/base stat channels, writes `numbers`, and can add channel-count/text-count/voice-count stat channels.

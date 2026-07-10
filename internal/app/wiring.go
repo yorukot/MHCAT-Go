@@ -352,11 +352,13 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	router := interactions.NewRouter(
 		interactions.Recover(),
 		interactions.Timeout(interactionTimeout),
-		interactions.Permission(interactions.AllowAllPermissions()),
 		interactions.Usage(opts.UsageTracker),
+		interactions.Permission(interactions.AllowAllPermissions()),
 		interactions.Logging(opts.Logger),
 	)
 	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
+	// Runtime usage belongs to the slash middleware; route-level tracking would double count.
+	opts.UsageTracker = nil
 
 	module := featureutility.NewModuleWithDiscordInfo(registry, botInfoProvider(opts.Session), concreteDiscord, clockOrSystem(opts.Clock), nil)
 	if opts.TranslateFeatureEnabled && opts.TranslateProvider != nil {

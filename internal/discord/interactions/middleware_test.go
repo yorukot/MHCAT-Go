@@ -89,9 +89,12 @@ func TestPermissionCheckerInvoked(t *testing.T) {
 	}
 }
 
-func TestUsageTrackerInvokedOnSuccess(t *testing.T) {
+func TestUsageTrackerInvokedBeforeHandler(t *testing.T) {
 	tracker := &fakeusage.Tracker{}
 	handler := func(context.Context, interactions.Interaction, responses.Responder) error {
+		if len(tracker.Events) != 1 {
+			t.Fatalf("usage was not tracked before handler: %#v", tracker.Events)
+		}
 		return nil
 	}
 	err := interactions.Chain(handler, interactions.Usage(tracker))(context.Background(), fakediscord.SlashInteraction("ping"), fakediscord.NewResponder())
@@ -103,13 +106,61 @@ func TestUsageTrackerInvokedOnSuccess(t *testing.T) {
 	}
 }
 
-func TestUsageTrackerNotInvokedOnFailure(t *testing.T) {
+func TestUsageTrackerInvokedWhenHandlerFails(t *testing.T) {
 	tracker := &fakeusage.Tracker{}
 	handler := func(context.Context, interactions.Interaction, responses.Responder) error {
 		return errors.New("handler failed")
 	}
 	_ = interactions.Chain(handler, interactions.Usage(tracker))(context.Background(), fakediscord.SlashInteraction("ping"), fakediscord.NewResponder())
+	if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "ping" {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+}
+
+func TestUsageTrackerInvokedBeforePermissionDenial(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	checker := interactions.PermissionCheckerFunc(func(context.Context, interactions.Actor, interactions.Route) error {
+		return errors.New("denied")
+	})
+	handler := func(context.Context, interactions.Interaction, responses.Responder) error {
+		t.Fatal("handler should not run after permission denial")
+		return nil
+	}
+	err := interactions.Chain(
+		handler,
+		interactions.Usage(tracker),
+		interactions.Permission(checker),
+	)(context.Background(), fakediscord.SlashInteraction("secure"), fakediscord.NewResponder())
+	if !errors.Is(err, interactions.ErrPermissionDenied) {
+		t.Fatalf("expected ErrPermissionDenied, got %v", err)
+	}
+	if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "secure" {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+}
+
+func TestUsageTrackerFailureDoesNotFailHandler(t *testing.T) {
+	tracker := &fakeusage.Tracker{Err: errors.New("usage unavailable")}
+	called := false
+	handler := func(context.Context, interactions.Interaction, responses.Responder) error {
+		called = true
+		return nil
+	}
+	err := interactions.Chain(handler, interactions.Usage(tracker))(context.Background(), fakediscord.SlashInteraction("ping"), fakediscord.NewResponder())
+	if err != nil || !called {
+		t.Fatalf("handler called=%v err=%v", called, err)
+	}
+}
+
+func TestUsageTrackerIgnoresComponents(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	handler := func(context.Context, interactions.Interaction, responses.Responder) error { return nil }
+	interaction := fakediscord.ComponentInteractionFromID("help")
+	interaction.CommandName = "help"
+	if err := interactions.Chain(handler, interactions.Usage(tracker))(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("component handler: %v", err)
+	}
 	if len(tracker.Events) != 0 {
-		t.Fatalf("usage tracked failed command: %#v", tracker.Events)
+		t.Fatalf("component usage events = %#v", tracker.Events)
 	}
 }

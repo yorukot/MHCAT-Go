@@ -28,7 +28,7 @@ The handler follows `slashCommands/代幣系統/coin.js`:
 
 - Success embed color is stable instead of Discord.js `Random`; the old random color does not affect behavior and makes tests brittle.
 - Mongo callback errors are mapped through typed Go errors instead of being ignored or exposed.
-- The legacy global `all_use_count` write is not performed; usage tracking remains no-op until an atomic usage repository is approved.
+- The economy handler does not own usage writes. The separate global middleware increments `all_use_counts` only when `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`.
 
 ## Outside This Slice
 

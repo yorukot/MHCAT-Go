@@ -125,9 +125,9 @@ The internal interaction model does not expose the Discord interaction token. Un
 
 The DiscordGo responder implementation is still the only layer that calls Discord interaction response APIs. Successful quick utility handlers reply exactly once through the responder state machine.
 
-## Usage Tracking No-op Behavior
+## Usage Tracking Behavior At Wave 5.2
 
-The runtime path invokes the usage middleware after successful slash command handling. The production default is `adapters/usage.NoopTracker`, so no `all_use_count` or other Mongo feature data is written in Wave 5.2. This remains a temporary parity gap until an atomic Mongo usage repository is approved after live audit.
+At Wave 5.2, the runtime invoked usage tracking only after successful slash command handling and the production tracker was `adapters/usage.NoopTracker`, so it wrote no `all_use_count` data. This historical gap is now closed: the current runtime has a disabled-by-default `MHCAT_FEATURE_USAGE_TRACKING_ENABLED` gate backed by an atomic `all_use_counts` tracker in the global pre-handler slash middleware.
 
 ## Tests Added
 
@@ -157,7 +157,7 @@ The runtime path invokes the usage middleware after successful slash command han
 
 - No live Discord smoke test was run; gateway mode is implemented but remains opt-in and unverified against a real bot token in this environment.
 - `info bot` runtime output uses the legacy bot-info embed/button UI; values are degraded only when a concrete bot info provider cannot provide gateway/system state.
-- Usage tracking remains no-op and does not match legacy `all_use_count` yet.
+- At Wave 5.2, usage tracking was no-op and did not match legacy `all_use_count`; the later gated global tracker closes this limitation.
 - Command definitions still cover only `help`, `ping`, and `info bot`.
 - The bot still does not perform command sync at startup by design.
 - No feature Mongo repositories or index writes were added.

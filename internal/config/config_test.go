@@ -114,6 +114,9 @@ func TestDefaultsAreSafe(t *testing.T) {
 	if cfg.FeaturePollsEnabled {
 		t.Fatal("poll feature must be disabled by default")
 	}
+	if cfg.FeatureUsageTrackingEnabled {
+		t.Fatal("usage tracking feature must be disabled by default")
+	}
 	if cfg.FeatureEconomyQueryEnabled {
 		t.Fatal("economy query feature must be disabled by default")
 	}
@@ -1294,6 +1297,21 @@ func TestFeaturePollsConfigParses(t *testing.T) {
 	}
 	if !cfg.FeaturePollsEnabled {
 		t.Fatal("expected poll feature to be enabled explicitly")
+	}
+}
+
+func TestFeatureUsageTrackingConfigParses(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":                  "token",
+		"MHCAT_MONGODB_URI":                    "mongodb://localhost:27017/mhcat",
+		"MHCAT_MONGODB_DATABASE":               "mhcat",
+		"MHCAT_FEATURE_USAGE_TRACKING_ENABLED": "true",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.FeatureUsageTrackingEnabled {
+		t.Fatal("expected usage tracking feature to be enabled explicitly")
 	}
 }
 

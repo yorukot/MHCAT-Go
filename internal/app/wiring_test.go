@@ -16,6 +16,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/faketranslate"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestBuildRuntimeRoutesUtilityCommands(t *testing.T) {
@@ -1361,6 +1362,26 @@ func TestBuildRuntimeRoutesAutoChatConfigOnlyWithRepository(t *testing.T) {
 	}
 	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "自動聊天頻道成功創建") {
 		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestBuildRuntimeTracksFeatureSlashOnce(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		UsageTracker:             tracker,
+		AutoChatConfigRepository: fakemongo.NewAutoChatConfigRepository(),
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("自動聊天頻道", "", map[string]string{"頻道": "channel-1"})
+	interaction.Actor.PermissionBits = 8192
+	if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch autochat config: %v", err)
+	}
+	if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "自動聊天頻道" {
+		t.Fatalf("usage events = %#v", tracker.Events)
 	}
 }
 

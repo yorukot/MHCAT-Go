@@ -8,6 +8,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestRouterSlashCommandRoutesByExactName(t *testing.T) {
@@ -28,10 +29,14 @@ func TestRouterSlashCommandRoutesByExactName(t *testing.T) {
 }
 
 func TestRouterUnknownSlashCommandReturnsNotFound(t *testing.T) {
-	router := interactions.NewRouter()
+	tracker := &fakeusage.Tracker{}
+	router := interactions.NewRouter(interactions.Usage(tracker))
 	err := router.Handle(context.Background(), fakediscord.SlashInteraction("missing"), fakediscord.NewResponder())
 	if !errors.Is(err, interactions.ErrRouteNotFound) {
 		t.Fatalf("expected ErrRouteNotFound, got %v", err)
+	}
+	if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "missing" {
+		t.Fatalf("usage events = %#v", tracker.Events)
 	}
 }
 

@@ -114,11 +114,14 @@ func (r *Router) Handle(ctx context.Context, interaction Interaction, responder 
 			return err
 		}
 	}
-	handler, err := r.lookup(interaction)
-	if err != nil {
-		return err
+	dispatch := func(ctx context.Context, routed Interaction, responder responses.Responder) error {
+		handler, lookupErr := r.lookup(routed)
+		if lookupErr != nil {
+			return lookupErr
+		}
+		return handler(ctx, routed, responder)
 	}
-	return Chain(handler, r.middleware...)(ctx, interaction, responder)
+	return Chain(dispatch, r.middleware...)(ctx, interaction, responder)
 }
 
 func (r *Router) lookup(interaction Interaction) (Handler, error) {

@@ -69,4 +69,4 @@ The simplified flow preserves the legacy visible weekday, 24-hour, and five-minu
 13. Run `/自動通知刪除 id:<active id>` and confirm the legacy green delete embed appears.
 14. Run `/自動通知刪除 id:<missing id>` and confirm the legacy red missing-id tutorial embed appears.
 
-No staging step should start a recurring scheduler, depend on Message Content intent, or write usage counters. Preview sends are part of setup smoke; recurring notification sends remain disabled.
+No staging step should start a recurring scheduler or depend on Message Content intent. These handlers do not own usage writes, but the separate global middleware increments `all_use_counts` when `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`. Preview sends are part of setup smoke; recurring notification sends remain disabled.

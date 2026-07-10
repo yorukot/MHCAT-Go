@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -97,19 +98,16 @@ func Permission(checker PermissionChecker) Middleware {
 func Usage(tracker ports.UsageTracker) Middleware {
 	return func(next Handler) Handler {
 		return func(ctx context.Context, interaction Interaction, responder responses.Responder) error {
-			err := next(ctx, interaction, responder)
-			if err != nil || tracker == nil || interaction.CommandName == "" {
-				return err
+			commandName := strings.TrimSpace(interaction.CommandName)
+			if tracker != nil && interaction.Type == TypeSlash && commandName != "" {
+				_ = tracker.TrackCommand(ctx, ports.UsageEvent{
+					CommandName: commandName,
+					UserID:      interaction.Actor.UserID,
+					GuildID:     interaction.Actor.GuildID,
+					Feature:     routeFeature(interaction),
+				})
 			}
-			if trackErr := tracker.TrackCommand(ctx, ports.UsageEvent{
-				CommandName: interaction.CommandName,
-				UserID:      interaction.Actor.UserID,
-				GuildID:     interaction.Actor.GuildID,
-				Feature:     routeFeature(interaction),
-			}); trackErr != nil {
-				return trackErr
-			}
-			return nil
+			return next(ctx, interaction, responder)
 		}
 	}
 }

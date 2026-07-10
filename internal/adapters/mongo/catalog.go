@@ -20,7 +20,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Capitalized legacy model name; verify Mongoose pluralization against live collections."),
 		catalogSpec("all_use_counts", "all_use_count", "models/all_use_count.js", []string{"slashcommand_name"}, []catalogIndex{
 			uniqueCatalogIndex("all_use_counts_slashcommand_name", []string{"slashcommand_name"}, "slash command usage counter lookup"),
-		}, "Usage writes remain disabled; audit undefined/null command names before unique index apply."),
+		}, "Usage writes are feature-gated; audit duplicate and null/blank command names before unique index apply."),
 		catalogSpec("ann_all_sets", "ann_all_set", "models/ann_all_set.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("ann_all_sets_guild_announcement_id", []string{"guild", "announcement_id"}, "announcement config lookup by guild and announcement id"),
 		}, ""),

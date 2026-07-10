@@ -822,7 +822,15 @@ Run the utility feature pipeline tests with:
 go test ./internal/core/features ./internal/core/services/utility ./internal/discord/features/utility ./internal/discord/commands ./internal/discord/interactions
 ```
 
-Usage tracking is currently wired through runtime middleware and defaults to no-op behavior. It does not write to MongoDB or increment legacy `all_use_count` yet.
+Usage tracking is wired through the global slash middleware and remains disabled by default. Enable the Mongo-backed tracker only with:
+
+```bash
+MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true
+```
+
+When enabled, each slash attempt that reaches the interaction router atomically increments `all_use_counts.count` by `slashcommand_name` before route lookup, permission checks, and handler work. Unknown, denied, and handler-failing slash attempts are counted; components, modals, and autocomplete interactions are not. The write has a 500 ms timeout, normalizes missing or malformed legacy counts to zero, and cannot fail the command path.
+
+Stop the Node `events/SlashCommands.js` usage-counter owner before enabling this gate or every slash attempt can be counted twice. Use disposable staging rows first, and audit duplicate plus null/blank `slashcommand_name` rows before applying any unique index. Elsewhere in the documentation, a feature statement that it does not write usage counters refers to the feature handler itself and assumes this separate global gate is disabled.
 
 ## Mongo Integration Test
 

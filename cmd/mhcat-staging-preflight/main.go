@@ -87,6 +87,7 @@ func buildReport(lookup lookupFunc) []checkResult {
 		ticketRuntimePairing(lookup),
 		pollCommandSync(lookup),
 		pollRuntimePairing(lookup),
+		usageTrackingRuntimeReadiness(lookup),
 		economyQueryCommandSync(lookup),
 		economyQueryRuntimePairing(lookup),
 		economySignInCommandSync(lookup),
@@ -348,6 +349,21 @@ func pollRuntimePairing(lookup lookupFunc) checkResult {
 		return checkResult{Name: "poll-runtime-pairing", Status: statusWarn, Message: "poll runtime is enabled but poll command sync include is disabled"}
 	}
 	return checkResult{Name: "poll-runtime-pairing", Status: statusSkipped, Message: "poll runtime and command sync include are disabled"}
+}
+
+func usageTrackingRuntimeReadiness(lookup lookupFunc) checkResult {
+	enabled, err := boolValue(lookup, "MHCAT_FEATURE_USAGE_TRACKING_ENABLED")
+	if err != nil {
+		return checkResult{Name: "usage-tracking-runtime-readiness", Status: statusFail, Message: err.Error()}
+	}
+	if !enabled {
+		return checkResult{Name: "usage-tracking-runtime-readiness", Status: statusSkipped, Message: "usage tracking runtime is disabled"}
+	}
+	return checkResult{
+		Name:    "usage-tracking-runtime-readiness",
+		Status:  statusWarn,
+		Message: "usage tracking writes all_use_counts; confirm the Node SlashCommands.js counter is disabled and staging rows are disposable",
+	}
 }
 
 func economyQueryCommandSync(lookup lookupFunc) checkResult {
