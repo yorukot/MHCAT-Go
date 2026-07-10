@@ -109,7 +109,7 @@ func (m Module) ButtonModalHandler() interactions.Handler {
 		if m.messages == nil {
 			return responder.EditOriginal(ctx, roleSelectionErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 		}
-		if _, err := m.messages.SendMessage(ctx, interaction.ChannelID, roleSelectionButtonPanelOutbound(baseID, content)); err != nil {
+		if _, err := m.messages.SendMessage(ctx, interaction.ChannelID, roleSelectionButtonPanelOutbound(baseID, content, interaction.BotDisplayColor)); err != nil {
 			return responder.EditOriginal(ctx, roleSelectionErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 		}
 		return responder.EditOriginal(ctx, roleSelectionSuccessTitle(roleSelectionDoneEmoji+" | 成功創建領取身分組"))
@@ -171,20 +171,20 @@ func roleSelectionModal(baseID string) responses.Modal {
 		Title:    "領取身分系統!",
 		Rows: []responses.ModalRow{{
 			Inputs: []responses.TextInput{{
-					CustomID: roleSelectionFieldPrefix + baseID,
-					Label:    "請輸入身分訊息內文",
-					Style:    responses.TextInputStyleParagraph,
-				}},
+				CustomID: roleSelectionFieldPrefix + baseID,
+				Label:    "請輸入身分訊息內文",
+				Style:    responses.TextInputStyleParagraph,
+			}},
 		}},
 	}
 }
 
-func roleSelectionButtonPanelOutbound(baseID string, content string) ports.OutboundMessage {
+func roleSelectionButtonPanelOutbound(baseID string, content string, color int) ports.OutboundMessage {
 	return ports.OutboundMessage{
 		Embeds: []ports.OutboundEmbed{{
 			Title:       "選取身分組",
 			Description: content,
-			Color:       roleSelectionSuccessColor,
+			Color:       color,
 		}},
 		Components: []ports.OutboundComponentRow{{
 			Components: []ports.OutboundComponent{

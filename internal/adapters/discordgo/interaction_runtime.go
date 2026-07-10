@@ -30,6 +30,10 @@ func (s *Session) populateBotAvatar(interaction *interactions.Interaction) {
 		return
 	}
 	interaction.BotAvatarURL = s.session.State.User.AvatarURL("")
+	guild, err := s.session.State.Guild(interaction.Actor.GuildID)
+	if err == nil && guild != nil {
+		interaction.BotDisplayColor = discordBotDisplayColor(s.session, guild)
+	}
 }
 
 func (s *Session) populateActorVoiceState(interaction *interactions.Interaction) {

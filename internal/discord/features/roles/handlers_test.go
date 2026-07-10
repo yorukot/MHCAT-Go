@@ -102,6 +102,7 @@ func TestButtonModalSendsLegacyPanel(t *testing.T) {
 	module := NewModule(repo, discord, discord, discord, discord, discord, nil)
 	interaction := fakediscord.ModalInteraction(interactions.ModalKey{})
 	interaction.ChannelID = "channel-1"
+	interaction.BotDisplayColor = 0x123456
 	interaction.ModalFields = []customid.ModalField{{CustomID: "roleaddcontent2026070901011234", Value: "點按鈕領身分"}}
 	responder := fakediscord.NewResponder()
 
@@ -115,7 +116,7 @@ func TestButtonModalSendsLegacyPanel(t *testing.T) {
 		t.Fatalf("sent = %#v", discord.Sent)
 	}
 	panel := discord.Sent[0].Message
-	if panel.Embeds[0].Title != "選取身分組" || panel.Embeds[0].Description != "點按鈕領身分" {
+	if panel.Embeds[0].Title != "選取身分組" || panel.Embeds[0].Description != "點按鈕領身分" || panel.Embeds[0].Color != 0x123456 {
 		t.Fatalf("panel = %#v", panel)
 	}
 	if panel.Components[0].Components[0].CustomID != "2026070901011234add" || panel.Components[0].Components[1].CustomID != "2026070901011234delete" {

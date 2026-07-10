@@ -93,6 +93,7 @@ type Interaction struct {
 	ChannelID                 string
 	ChannelName               string
 	BotAvatarURL              string
+	BotDisplayColor           int
 	MessageID                 string
 	OriginalInteractionID     string
 	OriginalInteractionUserID string

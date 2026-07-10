@@ -102,6 +102,16 @@ func TestRuntimeInteractionIncludesCachedBotAvatar(t *testing.T) {
 	session := testSession()
 	session.session.State = dgo.NewState()
 	session.session.State.User = &dgo.User{ID: "bot-1", Avatar: "bot-avatar"}
+	if err := session.session.State.GuildAdd(&dgo.Guild{
+		ID: "guild-1",
+		Roles: []*dgo.Role{
+			{ID: "guild-1", Position: 0},
+			{ID: "bot-color", Position: 1, Color: 0x123456},
+		},
+		Members: []*dgo.Member{{User: session.session.State.User, Roles: []string{"bot-color"}}},
+	}); err != nil {
+		t.Fatalf("seed bot display color: %v", err)
+	}
 
 	interaction, _, err := session.RuntimeInteraction(&dgo.InteractionCreate{Interaction: slashEvent("ping", nil)})
 	if err != nil {
@@ -109,6 +119,9 @@ func TestRuntimeInteractionIncludesCachedBotAvatar(t *testing.T) {
 	}
 	if interaction.BotAvatarURL == "" || !strings.Contains(interaction.BotAvatarURL, "bot-avatar") {
 		t.Fatalf("bot avatar url = %q", interaction.BotAvatarURL)
+	}
+	if interaction.BotDisplayColor != 0x123456 {
+		t.Fatalf("bot display color = %#x", interaction.BotDisplayColor)
 	}
 }
 
