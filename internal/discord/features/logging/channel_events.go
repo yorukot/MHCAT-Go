@@ -202,11 +202,8 @@ func (m Module) channelUpdateActor(ctx context.Context, event events.Event) port
 	if err != nil {
 		return ports.AuditLogEntry{}
 	}
-	for _, entry := range entries {
-		if entry.TargetID != "" && entry.TargetID != event.ChannelID {
-			continue
-		}
-		return entry
+	if len(entries) > 0 {
+		return entries[0]
 	}
 	return ports.AuditLogEntry{}
 }

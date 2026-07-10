@@ -60,6 +60,37 @@ func TestChannelTopicLoggingSendsLegacyEmbed(t *testing.T) {
 	}
 }
 
+func TestChannelTopicLoggingUsesFirstAuditEntryWithoutTargetFiltering(t *testing.T) {
+	repo := &fakemongo.LoggingConfigRepository{Configs: map[string]domain.LoggingConfig{
+		"guild-1": {GuildID: "guild-1", ChannelID: "log-channel", ChannelUpdate: true},
+	}}
+	discord := fakediscord.NewSideEffects()
+	discord.AuditEntries = []ports.AuditLogEntry{{
+		UserID:   "moderator-1",
+		Username: "Mio",
+		TargetID: "different-channel",
+		Action:   loggingChannelUpdateAuditAction,
+	}}
+	module := NewChannelEventModule(repo, discord, discord)
+
+	err := module.ChannelUpdateHandler()(context.Background(), events.Event{
+		Type:      events.TypeChannelUpdate,
+		GuildID:   "guild-1",
+		ChannelID: "channel-1",
+		ChannelUpdate: &events.ChannelUpdate{
+			HasOldChannel: true,
+			OldTopic:      "old",
+			NewTopic:      "new",
+		},
+	})
+	if err != nil {
+		t.Fatalf("channel topic log: %v", err)
+	}
+	if len(discord.Sent) != 1 || !strings.Contains(discord.Sent[0].Message.Embeds[0].Description, "<@moderator-1>") {
+		t.Fatalf("sent = %#v", discord.Sent)
+	}
+}
+
 func TestChannelPermissionLoggingSendsChangedOverwriteEmbeds(t *testing.T) {
 	repo := &fakemongo.LoggingConfigRepository{Configs: map[string]domain.LoggingConfig{
 		"guild-1": {GuildID: "guild-1", ChannelID: "log-channel", ChannelUpdate: true},
