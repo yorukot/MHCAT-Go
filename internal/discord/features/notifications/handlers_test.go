@@ -21,9 +21,9 @@ func TestSetupHandlerShowsLegacyModalAndCreatesPendingDraft(t *testing.T) {
 	repo := fakemongo.NewAutoNotificationScheduleRepository()
 	usage := &fakeusage.Tracker{}
 	module := NewModule(repo, nil, usage)
+	module.clock = &autoNotificationTestClock{now: time.UnixMilli(1700000000000)}
 	responder := fakediscord.NewResponder()
 	interaction := autoNotificationSetupSlash("channel-1")
-	interaction.CreatedAt = time.UnixMilli(1700000000000)
 
 	if err := module.SetupHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)

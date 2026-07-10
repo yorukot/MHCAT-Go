@@ -32,7 +32,7 @@ func (m Module) SetupHandler() interactions.Handler {
 		if !interaction.Actor.HasPermission(permissionManageMessages) {
 			return responder.Reply(ctx, autoNotificationErrorMessage("你需要有`訊息管理`才能使用此指令"))
 		}
-		id := setupID(interaction.CreatedAt)
+		id := setupID(m.now())
 		if err := m.service.StartSetup(ctx, domain.AutoNotificationSetupDraft{
 			GuildID:   interaction.Actor.GuildID,
 			ID:        id,
