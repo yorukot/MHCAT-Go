@@ -41,7 +41,7 @@ func (m Module) CreateHandler() interactions.Handler {
 		if !interaction.Actor.HasPermission(m.memberPerm) {
 			return responder.EditOriginal(ctx, pollErrorMessage("你需要有`訊息管理`才能使用此指令"))
 		}
-		question := strings.TrimSpace(interaction.Options["問題"])
+		question := interaction.Options["問題"]
 		choicesRaw := interaction.Options["選項"]
 		choices, msg := validatePollInput(question, choicesRaw)
 		if msg != "" {

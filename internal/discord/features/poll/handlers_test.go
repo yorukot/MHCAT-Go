@@ -80,6 +80,31 @@ func TestCreateHandlerSendsLegacyPollUIAndSavesDocument(t *testing.T) {
 	}
 }
 
+func TestCreateHandlerPreservesQuestionWhitespace(t *testing.T) {
+	repo := fakemongo.NewPollRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewModuleWithSideEffects(repo, sideEffects, nil, nil)
+	responder := fakediscord.NewResponder()
+	interaction := pollCreateInteraction("  今天吃什麼?  ", "A^B")
+
+	if err := module.CreateHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("create handler: %v", err)
+	}
+	if len(sideEffects.Sent) != 1 || len(sideEffects.Sent[0].Message.Embeds) != 1 {
+		t.Fatalf("sent messages = %#v", sideEffects.Sent)
+	}
+	if got := sideEffects.Sent[0].Message.Embeds[0].Title; got != "<:poll:1023968837965709312> | 投票\n  今天吃什麼?  " {
+		t.Fatalf("poll title = %q", got)
+	}
+	saved, err := repo.GetPoll(context.Background(), interaction.Actor.GuildID, sideEffects.Sent[0].Ref.MessageID)
+	if err != nil {
+		t.Fatalf("get saved poll: %v", err)
+	}
+	if saved.Question != "  今天吃什麼?  " {
+		t.Fatalf("saved question = %q", saved.Question)
+	}
+}
+
 func TestCreateHandlerRequiresManageMessages(t *testing.T) {
 	module := NewModuleWithSideEffects(fakemongo.NewPollRepository(), fakediscord.NewSideEffects(), nil, nil)
 	responder := fakediscord.NewResponder()
