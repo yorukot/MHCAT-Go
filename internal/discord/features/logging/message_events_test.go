@@ -89,6 +89,36 @@ func TestMessageDeleteLoggingUsesAuditActorWhenAvailable(t *testing.T) {
 	}
 }
 
+func TestMessageDeleteLoggingRequiresExactAuditTargetAndChannel(t *testing.T) {
+	for _, entry := range []ports.AuditLogEntry{
+		{UserID: "moderator-1", ChannelID: "source-channel", Action: loggingMessageDeleteAuditAction},
+		{UserID: "moderator-1", TargetID: "user-1", Action: loggingMessageDeleteAuditAction},
+		{UserID: "moderator-1", TargetID: "other-user", ChannelID: "source-channel", Action: loggingMessageDeleteAuditAction},
+		{UserID: "moderator-1", TargetID: "user-1", ChannelID: "other-channel", Action: loggingMessageDeleteAuditAction},
+	} {
+		repo := &fakemongo.LoggingConfigRepository{Configs: map[string]domain.LoggingConfig{
+			"guild-1": {GuildID: "guild-1", ChannelID: "log-channel", MessageDelete: true},
+		}}
+		discord := fakediscord.NewSideEffects()
+		discord.AuditEntries = []ports.AuditLogEntry{entry}
+		module := NewMessageEventModule(repo, discord, discord)
+
+		err := module.MessageDeleteHandler()(context.Background(), events.Event{
+			Type:      events.TypeMessageDelete,
+			GuildID:   "guild-1",
+			ChannelID: "source-channel",
+			UserID:    "user-1",
+			Username:  "Yoru",
+		})
+		if err != nil {
+			t.Fatalf("message delete log: %v", err)
+		}
+		if len(discord.Sent) != 1 || !strings.Contains(discord.Sent[0].Message.Embeds[0].Description, "訊息刪除者: <@user-1>") {
+			t.Fatalf("entry %#v sent = %#v", entry, discord.Sent)
+		}
+	}
+}
+
 func TestMessageLoggingSkipsDisabledBotAndUncachedUpdate(t *testing.T) {
 	repo := &fakemongo.LoggingConfigRepository{Configs: map[string]domain.LoggingConfig{
 		"guild-1": {GuildID: "guild-1", ChannelID: "log-channel", MessageUpdate: true, MessageDelete: true},

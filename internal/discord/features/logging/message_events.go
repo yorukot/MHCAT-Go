@@ -134,10 +134,10 @@ func (m Module) messageDeleteActor(ctx context.Context, event events.Event) stri
 		return event.UserID
 	}
 	for _, entry := range entries {
-		if entry.TargetID != "" && entry.TargetID != event.UserID {
+		if entry.TargetID != event.UserID {
 			continue
 		}
-		if entry.ChannelID != "" && entry.ChannelID != event.ChannelID {
+		if entry.ChannelID != event.ChannelID {
 			continue
 		}
 		if entry.UserID != "" {
