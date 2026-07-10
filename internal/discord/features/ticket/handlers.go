@@ -211,7 +211,7 @@ func (m Module) OpenHandler() interactions.Handler {
 			ParentID:             config.CategoryID,
 			Name:                 interaction.Actor.UserID,
 			Type:                 discordChannelTypeGuildText,
-			PermissionOverwrites: m.ticketOpenPermissionOverwrites(config, interaction.Actor.UserID),
+			PermissionOverwrites: m.ticketOpenPermissionOverwrites(config, interaction.Actor.UserID, ticketBotUserID(interaction.ApplicationID, m.botUserID)),
 		})
 		if err != nil {
 			return err
@@ -247,7 +247,7 @@ func (m Module) CloseHandler() interactions.Handler {
 	}
 }
 
-func (m Module) ticketOpenPermissionOverwrites(config domain.TicketConfig, userID string) []ports.PermissionOverwrite {
+func (m Module) ticketOpenPermissionOverwrites(config domain.TicketConfig, userID string, botUserID string) []ports.PermissionOverwrite {
 	allow := int64(permissionViewChannel | permissionSendMessages | permissionReadMessageHistory)
 	denyInvite := int64(permissionCreateInstantInvite)
 	overwrites := []ports.PermissionOverwrite{
@@ -255,10 +255,17 @@ func (m Module) ticketOpenPermissionOverwrites(config domain.TicketConfig, userI
 		{ID: config.EveryoneRoleID, Type: permissionOverwriteRole, Deny: int64(permissionViewChannel)},
 		{ID: userID, Type: permissionOverwriteMember, Allow: allow, Deny: denyInvite},
 	}
-	if m.botUserID != "" {
-		overwrites = append(overwrites, ports.PermissionOverwrite{ID: m.botUserID, Type: permissionOverwriteMember, Allow: allow, Deny: denyInvite})
+	if botUserID != "" {
+		overwrites = append(overwrites, ports.PermissionOverwrite{ID: botUserID, Type: permissionOverwriteMember, Allow: allow, Deny: denyInvite})
 	}
 	return overwrites
+}
+
+func ticketBotUserID(applicationID string, fallbackID string) string {
+	if applicationID = strings.TrimSpace(applicationID); applicationID != "" {
+		return applicationID
+	}
+	return strings.TrimSpace(fallbackID)
 }
 
 func (m Module) track(ctx context.Context, interaction interactions.Interaction, command string) error {

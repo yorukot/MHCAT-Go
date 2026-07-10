@@ -369,9 +369,10 @@ func TestOpenHandlerCreatesTicketChannelAndSendsLegacyWelcome(t *testing.T) {
 	repo := seededTicketRepo(t)
 	sideEffects := fakediscord.NewSideEffects()
 	usage := &fakeusage.Tracker{}
-	module := NewModuleWithSideEffects(repo, usage, sideEffects, sideEffects, "444444444444444444")
+	module := NewModuleWithSideEffects(repo, usage, sideEffects, sideEffects, "")
 	responder := fakediscord.NewResponder()
 	interaction := ticketButtonInteraction("tic")
+	interaction.ApplicationID = "444444444444444444"
 
 	if err := module.OpenHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("open handler: %v", err)
@@ -392,6 +393,9 @@ func TestOpenHandlerCreatesTicketChannelAndSendsLegacyWelcome(t *testing.T) {
 	}
 	if created.PermissionOverwrites[1].ID != testGuildID || created.PermissionOverwrites[1].Deny != int64(permissionViewChannel) {
 		t.Fatalf("everyone overwrite = %#v", created.PermissionOverwrites[1])
+	}
+	if created.PermissionOverwrites[3].ID != interaction.ApplicationID || created.PermissionOverwrites[3].Type != permissionOverwriteMember || created.PermissionOverwrites[3].Allow != wantAllow {
+		t.Fatalf("bot overwrite = %#v", created.PermissionOverwrites[3])
 	}
 	if len(sideEffects.Sent) != 1 {
 		t.Fatalf("sent messages = %#v", sideEffects.Sent)
@@ -414,6 +418,12 @@ func TestOpenHandlerCreatesTicketChannelAndSendsLegacyWelcome(t *testing.T) {
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != "私人頻道開啟" {
 		t.Fatalf("usage events = %#v", usage.Events)
+	}
+}
+
+func TestTicketBotUserIDUsesConfiguredFallbackOutsideRuntimeInteractions(t *testing.T) {
+	if got := ticketBotUserID("", " fallback-bot "); got != "fallback-bot" {
+		t.Fatalf("ticket bot user id = %q, want fallback-bot", got)
 	}
 }
 
