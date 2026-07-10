@@ -72,6 +72,17 @@ func Validate(cfg Config) error {
 			return fmt.Errorf("%w: MHCAT_FEATURE_XP_RESET_ENABLED requires MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true", ErrInvalidConfig)
 		}
 	}
+	if cfg.FeatureTextXPAccrualEnabled {
+		if !cfg.DiscordEnableGateway {
+			return fmt.Errorf("%w: MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordGuildMessagesIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED requires MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true", ErrInvalidConfig)
+		}
+		if !cfg.DiscordMessageContentIntent {
+			return fmt.Errorf("%w: MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED requires MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true", ErrInvalidConfig)
+		}
+	}
 	if cfg.FeatureVoiceXPSessionsEnabled {
 		if !cfg.DiscordEnableGateway {
 			return fmt.Errorf("%w: MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED requires MHCAT_DISCORD_ENABLE_GATEWAY=true", ErrInvalidConfig)

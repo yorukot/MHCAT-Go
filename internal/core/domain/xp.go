@@ -110,6 +110,20 @@ func ApplyVoiceXPAdjustment(profile XPProfile, delta int64) XPProfile {
 	return applyXPAdjustment(profile.Normalize(), delta, voiceXPRequiredForLevel)
 }
 
+func ApplyTextXPMessage(profile XPProfile, gained int64) (XPProfile, bool) {
+	profile = profile.Normalize()
+	if gained < 0 {
+		gained = 0
+	}
+	if profile.XP+gained > textXPRequiredForLevel(profile.Level) {
+		profile.Level++
+		profile.XP = 0
+		return profile, true
+	}
+	profile.XP += gained
+	return profile, false
+}
+
 func applyXPAdjustment(profile XPProfile, delta int64, required func(int64) int64) XPProfile {
 	lessXP := delta
 	allXP := int64(0)

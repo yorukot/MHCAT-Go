@@ -58,6 +58,7 @@ const (
 	DefaultFeatureAnnouncementSendEnabled       = false
 	DefaultFeatureAnnouncementRelayEnabled      = false
 	DefaultFeatureTextXPConfigEnabled           = false
+	DefaultFeatureTextXPAccrualEnabled          = false
 	DefaultFeatureVoiceXPConfigEnabled          = false
 	DefaultFeatureVoiceXPSessionsEnabled        = false
 	DefaultFeatureXPRoleConfigEnabled           = false
@@ -140,6 +141,7 @@ type Config struct {
 	FeatureAnnouncementSendEnabled       bool
 	FeatureAnnouncementRelayEnabled      bool
 	FeatureTextXPConfigEnabled           bool
+	FeatureTextXPAccrualEnabled          bool
 	FeatureVoiceXPConfigEnabled          bool
 	FeatureVoiceXPSessionsEnabled        bool
 	FeatureXPRoleConfigEnabled           bool

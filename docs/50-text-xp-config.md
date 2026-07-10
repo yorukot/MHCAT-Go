@@ -6,6 +6,7 @@ Status: implemented behind explicit runtime and command-sync gates.
 
 - `MHCAT/slashCommands/經驗系統/text_set.js`
 - `MHCAT/slashCommands/經驗系統/text_set_delete.js`
+- `MHCAT/events/text_xp.js`
 - `MHCAT/models/text_xp_channel.js`
 
 ## Implemented Scope
@@ -20,6 +21,8 @@ Status: implemented behind explicit runtime and command-sync gates.
 - Discord behavior: public defer, legacy-style green/red embeds, optional preview message
 
 This slice is announcement-config only. It does not enable message-create XP accrual, rank cards, automatic reward-role assignment/removal, voice XP, coin rewards, or Message Content intent. Text reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
+
+Text XP message accrual is implemented separately behind `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true`, with `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`. That event slice mirrors the legacy per-message XP formula and `text_xps` profile updates, including XP reset on level-up, but it does not send level-up announcements or apply XP rewards yet.
 
 ## Legacy UI/UX Preserved
 
@@ -54,12 +57,12 @@ This slice is announcement-config only. It does not enable message-create XP acc
 
 ## Not Implemented
 
-- `events/LevelSystem.js` / text XP accrual.
+- text XP level-up announcements, coin rewards, and reward-role changes.
 - `/聊天排行榜`, rank image rendering, rank buttons, and the old XP profile card lookup behind `/聊天經驗`; the current `/聊天經驗` command is implemented separately as a disabled replacement response only.
 - XP-to-coin rewards.
 - automatic chat reward-role assignment/removal; the config command is tracked separately from XP accrual.
 - voice XP and voice level-role behavior.
-- Message Content or Guild Messages intent enablement.
+- Message Content or Guild Messages intent enablement by the config commands; accrual has its own explicit event gate.
 - Usage counter writes to `all_use_count`.
 
 ## Rollout Notes

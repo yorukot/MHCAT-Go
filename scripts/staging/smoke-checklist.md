@@ -5,6 +5,7 @@
 - Confirm `MHCAT_COMMAND_SYNC_SCOPE=guild`.
 - If syncing optional features, confirm every `MHCAT_COMMAND_SYNC_INCLUDE_*` flag is paired with the matching `MHCAT_FEATURE_*_ENABLED=true` runtime flag.
 - For text-XP config smoke, use an isolated staging database and pair `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true` with `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`.
+- For text-XP accrual smoke, use an isolated staging database with disposable `text_xps` rows and enable `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`; this has no command-sync flag.
 - For voice-XP config smoke, use an isolated staging database and pair `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true` with `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`.
 - For voice-XP session smoke, use an isolated staging database with disposable `voice_xps` rows and enable `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`; this has no command-sync flag.
 - For XP reward-role config smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true` with `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`; use roles below the bot's highest role.

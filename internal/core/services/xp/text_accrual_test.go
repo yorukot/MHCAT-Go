@@ -1,0 +1,89 @@
+package xp
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
+)
+
+func TestTextAccrualServiceCreatesAndUpdatesProfiles(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	service := TextAccrualService{Repository: repo, RandomMultiplier: fixedMultiplier(500)}
+
+	result, err := service.AccrueMessage(context.Background(), " guild-1 ", " user-1 ", "hello")
+	if err != nil {
+		t.Fatalf("accrue create: %v", err)
+	}
+	if result.Gained != 5 || result.Leveled || result.Profile.XP != 5 || result.Profile.Level != 0 {
+		t.Fatalf("create result = %#v", result)
+	}
+
+	result, err = service.AccrueMessage(context.Background(), "guild-1", "user-1", "abc")
+	if err != nil {
+		t.Fatalf("accrue update: %v", err)
+	}
+	if result.Gained != 3 || result.Leveled || result.Profile.XP != 8 || result.Profile.Level != 0 {
+		t.Fatalf("update result = %#v", result)
+	}
+}
+
+func TestTextAccrualServiceResetsXPOnLegacyLevelUp(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.TextProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}
+	service := TextAccrualService{Repository: repo, RandomMultiplier: fixedMultiplier(500)}
+
+	result, err := service.AccrueMessage(context.Background(), "guild-1", "user-1", "hello")
+	if err != nil {
+		t.Fatalf("accrue: %v", err)
+	}
+	if !result.Leveled || result.Gained != 5 || result.Profile.Level != 1 || result.Profile.XP != 0 {
+		t.Fatalf("level result = %#v", result)
+	}
+	saved := repo.TextProfiles["guild-1/user-1"]
+	if saved.Level != 1 || saved.XP != 0 {
+		t.Fatalf("saved profile = %#v", saved)
+	}
+}
+
+func TestTextAccrualServiceRejectsInvalidInput(t *testing.T) {
+	service := TextAccrualService{Repository: fakemongo.NewXPAdminRepository()}
+	_, err := service.AccrueMessage(context.Background(), "", "user-1", "hello")
+	if !errors.Is(err, domain.ErrInvalidXPAdjustment) {
+		t.Fatalf("expected invalid adjustment, got %v", err)
+	}
+	_, err = (TextAccrualService{}).AccrueMessage(context.Background(), "guild-1", "user-1", "hello")
+	if !errors.Is(err, domain.ErrInvalidXPAdjustment) {
+		t.Fatalf("expected invalid service, got %v", err)
+	}
+}
+
+func TestTextAccrualServiceReturnsRepositoryErrors(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.Err = ports.ErrTextXPProfileMissing
+	service := TextAccrualService{Repository: repo, RandomMultiplier: fixedMultiplier(500)}
+
+	_, err := service.AccrueMessage(context.Background(), "guild-1", "user-1", "hello")
+	if !errors.Is(err, ports.ErrTextXPProfileMissing) {
+		t.Fatalf("expected repository error, got %v", err)
+	}
+}
+
+func TestLegacyTextXPForMessageMatchesLegacyLengthAndMultiplier(t *testing.T) {
+	if got := LegacyTextXPContentLength("ab你🙂"); got != 8 {
+		t.Fatalf("legacy length = %d", got)
+	}
+	if got := LegacyTextXPForMessage("hello", 500); got != 5 {
+		t.Fatalf("xp = %d", got)
+	}
+	if got := LegacyTextXPForMessage("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz", 800); got != 80 {
+		t.Fatalf("capped xp = %d", got)
+	}
+}
+
+func fixedMultiplier(value int64) func() int64 {
+	return func() int64 { return value }
+}

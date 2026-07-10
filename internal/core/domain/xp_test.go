@@ -78,6 +78,18 @@ func TestApplyTextXPAdjustmentMatchesLegacyLevelMath(t *testing.T) {
 	}
 }
 
+func TestApplyTextXPMessageMatchesLegacyAccrualLevelBehavior(t *testing.T) {
+	got, leveled := ApplyTextXPMessage(XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 95, Level: 0}, 5)
+	if leveled || got.Level != 0 || got.XP != 100 {
+		t.Fatalf("non-level message = %#v leveled=%t", got, leveled)
+	}
+
+	got, leveled = ApplyTextXPMessage(XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, Level: 0}, 5)
+	if !leveled || got.Level != 1 || got.XP != 0 {
+		t.Fatalf("level message = %#v leveled=%t", got, leveled)
+	}
+}
+
 func TestApplyVoiceXPAdjustmentMatchesLegacyLevelMath(t *testing.T) {
 	profile := XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 50, Level: 2}
 

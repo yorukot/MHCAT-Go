@@ -812,6 +812,13 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		}
 		featureeconomy.NewCoinResetModule(repo, discordInfoProvider(session), sideEffects, nil, nil).RegisterEventRoutes(dispatcher)
 	}
+	if cfg.FeatureTextXPAccrualEnabled {
+		repo, err := xpAdminRepositoryFromMongo(mongoClient)
+		if err != nil {
+			return nil, err
+		}
+		featurexp.NewTextEventModule(repo).RegisterEventRoutes(dispatcher)
+	}
 	if cfg.FeatureRoleSelectionEnabled {
 		repo, err := roleSelectionRepositoryFromMongo(mongoClient)
 		if err != nil {

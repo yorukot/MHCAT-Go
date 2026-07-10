@@ -44,6 +44,11 @@ type XPAdminRepository interface {
 	SaveVoiceXPProfile(ctx context.Context, profile domain.XPProfile) error
 }
 
+type TextXPAccrualRepository interface {
+	GetTextXPProfile(ctx context.Context, guildID string, userID string) (domain.XPProfile, error)
+	SaveTextXPProfile(ctx context.Context, profile domain.XPProfile) error
+}
+
 type VoiceXPSessionRepository interface {
 	MarkVoiceXPJoined(ctx context.Context, guildID string, userID string) error
 	MarkVoiceXPLeft(ctx context.Context, guildID string, userID string) error

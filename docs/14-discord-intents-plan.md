@@ -125,7 +125,7 @@ Default: disabled
 
 Startup validation must reject impossible combinations, for example:
 
-- `TEXT_XP_ENABLED=true` while `ENABLE_GUILD_MESSAGES_INTENT=false`.
+- `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true` while `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=false` or `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=false`.
 - `CHATBOT_ENABLED=true` while `ENABLE_MESSAGE_CONTENT_INTENT=false`.
 - `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true` while `MHCAT_DISCORD_VOICE_STATE_INTENT=false`.
 

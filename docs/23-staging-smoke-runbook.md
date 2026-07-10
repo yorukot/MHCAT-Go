@@ -338,6 +338,17 @@ export MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true
 
 Set both together only in an isolated staging database when testing `/聊天經驗設定` and `/聊天經驗刪除`. This path writes `text_xp_channels`; it does not enable Message Content intent, text XP accrual, rank cards, voice XP, or XP rewards.
 
+Optional text-XP accrual smoke flags:
+
+```bash
+export MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true
+export MHCAT_DISCORD_ENABLE_GATEWAY=true
+export MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
+export MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
+```
+
+Use only an isolated staging database with disposable `text_xps` rows. This event-only path has no command-sync flag and updates text XP/level on guild messages; it does not send level-up announcements or apply XP rewards.
+
 Optional voice-XP config smoke flags:
 
 ```bash
@@ -862,6 +873,14 @@ For voice-XP config staging smoke, expected additionally:
 - `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`;
 - plan includes managed `語音經驗設定` and `語音經驗刪除`;
 - plan still performs no create/update/delete during dry-run.
+
+For text-XP accrual staging smoke, expected additionally:
+
+- `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true`;
+- `MHCAT_DISCORD_ENABLE_GATEWAY=true`;
+- `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`;
+- `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`;
+- no command-sync plan changes are expected; verify `text_xps.xp`/`leavel` changes only against disposable rows.
 
 For voice-XP session staging smoke, expected additionally:
 

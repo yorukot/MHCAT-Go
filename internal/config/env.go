@@ -71,6 +71,7 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		FeatureAnnouncementSendEnabled:       DefaultFeatureAnnouncementSendEnabled,
 		FeatureAnnouncementRelayEnabled:      DefaultFeatureAnnouncementRelayEnabled,
 		FeatureTextXPConfigEnabled:           DefaultFeatureTextXPConfigEnabled,
+		FeatureTextXPAccrualEnabled:          DefaultFeatureTextXPAccrualEnabled,
 		FeatureVoiceXPConfigEnabled:          DefaultFeatureVoiceXPConfigEnabled,
 		FeatureVoiceXPSessionsEnabled:        DefaultFeatureVoiceXPSessionsEnabled,
 		FeatureXPRoleConfigEnabled:           DefaultFeatureXPRoleConfigEnabled,
@@ -256,6 +257,9 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	if cfg.FeatureTextXPConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED", DefaultFeatureTextXPConfigEnabled); err != nil {
+		return Config{}, err
+	}
+	if cfg.FeatureTextXPAccrualEnabled, err = getBool(lookup, "MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED", DefaultFeatureTextXPAccrualEnabled); err != nil {
 		return Config{}, err
 	}
 	if cfg.FeatureVoiceXPConfigEnabled, err = getBool(lookup, "MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED", DefaultFeatureVoiceXPConfigEnabled); err != nil {

@@ -54,6 +54,7 @@ Primary Go env vars:
 - `MHCAT_FEATURE_STATS_DELETE_ENABLED`
 - `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED`
 - `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED`
+- `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED`
 - `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED`
 - `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED`
 - `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED`
@@ -548,6 +549,8 @@ MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true
 ```
 
 These commands write only legacy-compatible `text_xp_channels` config fields and require Manage Messages. They update duplicate rows for a guild and only upsert when no row exists. They do not enable Message Content intent, Guild Messages intent, text XP accrual, rank rendering, voice XP, automatic reward-role assignment/removal, or usage-counter writes.
+
+Text XP message accrual is event-only and has no command-sync flag. Test it only against disposable staging `text_xps` rows with `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`; it updates XP and level fields but does not send level-up announcements, grant coins, or apply reward roles.
 
 Config-only `/語音經驗設定` and `/語音經驗刪除` are available only when both staging command sync and runtime flags are explicitly enabled:
 

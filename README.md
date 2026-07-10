@@ -61,6 +61,7 @@ This module currently provides:
 - gated config-only `/公告頻道設置` command with legacy subcommands, embeds, and rollback-compatible `guilds`/`ann_all_sets` writes.
 - gated bound announcement message relay from legacy `ann_message.js`, disabled by default and requiring explicit gateway/message-content flags.
 - gated config-only `/聊天經驗設定` and `/聊天經驗刪除` commands with legacy embed/preview UI and rollback-compatible `text_xp_channels` writes.
+- gated text XP message accrual from legacy `events/text_xp.js`, disabled by default and requiring explicit gateway/Guild Messages/Message Content flags; it updates `text_xps` profile XP/levels only, with level-up announcements/rewards still disabled.
 - gated voice XP session tracking from legacy `events/voice_xp.js`, disabled by default and requiring explicit gateway/Voice State intent flags; it maintains `voice_xps.leavejoin` only, with periodic XP ticks/rewards still disabled.
 - gated `/聊天經驗身分組設定` and `/語音經驗身分組設定` reward-role config commands with legacy pagination UI and rollback-compatible `chat_roles`/`voice_roles` writes.
 - gated disabled-response `/聊天經驗` and `/語音經驗` commands that preserve the legacy replacement message pointing users to `/我的檔案`.
@@ -129,6 +130,7 @@ Implemented utility commands:
 - `/公告頻道設置` when explicitly enabled with `MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED=true`
 - `/公告發送` modal preview/confirm/send flow when explicitly enabled with `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=true`
 - `/聊天經驗設定` and `/聊天經驗刪除` when explicitly enabled with `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`
+- text XP message accrual when explicitly enabled with `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true`, gateway enabled, Guild Messages intent enabled, and Message Content intent enabled
 - `/語音經驗設定` and `/語音經驗刪除` when explicitly enabled with `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`
 - voice XP session tracking when explicitly enabled with `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true`, gateway enabled, and Voice State intent enabled
 - `/聊天經驗身分組設定` and `/語音經驗身分組設定` when explicitly enabled with `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`
@@ -164,7 +166,7 @@ Implemented event features:
 
 Not implemented yet:
 
-- remaining economy game/shop writes, text XP accrual, voice XP periodic accrual/rewards, rank cards, gacha draw/shop, gift delivery, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
+- remaining economy game/shop writes, text XP level-up announcements/rewards, voice XP periodic accrual/rewards, rank cards, gacha draw/shop, gift delivery, lottery creation/join/reroll/stop, announcement relay attachment handling/tag pings, stats rename worker, recurring work scheduler ownership, cron, ChatGPT/chat worker, dashboard, auto-chat features, and logging event emitters.
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete, and the daily reset is either run by the explicit one-shot tool under an operator process or owned by a future lease-backed scheduler.
 
@@ -240,6 +242,7 @@ Safe defaults:
 - `MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED=false`
 - `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=false`
 - `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=false`
+- `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=false`
 - `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=false`
 - `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=false`
 - `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=false`
@@ -605,7 +608,7 @@ The `/公告發送` command is available only when `MHCAT_FEATURE_ANNOUNCEMENT_S
 
 The bound announcement relay is available only when `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true` with gateway, Guild Messages intent, and Message Content intent explicitly enabled. It reads existing `ann_all_sets` rows, sends a legacy-style embed in the bound channel, then deletes the original message after the send succeeds. It suppresses mentions in the stored `tag` value and ignores empty-content messages as intentional safety fixes.
 
-The `/聊天經驗設定` and `/聊天經驗刪除` commands are available only when `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `text_xp_channels` config and do not enable text XP accrual, rank cards, voice XP, Message Content intent, or XP reward behavior.
+The `/聊天經驗設定` and `/聊天經驗刪除` commands are available only when `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `text_xp_channels` config and do not enable text XP accrual, rank cards, voice XP, Message Content intent, or XP reward behavior. Text XP message accrual is a separate event gate: `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED=true` requires `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`; it updates rollback-compatible `text_xps` rows using the legacy message XP formula and level reset behavior, but it still does not send level-up announcements, grant coins, or apply reward roles.
 
 The `/語音經驗設定` and `/語音經驗刪除` commands are available only when `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true`. To include them in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true`; staging preflight rejects unpaired sync/runtime flags. These commands write only the legacy-compatible `voice_xp_channels` config, preserve the old visible `背景` option without saving it, and do not enable Voice State intent, voice XP accrual, rank cards, or XP reward behavior. Voice XP session tracking is a separate event gate: `MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED=true` requires `MHCAT_DISCORD_ENABLE_GATEWAY=true` and `MHCAT_DISCORD_VOICE_STATE_INTENT=true`, creates missing `voice_xps` rows with legacy string `xp`/`leavel`, and marks `leavejoin` as `join` or `leave`; it still does not award XP, announce levels, grant coins, or apply reward roles.
 
