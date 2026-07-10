@@ -21,8 +21,12 @@ func TestTicketConfigRepositoryContractWithFake(t *testing.T) {
 		AdminRoleID:    "role-1",
 		EveryoneRoleID: "everyone-1",
 	}
-	if err := port.CreateTicketConfig(ctx, config); err != nil {
+	creation, err := port.CreateTicketConfig(ctx, config)
+	if err != nil {
 		t.Fatalf("create config: %v", err)
+	}
+	if creation.GuildID != config.GuildID || creation.ID == "" {
+		t.Fatalf("creation = %#v", creation)
 	}
 	got, err := port.GetTicketConfig(ctx, config.GuildID)
 	if err != nil {
@@ -33,7 +37,7 @@ func TestTicketConfigRepositoryContractWithFake(t *testing.T) {
 	}
 	conflict := config
 	conflict.CategoryID = "category-2"
-	if err := port.CreateTicketConfig(ctx, conflict); !errors.Is(err, ports.ErrTicketConfigExists) {
+	if _, err := port.CreateTicketConfig(ctx, conflict); !errors.Is(err, ports.ErrTicketConfigExists) {
 		t.Fatalf("create duplicate config error = %v", err)
 	}
 	got, err = port.GetTicketConfig(ctx, config.GuildID)
@@ -46,14 +50,31 @@ func TestTicketConfigRepositoryContractWithFake(t *testing.T) {
 	if err := port.DeleteTicketConfig(ctx, config.GuildID); err != nil {
 		t.Fatalf("delete config: %v", err)
 	}
+	replacement, err := port.CreateTicketConfig(ctx, conflict)
+	if err != nil {
+		t.Fatalf("create replacement config: %v", err)
+	}
+	if err := port.RollbackTicketConfigCreation(ctx, creation); err != nil {
+		t.Fatalf("rollback stale creation: %v", err)
+	}
+	got, err = port.GetTicketConfig(ctx, config.GuildID)
+	if err != nil {
+		t.Fatalf("get replacement after stale rollback: %v", err)
+	}
+	if got != conflict {
+		t.Fatalf("stale rollback changed replacement = %#v, want %#v", got, conflict)
+	}
+	if err := port.RollbackTicketConfigCreation(ctx, replacement); err != nil {
+		t.Fatalf("rollback replacement creation: %v", err)
+	}
 	if _, err := port.GetTicketConfig(ctx, config.GuildID); !errors.Is(err, ports.ErrTicketConfigNotFound) {
-		t.Fatalf("get deleted config error = %v", err)
+		t.Fatalf("get rolled back config error = %v", err)
 	}
 }
 
 func TestTicketConfigRepositoryContractValidation(t *testing.T) {
 	repo := fakemongo.NewTicketConfigRepository()
-	err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{GuildID: "guild-1"})
+	_, err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{GuildID: "guild-1"})
 	if !errors.Is(err, domain.ErrInvalidTicketConfig) {
 		t.Fatalf("expected invalid config, got %v", err)
 	}
@@ -66,8 +87,11 @@ func TestTicketConfigRepositoryContractContextCancellation(t *testing.T) {
 	if _, err := repo.GetTicketConfig(ctx, "guild-1"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("get canceled error = %v", err)
 	}
-	if err := repo.CreateTicketConfig(ctx, domain.TicketConfig{}); !errors.Is(err, context.Canceled) {
+	if _, err := repo.CreateTicketConfig(ctx, domain.TicketConfig{}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("create canceled error = %v", err)
+	}
+	if err := repo.RollbackTicketConfigCreation(ctx, ports.TicketConfigCreation{}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("rollback canceled error = %v", err)
 	}
 	if err := repo.DeleteTicketConfig(ctx, "guild-1"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("delete canceled error = %v", err)

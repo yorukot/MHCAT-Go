@@ -218,7 +218,7 @@ func TestBuildRuntimeRoutesTicketOnlyWithRepository(t *testing.T) {
 
 func TestBuildRuntimeRoutesTicketOpenWithExplicitSideEffects(t *testing.T) {
 	repo := fakemongo.NewTicketConfigRepository()
-	if err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{
+	if _, err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{
 		GuildID:        "guild-1",
 		CategoryID:     "222222222222222222",
 		AdminRoleID:    "333333333333333333",

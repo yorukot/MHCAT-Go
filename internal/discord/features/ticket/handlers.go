@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -31,6 +32,8 @@ const (
 	legacyDiscordNamedRed   = 0xED4245
 	legacyDiscordNamedGreen = 0x57F287
 	legacyTicketOpenGreen   = 0x00DB00
+
+	ticketConfigRollbackTimeout = 5 * time.Second
 )
 
 func (m Module) SetupHandler() interactions.Handler {
@@ -101,7 +104,7 @@ func (m Module) SetupModalHandler() interactions.Handler {
 		}
 		categoryID := parsed.Payload.Values["c"]
 		adminRoleID := parsed.Payload.Values["r"]
-		return m.submitTicketPanel(ctx, interaction, responder, func(ctx context.Context) error {
+		return m.submitTicketPanel(ctx, interaction, responder, func(ctx context.Context) (ports.TicketConfigCreation, error) {
 			config := domain.TicketConfig{
 				GuildID:        interaction.Actor.GuildID,
 				CategoryID:     categoryID,
@@ -119,7 +122,7 @@ func (m Module) LegacyPanelSubmitHandler() interactions.Handler {
 	}
 }
 
-func (m Module) submitTicketPanel(ctx context.Context, interaction interactions.Interaction, responder responses.Responder, saveConfig func(context.Context) error) error {
+func (m Module) submitTicketPanel(ctx context.Context, interaction interactions.Interaction, responder responses.Responder, saveConfig func(context.Context) (ports.TicketConfigCreation, error)) error {
 	if m.messages == nil {
 		return ErrTicketSideEffectsNotConfigured
 	}
@@ -139,8 +142,11 @@ func (m Module) submitTicketPanel(ctx context.Context, interaction interactions.
 	if title == "" || content == "" {
 		return responder.EditOriginal(ctx, ticketEditErrorMessage("請完整填寫私人頻道標題與內文。"))
 	}
+	var creation ports.TicketConfigCreation
 	if saveConfig != nil {
-		if err := saveConfig(ctx); err != nil {
+		var err error
+		creation, err = saveConfig(ctx)
+		if err != nil {
 			if errors.Is(err, ports.ErrTicketConfigExists) {
 				return responder.EditOriginal(ctx, ticketDuplicateConfigEditMessage())
 			}
@@ -148,6 +154,13 @@ func (m Module) submitTicketPanel(ctx context.Context, interaction interactions.
 		}
 	}
 	if _, err := m.messages.SendMessage(ctx, interaction.ChannelID, ticketPanelOutboundMessage(title, content, color)); err != nil {
+		if saveConfig != nil {
+			rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), ticketConfigRollbackTimeout)
+			defer cancel()
+			if rollbackErr := m.repo.RollbackTicketConfigCreation(rollbackCtx, creation); rollbackErr != nil {
+				return errors.Join(err, rollbackErr)
+			}
+		}
 		return err
 	}
 	if err := responder.EditOriginal(ctx, ticketSetupSuccessMessage()); err != nil {

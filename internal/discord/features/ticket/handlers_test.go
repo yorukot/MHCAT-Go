@@ -163,6 +163,29 @@ func TestSetupModalSavesConfigAfterValidModalAndRepliesPanel(t *testing.T) {
 	}
 }
 
+func TestSetupModalRollsBackConfigWhenPanelSendCancelsContext(t *testing.T) {
+	repo := fakemongo.NewTicketConfigRepository()
+	ctx, cancel := context.WithCancel(context.Background())
+	messages := &cancelingTicketMessagePort{cancel: cancel}
+	module := NewModuleWithSideEffects(repo, nil, messages, "")
+	responder := fakediscord.NewResponder()
+	interaction := ticketModalInteraction(t, "#00ff00", "建立私人頻道", "按下按鈕創建客服頻道")
+
+	err := module.SetupModalHandler()(ctx, interaction, responder)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("setup modal handler error = %v, want context canceled", err)
+	}
+	if messages.sends != 1 {
+		t.Fatalf("panel send attempts = %d, want 1", messages.sends)
+	}
+	if _, err := repo.GetTicketConfig(context.Background(), testGuildID); !errors.Is(err, ports.ErrTicketConfigNotFound) {
+		t.Fatalf("config remained after failed panel send: %v", err)
+	}
+	if len(responder.Defers) != 1 || len(responder.Edits) != 0 {
+		t.Fatalf("defers=%#v edits=%#v", responder.Defers, responder.Edits)
+	}
+}
+
 func TestSetupModalRejectsInvalidColorWithoutSavingConfig(t *testing.T) {
 	repo := fakemongo.NewTicketConfigRepository()
 	sideEffects := fakediscord.NewSideEffects()
@@ -195,7 +218,7 @@ func TestSetupModalDoesNotOverwriteConfigCreatedAfterModalWasShown(t *testing.T)
 		AdminRoleID:    "newer-admin-role",
 		EveryoneRoleID: testGuildID,
 	}
-	if err := repo.CreateTicketConfig(context.Background(), existing); err != nil {
+	if _, err := repo.CreateTicketConfig(context.Background(), existing); err != nil {
 		t.Fatalf("seed newer config: %v", err)
 	}
 	sideEffects := fakediscord.NewSideEffects()
@@ -358,7 +381,7 @@ func TestTicketFixedMessagesMatchLegacyDiscordNamedColors(t *testing.T) {
 
 func TestDeleteHandlerDeletesConfigWithLegacyMessage(t *testing.T) {
 	repo := fakemongo.NewTicketConfigRepository()
-	if err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{
+	if _, err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{
 		GuildID:        testGuildID,
 		CategoryID:     testCategoryID,
 		AdminRoleID:    testAdminRole,
@@ -440,7 +463,7 @@ func TestDeleteHandlerRequiresManageMessagesBeforeDeletingConfig(t *testing.T) {
 
 func TestOpenHandlerCreatesTicketChannelAndSendsLegacyWelcome(t *testing.T) {
 	repo := fakemongo.NewTicketConfigRepository()
-	if err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{
+	if _, err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{
 		GuildID:        testGuildID,
 		CategoryID:     testCategoryID,
 		AdminRoleID:    testAdminRole,
@@ -695,7 +718,7 @@ func ticketButtonInteraction(customID string) interactions.Interaction {
 func seededTicketRepo(t *testing.T) *fakemongo.TicketConfigRepository {
 	t.Helper()
 	repo := fakemongo.NewTicketConfigRepository()
-	if err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{
+	if _, err := repo.CreateTicketConfig(context.Background(), domain.TicketConfig{
 		GuildID:        testGuildID,
 		CategoryID:     testCategoryID,
 		AdminRoleID:    testAdminRole,
@@ -718,6 +741,25 @@ type replyAwareTicketMessagePort struct {
 	*fakediscord.SideEffects
 	responder           *fakediscord.Responder
 	repliedBeforeDelete bool
+}
+
+type cancelingTicketMessagePort struct {
+	cancel context.CancelFunc
+	sends  int
+}
+
+func (p *cancelingTicketMessagePort) SendMessage(context.Context, string, ports.OutboundMessage) (ports.MessageRef, error) {
+	p.sends++
+	p.cancel()
+	return ports.MessageRef{}, context.Canceled
+}
+
+func (p *cancelingTicketMessagePort) EditMessage(context.Context, ports.MessageRef, ports.OutboundMessage) error {
+	return nil
+}
+
+func (p *cancelingTicketMessagePort) DeleteMessage(context.Context, ports.MessageRef) error {
+	return nil
 }
 
 func (p *replyAwareTicketMessagePort) DeleteMessage(ctx context.Context, ref ports.MessageRef) error {

@@ -2,6 +2,8 @@ package fakemongo
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -9,13 +11,18 @@ import (
 )
 
 type TicketConfigRepository struct {
-	mu      sync.Mutex
-	configs map[string]domain.TicketConfig
-	Err     error
+	mu          sync.Mutex
+	configs     map[string]domain.TicketConfig
+	creationIDs map[string]string
+	nextID      uint64
+	Err         error
 }
 
 func NewTicketConfigRepository() *TicketConfigRepository {
-	return &TicketConfigRepository{configs: map[string]domain.TicketConfig{}}
+	return &TicketConfigRepository{
+		configs:     map[string]domain.TicketConfig{},
+		creationIDs: map[string]string{},
+	}
 }
 
 func (r *TicketConfigRepository) GetTicketConfig(ctx context.Context, guildID string) (domain.TicketConfig, error) {
@@ -34,22 +41,48 @@ func (r *TicketConfigRepository) GetTicketConfig(ctx context.Context, guildID st
 	return config, nil
 }
 
-func (r *TicketConfigRepository) CreateTicketConfig(ctx context.Context, config domain.TicketConfig) error {
+func (r *TicketConfigRepository) CreateTicketConfig(ctx context.Context, config domain.TicketConfig) (ports.TicketConfigCreation, error) {
+	if err := ctx.Err(); err != nil {
+		return ports.TicketConfigCreation{}, err
+	}
+	if r.Err != nil {
+		return ports.TicketConfigCreation{}, r.Err
+	}
+	if err := config.ValidateForWrite(); err != nil {
+		return ports.TicketConfigCreation{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.configs[config.GuildID]; ok {
+		return ports.TicketConfigCreation{}, ports.ErrTicketConfigExists
+	}
+	r.nextID++
+	creation := ports.TicketConfigCreation{
+		GuildID: config.GuildID,
+		ID:      fmt.Sprintf("ticket-config-%d", r.nextID),
+	}
+	r.configs[config.GuildID] = config
+	r.creationIDs[config.GuildID] = creation.ID
+	return creation, nil
+}
+
+func (r *TicketConfigRepository) RollbackTicketConfigCreation(ctx context.Context, creation ports.TicketConfigCreation) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if r.Err != nil {
 		return r.Err
 	}
-	if err := config.ValidateForWrite(); err != nil {
-		return err
+	if strings.TrimSpace(creation.GuildID) == "" || strings.TrimSpace(creation.ID) == "" {
+		return domain.ErrInvalidTicketConfig
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, ok := r.configs[config.GuildID]; ok {
-		return ports.ErrTicketConfigExists
+	if r.creationIDs[creation.GuildID] != creation.ID {
+		return nil
 	}
-	r.configs[config.GuildID] = config
+	delete(r.configs, creation.GuildID)
+	delete(r.creationIDs, creation.GuildID)
 	return nil
 }
 
@@ -66,5 +99,6 @@ func (r *TicketConfigRepository) DeleteTicketConfig(ctx context.Context, guildID
 		return ports.ErrTicketConfigNotFound
 	}
 	delete(r.configs, guildID)
+	delete(r.creationIDs, guildID)
 	return nil
 }
