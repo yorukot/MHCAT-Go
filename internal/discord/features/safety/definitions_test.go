@@ -17,8 +17,8 @@ func TestAntiScamDefinitionMatchesLegacyMetadata(t *testing.T) {
 	if len(definition.Options) != 0 {
 		t.Fatalf("options = %#v", definition.Options)
 	}
-	if definition.DefaultMemberPermissions == nil || *definition.DefaultMemberPermissions != manageMessagesPermission {
-		t.Fatalf("default permissions = %#v", definition.DefaultMemberPermissions)
+	if definition.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy toggle command should not have default permissions: %#v", definition.DefaultMemberPermissions)
 	}
 	if definition.Ownership == nil || !definition.Ownership.Managed || definition.Ownership.SinceWave != "anti-scam-config" {
 		t.Fatalf("ownership = %#v", definition.Ownership)
