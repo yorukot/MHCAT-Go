@@ -1,6 +1,6 @@
 # Text XP Config Slice
 
-Status: implemented behind explicit runtime and command-sync gates.
+Status: parity-audited behind explicit runtime and command-sync gates.
 
 ## Legacy References
 
@@ -19,6 +19,7 @@ Status: implemented behind explicit runtime and command-sync gates.
 - Mongo fields preserved: `guild`, `channel`, `color`, `message`, `background`
 - Permission: Manage Messages (`8192`) at command definition and runtime check
 - Discord behavior: public defer, legacy-style green/red embeds, optional preview message
+- Usage: the global slash middleware writes one `all_use_counts` event before every routed command when `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`
 
 This config slice is announcement-config only. It does not enable message-create XP accrual, rank cards, voice XP, coin rewards, or Message Content intent. Text reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
 
@@ -47,24 +48,23 @@ Text XP message accrual is implemented separately behind `MHCAT_FEATURE_TEXT_XP_
 
 - Legacy deletes one found config document and inserts a new one. Go updates every duplicate `{guild}` row and only upserts when no row exists, avoiding a temporary missing-config window and keeping duplicate legacy rows consistent until a duplicate audit and unique-index plan are approved.
 - Legacy preview sends raw message content with default mentions. Go preserves the visible preview text but uses empty allowed mentions to avoid accidental `@everyone`, role, or user pings during configuration.
+- Go awaits Mongo writes and surfaces a safe legacy-style error payload when persistence fails; the legacy callback launched delete/save/edit operations without awaiting their results.
 - Legacy level-up announcements ping the leveling member. Go preserves that user ping but constrains allowed mentions to the leveling user only.
 - Legacy missing-channel fallback was a message reply. Go sends the same legacy error embed in the triggering channel because gateway event delivery has no interaction response context.
 
 ## Compatibility Notes
 
 - Saving a new text-XP config clears the legacy optional `background` field to mirror the delete-and-reinsert behavior.
-- `color` and `message` are written as legacy-compatible nullable values.
+- `color` is preserved verbatim when present, `message` preserves user-provided spacing, and both are written as legacy-compatible nullable values.
 - No indexes are created by the app. A future unique `text_xp_channels.guild` index still requires duplicate audit first.
-- Color validation accepts common legacy color-code values and safe CSS color names. Broader `validate-color` parity can be expanded if staging finds a documented accepted value that Go rejects.
+- Color validation mirrors the pinned legacy `validate-color` 2.2.4 package, including 3/4/6/8-digit prefixed hex, HTML names and special names, and the package's `rgb`/`rgba`/`hsl`/`hsla`/`hwb`/`lab`/`lch` grammar. Bare hex and outer whitespace remain invalid.
 - Text XP coin rewards create missing `coins` rows with `today: 0` and use the legacy truncated `level * gift_changes.xp_multiple` reward amount.
 - To match the legacy nesting, text XP coin rewards run only when a `text_xp_channels` row exists and the configured announcement path is usable. Missing announcement config, deleted channels, or send failures do not grant the level-up coin reward.
 
 ## Not Implemented
 
-- `/聊天排行榜`, rank image rendering, rank buttons, and the old XP profile card lookup behind `/聊天經驗`; the current `/聊天經驗` command is implemented separately as a disabled replacement response only.
-- voice XP and voice level-role behavior.
+- The old XP profile-card lookup and rank-card render behind `/聊天經驗`; the current `/聊天經驗` command is implemented separately as the legacy disabled replacement response. `/聊天排行榜` is implemented under its own XP-rank gates.
 - Message Content or Guild Messages intent enablement by the config commands; accrual has its own explicit event gate.
-- Usage counter writes to `all_use_count`.
 
 ## Rollout Notes
 

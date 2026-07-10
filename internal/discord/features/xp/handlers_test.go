@@ -3,8 +3,10 @@ package xp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image/png"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -20,8 +22,14 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
+const (
+	legacyXPConfigErrorColor   = 0xED4245
+	legacyXPConfigSuccessColor = 0x57F287
+)
+
 func TestSetHandlerRendersLegacySuccessAndPreview(t *testing.T) {
 	repo := fakemongo.NewTextXPConfigRepository()
+	repo.Configs["guild-1"] = domain.TextXPConfig{GuildID: "guild-1", ChannelID: "old-channel", Color: "red", Message: "old"}
 	sideEffects := fakediscord.NewSideEffects()
 	usage := &fakeusage.Tracker{}
 	module := NewModule(repo, sideEffects, usage)
@@ -37,28 +45,21 @@ func TestSetHandlerRendersLegacySuccessAndPreview(t *testing.T) {
 	if err := module.SetHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Defers) != 1 {
-		t.Fatalf("defers = %#v", responder.Defers)
-	}
-	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
-		t.Fatalf("edits = %#v", responder.Edits)
-	}
-	embed := responder.Edits[0].Embeds[0]
-	if embed.Title != "聊天經驗系統" || embed.Description != "您的聊天經驗升等頻道成功創建\n您目前的升等通知頻道為 <#channel-1>" {
-		t.Fatalf("embed = %#v", embed)
-	}
-	saved := repo.Configs["guild-1"]
-	if saved.ChannelID != "channel-1" || saved.Color != "rgba(0, 0, 0, .45)" || saved.Message != "  {user} 升到了 {level}  " {
-		t.Fatalf("saved config = %#v", saved)
+	assertXPConfigPublicDefer(t, responder)
+	assertXPConfigEdit(t, responder, "聊天經驗系統", "您的聊天經驗升等頻道成功創建\n您目前的升等通知頻道為 <#channel-1>", legacyXPConfigSuccessColor)
+	wantSaved := domain.TextXPConfig{GuildID: "guild-1", ChannelID: "channel-1", Color: "rgba(0, 0, 0, .45)", Message: "  {user} 升到了 {level}  "}
+	if saved := repo.Configs["guild-1"]; len(repo.Configs) != 1 || !reflect.DeepEqual(saved, wantSaved) {
+		t.Fatalf("saved config = %#v, want %#v", saved, wantSaved)
 	}
 	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].ChannelID != "invoke-channel" {
 		t.Fatalf("preview sends = %#v", sideEffects.Sent)
 	}
-	if !strings.Contains(sideEffects.Sent[0].Message.Content, "以下為你的訊息預覽:") || !strings.Contains(sideEffects.Sent[0].Message.Content, legacyLineEmoji+"我") {
-		t.Fatalf("preview content = %q", sideEffects.Sent[0].Message.Content)
+	wantPreview := ports.OutboundMessage{
+		Content:         "以下為你的訊息預覽:\n<:line:992363971803881493>我<:line:992363971803881493>只<:line:992363971803881493>是<:line:992363971803881493>分<:line:992363971803881493>隔<:line:992363971803881493>線<:line:992363971803881493>\n\n  {user} 升到了 {level}  ",
+		AllowedMentions: ports.AllowedMentions{},
 	}
-	if sideEffects.Sent[0].Message.AllowedMentions.ParseUsers || sideEffects.Sent[0].Message.AllowedMentions.ParseRoles || sideEffects.Sent[0].Message.AllowedMentions.ParseEveryone {
-		t.Fatalf("preview should suppress mentions: %#v", sideEffects.Sent[0].Message.AllowedMentions)
+	if !reflect.DeepEqual(sideEffects.Sent[0].Message, wantPreview) {
+		t.Fatalf("preview = %#v, want %#v", sideEffects.Sent[0].Message, wantPreview)
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != TextXPSetCommandName {
 		t.Fatalf("usage = %#v", usage.Events)
@@ -199,9 +200,8 @@ func TestSetHandlerRejectsMissingPermissionAndInvalidColor(t *testing.T) {
 	if err := module.SetHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你需要有`訊息管理`才能使用此指令") {
-		t.Fatalf("permission response = %#v", responder.Edits)
-	}
+	assertXPConfigPublicDefer(t, responder)
+	assertXPConfigEdit(t, responder, "<a:Discord_AnimatedNo:1015989839809757295> | 你需要有`訊息管理`才能使用此指令", "", legacyXPConfigErrorColor)
 
 	interaction.Actor.PermissionBits = permissionManageMessages
 	for _, color := range []string{"ffffff", " #fff"} {
@@ -220,17 +220,29 @@ func TestDeleteHandlerSuccessAndMissing(t *testing.T) {
 	usage := &fakeusage.Tracker{}
 	module := NewModule(repo, nil, usage)
 	interaction := fakediscord.SlashInteraction(TextXPDeleteCommandName)
-	interaction.Actor.PermissionBits = permissionManageMessages
 	responder := fakediscord.NewResponder()
+	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("permission handler: %v", err)
+	}
+	if _, ok := repo.Configs["guild-1"]; !ok {
+		t.Fatal("permission denial deleted the config")
+	}
+	assertXPConfigPublicDefer(t, responder)
+	assertXPConfigEdit(t, responder, "<a:Discord_AnimatedNo:1015989839809757295> | 你需要有`訊息管理`才能使用此指令", "", legacyXPConfigErrorColor)
+	if len(usage.Events) != 0 {
+		t.Fatalf("permission denial usage = %#v", usage.Events)
+	}
+
+	interaction.Actor.PermissionBits = permissionManageMessages
+	responder = fakediscord.NewResponder()
 	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
 	if _, ok := repo.Configs["guild-1"]; ok {
 		t.Fatal("config was not deleted")
 	}
-	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Description != "成功刪除!" {
-		t.Fatalf("delete response = %#v", responder.Edits)
-	}
+	assertXPConfigPublicDefer(t, responder)
+	assertXPConfigEdit(t, responder, "聊天經驗系統", "成功刪除!", legacyXPConfigSuccessColor)
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != TextXPDeleteCommandName {
 		t.Fatalf("usage = %#v", usage.Events)
 	}
@@ -239,13 +251,13 @@ func TestDeleteHandlerSuccessAndMissing(t *testing.T) {
 	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler missing: %v", err)
 	}
-	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你本來就沒有對聊天經驗設定喔!") {
-		t.Fatalf("missing response = %#v", responder.Edits)
-	}
+	assertXPConfigPublicDefer(t, responder)
+	assertXPConfigEdit(t, responder, "<a:Discord_AnimatedNo:1015989839809757295> | 你本來就沒有對聊天經驗設定喔!", "", legacyXPConfigErrorColor)
 }
 
 func TestVoiceSetHandlerRendersLegacySuccessAndIgnoresBackground(t *testing.T) {
 	repo := fakemongo.NewVoiceXPConfigRepository()
+	repo.Configs["guild-1"] = domain.VoiceXPConfig{GuildID: "guild-1", ChannelID: "old-channel", Color: "red", Message: "old"}
 	sideEffects := fakediscord.NewSideEffects()
 	usage := &fakeusage.Tracker{}
 	module := NewVoiceModule(repo, sideEffects, usage)
@@ -262,25 +274,21 @@ func TestVoiceSetHandlerRendersLegacySuccessAndIgnoresBackground(t *testing.T) {
 	if err := module.SetHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Defers) != 1 {
-		t.Fatalf("defers = %#v", responder.Defers)
-	}
-	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
-		t.Fatalf("edits = %#v", responder.Edits)
-	}
-	embed := responder.Edits[0].Embeds[0]
-	if embed.Title != "語音經驗系統" || embed.Description != "您的語音經驗升等頻道成功創建\n您目前的升等通知頻道為 <#voice-channel-1>" {
-		t.Fatalf("embed = %#v", embed)
-	}
-	saved := repo.Configs["guild-1"]
-	if saved.ChannelID != "voice-channel-1" || saved.Color != "hwb(180deg 0% 0% / 100%)" || saved.Message != "  {user} 升到了 {level}  " {
-		t.Fatalf("saved config = %#v", saved)
+	assertXPConfigPublicDefer(t, responder)
+	assertXPConfigEdit(t, responder, "語音經驗系統", "您的語音經驗升等頻道成功創建\n您目前的升等通知頻道為 <#voice-channel-1>", legacyXPConfigSuccessColor)
+	wantSaved := domain.VoiceXPConfig{GuildID: "guild-1", ChannelID: "voice-channel-1", Color: "hwb(180deg 0% 0% / 100%)", Message: "  {user} 升到了 {level}  "}
+	if saved := repo.Configs["guild-1"]; len(repo.Configs) != 1 || !reflect.DeepEqual(saved, wantSaved) {
+		t.Fatalf("saved config = %#v, want %#v", saved, wantSaved)
 	}
 	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].ChannelID != "invoke-channel" {
 		t.Fatalf("preview sends = %#v", sideEffects.Sent)
 	}
-	if !strings.Contains(sideEffects.Sent[0].Message.Content, "以下為你的訊息預覽:") || !strings.Contains(sideEffects.Sent[0].Message.Content, legacyLineEmoji+"我") {
-		t.Fatalf("preview content = %q", sideEffects.Sent[0].Message.Content)
+	wantPreview := ports.OutboundMessage{
+		Content:         "以下為你的訊息預覽:\n<:line:992363971803881493>我<:line:992363971803881493>只<:line:992363971803881493>是<:line:992363971803881493>分<:line:992363971803881493>隔<:line:992363971803881493>線<:line:992363971803881493>\n\n  {user} 升到了 {level}  ",
+		AllowedMentions: ports.AllowedMentions{},
+	}
+	if !reflect.DeepEqual(sideEffects.Sent[0].Message, wantPreview) {
+		t.Fatalf("preview = %#v, want %#v", sideEffects.Sent[0].Message, wantPreview)
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != VoiceXPSetCommandName || usage.Events[0].Feature != "voice-xp-config" {
 		t.Fatalf("usage = %#v", usage.Events)
@@ -294,9 +302,8 @@ func TestVoiceSetHandlerRejectsMissingPermissionAndInvalidColor(t *testing.T) {
 	if err := module.SetHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你需要有`訊息管理`才能使用此指令") {
-		t.Fatalf("permission response = %#v", responder.Edits)
-	}
+	assertXPConfigPublicDefer(t, responder)
+	assertXPConfigEdit(t, responder, "<a:Discord_AnimatedNo:1015989839809757295> | 你需要有`訊息管理`才能使用此指令", "", legacyXPConfigErrorColor)
 
 	interaction.Actor.PermissionBits = permissionManageMessages
 	for _, color := range []string{"ffffff", " #fff"} {
@@ -311,17 +318,8 @@ func TestVoiceSetHandlerRejectsMissingPermissionAndInvalidColor(t *testing.T) {
 
 func assertLegacyXPColorError(t *testing.T, responder *fakediscord.Responder) {
 	t.Helper()
-	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
-		t.Fatalf("color response = %#v", responder.Edits)
-	}
-	message := responder.Edits[0]
-	embed := message.Embeds[0]
-	if embed.Title != "<a:Discord_AnimatedNo:1015989839809757295> | 你傳送的並不是顏色(色碼)" || embed.Description != "" || embed.Color != textXPErrorColor {
-		t.Fatalf("color response embed = %#v", embed)
-	}
-	if message.Content != "" || message.AllowedMentions == nil || len(message.Components) != 0 || len(message.Files) != 0 || message.Ephemeral {
-		t.Fatalf("unexpected color response fields = %#v", message)
-	}
+	assertXPConfigPublicDefer(t, responder)
+	assertXPConfigEdit(t, responder, "<a:Discord_AnimatedNo:1015989839809757295> | 你傳送的並不是顏色(色碼)", "", legacyXPConfigErrorColor)
 }
 
 func TestVoiceDeleteHandlerSuccessAndMissing(t *testing.T) {
@@ -330,17 +328,29 @@ func TestVoiceDeleteHandlerSuccessAndMissing(t *testing.T) {
 	usage := &fakeusage.Tracker{}
 	module := NewVoiceModule(repo, nil, usage)
 	interaction := fakediscord.SlashInteraction(VoiceXPDeleteCommandName)
-	interaction.Actor.PermissionBits = permissionManageMessages
 	responder := fakediscord.NewResponder()
+	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("permission handler: %v", err)
+	}
+	if _, ok := repo.Configs["guild-1"]; !ok {
+		t.Fatal("permission denial deleted the voice config")
+	}
+	assertXPConfigPublicDefer(t, responder)
+	assertXPConfigEdit(t, responder, "<a:Discord_AnimatedNo:1015989839809757295> | 你需要有`訊息管理`才能使用此指令", "", legacyXPConfigErrorColor)
+	if len(usage.Events) != 0 {
+		t.Fatalf("permission denial usage = %#v", usage.Events)
+	}
+
+	interaction.Actor.PermissionBits = permissionManageMessages
+	responder = fakediscord.NewResponder()
 	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
 	if _, ok := repo.Configs["guild-1"]; ok {
 		t.Fatal("voice config was not deleted")
 	}
-	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "語音經驗系統" || responder.Edits[0].Embeds[0].Description != "成功刪除!" {
-		t.Fatalf("voice delete response = %#v", responder.Edits)
-	}
+	assertXPConfigPublicDefer(t, responder)
+	assertXPConfigEdit(t, responder, "語音經驗系統", "成功刪除!", legacyXPConfigSuccessColor)
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != VoiceXPDeleteCommandName {
 		t.Fatalf("usage = %#v", usage.Events)
 	}
@@ -349,8 +359,102 @@ func TestVoiceDeleteHandlerSuccessAndMissing(t *testing.T) {
 	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler missing: %v", err)
 	}
-	if !strings.Contains(responder.Edits[0].Embeds[0].Title, "你本來就沒有對語音經驗設定喔!") {
-		t.Fatalf("missing response = %#v", responder.Edits)
+	assertXPConfigPublicDefer(t, responder)
+	assertXPConfigEdit(t, responder, "<a:Discord_AnimatedNo:1015989839809757295> | 你本來就沒有對語音經驗設定喔!", "", legacyXPConfigErrorColor)
+}
+
+func TestXPSetHandlersSkipPreviewWithoutCustomMessage(t *testing.T) {
+	t.Run("text", func(t *testing.T) {
+		repo := fakemongo.NewTextXPConfigRepository()
+		messages := fakediscord.NewSideEffects()
+		interaction := fakediscord.SlashInteractionWithOptions(TextXPSetCommandName, "", map[string]string{"頻道": "channel-1"})
+		interaction.ChannelID = "invoke-channel"
+		interaction.Actor.PermissionBits = permissionManageMessages
+		responder := fakediscord.NewResponder()
+
+		if err := NewModule(repo, messages, nil).SetHandler()(context.Background(), interaction, responder); err != nil {
+			t.Fatalf("handler: %v", err)
+		}
+		if len(messages.Sent) != 0 {
+			t.Fatalf("preview sends = %#v", messages.Sent)
+		}
+		if saved := repo.Configs["guild-1"]; saved.Color != "" || saved.Message != "" {
+			t.Fatalf("saved config = %#v", saved)
+		}
+	})
+
+	t.Run("voice", func(t *testing.T) {
+		repo := fakemongo.NewVoiceXPConfigRepository()
+		messages := fakediscord.NewSideEffects()
+		interaction := fakediscord.SlashInteractionWithOptions(VoiceXPSetCommandName, "", map[string]string{
+			"頻道": "channel-1",
+			"背景": "https://example.invalid/ignored.png",
+		})
+		interaction.ChannelID = "invoke-channel"
+		interaction.Actor.PermissionBits = permissionManageMessages
+		responder := fakediscord.NewResponder()
+
+		if err := NewVoiceModule(repo, messages, nil).SetHandler()(context.Background(), interaction, responder); err != nil {
+			t.Fatalf("handler: %v", err)
+		}
+		if len(messages.Sent) != 0 {
+			t.Fatalf("preview sends = %#v", messages.Sent)
+		}
+		if saved := repo.Configs["guild-1"]; saved.Color != "" || saved.Message != "" {
+			t.Fatalf("saved config = %#v", saved)
+		}
+	})
+}
+
+func TestXPConfigRepositoryFailuresUseSafeLegacyErrorPayload(t *testing.T) {
+	repositoryErr := errors.New("mongo unavailable")
+	textRepo := fakemongo.NewTextXPConfigRepository()
+	textRepo.Err = repositoryErr
+	voiceRepo := fakemongo.NewVoiceXPConfigRepository()
+	voiceRepo.Err = repositoryErr
+
+	for _, tc := range []struct {
+		name        string
+		handler     interactions.Handler
+		interaction interactions.Interaction
+	}{
+		{name: "text set", handler: NewModule(textRepo, nil, nil).SetHandler(), interaction: fakediscord.SlashInteractionWithOptions(TextXPSetCommandName, "", map[string]string{"頻道": "channel-1"})},
+		{name: "text delete", handler: NewModule(textRepo, nil, nil).DeleteHandler(), interaction: fakediscord.SlashInteraction(TextXPDeleteCommandName)},
+		{name: "voice set", handler: NewVoiceModule(voiceRepo, nil, nil).SetHandler(), interaction: fakediscord.SlashInteractionWithOptions(VoiceXPSetCommandName, "", map[string]string{"頻道": "channel-1"})},
+		{name: "voice delete", handler: NewVoiceModule(voiceRepo, nil, nil).DeleteHandler(), interaction: fakediscord.SlashInteraction(VoiceXPDeleteCommandName)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.interaction.Actor.PermissionBits = permissionManageMessages
+			responder := fakediscord.NewResponder()
+			if err := tc.handler(context.Background(), tc.interaction, responder); err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+			assertXPConfigPublicDefer(t, responder)
+			assertXPConfigEdit(t, responder, "<a:Discord_AnimatedNo:1015989839809757295> | 很抱歉，出現了未知的錯誤，請重試!", "", legacyXPConfigErrorColor)
+		})
+	}
+}
+
+func assertXPConfigPublicDefer(t *testing.T, responder *fakediscord.Responder) {
+	t.Helper()
+	want := []responses.DeferOptions{{}}
+	if !reflect.DeepEqual(responder.Defers, want) {
+		t.Fatalf("defers = %#v, want %#v", responder.Defers, want)
+	}
+}
+
+func assertXPConfigEdit(t *testing.T, responder *fakediscord.Responder, title string, description string, color int) {
+	t.Helper()
+	want := responses.Message{
+		Embeds: []responses.Embed{{
+			Title:       title,
+			Description: description,
+			Color:       color,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+	if len(responder.Edits) != 1 || !reflect.DeepEqual(responder.Edits[0], want) {
+		t.Fatalf("edits = %#v, want %#v", responder.Edits, want)
 	}
 }
 

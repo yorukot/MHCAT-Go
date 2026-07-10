@@ -1,6 +1,6 @@
 # Voice XP Config Slice
 
-Status: implemented behind explicit runtime and command-sync gates.
+Status: parity-audited behind explicit runtime and command-sync gates.
 
 ## Legacy References
 
@@ -18,6 +18,7 @@ Status: implemented behind explicit runtime and command-sync gates.
 - Mongo fields preserved: `guild`, `channel`, `background`, `color`, `message`
 - Permission: Manage Messages (`8192`) at command definition and runtime check
 - Discord behavior: public defer, legacy-style green/red embeds, optional preview message
+- Usage: the global slash middleware writes one `all_use_counts` event before every routed command when `MHCAT_FEATURE_USAGE_TRACKING_ENABLED=true`
 
 This command slice is announcement-config only. It does not enable Voice State intent, rank cards, or voice XP runtime by itself. Voice reward-role config is implemented separately behind `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`.
 
@@ -47,21 +48,21 @@ Voice XP runtime is implemented separately behind `MHCAT_FEATURE_VOICE_XP_SESSIO
 
 - Legacy deletes one found config document and inserts a new one. Go updates every duplicate `{guild}` row and only upserts when no row exists, avoiding a temporary missing-config window and keeping duplicate legacy rows consistent until a duplicate audit and unique-index plan are approved.
 - Legacy preview sends raw message content with default mentions. Go preserves the visible preview text but uses empty allowed mentions to avoid accidental `@everyone`, role, or user pings during configuration.
+- Go awaits Mongo writes and surfaces a safe legacy-style error payload when persistence fails; the legacy callback launched delete/save/edit operations without awaiting their results.
 
 ## Compatibility Notes
 
 - Saving a new voice-XP config clears the legacy optional `background` field because the legacy command exposed `背景` but did not save it.
-- `color` is trimmed and written as a legacy-compatible nullable value.
+- `color` is preserved verbatim when present and written as a legacy-compatible nullable value.
 - `message` preserves user-provided spacing and is written as a legacy-compatible nullable value.
 - No indexes are created by the app. A future unique `voice_xp_channels.guild` index still requires duplicate audit first.
-- Color validation accepts common legacy color-code values and safe CSS color names. Broader `validate-color` parity can be expanded if staging finds a documented accepted value that Go rejects.
+- Color validation mirrors the pinned legacy `validate-color` 2.2.4 package, including 3/4/6/8-digit prefixed hex, HTML names and special names, and the package's `rgb`/`rgba`/`hsl`/`hsla`/`hwb`/`lab`/`lch` grammar. Bare hex and outer whitespace remain invalid.
 - Voice XP tick math matches the legacy interval: joined users gain `5` XP per tick, level up when `xp + 5` exceeds `level * (level / 2) * 100 + 100`, and keep `xp:"5"` after that level-up.
 
 ## Not Implemented
 
-- `/語音排行榜`, rank image rendering, rank buttons, and the old XP profile card lookup behind `/語音經驗`; the current `/語音經驗` command is implemented separately as a disabled replacement response only.
+- The old XP profile-card lookup and rank-card render behind `/語音經驗`; the current `/語音經驗` command is implemented separately as the legacy disabled replacement response. `/語音排行榜` is implemented under its own XP-rank gates.
 - Voice State intent enablement by the config commands; session tracking has its own explicit event gate.
-- Usage counter writes to `all_use_count`.
 
 ## Rollout Notes
 
