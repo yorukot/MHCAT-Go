@@ -24,7 +24,6 @@ func (s ConfigService) Save(ctx context.Context, config domain.BirthdayConfig) e
 		return domain.ErrInvalidBirthdayConfig
 	}
 	config.GuildID = strings.TrimSpace(config.GuildID)
-	config.Message = strings.TrimSpace(config.Message)
 	config.UTCOffset = strings.TrimSpace(config.UTCOffset)
 	config.ChannelID = strings.TrimSpace(config.ChannelID)
 	config.RoleID = strings.TrimSpace(config.RoleID)

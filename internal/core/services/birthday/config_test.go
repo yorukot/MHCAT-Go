@@ -28,7 +28,7 @@ func TestConfigServiceSavesValidConfig(t *testing.T) {
 	if !ok {
 		t.Fatal("expected saved config")
 	}
-	if saved.GuildID != "guild-1" || saved.Message != "{user} 生日快樂" || saved.UTCOffset != "+08:00" || saved.ChannelID != "channel-1" || saved.RoleID != "role-1" {
+	if saved.GuildID != "guild-1" || saved.Message != " {user} 生日快樂 " || saved.UTCOffset != "+08:00" || saved.ChannelID != "channel-1" || saved.RoleID != "role-1" {
 		t.Fatalf("saved = %#v", saved)
 	}
 }

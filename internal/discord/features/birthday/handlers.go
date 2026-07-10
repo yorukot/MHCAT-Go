@@ -162,7 +162,7 @@ func (m Module) handleConfig(ctx context.Context, interaction interactions.Inter
 	}
 	config := domain.BirthdayConfig{
 		GuildID:                    interaction.Actor.GuildID,
-		Message:                    firstOption(interaction, optionMessage),
+		Message:                    stringOption(interaction, optionMessage),
 		UTCOffset:                  firstOption(interaction, optionUTC),
 		ChannelID:                  firstOption(interaction, optionChannel),
 		EveryoneCanSetBirthdayDate: canSet,
@@ -503,6 +503,16 @@ func firstOption(interaction interactions.Interaction, names ...string) string {
 				return value
 			}
 		}
+	}
+	return ""
+}
+
+func stringOption(interaction interactions.Interaction, name string) string {
+	if value, ok := interaction.Options[name]; ok {
+		return value
+	}
+	if option, ok := interaction.CommandOptions[name]; ok {
+		return option.String
 	}
 	return ""
 }
