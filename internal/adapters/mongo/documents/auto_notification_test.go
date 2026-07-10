@@ -48,6 +48,32 @@ func TestAutoNotificationScheduleDocumentDecodesNullCronAsPending(t *testing.T) 
 	}
 }
 
+func TestAutoNotificationScheduleDocumentUsesMongooseStringCoercion(t *testing.T) {
+	for _, test := range []struct {
+		value any
+		want  string
+	}{
+		{value: true, want: "true"},
+		{value: false, want: "false"},
+		{value: 0.000001, want: "0.000001"},
+		{value: 0.0000001, want: "1e-7"},
+		{value: 1e21, want: "1e+21"},
+	} {
+		raw, err := bson.Marshal(bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "schedule-1"}, {Key: "channel", Value: "channel-1"}, {Key: "cron", Value: test.value}})
+		if err != nil {
+			t.Fatalf("marshal %T: %v", test.value, err)
+		}
+		var document AutoNotificationScheduleDocument
+		if err := bson.Unmarshal(raw, &document); err != nil {
+			t.Fatalf("decode %T: %v", test.value, err)
+		}
+		schedule := document.ToDomain()
+		if schedule.Pending || schedule.Cron != test.want {
+			t.Fatalf("value %#v decoded as %#v, want cron %q", test.value, schedule, test.want)
+		}
+	}
+}
+
 func TestAutoNotificationMessageBSONPreservesLegacyEmbedDataShape(t *testing.T) {
 	payload := AutoNotificationMessageBSON(domain.AutoNotificationMessage{
 		Content:          "hello",

@@ -2,7 +2,6 @@ package documents
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -127,14 +126,8 @@ func legacyNullableString(value bson.RawValue) (string, bool) {
 	if value.Type == 0 || value.Type == bson.TypeNull || value.Type == bson.TypeUndefined {
 		return "", true
 	}
-	if text, ok := value.StringValueOK(); ok {
+	if text, ok := legacyMongooseString(value); ok {
 		return text, false
-	}
-	if parsed, ok := value.AsInt64OK(); ok {
-		return strconv.FormatInt(parsed, 10), false
-	}
-	if parsed, ok := value.DoubleOK(); ok {
-		return strings.TrimRight(strings.TrimRight(strconv.FormatFloat(parsed, 'f', 6, 64), "0"), "."), false
 	}
 	return "", false
 }
