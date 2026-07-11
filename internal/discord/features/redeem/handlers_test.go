@@ -26,7 +26,7 @@ func (c fixedClock) Now() time.Time {
 func TestHandlerRedeemsCodeAndRendersLegacySuccess(t *testing.T) {
 	now := time.UnixMilli(1700000000000)
 	repo := fakemongo.NewRedeemRepository()
-	repo.Codes[" abc "] = domain.RedeemCode{Code: " abc ", Price: 5, CreatedAtMillis: now.UnixMilli()}
+	repo.Codes[" abc "] = domain.RedeemCode{Code: " abc ", Price: 5, CreatedAtMillis: float64(now.UnixMilli())}
 	usage := &fakeusage.Tracker{}
 	module := NewModule(repo, fixedClock{now: now}, usage)
 	responder := fakediscord.NewResponder()
@@ -72,7 +72,7 @@ func TestHandlerUsesLegacyErrors(t *testing.T) {
 			name: "expired",
 			repo: func() *fakemongo.RedeemRepository {
 				repo := fakemongo.NewRedeemRepository()
-				repo.Codes["abc"] = domain.RedeemCode{Code: "abc", Price: 1, CreatedAtMillis: now.Add(-coreservice.LegacyCodeTTL - time.Millisecond).UnixMilli()}
+				repo.Codes["abc"] = domain.RedeemCode{Code: "abc", Price: 1, CreatedAtMillis: float64(now.Add(-coreservice.LegacyCodeTTL - time.Millisecond).UnixMilli())}
 				return repo
 			}(),
 			want: "這個代碼為防止遭人惡意使用",

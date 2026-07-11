@@ -1767,7 +1767,7 @@ func TestBuildRuntimeRoutesRedeemOnlyWithRepository(t *testing.T) {
 	}
 
 	repo := fakemongo.NewRedeemRepository()
-	repo.Codes["abc"] = domain.RedeemCode{Code: "abc", Price: 3, CreatedAtMillis: time.Now().UnixMilli()}
+	repo.Codes["abc"] = domain.RedeemCode{Code: "abc", Price: 3, CreatedAtMillis: float64(time.Now().UnixMilli())}
 	dispatcher, err = BuildRuntime(RuntimeOptions{
 		Config:           validTestConfig(),
 		RedeemRepository: repo,

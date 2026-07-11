@@ -1,6 +1,8 @@
 package documents
 
 import (
+	"math"
+
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -14,11 +16,19 @@ type RedeemCodeDocument struct {
 func (d RedeemCodeDocument) ToDomain() domain.RedeemCode {
 	return domain.RedeemCode{
 		Code:            d.Code,
-		Price:           legacyFloat64(d.Price),
-		CreatedAtMillis: legacyInt64(d.Time),
+		Price:           legacyRedeemNumber(d.Price),
+		CreatedAtMillis: legacyRedeemNumber(d.Time),
 	}
 }
 
 func LegacyBalancePriceFloat(value bson.RawValue) float64 {
-	return legacyFloat64(value)
+	return legacyRedeemNumber(value)
+}
+
+func legacyRedeemNumber(value bson.RawValue) float64 {
+	parsed, ok := LegacyMongooseNumber(value)
+	if !ok {
+		return math.NaN()
+	}
+	return parsed
 }

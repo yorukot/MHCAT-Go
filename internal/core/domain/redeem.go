@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"math"
 	"strings"
 )
 
@@ -10,7 +11,7 @@ var ErrInvalidRedeemCode = errors.New("invalid redeem code")
 type RedeemCode struct {
 	Code            string
 	Price           float64
-	CreatedAtMillis int64
+	CreatedAtMillis float64
 }
 
 type RedeemCommand struct {
@@ -20,7 +21,7 @@ type RedeemCommand struct {
 }
 
 func (c RedeemCode) Validate() error {
-	if c.Code == "" || c.Price < 0 || c.CreatedAtMillis <= 0 {
+	if c.Code == "" || math.IsNaN(c.Price) {
 		return ErrInvalidRedeemCode
 	}
 	return nil

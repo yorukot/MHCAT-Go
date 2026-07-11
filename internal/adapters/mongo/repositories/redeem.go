@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	mhcatmongo "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo"
@@ -64,7 +65,7 @@ func (r *RedeemRepository) ConsumeRedeemCode(ctx context.Context, command domain
 	if err := command.Validate(); err != nil {
 		return err
 	}
-	if price < 0 {
+	if math.IsNaN(price) {
 		return domain.ErrInvalidRedeemCode
 	}
 	result, err := r.codes.DeleteOne(ctx, bson.D{{Key: "code", Value: command.Code}})
@@ -116,7 +117,11 @@ func (r *RedeemRepository) creditBalances(ctx context.Context, guildID string, p
 		return ctx.Err()
 	}
 	for _, row := range rows {
-		next := documents.LegacyBalancePriceFloat(row.Price) + price
+		current := documents.LegacyBalancePriceFloat(row.Price)
+		if math.IsNaN(current) {
+			return domain.ErrInvalidRedeemCode
+		}
+		next := current + price
 		if _, err := r.balances.UpdateOne(ctx, bson.D{{Key: "_id", Value: row.ID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "price", Value: next}}}}); err != nil {
 			return mhcatmongo.MapError(fmt.Errorf("update redeem balance: %w", err))
 		}

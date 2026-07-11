@@ -42,7 +42,7 @@ func (s Service) Redeem(ctx context.Context, guildID string, code string) error 
 	if err := redeemCode.Validate(); err != nil {
 		return err
 	}
-	if command.NowMS-redeemCode.CreatedAtMillis > LegacyCodeTTL.Milliseconds() {
+	if float64(command.NowMS)-redeemCode.CreatedAtMillis > float64(LegacyCodeTTL.Milliseconds()) {
 		return ports.ErrRedeemCodeExpired
 	}
 	return s.Repository.ConsumeRedeemCode(ctx, command, redeemCode.Price)

@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"math"
 	"testing"
 )
 
@@ -12,8 +13,7 @@ func TestRedeemCodeValidation(t *testing.T) {
 	}
 	for _, code := range []RedeemCode{
 		{Price: 1, CreatedAtMillis: 1},
-		{Code: "abc", Price: -1, CreatedAtMillis: 1},
-		{Code: "abc", Price: 1},
+		{Code: "abc", Price: math.NaN(), CreatedAtMillis: 1},
 	} {
 		if err := code.Validate(); !errors.Is(err, ErrInvalidRedeemCode) {
 			t.Fatalf("expected invalid redeem code for %#v, got %v", code, err)
