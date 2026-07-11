@@ -769,7 +769,7 @@ func TestCleanupRequiresManageMessages(t *testing.T) {
 	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral {
 		t.Fatalf("defers = %#v", responder.Defers)
 	}
-	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, cleanupPermissionLabel) {
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 你需要有`訊息管理(刪除超過200則需要有權限)`才能使用此指令" || responder.Edits[0].Embeds[0].Color != 0xED4245 || !responder.Edits[0].Ephemeral {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 	if len(sideEffects.CleanupRequests) != 0 {
@@ -875,10 +875,10 @@ func TestCleanupRequestsMessagesAndRendersLegacyCompletion(t *testing.T) {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 	embed := responder.Edits[0].Embeds[0]
-	if embed.Title != "<a:green_tick:994529015652163614> | 清理完成!" || embed.Color != cleanupSuccessColor {
+	if embed.Title != "<a:green_tick:994529015652163614> | 清理完成!" || embed.Color != 0x53FF53 {
 		t.Fatalf("embed = %#v", embed)
 	}
-	if !strings.Contains(embed.Description, "**成功清除:**`7`/`10`") || !strings.Contains(embed.Description, "代表可能超過14天或沒這麼多訊息給清") {
+	if embed.Description != "**成功清除:**`7`/`10`\n**<:deletebutton:981971559679950848> 如果沒有成功清完全\n代表可能超過14天或沒這麼多訊息給清**" || !responder.Edits[0].Ephemeral {
 		t.Fatalf("description = %q", embed.Description)
 	}
 }

@@ -28,7 +28,7 @@ const (
 	cleanupMaxMessages              = 1000
 	cleanupAdminThreshold           = 200
 	cleanupPermissionLabel          = "訊息管理(刪除超過200則需要有權限)"
-	cleanupSuccessColor             = 0x57F287
+	cleanupSuccessColor             = 0x53FF53
 	deleteDataFallbackColor         = 0xEA0000
 	deleteDataCollectorLifetime     = time.Hour
 	discordEpochMilliseconds        = uint64(1420070400000)

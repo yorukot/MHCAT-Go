@@ -130,6 +130,9 @@ func TestCleanupDefinitionMatchesLegacyShape(t *testing.T) {
 	if definition.Name != "刪除訊息" || definition.Description != "刪除大量訊息" {
 		t.Fatalf("definition = %#v", definition)
 	}
+	if definition.Type != commands.CommandTypeChatInput || definition.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy cleanup must remain publicly discoverable: %#v", definition)
+	}
 	if len(definition.Options) != 2 {
 		t.Fatalf("options = %#v", definition.Options)
 	}
