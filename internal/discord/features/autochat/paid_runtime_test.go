@@ -17,6 +17,10 @@ type paidRuntimeClock struct{ now time.Time }
 
 func (c paidRuntimeClock) Now() time.Time { return c.now }
 
+type paidRuntimeFailingTyping struct{ err error }
+
+func (t paidRuntimeFailingTyping) SendTyping(context.Context, string) error { return t.err }
+
 func TestPaidAutoChatQueuesWaitsAndReplies(t *testing.T) {
 	module, handoff, sideEffects := paidRuntimeFixture(t)
 	now := time.UnixMilli(1_700_000_000_123)
@@ -37,6 +41,32 @@ func TestPaidAutoChatQueuesWaitsAndReplies(t *testing.T) {
 	}
 	if len(sideEffects.TypingChannels) != 1 || sideEffects.TypingChannels[0] != "channel-1" {
 		t.Fatalf("typing = %#v", sideEffects.TypingChannels)
+	}
+	if len(sideEffects.Sent) != 1 {
+		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+	message := sideEffects.Sent[0].Message
+	if message.Content != "worker answer" || message.ReplyToMessageID != "message-1" {
+		t.Fatalf("message = %#v", message)
+	}
+	assertPaidAutoChatMentionsSuppressed(t, message)
+}
+
+func TestPaidAutoChatAlwaysRepliesAndIgnoresTypingFailure(t *testing.T) {
+	module, handoff, sideEffects := paidRuntimeFixture(t)
+	now := module.clock.Now().UnixMilli()
+	handoff.QueueResult = domain.AutoChatPaidDispatch{RequestTimeMilli: now}
+	handoff.Response = domain.AutoChatPaidResponse{
+		GuildID:          "guild-1",
+		Content:          "worker answer",
+		RequestTimeMilli: now,
+		Reply:            false,
+	}
+	module.typing = paidRuntimeFailingTyping{err: errors.New("typing unavailable")}
+	module.wait = func(context.Context, time.Duration) error { return nil }
+
+	if err := module.MessageCreateHandler()(context.Background(), paidAutoChatEvent("hello")); !errors.Is(err, events.ErrStopPropagation) {
+		t.Fatalf("message create: %v", err)
 	}
 	if len(sideEffects.Sent) != 1 {
 		t.Fatalf("sent = %#v", sideEffects.Sent)
