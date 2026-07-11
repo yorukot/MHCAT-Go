@@ -99,3 +99,23 @@ func TestWorkInterfaceMongoIntegrationUsesLegacyNaturalItemOrder(t *testing.T) {
 		t.Fatalf("items = %#v", items)
 	}
 }
+
+func TestWorkInterfaceMongoIntegrationDeletesOneDuplicateItem(t *testing.T) {
+	database := economyQueryIntegrationDatabase(t)
+	repository, err := NewWorkInterfaceRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	ctx := context.Background()
+	filter := bson.D{{Key: "guild", Value: "delete-guild"}, {Key: "name", Value: "duplicate"}}
+	if _, err := database.Collection(WorkSomethingCollectionName).InsertMany(ctx, []any{filter, filter}); err != nil {
+		t.Fatalf("insert duplicate items: %v", err)
+	}
+	if err := repository.DeleteWorkItem(ctx, domain.WorkDeleteItemCommand{GuildID: "delete-guild", Name: "duplicate"}); err != nil {
+		t.Fatalf("delete item: %v", err)
+	}
+	count, err := database.Collection(WorkSomethingCollectionName).CountDocuments(ctx, filter)
+	if err != nil || count != 1 {
+		t.Fatalf("duplicate count = %d, err=%v", count, err)
+	}
+}

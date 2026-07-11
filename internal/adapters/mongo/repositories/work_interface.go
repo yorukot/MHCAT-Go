@@ -188,7 +188,7 @@ func (r *WorkInterfaceRepository) DeleteWorkItem(ctx context.Context, command do
 	if err := validateWorkDeleteItemCommand(command); err != nil {
 		return err
 	}
-	result, err := r.workSomethings.DeleteMany(ctx, bson.D{{Key: "guild", Value: strings.TrimSpace(command.GuildID)}, {Key: "name", Value: strings.TrimSpace(command.Name)}})
+	result, err := r.workSomethings.DeleteOne(ctx, bson.D{{Key: "guild", Value: strings.TrimSpace(command.GuildID)}, {Key: "name", Value: strings.TrimSpace(command.Name)}})
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("delete work item: %w", err))
 	}
