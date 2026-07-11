@@ -921,6 +921,50 @@ func TestDiscordShardConfigParsesAndValidates(t *testing.T) {
 	}
 }
 
+func TestProductionEnvironmentEnablesAuditedRuntimeDefaults(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_ENV":                   "production",
+		"MHCAT_DISCORD_TOKEN":         "token",
+		"MHCAT_MONGODB_URI":           "mongodb://localhost",
+		"MHCAT_MONGODB_DATABASE":      "mhcat",
+		"MHCAT_REPORT_WEBHOOK_URL":    "https://discord.com/api/webhooks/1/token",
+		"MHCAT_SCHEDULER_LEASE_OWNER": "production",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if err := Validate(cfg); err != nil {
+		t.Fatalf("validate config: %v", err)
+	}
+	if !cfg.DiscordEnableGateway || !cfg.DiscordMessageContentIntent || !cfg.DiscordGuildMembersIntent || !cfg.DiscordGuildMessagesIntent || !cfg.DiscordMessageReactionsIntent || !cfg.DiscordVoiceStateIntent {
+		t.Fatalf("production gateway defaults are not enabled: %#v", cfg)
+	}
+	if !cfg.FeatureVerificationConfigEnabled || !cfg.FeatureEconomyGameEnabled || !cfg.FeatureVoiceXPSessionsEnabled || !cfg.FeatureAutoNotificationDelivery || !cfg.FeatureWorkPayoutSchedulerEnabled {
+		t.Fatalf("production feature defaults are not enabled: %#v", cfg)
+	}
+	if !cfg.AutoChatPaidOwnershipConfirmed || !cfg.JobsDailyResetEnabled || !cfg.JobsWorkPayoutEnabled || !cfg.SchedulerLeaseEnabled {
+		t.Fatalf("production ownership defaults are not enabled: %#v", cfg)
+	}
+}
+
+func TestProductionEnvironmentAllowsExplicitFeatureDisable(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_ENV":                                 "production",
+		"MHCAT_DISCORD_TOKEN":                       "token",
+		"MHCAT_MONGODB_URI":                         "mongodb://localhost",
+		"MHCAT_MONGODB_DATABASE":                    "mhcat",
+		"MHCAT_REPORT_WEBHOOK_URL":                  "https://discord.com/api/webhooks/1/token",
+		"MHCAT_SCHEDULER_LEASE_OWNER":               "production",
+		"MHCAT_FEATURE_VERIFICATION_CONFIG_ENABLED": "false",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.FeatureVerificationConfigEnabled {
+		t.Fatal("explicit false must override production default")
+	}
+}
+
 func TestDiscordShardConfigRejectsInvalidRanges(t *testing.T) {
 	base := Config{
 		DiscordToken:                 "token",

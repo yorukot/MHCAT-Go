@@ -15,8 +15,10 @@ func Load() (Config, error) {
 }
 
 func LoadWithLookup(lookup LookupFunc) (Config, error) {
+	environment := getString(lookup, "MHCAT_ENV", DefaultEnv)
+	lookup = withEnvironmentDefaults(lookup, environment)
 	cfg := Config{
-		Env:                                  getString(lookup, "MHCAT_ENV", DefaultEnv),
+		Env:                                  environment,
 		LogLevel:                             getString(lookup, "MHCAT_LOG_LEVEL", DefaultLogLevel),
 		LogFormat:                            getString(lookup, "MHCAT_LOG_FORMAT", DefaultLogFormat),
 		DiscordEnableGateway:                 DefaultDiscordEnableGateway,
@@ -433,6 +435,108 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 	return cfg, nil
+}
+
+func withEnvironmentDefaults(lookup LookupFunc, environment string) LookupFunc {
+	if strings.TrimSpace(environment) != "production" {
+		return lookup
+	}
+	return func(key string) (string, bool) {
+		if value, ok := lookup(key); ok {
+			return value, true
+		}
+		if _, ok := productionEnabledDefaults[key]; ok {
+			return "true", true
+		}
+		return "", false
+	}
+}
+
+var productionEnabledDefaults = map[string]struct{}{
+	"MHCAT_DISCORD_ENABLE_GATEWAY":                       {},
+	"MHCAT_DISCORD_MESSAGE_CONTENT_INTENT":               {},
+	"MHCAT_DISCORD_GUILD_MEMBERS_INTENT":                 {},
+	"MHCAT_DISCORD_GUILD_MESSAGES_INTENT":                {},
+	"MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT":       {},
+	"MHCAT_DISCORD_VOICE_STATE_INTENT":                   {},
+	"MHCAT_FEATURE_TICKETS_ENABLED":                      {},
+	"MHCAT_FEATURE_POLLS_ENABLED":                        {},
+	"MHCAT_FEATURE_USAGE_TRACKING_ENABLED":               {},
+	"MHCAT_FEATURE_ECONOMY_QUERY_ENABLED":                {},
+	"MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED":               {},
+	"MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED":             {},
+	"MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED":           {},
+	"MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED":            {},
+	"MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED":           {},
+	"MHCAT_FEATURE_ECONOMY_RPS_ENABLED":                  {},
+	"MHCAT_FEATURE_ECONOMY_GAME_ENABLED":                 {},
+	"MHCAT_FEATURE_ECONOMY_SHOP_ENABLED":                 {},
+	"MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED":              {},
+	"MHCAT_FEATURE_WORK_ENABLED":                         {},
+	"MHCAT_FEATURE_WARNINGS_ENABLED":                     {},
+	"MHCAT_FEATURE_WARNING_SETTINGS_ENABLED":             {},
+	"MHCAT_FEATURE_WARNING_REMOVAL_ENABLED":              {},
+	"MHCAT_FEATURE_WARNING_ISSUE_ENABLED":                {},
+	"MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED":              {},
+	"MHCAT_FEATURE_DELETE_DATA_ENABLED":                  {},
+	"MHCAT_FEATURE_TRANSLATE_ENABLED":                    {},
+	"MHCAT_FEATURE_BALANCE_QUERY_ENABLED":                {},
+	"MHCAT_FEATURE_REDEEM_ENABLED":                       {},
+	"MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED":              {},
+	"MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED":            {},
+	"MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED":        {},
+	"MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED":            {},
+	"MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED":     {},
+	"MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED":   {},
+	"MHCAT_FEATURE_DAILY_RESET_SCHEDULER_ENABLED":        {},
+	"MHCAT_FEATURE_WORK_PAYOUT_SCHEDULER_ENABLED":        {},
+	"MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED":             {},
+	"MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED":             {},
+	"MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED":     {},
+	"MHCAT_FEATURE_LOGGING_CONFIG_ENABLED":               {},
+	"MHCAT_FEATURE_LOGGING_MESSAGE_EVENTS_ENABLED":       {},
+	"MHCAT_FEATURE_LOGGING_CHANNEL_EVENTS_ENABLED":       {},
+	"MHCAT_FEATURE_LOGGING_VOICE_EVENTS_ENABLED":         {},
+	"MHCAT_FEATURE_GACHA_PRIZE_LIST_ENABLED":             {},
+	"MHCAT_FEATURE_GACHA_DRAW_ENABLED":                   {},
+	"MHCAT_FEATURE_GACHA_PRIZE_CREATE_ENABLED":           {},
+	"MHCAT_FEATURE_GACHA_PRIZE_EDIT_ENABLED":             {},
+	"MHCAT_FEATURE_GACHA_PRIZE_DELETE_ENABLED":           {},
+	"MHCAT_FEATURE_LOTTERY_DISABLED_COMMAND_ENABLED":     {},
+	"MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED":           {},
+	"MHCAT_FEATURE_STATS_QUERY_ENABLED":                  {},
+	"MHCAT_FEATURE_STATS_CREATE_ENABLED":                 {},
+	"MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED":             {},
+	"MHCAT_FEATURE_STATS_DELETE_ENABLED":                 {},
+	"MHCAT_FEATURE_STATS_RENAME_WORKER_ENABLED":          {},
+	"MHCAT_FEATURE_BIRTHDAY_CONFIG_ENABLED":              {},
+	"MHCAT_FEATURE_ANNOUNCEMENT_CONFIG_ENABLED":          {},
+	"MHCAT_FEATURE_ANNOUNCEMENT_SEND_ENABLED":            {},
+	"MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED":           {},
+	"MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED":               {},
+	"MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED":              {},
+	"MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED":              {},
+	"MHCAT_FEATURE_VOICE_XP_SESSIONS_ENABLED":            {},
+	"MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED":               {},
+	"MHCAT_FEATURE_XP_PROFILE_DISABLED_COMMANDS_ENABLED": {},
+	"MHCAT_FEATURE_XP_ADMIN_ENABLED":                     {},
+	"MHCAT_FEATURE_XP_RESET_ENABLED":                     {},
+	"MHCAT_FEATURE_XP_RANK_ENABLED":                      {},
+	"MHCAT_FEATURE_VOICE_ROOM_CONFIG_ENABLED":            {},
+	"MHCAT_FEATURE_VOICE_ROOM_LOCK_ENABLED":              {},
+	"MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED":             {},
+	"MHCAT_FEATURE_JOIN_ROLE_ASSIGNMENT_ENABLED":         {},
+	"MHCAT_FEATURE_WELCOME_MESSAGE_CONFIG_ENABLED":       {},
+	"MHCAT_FEATURE_WELCOME_MESSAGE_DELIVERY_ENABLED":     {},
+	"MHCAT_FEATURE_LEAVE_MESSAGE_DELIVERY_ENABLED":       {},
+	"MHCAT_FEATURE_VERIFICATION_CONFIG_ENABLED":          {},
+	"MHCAT_FEATURE_VERIFICATION_FLOW_ENABLED":            {},
+	"MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED":           {},
+	"MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED":           {},
+	"MHCAT_FEATURE_ROLE_SELECTION_ENABLED":               {},
+	"MHCAT_JOBS_DAILY_RESET_ENABLED":                     {},
+	"MHCAT_JOBS_WORK_PAYOUT_ENABLED":                     {},
+	"MHCAT_SCHEDULER_LEASE_ENABLED":                      {},
 }
 
 func getString(lookup LookupFunc, key, fallback string) string {
