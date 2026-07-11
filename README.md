@@ -574,7 +574,7 @@ Wave 5.3 ships local command definitions, runtime handlers, and staging guild sy
 
 Wave 5.7 applied the managed `help`, `info`, and `ping` commands to the staging guild only. Bot startup still does not run command sync or mutate Discord application commands. Wave 5.8 and Wave 5.9 change only runtime response UI, so the staging slash command definitions do not need to be re-applied for these fixes.
 
-The read-only `/代幣查詢` command is available only when `MHCAT_FEATURE_ECONOMY_QUERY_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_QUERY=true`; staging preflight and scripts reject unpaired sync/runtime flags.
+The read-only `/代幣查詢` command is available only when `MHCAT_FEATURE_ECONOMY_QUERY_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_QUERY=true`; staging preflight and scripts reject unpaired sync/runtime flags. Exact UI, scalar coercion, duplicate-read, usage, migration, smoke, and rollback behavior is canonical in [docs/95-economy-query.md](docs/95-economy-query.md).
 
 The `/簽到` command is available only when `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes `coins` and `sign_lists`, so use only isolated staging data until the production duplicate/index/reset blockers in `docs/40-economy-signin.md` are closed.
 
