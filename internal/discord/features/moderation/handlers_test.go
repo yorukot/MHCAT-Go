@@ -294,6 +294,24 @@ func TestWarningIssueAcceptsAllSpaceLegacyReason(t *testing.T) {
 	}
 }
 
+func TestWarningIssueDMFailureDoesNotReplaceLegacySuccess(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	direct := fakediscord.NewSideEffects()
+	direct.Err = errors.New("dm unavailable")
+	module := NewIssueModule(repo, nil, direct, nil, nil, nil, nil, moderationFixedClock{}, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.WarningIssueHandler()(context.Background(), warningIssueInteraction("user-2", "reason"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:greentick:980496858445135893> | 成功警告這位使用者!" {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	if history := repo.Histories["guild-1\x00user-2"]; len(history.Entries) != 1 {
+		t.Fatalf("history = %#v", history)
+	}
+}
+
 func TestWarningIssueThresholdSkipsNewLegacyRecord(t *testing.T) {
 	repo := fakemongo.NewWarningHistoryRepository()
 	settings := fakemongo.NewWarningSettingsRepository()
@@ -374,6 +392,28 @@ func TestWarningIssueThresholdUnknownActionFallsBackToKick(t *testing.T) {
 	}
 	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != "<a:greentick:980496858445135893> | 這位使用者已到達警告須執行條件，成功對他執行`踢出`!" {
 		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+}
+
+func TestWarningIssueThresholdMessageFailureDoesNotReplaceSuccess(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}}})
+	settings := fakemongo.NewWarningSettingsRepository()
+	settings.Settings["guild-1"] = domain.WarningSettings{GuildID: "guild-1", Threshold: 2, Action: domain.WarningSettingsActionKick}
+	actions := fakediscord.NewSideEffects()
+	messages := fakediscord.NewSideEffects()
+	messages.Err = errors.New("channel unavailable")
+	module := NewIssueModule(repo, settings, nil, nil, nil, actions, messages, moderationFixedClock{}, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.WarningIssueHandler()(context.Background(), warningIssueInteraction("user-2", "second"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(actions.Kicked) != 1 {
+		t.Fatalf("kicked = %#v", actions.Kicked)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:greentick:980496858445135893> | 成功警告這位使用者!" {
+		t.Fatalf("edits = %#v", responder.Edits)
 	}
 }
 
@@ -513,6 +553,22 @@ func TestWarningRemoveSavesRendersLegacyEmbedAndDMs(t *testing.T) {
 	}
 	if description := sideEffects.DirectMessages[0].Message.Embeds[0].Description; !strings.Contains(description, "你在測試伺服器的一個__警告__被刪除了") || !strings.Contains(description, "User(id:user-1)") {
 		t.Fatalf("dm description = %q", description)
+	}
+}
+
+func TestWarningRemoveDMFailureDoesNotReplaceLegacySuccess(t *testing.T) {
+	repo := fakemongo.NewWarningRemovalRepository()
+	repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}}})
+	direct := fakediscord.NewSideEffects()
+	direct.Err = errors.New("dm unavailable")
+	module := NewRemovalModule(repo, direct, nil, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.WarningRemoveHandler()(context.Background(), warningRemoveInteraction("user-2", "1"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:greentick:980496858445135893> | 這位使用者的警告成功移除!" {
+		t.Fatalf("edits = %#v", responder.Edits)
 	}
 }
 
