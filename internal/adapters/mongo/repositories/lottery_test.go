@@ -24,7 +24,7 @@ func TestLotteryJoinFilterOwnsLegacyEntryGuards(t *testing.T) {
 		t.Fatalf("marshal filter: %v", err)
 	}
 	text := string(encoded)
-	for _, expected := range []string{`"guild":"guild-1"`, `"id":"id-1"`, `"end":{"$ne":true}`, `"member":{"$not":{"$elemMatch":{"id":"user-1"}}}`, `"$date"`, `"$maxNumber"`, `"$eq"`, `"$isArray":"$member"`} {
+	for _, expected := range []string{`"guild":"guild-1"`, `"id":"id-1"`, `"end":{"$nin":[true,1,"1","t","T","TRUE","true","True"]}`, `"member":{"$not":{"$elemMatch":{"id":"user-1"}}}`, `"$date"`, `"$maxNumber"`, `"$eq"`, `"$isArray":"$member"`} {
 		if !strings.Contains(text, expected) {
 			t.Fatalf("filter missing %s: %s", expected, text)
 		}

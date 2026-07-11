@@ -61,6 +61,10 @@ func (r *TicketConfigRepository) CreateTicketConfig(ctx context.Context, config 
 	if err := ctx.Err(); err != nil {
 		return ports.TicketConfigCreation{}, err
 	}
+	config.GuildID = strings.TrimSpace(config.GuildID)
+	config.CategoryID = strings.TrimSpace(config.CategoryID)
+	config.AdminRoleID = strings.TrimSpace(config.AdminRoleID)
+	config.EveryoneRoleID = strings.TrimSpace(config.EveryoneRoleID)
 	if err := config.ValidateForWrite(); err != nil {
 		return ports.TicketConfigCreation{}, err
 	}

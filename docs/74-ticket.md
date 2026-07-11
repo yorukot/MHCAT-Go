@@ -127,7 +127,7 @@ Reads apply Mongoose-compatible String scalar decoding to every selected field. 
 
 Config creation validates all four values, then uses one `$setOnInsert` upsert containing a generated ordinary Mongo `_id`. An existing `{guild}` match is never overwritten and returns the duplicate-config outcome. Duplicate-key conflicts map to that same outcome. Runtime reads retain Mongo `findOne` semantics when legacy duplicates disagree.
 
-Failure compensation deletes by the exact generated `{_id,guild}` receipt. Explicit command deletion intentionally uses `DeleteMany({guild})` so all legacy duplicate rows are removed. The application creates no startup index. Candidate unique index `tickets_guild` must not be applied until duplicate and malformed-scalar audits pass and explicit index application is reviewed.
+Failure compensation deletes by the exact generated `{_id,guild}` receipt. Explicit command deletion intentionally uses `DeleteMany({guild})` so all legacy duplicate rows are removed. The application creates no startup index. The duplicate-safe non-unique `tickets_guild_lookup` index may be explicitly applied for command/component reads. Candidate unique index `tickets_guild` must not be applied until duplicate and malformed-scalar audits pass and explicit index application is reviewed; remove the lookup fallback before promoting the same key to unique.
 
 Without that unique index there is no cross-process uniqueness guarantee for concurrent upserts. Exclusive Node/Go ownership and a single Go runtime are deployment requirements; do not treat the in-process race contract as a distributed lock.
 

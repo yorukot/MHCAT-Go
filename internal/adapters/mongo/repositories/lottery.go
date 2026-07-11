@@ -12,6 +12,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	drivermongo "go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 const LotteryCollectionName = "lotters"
@@ -59,14 +60,20 @@ func (r *LotteryRepository) JoinLottery(ctx context.Context, request domain.Lott
 	if err := request.Validate(); err != nil {
 		return domain.Lottery{}, err
 	}
-	result, err := r.collection.UpdateOne(ctx, lotteryJoinFilter(request), lotteryJoinUpdate(request))
+	var document documents.LotteryDocument
+	err := r.collection.FindOneAndUpdate(
+		ctx,
+		lotteryJoinFilter(request),
+		lotteryJoinUpdate(request),
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&document)
 	if err != nil {
+		if errors.Is(err, drivermongo.ErrNoDocuments) {
+			return domain.Lottery{}, r.joinMissReason(ctx, request)
+		}
 		return domain.Lottery{}, mhcatmongo.MapError(fmt.Errorf("join lottery: %w", err))
 	}
-	if result.ModifiedCount == 0 {
-		return domain.Lottery{}, r.joinMissReason(ctx, request)
-	}
-	return r.GetLottery(ctx, request.GuildID, request.ID)
+	return document.ToDomain(), ctx.Err()
 }
 
 func (r *LotteryRepository) EndLottery(ctx context.Context, guildID string, id string) (domain.Lottery, error) {
@@ -76,14 +83,20 @@ func (r *LotteryRepository) EndLottery(ctx context.Context, guildID string, id s
 	if err := domain.ValidateLotteryKey(guildID, id); err != nil {
 		return domain.Lottery{}, err
 	}
-	result, err := r.collection.UpdateOne(ctx, lotteryKeyFilter(guildID, id), bson.D{{Key: "$set", Value: bson.D{{Key: "end", Value: true}}}})
+	var document documents.LotteryDocument
+	err := r.collection.FindOneAndUpdate(
+		ctx,
+		lotteryKeyFilter(guildID, id),
+		bson.D{{Key: "$set", Value: bson.D{{Key: "end", Value: true}}}},
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&document)
 	if err != nil {
+		if errors.Is(err, drivermongo.ErrNoDocuments) {
+			return domain.Lottery{}, ports.ErrLotteryNotFound
+		}
 		return domain.Lottery{}, mhcatmongo.MapError(fmt.Errorf("end lottery: %w", err))
 	}
-	if result.MatchedCount == 0 {
-		return domain.Lottery{}, ports.ErrLotteryNotFound
-	}
-	return r.GetLottery(ctx, guildID, id)
+	return document.ToDomain(), ctx.Err()
 }
 
 func (r *LotteryRepository) joinMissReason(ctx context.Context, request domain.LotteryJoinRequest) error {
@@ -113,7 +126,7 @@ func lotteryKeyFilter(guildID string, id string) bson.D {
 func lotteryJoinFilter(request domain.LotteryJoinRequest) bson.D {
 	maxParticipants := lotteryConvertLong("$maxNumber", int64(0))
 	return append(lotteryKeyFilter(request.GuildID, request.ID),
-		bson.E{Key: "end", Value: bson.D{{Key: "$ne", Value: true}}},
+		bson.E{Key: "end", Value: bson.D{{Key: "$nin", Value: bson.A{true, int64(1), "1", "t", "T", "TRUE", "true", "True"}}}},
 		bson.E{Key: "member", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "id", Value: request.UserID}}}}}}},
 		bson.E{Key: "$expr", Value: bson.D{{Key: "$and", Value: bson.A{
 			bson.D{{Key: "$gte", Value: bson.A{lotteryConvertLong("$date", int64(-1)), request.NowUnix}}},

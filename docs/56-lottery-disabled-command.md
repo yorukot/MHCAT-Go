@@ -23,7 +23,7 @@ Legacy evidence:
 - Runtime flag: `MHCAT_FEATURE_LOTTERY_COMPONENTS_ENABLED=false`.
 - Gateway is required; no command-sync flag is involved.
 - Accepted legacy IDs are limited to `<13-20 digits>lotter` plus optional `search`, `restart`, or `stop` suffixes.
-- Enter preserves legacy error precedence: duplicate entry (with the ended-row override), capacity, end time, required role, then forbidden role. Negative stored capacities are immediately full. A successful entry atomically appends `{id,time}`.
+- Enter preserves legacy error precedence: duplicate entry (with the ended-row override), capacity, end time, required role, then forbidden role. Negative stored capacities are immediately full. A successful entry atomically appends `{id,time}` and returns that exact updated row without a second lookup. Loose Boolean true forms in `end` are rejected consistently with the read model.
 - Search returns the legacy participant-count embed, self-entry status, manager controls, and `discord.txt`. It shows names through 99 participants and switches to the legacy file warning at 100 while retaining every export row.
 - Search preserves `username#discriminator`, including `#0` for migrated Discord usernames, the two distinct missing-user labels, and Node 20 `zh-TW` Taipei timestamps with the U+2009 separator and `24:xx:xx` midnight hour.
 - Reroll draws with replacement, preserves exact stored prize whitespace, uses the bot member's guild display color, sends literal `<@>` when nobody entered, and sets `end:true` after the channel send.
@@ -43,7 +43,7 @@ Go reads mixed string/number/null fields, preserves prize text verbatim, and ski
 - `member`: appends `{id:<user>,time:<Unix milliseconds>}` with atomic duplicate/date/cap guards.
 - `end`: sets boolean `true`.
 
-No indexes, schema fields, migrations, or creation rows are added. Disabling the component gate returns ownership to Node without repair.
+No startup indexes, schema fields, migrations, or creation rows are added. The duplicate-safe non-unique `lotters_guild_id_lookup` index may be explicitly applied for existing component traffic before the unique candidate passes audit, and must be removed before promoting that same-key unique index. Disabling the component gate returns ownership to Node without repair.
 
 ## Staging
 

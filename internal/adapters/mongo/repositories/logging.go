@@ -54,6 +54,8 @@ func (r *LoggingConfigRepository) SaveLoggingConfig(ctx context.Context, config 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	config.GuildID = strings.TrimSpace(config.GuildID)
+	config.ChannelID = strings.TrimSpace(config.ChannelID)
 	if err := config.Validate(); err != nil {
 		return err
 	}
@@ -64,37 +66,19 @@ func (r *LoggingConfigRepository) SaveLoggingConfig(ctx context.Context, config 
 		Set("message_delete", document.MessageDelete).
 		Set("channel_update", document.ChannelUpdate).
 		Set("member_voice_update", document.MemberVoiceUpdate).
-		Build()
-	if err != nil {
-		return err
-	}
-	result, err := r.collection.UpdateMany(ctx, bson.D{{Key: "guild", Value: document.Guild}}, update)
-	if err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("save logging config: %w", err))
-	}
-	if result.MatchedCount > 0 {
-		r.storeCachedLoggingConfig(config.GuildID, config, true)
-		return ctx.Err()
-	}
-	insertUpdate, err := mhcatmongo.NewUpdate().
-		Set("channel_id", document.ChannelID).
-		Set("message_update", document.MessageUpdate).
-		Set("message_delete", document.MessageDelete).
-		Set("channel_update", document.ChannelUpdate).
-		Set("member_voice_update", document.MemberVoiceUpdate).
 		SetOnInsert("guild", document.Guild).
 		Build()
 	if err != nil {
 		return err
 	}
-	_, err = r.collection.UpdateOne(
+	_, err = r.collection.UpdateMany(
 		ctx,
 		bson.D{{Key: "guild", Value: document.Guild}},
-		insertUpdate,
-		options.UpdateOne().SetUpsert(true),
+		update,
+		options.UpdateMany().SetUpsert(true),
 	)
 	if err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("upsert logging config: %w", err))
+		return mhcatmongo.MapError(fmt.Errorf("save logging config: %w", err))
 	}
 	r.storeCachedLoggingConfig(config.GuildID, config, true)
 	return ctx.Err()

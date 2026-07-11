@@ -110,6 +110,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Audit-log reads require rate-limit policy before feature wiring."),
 		catalogSpec("lotters", "lotter", "models/lotter.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("lotters_guild_id", []string{"guild", "id"}, "lottery lookup and member updates"),
+			nonUniqueCatalogIndex("lotters_guild_id_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "id", Order: 1}}, "lottery component lookup without requiring duplicate cleanup"),
 		}, "Lottery creation is disabled in legacy; keep inactive behavior unless ADR changes it."),
 		catalogSpec("message_reactions", "message_reaction", "models/message_reaction.js", []string{"guild", "message", "react"}, []catalogIndex{
 			uniqueCatalogIndex("message_reactions_guild_message_react", []string{"guild", "message", "react"}, "reaction-role lookup"),
@@ -143,6 +144,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, ""),
 		catalogSpec("tickets", "ticket", "models/ticket.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("tickets_guild", []string{"guild"}, "ticket config singleton"),
+			nonUniqueCatalogIndex("tickets_guild_lookup", []IndexKey{{Field: "guild", Order: 1}}, "ticket interaction lookup without requiring duplicate cleanup"),
 		}, "Ticket feature must validate roles/channels before persisting config."),
 		catalogSpec("verifications", "verification", "models/verification.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("verifications_guild", []string{"guild"}, "verification config singleton"),
