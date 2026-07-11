@@ -53,10 +53,10 @@ func (s AccountAgeConfigService) SetRequirement(ctx context.Context, guildID str
 	if s.Repository == nil {
 		return domain.AccountAgeConfig{}, domain.ErrInvalidAccountAgeConfig
 	}
-	if hours <= 0 || hours > math.MaxInt64/3600 {
+	if hours <= 0 {
 		return domain.AccountAgeConfig{}, domain.ErrInvalidAccountAgeConfig
 	}
-	return s.Repository.SaveAccountAgeRequirement(ctx, guildID, hours*3600)
+	return s.Repository.SaveAccountAgeRequirement(ctx, guildID, float64(hours)*3600)
 }
 
 func (s AccountAgeConfigService) SetLogChannel(ctx context.Context, guildID string, channelID string) (domain.AccountAgeConfig, error) {

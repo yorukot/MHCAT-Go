@@ -37,6 +37,21 @@ func TestAccountAgeConfigSetRequirementPreservesChannel(t *testing.T) {
 	}
 }
 
+func TestAccountAgeConfigAcceptsLargeDiscordIntegerWithoutOverflow(t *testing.T) {
+	repo := fakemongo.NewAccountAgeConfigRepository()
+	service := AccountAgeConfigService{Repository: repo}
+	const hours int64 = 9_007_199_254_740_991
+
+	config, err := service.SetRequirement(context.Background(), "guild-1", hours)
+	if err != nil {
+		t.Fatalf("set requirement: %v", err)
+	}
+	want := float64(hours) * 3600
+	if config.RequiredSeconds != want || repo.Configs["guild-1"].RequiredSeconds != want {
+		t.Fatalf("config = %#v", config)
+	}
+}
+
 func TestAccountAgePolicyKicksTooNewMemberAndLogs(t *testing.T) {
 	now := time.Unix(2_000_000, 0)
 	repo := fakemongo.NewAccountAgeConfigRepository()

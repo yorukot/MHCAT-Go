@@ -55,7 +55,7 @@ type VerificationConfigReader interface {
 
 type AccountAgeConfigRepository interface {
 	AccountAgeConfigReader
-	SaveAccountAgeRequirement(ctx context.Context, guildID string, requiredSeconds int64) (domain.AccountAgeConfig, error)
+	SaveAccountAgeRequirement(ctx context.Context, guildID string, requiredSeconds float64) (domain.AccountAgeConfig, error)
 	SetAccountAgeLogChannel(ctx context.Context, guildID string, channelID string) (domain.AccountAgeConfig, error)
 	DeleteAccountAgeConfig(ctx context.Context, guildID string) error
 	DeleteAccountAgeLogChannel(ctx context.Context, guildID string) error

@@ -412,12 +412,12 @@ func verificationConfigInsertUpdate(document documents.VerificationDocument) (bs
 		Build()
 }
 
-func (r *AccountAgeConfigRepository) SaveAccountAgeRequirement(ctx context.Context, guildID string, requiredSeconds int64) (domain.AccountAgeConfig, error) {
+func (r *AccountAgeConfigRepository) SaveAccountAgeRequirement(ctx context.Context, guildID string, requiredSeconds float64) (domain.AccountAgeConfig, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.AccountAgeConfig{}, err
 	}
 	guildID = strings.TrimSpace(guildID)
-	config := domain.AccountAgeConfig{GuildID: guildID, RequiredSeconds: float64(requiredSeconds)}
+	config := domain.AccountAgeConfig{GuildID: guildID, RequiredSeconds: requiredSeconds}
 	if err := config.Validate(); err != nil {
 		return domain.AccountAgeConfig{}, err
 	}
