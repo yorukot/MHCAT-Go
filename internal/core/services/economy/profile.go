@@ -174,14 +174,14 @@ func legacyXPProfileRank(profiles []domain.XPProfile, viewer domain.XPProfile, v
 	viewerTotal := legacyXPProfileTotal(viewer, voice, true)
 	rank := 0
 	for _, profile := range profiles {
-		if legacyXPProfileTotal(profile, voice, false) >= viewerTotal {
+		if !(legacyXPProfileTotal(profile, voice, false) < viewerTotal) {
 			rank++
 		}
 	}
 	return rank
 }
 
-func legacyXPProfileTotal(profile domain.XPProfile, voice bool, viewer bool) int64 {
+func legacyXPProfileTotal(profile domain.XPProfile, voice bool, viewer bool) float64 {
 	divisor := 3.0
 	includeZero := true
 	if voice {
@@ -189,7 +189,41 @@ func legacyXPProfileTotal(profile domain.XPProfile, voice bool, viewer bool) int
 	} else if viewer {
 		includeZero = false
 	}
-	return legacyXPAccumulated(profile.Level, divisor, includeZero) + 100 + profile.XP
+	level := legacyXPProfileNumber(profile.LevelText, profile.Level)
+	xp := legacyXPProfileNumber(profile.XPText, profile.XP)
+	return legacyXPAccumulatedNumber(level, divisor, includeZero) + 100 + xp
+}
+
+func legacyXPProfileNumber(text string, fallback int64) float64 {
+	if text == "" {
+		return float64(fallback)
+	}
+	value, numeric := legacyDisplayedNumber(text)
+	if !numeric {
+		return math.NaN()
+	}
+	return value
+}
+
+func legacyXPAccumulatedNumber(level float64, divisor float64, includeZero bool) float64 {
+	if math.IsNaN(level) {
+		return 0
+	}
+	if math.IsInf(level, 0) {
+		return math.NaN()
+	}
+	total := 0.0
+	for y := level - 1; ; y-- {
+		if includeZero {
+			if !(y > -1) {
+				break
+			}
+		} else if !(y > 0) {
+			break
+		}
+		total += math.Trunc(y*(y/divisor))*100 + 100
+	}
+	return total
 }
 
 func legacyXPAccumulated(level int64, divisor float64, includeZero bool) int64 {
@@ -213,6 +247,34 @@ func LegacyProfileXPRequired(level int64, voice bool) int64 {
 		divisor = 2.0
 	}
 	return int64((float64(level) * (float64(level) / divisor) * 100) + 100)
+}
+
+func LegacyProfileXPRequiredForProfile(profile domain.XPProfile, voice bool) float64 {
+	divisor := 3.0
+	if voice {
+		divisor = 2.0
+	}
+	level := legacyXPProfileNumber(profile.LevelText, profile.Level)
+	return math.Trunc(level*(level/divisor)*100 + 100)
+}
+
+func LegacyProfileXPAmount(profile domain.XPProfile) string {
+	value := LegacyProfileXPNumber(profile)
+	if math.IsNaN(value) {
+		return "NaN"
+	}
+	return LegacyProfileAmount(value)
+}
+
+func LegacyProfileXPNumber(profile domain.XPProfile) float64 {
+	return legacyXPProfileNumber(profile.XPText, profile.XP)
+}
+
+func LegacyProfileLevelText(profile domain.XPProfile) string {
+	if profile.LevelText != "" {
+		return profile.LevelText
+	}
+	return strconv.FormatInt(profile.Level, 10)
 }
 
 func legacyProfileSignStatus(balance domain.CoinBalance, found bool, config domain.EconomyConfig, configFound bool, nowUnix int64) string {

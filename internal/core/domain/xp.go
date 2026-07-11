@@ -36,7 +36,9 @@ type XPProfile struct {
 	GuildID   string
 	UserID    string
 	XP        int64
+	XPText    string
 	Level     int64
+	LevelText string
 	LeaveJoin string
 }
 

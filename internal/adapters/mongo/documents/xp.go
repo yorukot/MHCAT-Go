@@ -97,7 +97,9 @@ func (d XPProfileDocument) ToDomain() domain.XPProfile {
 		GuildID:   d.Guild,
 		UserID:    d.Member,
 		XP:        legacyInt64(d.XP),
+		XPText:    legacyPriceString(d.XP),
 		Level:     legacyInt64(d.Leavel),
+		LevelText: legacyPriceString(d.Leavel),
 		LeaveJoin: d.LeaveJoin,
 	}
 }

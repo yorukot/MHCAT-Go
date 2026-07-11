@@ -199,3 +199,34 @@ func TestLegacyProfileWorkStatePreservesEndTimeScalars(t *testing.T) {
 		t.Fatalf("typed fallback = %q", got)
 	}
 }
+
+func TestProfileXPScalarsPreserveLegacyDisplayProgressAndRank(t *testing.T) {
+	decimal := domain.XPProfile{XPText: "125.5", LevelText: "2.5"}
+	if got := LegacyProfileXPAmount(decimal); got != "125.5" {
+		t.Fatalf("decimal XP = %q", got)
+	}
+	if got := LegacyProfileLevelText(decimal); got != "2.5" {
+		t.Fatalf("decimal level = %q", got)
+	}
+	if got := LegacyProfileXPRequiredForProfile(decimal, false); got != 308 {
+		t.Fatalf("decimal required XP = %v", got)
+	}
+	malformed := domain.XPProfile{XPText: "undefined", LevelText: "undefined"}
+	if got := LegacyProfileXPAmount(malformed); got != "NaN" {
+		t.Fatalf("malformed XP = %q", got)
+	}
+	if got := LegacyProfileLevelText(malformed); got != "undefined" {
+		t.Fatalf("malformed level = %q", got)
+	}
+
+	repo := fakemongo.NewEconomyProfileRepository()
+	repo.PutTextXP(domain.XPProfile{GuildID: "guild-1", UserID: "viewer", XPText: "undefined", LevelText: "2"})
+	repo.PutTextXP(domain.XPProfile{GuildID: "guild-1", UserID: "other", XPText: "500", LevelText: "2"})
+	result, err := (ProfileService{Repository: repo}).Query(context.Background(), ProfileQuery{GuildID: "guild-1", UserID: "viewer"})
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if result.TextRank != 2 {
+		t.Fatalf("malformed viewer rank = %d", result.TextRank)
+	}
+}

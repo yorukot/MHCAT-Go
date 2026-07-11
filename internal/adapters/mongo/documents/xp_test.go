@@ -1,6 +1,7 @@
 package documents
 
 import (
+	"math"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -20,6 +21,35 @@ func TestTextXPChannelDocumentRoundTrip(t *testing.T) {
 	config := document.ToDomain()
 	if config.GuildID != "guild-1" || config.ChannelID != "channel-1" || config.Color != "#00ff00" || config.Message == "" {
 		t.Fatalf("config = %#v", config)
+	}
+}
+
+func TestXPProfileDocumentPreservesProfileScalarText(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+		want  string
+	}{
+		{name: "null", value: nil, want: "null"},
+		{name: "decimal", value: 12.5, want: "12.5"},
+		{name: "infinity", value: math.Inf(1), want: "Infinity"},
+		{name: "malformed", value: bson.D{{Key: "bad", Value: true}}, want: "undefined"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			encoded, err := bson.Marshal(bson.D{{Key: "guild", Value: "guild-1"}, {Key: "member", Value: "user-1"}, {Key: "xp", Value: test.value}, {Key: "leavel", Value: test.value}})
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			var document XPProfileDocument
+			if err := bson.Unmarshal(encoded, &document); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			profile := document.ToDomain()
+			if profile.XPText != test.want || profile.LevelText != test.want {
+				t.Fatalf("profile = %#v want %q", profile, test.want)
+			}
+		})
 	}
 }
 
@@ -99,7 +129,7 @@ func TestXPProfileDocumentReadsLegacyMixedNumericFields(t *testing.T) {
 			if err := bson.Unmarshal(encoded, &document); err != nil {
 				t.Fatalf("unmarshal fixture: %v", err)
 			}
-			if got := document.ToDomain(); got.GuildID != "guild-1" || got.UserID != "user-1" || got.XP != 12 || got.Level != 12 || got.LeaveJoin != "leave" {
+			if got := document.ToDomain(); got.GuildID != "guild-1" || got.UserID != "user-1" || got.XP != 12 || got.XPText != "12" || got.Level != 12 || got.LevelText != "12" || got.LeaveJoin != "leave" {
 				t.Fatalf("decoded profile = %#v", got)
 			}
 		})

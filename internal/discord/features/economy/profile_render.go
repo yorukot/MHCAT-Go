@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -163,8 +164,8 @@ func drawProfileHeader(canvas *image.RGBA, view profileCanvasView) {
 }
 
 func drawProfileStats(canvas *image.RGBA, result coreeconomy.ProfileResult) {
-	drawProfileProgress(canvas, 550, 333, profileProgressWidth(result.TextXP.XP, coreeconomy.LegacyProfileXPRequired(result.TextXP.Level, false), result.TextXPFound), color.RGBA{R: 100, G: 255, B: 191, A: 255})
-	drawProfileProgress(canvas, 1038, 333, profileProgressWidth(result.VoiceXP.XP, coreeconomy.LegacyProfileXPRequired(result.VoiceXP.Level, true), result.VoiceXPFound), color.RGBA{R: 234, G: 121, B: 255, A: 255})
+	drawProfileProgress(canvas, 550, 333, profileProgressWidth(result.TextXP, result.TextXPFound, false), color.RGBA{R: 100, G: 255, B: 191, A: 255})
+	drawProfileProgress(canvas, 1038, 333, profileProgressWidth(result.VoiceXP, result.VoiceXPFound, true), color.RGBA{R: 234, G: 121, B: 255, A: 255})
 	drawProfileXPTextCentered(canvas, 750, 363, profileXPProgressText(result.TextXP, result.TextXPFound, false), color.RGBA{R: 255, G: 88, B: 9, A: 255}, 30)
 	drawProfileXPTextCentered(canvas, 1238, 363, profileXPProgressText(result.VoiceXP, result.VoiceXPFound, true), color.RGBA{R: 40, G: 255, B: 40, A: 255}, 30)
 
@@ -201,11 +202,16 @@ func drawProfileProgress(canvas *image.RGBA, x, y, width int, c color.RGBA) {
 	}
 }
 
-func profileProgressWidth(xp int64, required int64, found bool) int {
-	if !found || required <= 0 || xp <= 0 {
+func profileProgressWidth(profile domain.XPProfile, found bool, voice bool) int {
+	if !found {
 		return 0
 	}
-	percent := int(float64(xp)/float64(required)*100 + 0.5)
+	xp := coreeconomy.LegacyProfileXPNumber(profile)
+	required := coreeconomy.LegacyProfileXPRequiredForProfile(profile, voice)
+	if math.IsNaN(xp) || math.IsNaN(required) || math.IsInf(xp, 0) || math.IsInf(required, 0) || required == 0 {
+		return 0
+	}
+	percent := int(math.Floor(xp/required*100 + 0.5))
 	if percent <= 0 {
 		return 0
 	}
@@ -216,7 +222,7 @@ func profileXPProgressText(profile domain.XPProfile, found bool, voice bool) str
 	if !found {
 		return "0/0"
 	}
-	return coreeconomy.LegacyProfileAmount(float64(profile.XP)) + "/" + coreeconomy.LegacyProfileAmount(float64(coreeconomy.LegacyProfileXPRequired(profile.Level, voice)))
+	return coreeconomy.LegacyProfileXPAmount(profile) + "/" + coreeconomy.LegacyProfileAmount(coreeconomy.LegacyProfileXPRequiredForProfile(profile, voice))
 }
 
 func profileRankText(rank int, found bool, text bool) string {
@@ -233,14 +239,14 @@ func profileXPValue(profile domain.XPProfile, found bool) string {
 	if !found {
 		return "沒有資料"
 	}
-	return coreeconomy.LegacyProfileAmount(float64(profile.XP))
+	return coreeconomy.LegacyProfileXPAmount(profile)
 }
 
 func profileLevelValue(profile domain.XPProfile, found bool) string {
 	if !found {
 		return "沒有資料"
 	}
-	return strconv.FormatInt(profile.Level, 10)
+	return coreeconomy.LegacyProfileLevelText(profile)
 }
 
 func profileCoinText(result coreeconomy.ProfileResult) string {
