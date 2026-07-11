@@ -31,6 +31,7 @@ func TestSettingsSavesLegacyConfigShape(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	usage := &fakeusage.Tracker{}
 	module := NewSettingsModule(repo, nil, usage)
+	module.color = func() int { return 0x123456 }
 	responder := fakediscord.NewResponder()
 	interaction := settingsInteraction()
 	interaction.Actor.PermissionBits = economySettingsManageMessagesPermission
@@ -50,6 +51,9 @@ func TestSettingsSavesLegacyConfigShape(t *testing.T) {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 	embed := responder.Edits[0].Embeds[0]
+	if embed.Color != 0x123456 {
+		t.Fatalf("success color = %#x", embed.Color)
+	}
 	if !strings.Contains(embed.Title, "扭蛋所需代幣:`700`") || !strings.Contains(embed.Title, "等級提升給予倍數:`2.5`") || embed.Description != "通知頻道:<#222222222222222222>" {
 		t.Fatalf("success embed = %#v", embed)
 	}

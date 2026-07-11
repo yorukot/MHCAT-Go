@@ -16,7 +16,6 @@ import (
 const (
 	economySettingsManageMessagesPermission = int64(8192)
 	economySettingsErrorColor               = 0xED4245
-	economySettingsSuccessColor             = 0x5865F2
 	economySettingsMaxError                 = "最高代幣設定數只能是999999999"
 	economySettingsCooldownError            = "必須大於-1(0代表0:00重製)"
 	economySettingsNonNegativeError         = "設定數必須大於或等於0"
@@ -46,7 +45,7 @@ func (m Module) SettingsHandler() interactions.Handler {
 			}
 			return err
 		}
-		if err := responder.EditOriginal(ctx, economySettingsSuccessMessage(config, command.SignCooldownHours, interaction.Actor.AvatarURL)); err != nil {
+		if err := responder.EditOriginal(ctx, economySettingsSuccessMessage(config, command.SignCooldownHours, interaction.Actor.AvatarURL, m.randomColor())); err != nil {
 			return err
 		}
 		return m.trackCommand(ctx, interaction, EconomySettingsCommandName)
@@ -92,7 +91,7 @@ func economySettingsCommandFromInteraction(interaction interactions.Interaction)
 	}, "", true
 }
 
-func economySettingsSuccessMessage(config domain.EconomyConfig, cooldownHours int64, avatarURL string) responses.Message {
+func economySettingsSuccessMessage(config domain.EconomyConfig, cooldownHours int64, avatarURL string, color int) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title: fmt.Sprintf("<:money:997374193026994236>成功改變每次扭蛋及抽獎代幣數\n扭蛋所需代幣:`%d`\n簽到給予代幣數:`%d`\n等級提升給予倍數:`%s`\n每次簽到所需時間:`%d 小時`",
@@ -106,7 +105,7 @@ func economySettingsSuccessMessage(config domain.EconomyConfig, cooldownHours in
 				Text:    "MHCAT",
 				IconURL: avatarURL,
 			},
-			Color: economySettingsSuccessColor,
+			Color: color,
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
