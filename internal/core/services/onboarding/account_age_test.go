@@ -380,3 +380,24 @@ func TestAccountAgeMessagesPreserveLegacyPayloads(t *testing.T) {
 		t.Fatalf("log message = %#v, want %#v", gotLog, wantLog)
 	}
 }
+
+func TestAccountAgeLogMessagePreservesJavaScriptTimestampRoundingAndColorRange(t *testing.T) {
+	for _, tc := range []struct {
+		createdAt time.Time
+		want      string
+	}{
+		{createdAt: time.UnixMilli(1499), want: "<t:1>"},
+		{createdAt: time.UnixMilli(1500), want: "<t:2>"},
+	} {
+		message := accountAgeLogMessage(AccountAgeMemberEvent{AccountCreatedAt: tc.createdAt})
+		if got := message.Embeds[0].Fields[0].Value; got != tc.want {
+			t.Fatalf("timestamp %s = %q, want %q", tc.createdAt, got, tc.want)
+		}
+	}
+	for range 256 {
+		color := accountAgeLogMessage(AccountAgeMemberEvent{}).Embeds[0].Color
+		if color < 0 || color > 0xFFFFFF {
+			t.Fatalf("color = %#x", color)
+		}
+	}
+}
