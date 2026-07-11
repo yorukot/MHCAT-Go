@@ -18,7 +18,7 @@ import (
 
 const (
 	warningManageMessagesPermission = int64(8192)
-	warningErrorColor               = 0xEA0000
+	warningErrorColor               = 0xED4245
 	warningSettingsSuccessColor     = 0x57F287
 	warningRemovalSuccessColor      = 0x57F287
 	warningRemovalDMColor           = 0x00DB00

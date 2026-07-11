@@ -112,7 +112,7 @@ func TestWarningSettingsRequiresManageMessages(t *testing.T) {
 	if err := module.WarningSettingsHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") {
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") || responder.Edits[0].Embeds[0].Color != 0xED4245 {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 }
@@ -779,7 +779,7 @@ func TestDeleteDataPromptRequiresManageMessages(t *testing.T) {
 	if len(responder.Defers) != 1 || responder.Defers[0].Ephemeral {
 		t.Fatalf("legacy slash defer should be public: %#v", responder.Defers)
 	}
-	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 你需要有`訊息管理`才能使用此指令" || responder.Edits[0].Embeds[0].Color != warningErrorColor || responder.Edits[0].Ephemeral {
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 你需要有`訊息管理`才能使用此指令" || responder.Edits[0].Embeds[0].Color != 0xED4245 || responder.Edits[0].Ephemeral {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 	if len(responder.Follow) != 0 {
