@@ -25,3 +25,7 @@ type BotInfo struct {
 type BotInfoProvider interface {
 	BotInfo(ctx context.Context) (BotInfo, error)
 }
+
+type ShardInfoProvider interface {
+	ShardInfo(ctx context.Context) (BotInfo, error)
+}

@@ -38,7 +38,7 @@ func (s linuxSystemMetricsSampler) Sample(ctx context.Context) (SystemMetrics, e
 	if err != nil {
 		return SystemMetrics{}, err
 	}
-	processHeap, processRSS, err := linuxProcessMemory()
+	processHeap, processRSS, err := s.SampleProcess(ctx)
 	if err != nil {
 		return SystemMetrics{}, err
 	}
@@ -50,6 +50,13 @@ func (s linuxSystemMetricsSampler) Sample(ctx context.Context) (SystemMetrics, e
 		ProcessHeapMB:     processHeap,
 		ProcessRSSMB:      processRSS,
 	}, nil
+}
+
+func (linuxSystemMetricsSampler) SampleProcess(ctx context.Context) (heapMB int64, rssMB int64, err error) {
+	if err := ctx.Err(); err != nil {
+		return 0, 0, err
+	}
+	return linuxProcessMemory()
 }
 
 func linuxCPUModel() (string, error) {

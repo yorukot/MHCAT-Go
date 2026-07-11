@@ -30,6 +30,23 @@ func (s StatusService) Info(ctx context.Context) (ports.BotInfo, bool) {
 	return info, false
 }
 
+func (s StatusService) ShardInfo(ctx context.Context) (ports.BotInfo, bool) {
+	if provider, ok := s.Provider.(ports.ShardInfoProvider); ok {
+		info, err := provider.ShardInfo(ctx)
+		if err != nil {
+			return ports.BotInfo{Name: "MHCAT"}, true
+		}
+		if info.Name == "" {
+			info.Name = "MHCAT"
+		}
+		if info.ShardCount == 0 {
+			info.ShardCount = 1
+		}
+		return info, false
+	}
+	return s.Info(ctx)
+}
+
 func (s StatusService) BotStatus(ctx context.Context) (string, error) {
 	info, degraded := s.Info(ctx)
 	if degraded && s.Provider == nil {

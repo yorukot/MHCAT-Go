@@ -72,17 +72,7 @@ func TestInfoBotHandlerDegradedProviderSafe(t *testing.T) {
 }
 
 func TestInfoShardHandlerReturnsLegacyEmbed(t *testing.T) {
-	provider := fakebotinfo.Provider{Info: ports.BotInfo{
-		Name:          "MHCAT",
-		ShardID:       1,
-		ShardCount:    2,
-		GuildCount:    22,
-		UserCount:     330,
-		Latency:       12 * time.Millisecond,
-		Uptime:        3 * time.Minute,
-		ProcessHeapMB: 256,
-		ProcessRSSMB:  1024,
-	}}
+	provider := panicBotInfoProvider{}
 	module := featureutility.NewModule(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), provider, nil, nil)
 	responder := fakediscord.NewResponder()
 	if err := module.InfoHandler()(context.Background(), fakediscord.SlashInteractionWithOptions("info", "shard", nil), responder); err != nil {
@@ -105,6 +95,12 @@ func TestInfoShardHandlerReturnsLegacyEmbed(t *testing.T) {
 	if button.CustomID != "shardinfoupdate" || button.Label != "更新" || button.Style != responses.ButtonStyleSuccess {
 		t.Fatalf("shard refresh button = %#v", button)
 	}
+}
+
+type panicBotInfoProvider struct{}
+
+func (panicBotInfoProvider) BotInfo(context.Context) (ports.BotInfo, error) {
+	panic("initial info shard must not call bot info provider")
 }
 
 func TestInfoUnsupportedSubcommandSafe(t *testing.T) {

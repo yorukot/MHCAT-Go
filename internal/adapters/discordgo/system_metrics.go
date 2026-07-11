@@ -14,3 +14,7 @@ type SystemMetrics struct {
 type SystemMetricsSampler interface {
 	Sample(ctx context.Context) (SystemMetrics, error)
 }
+
+type ProcessMetricsSampler interface {
+	SampleProcess(ctx context.Context) (heapMB int64, rssMB int64, err error)
+}

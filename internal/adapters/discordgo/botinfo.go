@@ -40,6 +40,42 @@ func (p BotInfoProvider) BotInfo(ctx context.Context) (ports.BotInfo, error) {
 		ProcessHeapMB:   metrics.ProcessHeapMB,
 		ProcessRSSMB:    metrics.ProcessRSSMB,
 	}
+	return p.populateRuntimeInfo(info), nil
+}
+
+func (p BotInfoProvider) ShardInfo(ctx context.Context) (ports.BotInfo, error) {
+	if err := ctx.Err(); err != nil {
+		return ports.BotInfo{}, err
+	}
+	metricsSampler := p.Metrics
+	if metricsSampler == nil {
+		metricsSampler = defaultSystemMetricsSampler()
+	}
+	var heapMB, rssMB int64
+	if processSampler, ok := metricsSampler.(ProcessMetricsSampler); ok {
+		var err error
+		heapMB, rssMB, err = processSampler.SampleProcess(ctx)
+		if err != nil {
+			return ports.BotInfo{}, err
+		}
+	} else {
+		metrics, err := metricsSampler.Sample(ctx)
+		if err != nil {
+			return ports.BotInfo{}, err
+		}
+		heapMB = metrics.ProcessHeapMB
+		rssMB = metrics.ProcessRSSMB
+	}
+	return p.populateRuntimeInfo(ports.BotInfo{
+		Name:          p.Name,
+		ShardID:       p.ShardID,
+		ShardCount:    p.ShardCount,
+		ProcessHeapMB: heapMB,
+		ProcessRSSMB:  rssMB,
+	}), nil
+}
+
+func (p BotInfoProvider) populateRuntimeInfo(info ports.BotInfo) ports.BotInfo {
 	if info.Name == "" {
 		info.Name = "MHCAT"
 	}
@@ -50,7 +86,7 @@ func (p BotInfoProvider) BotInfo(ctx context.Context) (ports.BotInfo, error) {
 		info.Uptime = time.Since(p.StartedAt)
 	}
 	if p.Session == nil {
-		return info, nil
+		return info
 	}
 	p.Session.mu.Lock()
 	session := p.Session.session
@@ -58,14 +94,16 @@ func (p BotInfoProvider) BotInfo(ctx context.Context) (ports.BotInfo, error) {
 	p.Session.mu.Unlock()
 	info.GatewayConnected = opened
 	if session == nil {
-		return info, nil
+		return info
 	}
 	if opened {
 		info.Latency = session.HeartbeatLatency()
 	}
 	info.GuildCount, info.UserCount = stateCounts(session.State)
-	return info, nil
+	return info
 }
+
+var _ ports.ShardInfoProvider = BotInfoProvider{}
 
 func stateCounts(state *dgo.State) (int, int) {
 	if state == nil {

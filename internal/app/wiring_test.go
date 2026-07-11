@@ -193,7 +193,7 @@ func TestBuildRuntimeRoutesInfoShard(t *testing.T) {
 	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("dispatch info shard: %v", err)
 	}
-	if len(responder.Follow) != 1 || len(responder.Follow[0].Embeds) != 1 || !strings.Contains(responder.Follow[0].Embeds[0].Title, "錯誤") {
+	if len(responder.Follow) != 1 || len(responder.Follow[0].Embeds) != 1 || !strings.Contains(responder.Follow[0].Embeds[0].Title, "以下是每個分片的資訊") || len(responder.Follow[0].Embeds[0].Fields) != 0 {
 		t.Fatalf("follow=%#v edits=%#v replies=%#v", responder.Follow, responder.Edits, responder.Replies)
 	}
 }

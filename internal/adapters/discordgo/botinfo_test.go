@@ -56,6 +56,10 @@ func (s staticSystemMetricsSampler) Sample(context.Context) (SystemMetrics, erro
 	return s.metrics, nil
 }
 
+func (s staticSystemMetricsSampler) SampleProcess(context.Context) (int64, int64, error) {
+	return s.metrics.ProcessHeapMB, s.metrics.ProcessRSSMB, nil
+}
+
 func fixedSystemMetricsSampler() SystemMetricsSampler {
 	return staticSystemMetricsSampler{metrics: SystemMetrics{
 		CPUModel:          "test-cpu",
@@ -65,4 +69,34 @@ func fixedSystemMetricsSampler() SystemMetricsSampler {
 		ProcessHeapMB:     64,
 		ProcessRSSMB:      96,
 	}}
+}
+
+func TestBotInfoProviderShardInfoSkipsFullHostSample(t *testing.T) {
+	sampler := &countingSystemMetricsSampler{}
+	provider := BotInfoProvider{Metrics: sampler, ShardID: 2, ShardCount: 3}
+	info, err := provider.ShardInfo(context.Background())
+	if err != nil {
+		t.Fatalf("shard info: %v", err)
+	}
+	if sampler.fullCalls != 0 || sampler.processCalls != 1 {
+		t.Fatalf("sampler calls = full %d process %d", sampler.fullCalls, sampler.processCalls)
+	}
+	if info.ShardID != 2 || info.ShardCount != 3 || info.ProcessHeapMB != 64 || info.ProcessRSSMB != 96 {
+		t.Fatalf("info = %#v", info)
+	}
+}
+
+type countingSystemMetricsSampler struct {
+	fullCalls    int
+	processCalls int
+}
+
+func (s *countingSystemMetricsSampler) Sample(context.Context) (SystemMetrics, error) {
+	s.fullCalls++
+	return SystemMetrics{}, nil
+}
+
+func (s *countingSystemMetricsSampler) SampleProcess(context.Context) (int64, int64, error) {
+	s.processCalls++
+	return 64, 96, nil
 }

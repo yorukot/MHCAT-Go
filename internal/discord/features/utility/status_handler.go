@@ -50,11 +50,7 @@ func (m Module) handleInfoShard(ctx context.Context, interaction interactions.In
 	if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
 		return err
 	}
-	_, degraded := m.status.Info(ctx)
 	msg := legacyInfoShardMessage()
-	if degraded {
-		msg = legacyInfoErrorMessage()
-	}
 	if err := responder.FollowUp(ctx, msg); err != nil {
 		return err
 	}
@@ -122,7 +118,7 @@ func (m Module) InfoBotRefreshHandler() interactions.Handler {
 		if err := responder.Defer(ctx, responses.DeferOptions{Ephemeral: true}); err != nil {
 			return err
 		}
-		info, degraded := m.status.Info(ctx)
+		info, degraded := m.status.ShardInfo(ctx)
 		if degraded {
 			if err := responder.FollowUp(ctx, legacyInfoErrorMessage()); err != nil {
 				return err
