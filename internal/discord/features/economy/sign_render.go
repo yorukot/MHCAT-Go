@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	xdraw "golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
@@ -23,6 +24,7 @@ type signCalendarView struct {
 	Year       int
 	Month      time.Month
 	Username   string
+	AvatarData []byte
 	StatusText string
 	Calendar   domain.SignCalendar
 }
@@ -40,6 +42,7 @@ func renderSignPNG(view signCalendarView) ([]byte, error) {
 	drawSignBackground(canvas)
 	draw.Draw(canvas, canvas.Bounds(), &image.Uniform{C: color.RGBA{A: 128}}, image.Point{}, draw.Over)
 	drawSignAsset(canvas, "asset/mhcat_white.png", image.Pt(20, 35))
+	drawSignAvatar(canvas, view.AvatarData)
 	drawCoinRankNumericText(canvas, 100, 89, fmt.Sprintf("%04d/%02d", view.Year, int(view.Month)), color.RGBA{R: 0, G: 255, B: 255, A: 255}, 40)
 	drawSignRightAlignedText(canvas, 880, 89, view.Username, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 45)
 	for _, line := range []struct {
@@ -79,6 +82,29 @@ func renderSignPNG(view signCalendarView) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func drawSignAvatar(canvas *image.RGBA, data []byte) {
+	avatar := decodeProfileImage(data)
+	if avatar == nil {
+		avatar = loadSignAsset("asset/yellow_discord.png")
+	}
+	if avatar == nil {
+		return
+	}
+	large := image.NewRGBA(image.Rect(0, 0, 128, 128))
+	xdraw.CatmullRom.Scale(large, large.Bounds(), avatar, avatar.Bounds(), draw.Over, nil)
+	rounded := image.NewRGBA(large.Bounds())
+	for y := 0; y < 128; y++ {
+		for x := 0; x < 128; x++ {
+			if insideRoundedRect(x, y, 128, 128, 40) {
+				rounded.Set(x, y, large.At(x, y))
+			}
+		}
+	}
+	small := image.NewRGBA(image.Rect(0, 0, 80, 80))
+	xdraw.CatmullRom.Scale(small, small.Bounds(), rounded, rounded.Bounds(), draw.Over, nil)
+	draw.Draw(canvas, image.Rect(900, 35, 980, 115), small, image.Point{}, draw.Over)
 }
 
 func drawSignBackground(canvas *image.RGBA) {

@@ -71,7 +71,7 @@ func (m Module) SignInHandler() interactions.Handler {
 			UserID: interaction.Actor.UserID,
 			Year:   local.Year(),
 			Month:  local.Month(),
-		}, actorDisplayName(interaction), signSuccessText)
+		}, actorDisplayName(interaction), fetchProfileAvatar(ctx, interaction.Actor.AvatarURL), signSuccessText)
 		if err != nil {
 			return err
 		}
@@ -100,7 +100,15 @@ func (m Module) SignPageHandler() interactions.Handler {
 		if err != nil {
 			return err
 		}
-		message, err := m.signCalendarMessage(calendar, request, m.lookupUsername(ctx, interaction.Actor.GuildID, request.UserID), "")
+		userInfo, userErr := m.lookupProfileUser(ctx, interaction, request.UserID)
+		if userErr != nil {
+			return userErr
+		}
+		username := strings.TrimSpace(userInfo.Username)
+		if username == "" {
+			username = request.UserID
+		}
+		message, err := m.signCalendarMessage(calendar, request, username, fetchProfileAvatar(ctx, userInfo.AvatarURL), "")
 		if err != nil {
 			return err
 		}
@@ -127,7 +135,7 @@ func (m Module) signInErrorMessage(ctx context.Context, interaction interactions
 		UserID: interaction.Actor.UserID,
 		Year:   local.Year(),
 		Month:  local.Month(),
-	}, actorDisplayName(interaction), status)
+	}, actorDisplayName(interaction), fetchProfileAvatar(ctx, interaction.Actor.AvatarURL), status)
 	return message, true, buildErr
 }
 
@@ -142,11 +150,12 @@ func (m Module) signDuplicateText(ctx context.Context, guildID string) string {
 	return signRollingDuplicateText
 }
 
-func (m Module) signCalendarMessage(calendar domain.SignCalendar, request signPageRequest, username string, status string) (responses.Message, error) {
+func (m Module) signCalendarMessage(calendar domain.SignCalendar, request signPageRequest, username string, avatarData []byte, status string) (responses.Message, error) {
 	image, err := renderSignPNG(signCalendarView{
 		Year:       request.Year,
 		Month:      request.Month,
 		Username:   username,
+		AvatarData: avatarData,
 		StatusText: status,
 		Calendar:   calendar,
 	})

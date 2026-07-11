@@ -167,6 +167,27 @@ func TestSignCanvasUsesLegacyBlurredBackgroundLogoAndVerificationIcon(t *testing
 	}
 }
 
+func TestDrawSignAvatarUsesLegacyPositionAndRoundedMask(t *testing.T) {
+	avatar := image.NewRGBA(image.Rect(0, 0, 32, 32))
+	draw.Draw(avatar, avatar.Bounds(), &image.Uniform{C: color.RGBA{R: 240, G: 20, B: 40, A: 255}}, image.Point{}, draw.Src)
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, avatar); err != nil {
+		t.Fatalf("encode avatar: %v", err)
+	}
+
+	background := color.RGBA{R: 12, G: 34, B: 56, A: 255}
+	canvas := image.NewRGBA(image.Rect(0, 0, 1000, 707))
+	draw.Draw(canvas, canvas.Bounds(), &image.Uniform{C: background}, image.Point{}, draw.Src)
+	drawSignAvatar(canvas, encoded.Bytes())
+
+	if got := canvas.RGBAAt(940, 75); got != (color.RGBA{R: 240, G: 20, B: 40, A: 255}) {
+		t.Fatalf("avatar center pixel = %#v", got)
+	}
+	if got := canvas.RGBAAt(900, 35); got != background {
+		t.Fatalf("avatar corner pixel = %#v want background %#v", got, background)
+	}
+}
+
 func TestSignPageHandlerSupportsLegacyButtonID(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutCalendar(signTestCalendar())
