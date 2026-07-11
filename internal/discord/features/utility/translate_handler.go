@@ -22,7 +22,8 @@ func (m Module) TranslateHandler() interactions.Handler {
 		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
 			return err
 		}
-		if err := responder.EditOriginal(ctx, translateLoadingMessage()); err != nil {
+		loadingMessageID, err := responder.CreateFollowUp(ctx, translateLoadingMessage())
+		if err != nil {
 			return err
 		}
 		source := strings.TrimSpace(interaction.Options["要的翻譯"])
@@ -35,9 +36,9 @@ func (m Module) TranslateHandler() interactions.Handler {
 		result, err := m.translate.Translate(providerCtx, source, targetLanguage)
 		cancel()
 		if err != nil {
-			return responder.EditOriginal(ctx, translateErrorMessage(err))
+			return responder.EditFollowUp(ctx, loadingMessageID, translateErrorMessage(err))
 		}
-		if err := responder.EditOriginal(ctx, translateResultMessage(interaction, source, targetLanguage, result.Text, m.randomTranslateColor())); err != nil {
+		if err := responder.EditFollowUp(ctx, loadingMessageID, translateResultMessage(interaction, source, targetLanguage, result.Text, m.randomTranslateColor())); err != nil {
 			return err
 		}
 		return m.track(ctx, interaction, "翻譯")

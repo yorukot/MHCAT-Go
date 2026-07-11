@@ -45,13 +45,16 @@ func TestTranslateHandlerRendersLegacyLoadingAndResultEmbeds(t *testing.T) {
 	if len(responder.Defers) != 1 {
 		t.Fatalf("defers = %#v", responder.Defers)
 	}
-	if len(responder.Edits) != 2 {
-		t.Fatalf("expected loading and result edits, got %#v", responder.Edits)
+	if len(responder.Follow) != 1 || len(responder.FollowEdits) != 1 || len(responder.Edits) != 0 {
+		t.Fatalf("follow=%#v follow edits=%#v original edits=%#v", responder.Follow, responder.FollowEdits, responder.Edits)
 	}
-	if responder.Edits[0].Embeds[0].Title != "<a:load:986319593444352071> | 我正在玩命幫你翻譯!" {
-		t.Fatalf("loading embed = %#v", responder.Edits[0].Embeds[0])
+	if responder.Follow[0].Embeds[0].Title != "<a:load:986319593444352071> | 我正在玩命幫你翻譯!" {
+		t.Fatalf("loading embed = %#v", responder.Follow[0].Embeds[0])
 	}
-	final := responder.Edits[1].Embeds[0]
+	if responder.FollowEdits[0].MessageID != responder.FollowIDs[0] {
+		t.Fatalf("follow-up edit = %#v ids=%#v", responder.FollowEdits, responder.FollowIDs)
+	}
+	final := responder.FollowEdits[0].Message.Embeds[0]
 	if final.Title != "<:translate:986870996147507231> 翻譯系統" || final.Color != 0x123456 || len(final.Fields) != 3 {
 		t.Fatalf("final embed = %#v", final)
 	}
@@ -86,7 +89,7 @@ func TestTranslateHandlerReturnsSafeProviderError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("translate handler: %v", err)
 	}
-	last := responder.Edits[len(responder.Edits)-1]
+	last := responder.FollowEdits[len(responder.FollowEdits)-1].Message
 	if strings.Contains(last.Embeds[0].Title, "provider internal") || !strings.Contains(last.Embeds[0].Title, "翻譯失敗") {
 		t.Fatalf("error embed leaked provider detail: %#v", last.Embeds[0])
 	}
@@ -110,8 +113,8 @@ func TestTranslateHandlerCanRenderProviderTimeoutError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("translate handler: %v", err)
 	}
-	if len(responder.Edits) != 2 || !strings.Contains(responder.Edits[1].Embeds[0].Title, "翻譯失敗") {
-		t.Fatalf("edits = %#v", responder.Edits)
+	if len(responder.Follow) != 1 || len(responder.FollowEdits) != 1 || !strings.Contains(responder.FollowEdits[0].Message.Embeds[0].Title, "翻譯失敗") {
+		t.Fatalf("follow=%#v follow edits=%#v", responder.Follow, responder.FollowEdits)
 	}
 }
 

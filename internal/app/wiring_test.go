@@ -2854,8 +2854,8 @@ func TestBuildRuntimeRoutesTranslateOnlyWithProvider(t *testing.T) {
 	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("dispatch translate: %v", err)
 	}
-	if len(responder.Edits) != 2 || !strings.Contains(responder.Edits[1].Embeds[0].Title, "翻譯系統") {
-		t.Fatalf("edits = %#v", responder.Edits)
+	if len(responder.Follow) != 1 || len(responder.FollowEdits) != 1 || len(responder.Edits) != 0 || !strings.Contains(responder.FollowEdits[0].Message.Embeds[0].Title, "翻譯系統") {
+		t.Fatalf("follow=%#v follow edits=%#v original edits=%#v", responder.Follow, responder.FollowEdits, responder.Edits)
 	}
 }
 
