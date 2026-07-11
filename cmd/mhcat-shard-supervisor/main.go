@@ -191,17 +191,26 @@ func (s *supervisor) killAll() {
 }
 
 func shardEnvironment(base []string, shardID int, shardCount int) []string {
-	result := make([]string, 0, len(base)+2)
+	result := make([]string, 0, len(base)+3)
+	leaseOwner := ""
 	for _, value := range base {
+		if strings.HasPrefix(value, "MHCAT_SCHEDULER_LEASE_OWNER=") {
+			leaseOwner = strings.TrimPrefix(value, "MHCAT_SCHEDULER_LEASE_OWNER=")
+			continue
+		}
 		if strings.HasPrefix(value, "MHCAT_DISCORD_SHARD_ID=") || strings.HasPrefix(value, "MHCAT_DISCORD_SHARD_COUNT=") {
 			continue
 		}
 		result = append(result, value)
 	}
-	return append(result,
+	result = append(result,
 		"MHCAT_DISCORD_SHARD_ID="+strconv.Itoa(shardID),
 		"MHCAT_DISCORD_SHARD_COUNT="+strconv.Itoa(shardCount),
 	)
+	if strings.TrimSpace(leaseOwner) != "" {
+		result = append(result, "MHCAT_SCHEDULER_LEASE_OWNER="+leaseOwner+"-shard-"+strconv.Itoa(shardID))
+	}
+	return result
 }
 
 func envString(lookup func(string) (string, bool), key string, fallback string) string {

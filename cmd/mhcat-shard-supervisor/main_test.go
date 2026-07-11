@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -37,14 +38,23 @@ func TestLoadSupervisorConfigRejectsInvalidValues(t *testing.T) {
 }
 
 func TestShardEnvironmentReplacesExistingShardValues(t *testing.T) {
-	got := shardEnvironment([]string{"A=1", "MHCAT_DISCORD_SHARD_ID=9", "MHCAT_DISCORD_SHARD_COUNT=10"}, 3, 16)
-	want := []string{"A=1", "MHCAT_DISCORD_SHARD_ID=3", "MHCAT_DISCORD_SHARD_COUNT=16"}
+	got := shardEnvironment([]string{"A=1", "MHCAT_DISCORD_SHARD_ID=9", "MHCAT_DISCORD_SHARD_COUNT=10", "MHCAT_SCHEDULER_LEASE_OWNER=production"}, 3, 16)
+	want := []string{"A=1", "MHCAT_DISCORD_SHARD_ID=3", "MHCAT_DISCORD_SHARD_COUNT=16", "MHCAT_SCHEDULER_LEASE_OWNER=production-shard-3"}
 	if len(got) != len(want) {
 		t.Fatalf("environment = %#v", got)
 	}
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("environment[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestShardEnvironmentLeavesEmptyLeaseOwnerUnset(t *testing.T) {
+	got := shardEnvironment([]string{"MHCAT_SCHEDULER_LEASE_OWNER="}, 0, 1)
+	for _, value := range got {
+		if strings.HasPrefix(value, "MHCAT_SCHEDULER_LEASE_OWNER=") {
+			t.Fatalf("unexpected lease owner: %#v", got)
 		}
 	}
 }
