@@ -208,13 +208,25 @@ func TestProfileModuleRegistersLegacyRefreshRoute(t *testing.T) {
 		t.Fatalf("register: %v", err)
 	}
 	responder := fakediscord.NewResponder()
-	if err := router.Handle(context.Background(), fakediscord.ComponentInteractionFromID(userID+"my-profile"), responder); err != nil {
+	interaction := fakediscord.ComponentInteractionFromID(userID + "my-profile")
+	interaction.Actor.AvatarURL = "https://cdn.discordapp.com/avatars/clicker/a_hash.gif"
+	if err := router.Handle(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("route: %v", err)
 	}
 	if len(responder.Updates) != 1 {
 		t.Fatalf("updates = %#v", responder.Updates)
 	}
-	assertProfileImage(t, responder.Updates[0].Files)
+	loading := responder.Updates[0]
+	if len(loading.Embeds) != 1 || loading.Embeds[0].Author.Name != signLoadingAuthor || !loading.ClearAttachments || len(loading.Components) != 0 || len(loading.Files) != 0 {
+		t.Fatalf("loading update = %#v", loading)
+	}
+	if loading.Embeds[0].Footer.IconURL != "https://cdn.discordapp.com/avatars/clicker/a_hash.png" {
+		t.Fatalf("loading footer = %#v", loading.Embeds[0].Footer)
+	}
+	if len(responder.Edits) != 1 {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	assertProfileImage(t, responder.Edits[0].Files)
 }
 
 func assertProfileImage(t *testing.T, files []responses.File) {

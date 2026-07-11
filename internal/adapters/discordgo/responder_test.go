@@ -198,6 +198,17 @@ func TestDiscordButtonStyleConvertsSuccess(t *testing.T) {
 	}
 }
 
+func TestInteractionResponseDataCanExplicitlyClearAttachments(t *testing.T) {
+	data := interactionResponseData(responses.Message{ClearAttachments: true})
+	if data.Attachments == nil || len(*data.Attachments) != 0 {
+		t.Fatalf("attachments = %#v", data.Attachments)
+	}
+	edit := webhookEdit(responses.Message{ClearAttachments: true})
+	if edit.Attachments == nil || len(*edit.Attachments) != 0 {
+		t.Fatalf("edit attachments = %#v", edit.Attachments)
+	}
+}
+
 func TestModalResponseDataConvertsTextInputs(t *testing.T) {
 	data := modalResponseData(responses.Modal{
 		CustomID: "mhcat:v1:ticket:setup:c=222222222222222222,r=333333333333333333",

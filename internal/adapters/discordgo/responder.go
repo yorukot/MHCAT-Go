@@ -199,6 +199,10 @@ func interactionResponseData(msg responses.Message) *dgo.InteractionResponseData
 		Components: toDiscordComponents(msg.Components),
 		Files:      toDiscordFiles(msg.Files),
 	}
+	if msg.ClearAttachments {
+		empty := []*dgo.MessageAttachment{}
+		data.Attachments = &empty
+	}
 	data.AllowedMentions = toDiscordAllowedMentions(msg.AllowedMentions)
 	if msg.Ephemeral {
 		data.Flags = dgo.MessageFlagsEphemeral
@@ -232,13 +236,18 @@ func webhookEdit(msg responses.Message) *dgo.WebhookEdit {
 	content := msg.Content
 	embeds := toDiscordEmbeds(msg.Embeds)
 	components := toDiscordComponents(msg.Components)
-	return &dgo.WebhookEdit{
+	edit := &dgo.WebhookEdit{
 		Content:         &content,
 		Embeds:          &embeds,
 		Components:      &components,
 		Files:           toDiscordFiles(msg.Files),
 		AllowedMentions: toDiscordAllowedMentions(msg.AllowedMentions),
 	}
+	if msg.ClearAttachments {
+		empty := []*dgo.MessageAttachment{}
+		edit.Attachments = &empty
+	}
+	return edit
 }
 
 func toDiscordEmbeds(embeds []responses.Embed) []*dgo.MessageEmbed {

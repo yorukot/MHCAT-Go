@@ -6,12 +6,13 @@ import (
 )
 
 type Message struct {
-	Content         string
-	Embeds          []Embed
-	Components      []ComponentRow
-	Files           []File
-	AllowedMentions *AllowedMentions
-	Ephemeral       bool
+	Content          string
+	Embeds           []Embed
+	Components       []ComponentRow
+	Files            []File
+	ClearAttachments bool
+	AllowedMentions  *AllowedMentions
+	Ephemeral        bool
 }
 
 type Modal struct {

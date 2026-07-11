@@ -3,7 +3,6 @@ package economy
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"net/http"
 	"regexp"
@@ -36,7 +35,7 @@ func (m Module) ProfileHandler() interactions.Handler {
 			return err
 		}
 		targetUserID := profileTargetUserID(interaction)
-		message, err := m.profileMessage(ctx, interaction, targetUserID, false)
+		message, err := m.profileMessage(ctx, interaction, targetUserID)
 		if err != nil {
 			return err
 		}
@@ -56,14 +55,20 @@ func (m Module) ProfileRefreshHandler() interactions.Handler {
 		if err != nil {
 			return err
 		}
-		message, err := m.profileMessage(ctx, interaction, targetUserID, true)
+		userInfo, err := m.lookupProfileUser(ctx, interaction, targetUserID)
 		if err != nil {
-			if errors.Is(err, ports.ErrDiscordMemberNotFound) {
-				return responder.Reply(ctx, profileMissingMemberMessage())
-			}
+			return responder.Reply(ctx, profileMissingMemberMessage())
+		}
+		loading := signLoadingMessage(legacyCoinRankPNGURL(interaction.Actor.AvatarURL))
+		loading.ClearAttachments = true
+		if err := responder.UpdateMessage(ctx, loading); err != nil {
 			return err
 		}
-		return responder.UpdateMessage(ctx, message)
+		message, err := m.profileMessageWithUser(ctx, interaction, targetUserID, userInfo)
+		if err != nil {
+			return err
+		}
+		return responder.EditOriginal(ctx, message)
 	}
 }
 
@@ -84,18 +89,19 @@ func parseLegacyProfileRefresh(raw string) (string, error) {
 	return matches[1], nil
 }
 
-func (m Module) profileMessage(ctx context.Context, interaction interactions.Interaction, targetUserID string, requireMember bool) (responses.Message, error) {
+func (m Module) profileMessage(ctx context.Context, interaction interactions.Interaction, targetUserID string) (responses.Message, error) {
 	targetUserID = strings.TrimSpace(targetUserID)
 	if targetUserID == "" {
 		targetUserID = interaction.Actor.UserID
 	}
 	userInfo, err := m.lookupProfileUser(ctx, interaction, targetUserID)
 	if err != nil {
-		if requireMember {
-			return responses.Message{}, ports.ErrDiscordMemberNotFound
-		}
 		return responses.Message{}, err
 	}
+	return m.profileMessageWithUser(ctx, interaction, targetUserID, userInfo)
+}
+
+func (m Module) profileMessageWithUser(ctx context.Context, interaction interactions.Interaction, targetUserID string, userInfo ports.DiscordUserInfo) (responses.Message, error) {
 	guildInfo := m.lookupCoinRankGuild(ctx, interaction.Actor.GuildID)
 	now := clockOrSystem(m.clock).Now()
 	result, err := m.profile.Query(ctx, coreeconomy.ProfileQuery{
