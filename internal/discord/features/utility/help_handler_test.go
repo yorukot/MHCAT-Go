@@ -86,6 +86,36 @@ func TestHelpHandlerCommandDetail(t *testing.T) {
 	}
 }
 
+func TestHelpHandlerCommandDetailPreservesLegacyPermissionsAndTutorials(t *testing.T) {
+	module := featureutility.NewModule(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), nil, nil, nil)
+	tests := []struct {
+		command    string
+		permission string
+		tutorial   string
+	}{
+		{command: "代幣商店", permission: "```查詢跟購買大家都可用，剩下皆須訊息管理```", tutorial: "```此指令目前沒有教學```"},
+		{command: "automatic-notification", permission: "```訊息管理```", tutorial: "[__**點我立刻前往教學頁面**__](https://youtu.be/D43zPrZU5Fw)"},
+		{command: "公告頻道設置", permission: "```這個指令大家都可以用喔```", tutorial: "[__**點我立刻前往教學頁面**__](https://docsmhcat.yorukot.meocs/ann_set)"},
+		{command: "ping", permission: "```這個指令大家都可以用喔```", tutorial: "```此指令目前沒有教學```"},
+	}
+	for _, test := range tests {
+		t.Run(test.command, func(t *testing.T) {
+			interaction := fakediscord.SlashInteractionWithOptions("help", "", map[string]string{"指令名稱": test.command})
+			responder := fakediscord.NewResponder()
+			if err := module.HelpHandler()(context.Background(), interaction, responder); err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+			if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
+				t.Fatalf("response = %#v", responder.Edits)
+			}
+			fields := responder.Edits[0].Embeds[0].Fields
+			if len(fields) != 4 || fields[2].Value != test.permission || fields[3].Value != test.tutorial {
+				t.Fatalf("detail fields = %#v", fields)
+			}
+		})
+	}
+}
+
 func TestHelpHandlerUnknownCommandSafe(t *testing.T) {
 	module := featureutility.NewModule(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), nil, nil, nil)
 	interaction := fakediscord.SlashInteractionWithOptions("help", "", map[string]string{"指令名稱": "ticket"})

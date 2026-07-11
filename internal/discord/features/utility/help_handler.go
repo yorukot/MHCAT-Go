@@ -18,7 +18,7 @@ func (m Module) HelpHandler() interactions.Handler {
 		if supplied {
 			if category, ok := legacyHelpSlashCategoryMessage(interaction, query); ok {
 				msg = category
-			} else if detail, ok := legacyHelpCommandDetail(interaction, query); ok {
+			} else if detail, ok := legacyHelpCommandDetail(interaction, query, m.helpDefinitions); ok {
 				msg = detail
 			} else {
 				msg = legacyHelpInvalidCommand()
@@ -45,7 +45,7 @@ func (m Module) HelpComponentHandler() interactions.Handler {
 		if selected != "" {
 			if category, ok := legacyHelpCategoryMessage(interaction, selected, m.helpDefinitions); ok {
 				msg = category
-			} else if detail, ok := legacyHelpCommandDetail(interaction, selected); ok {
+			} else if detail, ok := legacyHelpCommandDetail(interaction, selected, m.helpDefinitions); ok {
 				msg = detail
 				msg.Ephemeral = true
 			} else {

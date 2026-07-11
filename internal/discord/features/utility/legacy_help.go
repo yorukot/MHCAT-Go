@@ -25,44 +25,42 @@ type legacyHelpCommand struct {
 	Name        string
 	Description string
 	Emoji       string
-	DocsURL     string
-	UserPerms   string
 	Docs        []string
 }
 
 var legacyHelpCategories = []legacyHelpCategory{
 	{Name: "代幣系統", Description: "類似於各位常見的經濟系統", Emoji: "<:money:997374193026994236>", Commands: []legacyHelpCommand{
-		{Name: "代幣增加", Description: "改變扭蛋數量", Emoji: "<:income:997374186794258452>", DocsURL: "https://docsmhcat.yorukot.meocs/coin_increase"},
-		{Name: "代幣查詢", Description: "查詢你有多少代幣", Emoji: "<:money:997374193026994236>", DocsURL: "https://docsmhcat.yorukot.meocs/coin"},
-		{Name: "coin-related-settings", Description: "Various settings related to tokens", Emoji: "<:coins:997374177944281190>", DocsURL: "https://docsmhcat.yorukot.meocs/required_coins", UserPerms: "訊息管理"},
+		{Name: "代幣增加", Description: "改變扭蛋數量", Emoji: "<:income:997374186794258452>"},
+		{Name: "代幣查詢", Description: "查詢你有多少代幣", Emoji: "<:money:997374193026994236>"},
+		{Name: "coin-related-settings", Description: "Various settings related to tokens", Emoji: "<:coins:997374177944281190>"},
 		{Name: "代幣排行榜", Description: "查詢代幣的排行榜", Emoji: "<:levelup:990254382845157406>"},
-		{Name: "代幣重製", Description: "重製所有人的代幣，或者是進行代幣改變幣值", Emoji: "<:money:997374193026994236>", DocsURL: "https://docs.mhcat.xyz/docs/coin"},
+		{Name: "代幣重製", Description: "重製所有人的代幣，或者是進行代幣改變幣值", Emoji: "<:money:997374193026994236>"},
 		{Name: "代幣遊戲", Description: "遊玩有關代幣的小遊戲", Emoji: "<:blackjack1:1005469910689923142>"},
 		{Name: "代幣商店", Description: "使用你所賺到的代幣買一些特別的東西吧!", Emoji: "<:store:1001118704651743372>", Docs: []string{"allcommands/%E4%BB%A3%E5%B9%A3%E7%B3%BB%E7%B5%B1/ghp_shop#%E5%A2%9E%E5%8A%A0%E5%95%86%E5%93%81", "allcommands/%E4%BB%A3%E5%B9%A3%E7%B3%BB%E7%B5%B1/ghp_shop#%E5%88%AA%E9%99%A4%E5%95%86%E5%93%81", "allcommands/%E4%BB%A3%E5%B9%A3%E7%B3%BB%E7%B5%B1/ghp_shop#%E8%B3%BC%E8%B2%B7%E5%95%86%E5%93%81"}},
-		{Name: "剪刀石頭布", Description: "跟電腦剪刀時候布來獲得代幣(有賺有賠)", Emoji: "<:coins:997374177944281190>", DocsURL: "https://docsmhcat.yorukot.me/docs/required_coins"},
-		{Name: "簽到", Description: "簽到來獲得代幣", Emoji: "<:sign:997374180632825896>", DocsURL: "https://docsmhcat.yorukot.me/docs/snig"},
-		{Name: "簽到列表", Description: "查看今天有誰簽到了", Emoji: "<:sign:997374180632825896>", DocsURL: "https://docsmhcat.yorukot.me/docs/snig"},
-		{Name: "my-profile", Description: "Check about data in specific server!!", Emoji: "<:sign:997374180632825896>", DocsURL: "https://docsmhcat.yorukot.me/docs/snig"},
+		{Name: "剪刀石頭布", Description: "跟電腦剪刀時候布來獲得代幣(有賺有賠)", Emoji: "<:coins:997374177944281190>"},
+		{Name: "簽到", Description: "簽到來獲得代幣", Emoji: "<:sign:997374180632825896>"},
+		{Name: "簽到列表", Description: "查看今天有誰簽到了", Emoji: "<:sign:997374180632825896>"},
+		{Name: "my-profile", Description: "Check about data in specific server!!", Emoji: "<:sign:997374180632825896>"},
 	}},
 	{Name: "公告系統", Description: "讓你的公告不再是普通的文字", Emoji: "<:megaphone:985943890148327454>", Commands: []legacyHelpCommand{
-		{Name: "公告發送", Description: "發送公告訊息", Emoji: "<:megaphone:985943890148327454>", DocsURL: "https://docsmhcat.yorukot.me/docs/ann"},
+		{Name: "公告發送", Description: "發送公告訊息", Emoji: "<:megaphone:985943890148327454>"},
 		{Name: "公告頻道設置", Description: "設定公告在哪發送", Emoji: "<:configuration:984010500608249886>"},
 	}},
 	{Name: "加入設置", Description: "當玩加入或離開時，要做一些動作", Emoji: "🪂", Commands: []legacyHelpCommand{
 		{Name: "加入訊息設置", Description: "設定玩家加入時發送甚麼訊息", Emoji: "<:comments:985944111725019246>"},
 		{Name: "加入身份組設置", Description: "設定玩家加入時要給甚麼身份組", Emoji: "<:roleplaying:985945121264635964>"},
-		{Name: "加入身份組刪除", Description: "刪除之前設定的加入身份組", Emoji: "<:delete:985944877663678505>", DocsURL: "https://docsmhcat.yorukot.me/docs/join_role_delete"},
+		{Name: "加入身份組刪除", Description: "刪除之前設定的加入身份組", Emoji: "<:delete:985944877663678505>"},
 		{Name: "退出訊息設置", Description: "設定玩家退出時發送甚麼訊息", Emoji: "<:comments:985944111725019246>"},
 		{Name: "驗證", Description: "確保你不是機器人", Emoji: "<:tickmark:985949769224556614>"},
 		{Name: "驗證設置", Description: "設置驗證完成後要給甚麼身份組", Emoji: "<:configuration:984010500608249886>"},
 	}},
 	{Name: "實用工具", Description: "查看一些實用的功能", Emoji: "<:bestpractice:986070549115596950>", Commands: []legacyHelpCommand{
-		{Name: "自動聊天頻道", Description: "設定自動聊天頻道要在哪裡發送", Emoji: "<:configuration:984010500608249886>", DocsURL: "https://docsmhcat.yorukot.me/docs/chat_xp_set"},
-		{Name: "自動聊天頻道刪除", Description: "刪除自動聊天頻道要在哪裡發送", Emoji: "<:delete:985944877663678505>", DocsURL: "https://docsmhcat.yorukot.me/docs/chat_xp_set"},
-		{Name: "help", Description: "使用我開始使用", Emoji: "<:help:985948179709186058>", DocsURL: "https://docsmhcat.yorukot.me/docs/help"},
+		{Name: "自動聊天頻道", Description: "設定自動聊天頻道要在哪裡發送", Emoji: "<:configuration:984010500608249886>"},
+		{Name: "自動聊天頻道刪除", Description: "刪除自動聊天頻道要在哪裡發送", Emoji: "<:delete:985944877663678505>"},
+		{Name: "help", Description: "使用我開始使用", Emoji: "<:help:985948179709186058>"},
 		{Name: "info", Description: "Check all informations.", Emoji: "<:info:985946738403737620>"},
 		{Name: "ping", Description: "查看我的ping", Emoji: "<:icons_goodping:1084881470075703367>"},
-		{Name: "翻譯", Description: "翻譯成各種語言", Emoji: "<:help:985948179709186058>", DocsURL: "https://docsmhcat.yorukot.me/docs/translate"},
+		{Name: "翻譯", Description: "翻譯成各種語言", Emoji: "<:help:985948179709186058>"},
 	}},
 	{Name: "打工系統", Description: "可以在閒暇之餘做些工作賺些代幣", Emoji: "<:working:1048617967799242772>", Commands: []legacyHelpCommand{
 		{Name: "打工系統", Description: "用自己的心血來獲得一些獎勵吧!", Emoji: "<:working:1048617967799242772>", Docs: []string{"allcommands/%E6%89%93%E5%B7%A5%E7%B3%BB%E7%B5%B1/work_set", "allcommands/%E6%89%93%E5%B7%A5%E7%B3%BB%E7%B5%B1/new_work", "allcommands/%E6%89%93%E5%B7%A5%E7%B3%BB%E7%B5%B1/delete_work", "allcommands/%E6%89%93%E5%B7%A5%E7%B3%BB%E7%B5%B1/user_work", "allcommands/%E6%89%93%E5%B7%A5%E7%B3%BB%E7%B5%B1/add_energy", "allcommands/%E6%89%93%E5%B7%A5%E7%B3%BB%E7%B5%B1/add_energy"}},
@@ -70,9 +68,9 @@ var legacyHelpCategories = []legacyHelpCategory{
 	{Name: "扭蛋系統", Description: "使用簽到以及聊天獲得的代幣進行扭蛋", Emoji: "<:vendingmachine:997374191651274823>", Commands: []legacyHelpCommand{
 		{Name: "扭蛋", Description: "進行扭蛋，有機會抽中各種大獎喔!!!!", Emoji: "<:gashapon:997374176526610472>"},
 		{Name: "扭蛋獎池刪除", Description: "刪除扭蛋的獎池", Emoji: "<:trashbin:995991389043163257>"},
-		{Name: "扭蛋獎品編輯", Description: "增加扭蛋的獎池裡的獎品的數量", Emoji: "<:add1:981722904251215872>", DocsURL: "https://docsmhcat.yorukot.me/docs/prize_add"},
-		{Name: "扭蛋獎池增加", Description: "增加扭蛋的獎池", Emoji: "<:add1:981722904251215872>", DocsURL: "https://docsmhcat.yorukot.me/docs/prize_add"},
-		{Name: "扭蛋獎池查詢", Description: "增加扭蛋的獎池", Emoji: "<:list:992002476360343602>", DocsURL: "https://docsmhcat.yorukot.me/docs/prize_search"},
+		{Name: "扭蛋獎品編輯", Description: "增加扭蛋的獎池裡的獎品的數量", Emoji: "<:add1:981722904251215872>"},
+		{Name: "扭蛋獎池增加", Description: "增加扭蛋的獎池", Emoji: "<:add1:981722904251215872>"},
+		{Name: "扭蛋獎池查詢", Description: "增加扭蛋的獎池", Emoji: "<:list:992002476360343602>"},
 	}},
 	{Name: "抽獎系統", Description: "一起來進行抽獎，來獲得非常棒的獎品吧", Emoji: "<:lottery:985946439253381200>", Commands: []legacyHelpCommand{
 		{Name: "抽獎設置", Description: "設置抽獎訊息", Emoji: "<:lottery:985946439253381200>", Docs: []string{"allcommands/%E6%8A%BD%E7%8D%8E%E7%B3%BB%E7%B5%B1/lotter"}},
@@ -105,13 +103,13 @@ var legacyHelpCategories = []legacyHelpCategory{
 		{Name: "經驗值重製", Description: "重製整個伺服器的經驗", Emoji: "<:onehour:1000310711941087293>"},
 		{Name: "聊天經驗身分組設定", Description: "設定聊天經驗通知要在哪發送", Emoji: "<:configuration:984010500608249886>"},
 		{Name: "聊天排行榜", Description: "查詢聊天經驗的排行榜", Emoji: "<:level1:985947371957547088>"},
-		{Name: "聊天經驗設定", Description: "設定聊天經驗通知要在哪發送", Emoji: "<:configuration:984010500608249886>", DocsURL: "https://docsmhcat.yorukot.me/docs/chat_xp_set"},
-		{Name: "聊天經驗刪除", Description: "刪除聊天經驗發送訊息設置", Emoji: "<:delete:985944877663678505>", DocsURL: "https://docsmhcat.yorukot.me/docs/chat_xp_delete"},
+		{Name: "聊天經驗設定", Description: "設定聊天經驗通知要在哪發送", Emoji: "<:configuration:984010500608249886>"},
+		{Name: "聊天經驗刪除", Description: "刪除聊天經驗發送訊息設置", Emoji: "<:delete:985944877663678505>"},
 		{Name: "聊天經驗", Description: "查詢聊天經驗", Emoji: "<:level1:985947371957547088>"},
-		{Name: "語音經驗身分組設定", Description: "設定語音經驗通知要在哪發送(兼增加、刪除、設定查詢)", Emoji: "<:configuration:984010500608249886>", DocsURL: "https://docsmhcat.yorukot.me/docs/chat_xp_set"},
+		{Name: "語音經驗身分組設定", Description: "設定語音經驗通知要在哪發送(兼增加、刪除、設定查詢)", Emoji: "<:configuration:984010500608249886>"},
 		{Name: "語音排行榜", Description: "查詢語音經驗的排行榜", Emoji: "<:level1:985947371957547088>"},
-		{Name: "語音經驗設定", Description: "設定語音經驗通知要在哪發送", Emoji: "<:configuration:984010500608249886>", DocsURL: "https://docsmhcat.yorukot.me/docs/voice_xp_set"},
-		{Name: "語音經驗刪除", Description: "刪除語音發送訊息設置", Emoji: "<:delete:985944877663678505>", DocsURL: "https://docsmhcat.yorukot.me/docs/voice_xp_delete"},
+		{Name: "語音經驗設定", Description: "設定語音經驗通知要在哪發送", Emoji: "<:configuration:984010500608249886>"},
+		{Name: "語音經驗刪除", Description: "刪除語音發送訊息設置", Emoji: "<:delete:985944877663678505>"},
 		{Name: "語音經驗", Description: "查詢語音經驗", Emoji: "<:level1:985947371957547088>"},
 		{Name: "經驗值改變", Description: "增加某人的經驗值", Emoji: "<:onehour:1000310711941087293>"},
 	}},
@@ -121,9 +119,9 @@ var legacyHelpCategories = []legacyHelpCategory{
 		{Name: "詐騙網址回報", Description: "回報詐騙網站", Emoji: "<:fraudalert:1000408260777611355>"},
 	}},
 	{Name: "自動通知", Description: "在一個特定的時間發送通知", Emoji: "<:alarmclock:997415306530131980>", Commands: []legacyHelpCommand{
-		{Name: "自動通知刪除", Description: "刪除之前設定的自動通知", Emoji: "<:trashbin:995991389043163257>", DocsURL: "https://docsmhcat.yorukot.me/docs/chat_xp_set"},
-		{Name: "自動通知列表", Description: "查看所有的自動通知列表", Emoji: "<:list:992002476360343602>", DocsURL: "https://docsmhcat.yorukot.me/docs/chat_xp_set"},
-		{Name: "automatic-notification", Description: "Set where automatic notification should be send", Emoji: "<:configuration:984010500608249886>", DocsURL: "https://docsmhcat.yorukot.me/docs/chat_xp_set"},
+		{Name: "自動通知刪除", Description: "刪除之前設定的自動通知", Emoji: "<:trashbin:995991389043163257>"},
+		{Name: "自動通知列表", Description: "查看所有的自動通知列表", Emoji: "<:list:992002476360343602>"},
+		{Name: "automatic-notification", Description: "Set where automatic notification should be send", Emoji: "<:configuration:984010500608249886>"},
 	}},
 	{Name: "語音包廂", Description: "創建一個可活動的語音頻道", Emoji: "🔉", Commands: []legacyHelpCommand{
 		{Name: "上鎖頻道", Description: "設定語音包廂密碼", Emoji: "<:mapsandflags:985949507114131587>"},
@@ -137,6 +135,97 @@ var legacyHelpCategories = []legacyHelpCategory{
 		{Name: "警告", Description: "警告一個使用者", Emoji: "<:warning:985590881698590730>"},
 		{Name: "警告紀錄", Description: "收尋一位使用者的警告", Emoji: "<:searching:986107902777491497>"},
 	}},
+}
+
+var legacyHelpUserPerms = map[string]string{
+	"代幣增加":                   "訊息管理",
+	"coin-related-settings":  "訊息管理",
+	"代幣重製":                   "服主",
+	"代幣商店":                   "查詢跟購買大家都可用，剩下皆須訊息管理",
+	"公告發送":                   "訊息管理",
+	"加入訊息設置":                 "訊息管理",
+	"加入身份組設置":                "訊息管理",
+	"加入身份組刪除":                "訊息管理",
+	"退出訊息設置":                 "訊息管理",
+	"驗證設置":                   "訊息管理",
+	"自動聊天頻道":                 "訊息管理",
+	"自動聊天頻道刪除":               "訊息管理",
+	"打工系統":                   "除了打工介面其他都是需要訊息管理喔!",
+	"扭蛋獎池刪除":                 "訊息管理",
+	"扭蛋獎品編輯":                 "訊息管理",
+	"扭蛋獎池增加":                 "訊息管理",
+	"抽獎設置":                   "訊息管理",
+	"生日系統":                   "訊息管理",
+	"私人頻道設置":                 "訊息管理",
+	"私人頻道刪除":                 "訊息管理",
+	"刪除訊息":                   "訊息管理(刪除超過200則需要有權限)",
+	"set-log-channel":        "訊息管理",
+	"刪除資料":                   "訊息管理",
+	"投票創建":                   "訊息管理",
+	"選取身分組-按鈕":               "訊息管理",
+	"選取身分組-表情符號":             "訊息管理",
+	"選取身分組刪除-表情符號":           "訊息管理",
+	"統計系統創建":                 "訊息管理",
+	"統計系統刪除":                 "訊息管理",
+	"統計身分組人數":                "訊息管理",
+	"經驗值重製":                  "服主",
+	"聊天經驗身分組設定":              "訊息管理",
+	"聊天經驗設定":                 "訊息管理",
+	"聊天經驗刪除":                 "訊息管理",
+	"語音經驗身分組設定":              "訊息管理",
+	"語音經驗設定":                 "訊息管理",
+	"語音經驗刪除":                 "訊息管理",
+	"經驗值改變":                  "踢出用戶",
+	"帳號需創建時數":                "踢出用戶",
+	"防詐騙網址":                  "訊息管理",
+	"自動通知刪除":                 "訊息管理",
+	"自動通知列表":                 "訊息管理",
+	"automatic-notification": "訊息管理",
+	"語音包廂設置":                 "訊息管理",
+	"語音包廂刪除":                 "訊息管理",
+	"警告設定":                   "訊息管理",
+	"警告全部清除":                 "訊息管理",
+	"警告清除":                   "訊息管理",
+	"警告":                     "訊息管理",
+	"警告紀錄":                   "訊息管理",
+}
+
+var legacyHelpVideos = map[string]string{
+	"代幣增加":                   "https://docsmhcat.yorukot.meocs/coin_increase",
+	"代幣查詢":                   "https://docsmhcat.yorukot.meocs/coin",
+	"coin-related-settings":  "https://docsmhcat.yorukot.meocs/required_coins",
+	"代幣重製":                   "https://docs.mhcat.xyz/docs/coin",
+	"代幣遊戲":                   "https://docsmhcat.yorukot.mes/coin_increase",
+	"剪刀石頭布":                  "https://docsmhcat.yorukot.me/docs/required_coins",
+	"簽到":                     "https://docsmhcat.yorukot.me/docs/snig",
+	"簽到列表":                   "https://docsmhcat.yorukot.me/docs/snig",
+	"my-profile":             "https://docsmhcat.yorukot.me/docs/snig",
+	"公告發送":                   "https://docsmhcat.yorukot.me/docs/ann",
+	"公告頻道設置":                 "https://docsmhcat.yorukot.meocs/ann_set",
+	"加入訊息設置":                 "https://docsmhcat.yorukot.meocs/join_message",
+	"加入身份組設置":                "https://docsmhcat.yorukot.meocs/join_role",
+	"加入身份組刪除":                "https://docsmhcat.yorukot.me/docs/join_role_delete",
+	"驗證":                     "https://docsmhcat.yorukot.me/commands/announcement.html",
+	"驗證設置":                   "https://docsmhcat.yorukot.me/commands/announcement.html",
+	"自動聊天頻道":                 "https://docsmhcat.yorukot.me/docs/chat_xp_set",
+	"自動聊天頻道刪除":               "https://docsmhcat.yorukot.me/docs/chat_xp_set",
+	"help":                   "https://docsmhcat.yorukot.me/docs/help",
+	"翻譯":                     "https://docsmhcat.yorukot.me/docs/translate",
+	"扭蛋":                     "https://docsmhcat.yorukot.meocs/gashapon",
+	"扭蛋獎池刪除":                 "https://docsmhcat.yorukot.me.xyz/docs/prize_removal",
+	"扭蛋獎品編輯":                 "https://docsmhcat.yorukot.me/docs/prize_add",
+	"扭蛋獎池增加":                 "https://docsmhcat.yorukot.me/docs/prize_add",
+	"扭蛋獎池查詢":                 "https://docsmhcat.yorukot.me/docs/prize_search",
+	"抽獎設置":                   "https://docsmhcat.yorukot.meocs/lotter",
+	"聊天經驗身分組設定":              "https://docsmhcat.yorukot.me.xyz.xyz/docs/chat_xp_set",
+	"聊天經驗設定":                 "https://docsmhcat.yorukot.me/docs/chat_xp_set",
+	"聊天經驗刪除":                 "https://docsmhcat.yorukot.me/docs/chat_xp_delete",
+	"語音經驗身分組設定":              "https://docsmhcat.yorukot.me/docs/chat_xp_set",
+	"語音經驗設定":                 "https://docsmhcat.yorukot.me/docs/voice_xp_set",
+	"語音經驗刪除":                 "https://docsmhcat.yorukot.me/docs/voice_xp_delete",
+	"自動通知刪除":                 "https://youtu.be/D43zPrZU5Fw",
+	"自動通知列表":                 "https://youtu.be/D43zPrZU5Fw",
+	"automatic-notification": "https://youtu.be/D43zPrZU5Fw",
 }
 
 func legacyHelpOverview(interaction interactions.Interaction) responses.Message {
@@ -288,20 +377,28 @@ func legacyHelpSlashCategoryMessage(interaction interactions.Interaction, select
 	return responses.Message{}, false
 }
 
-func legacyHelpCommandDetail(interaction interactions.Interaction, query string) (responses.Message, bool) {
+func legacyHelpCommandDetail(interaction interactions.Interaction, query string, definitions []commands.Definition) (responses.Message, bool) {
 	query = strings.ToLower(query)
+	definitionsByName := make(map[string]commands.Definition, len(definitions))
+	for _, definition := range definitions {
+		definitionsByName[strings.ToLower(definition.Name)] = definition
+	}
 	for _, category := range legacyHelpCategories {
 		for _, command := range category.Commands {
 			if strings.ToLower(command.Name) != query {
 				continue
 			}
-			perms := command.UserPerms
+			definition, found := definitionsByName[query]
+			if !found || definition.Hidden {
+				return responses.Message{}, false
+			}
+			perms := legacyHelpUserPerms[command.Name]
 			if perms == "" {
 				perms = "這個指令大家都可以用喔"
 			}
-			docs := "此指令目前沒有教學"
-			if command.DocsURL != "" {
-				docs = fmt.Sprintf("[__**點我立刻前往教學頁面**__](%s)", command.DocsURL)
+			docs := "```此指令目前沒有教學```"
+			if video := legacyHelpVideos[command.Name]; video != "" {
+				docs = fmt.Sprintf("[__**點我立刻前往教學頁面**__](%s)", video)
 			}
 			return responses.Message{
 				Embeds: []responses.Embed{{
@@ -310,8 +407,8 @@ func legacyHelpCommandDetail(interaction interactions.Interaction, query string)
 					Footer:    legacyFooter(interaction),
 					Timestamp: time.Now(),
 					Fields: []responses.EmbedField{
-						{Name: "<:id:985950321975128094>**指令名稱:**", Value: fmt.Sprintf("```%s```", command.Name)},
-						{Name: "<:editinfo:985950967566569503>**指令說明:**", Value: fmt.Sprintf("```%s```", command.Description)},
+						{Name: "<:id:985950321975128094>**指令名稱:**", Value: fmt.Sprintf("```%s```", definition.Name)},
+						{Name: "<:editinfo:985950967566569503>**指令說明:**", Value: fmt.Sprintf("```%s```", definition.Description)},
 						{Name: "<:key:986059580821868544>**指令權限需求(用戶需要有甚麼權限才能使用):**", Value: fmt.Sprintf("```%s```", perms)},
 						{Name: "<:creativeteaching:986060052949524600>**指令文檔教學:**", Value: docs},
 					},
