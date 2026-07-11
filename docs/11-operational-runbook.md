@@ -489,7 +489,7 @@ MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
 MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 ```
 
-This gate registers no slash commands and performs no Mongo writes. It reads `chats.channel` and `chatgpt_gets.price`, replies from the bundled legacy corpus for a missing, negative, or malformed balance, and preserves the legacy silent state for zero/nonnegative balances.
+This gate registers no slash commands and performs no Mongo writes. It reads balance before config, using one arbitrary `chatgpt_gets` and `chats` first match. Missing, negative, malformed, NaN, undefined, and negative-infinity balances use the exact legacy corpus; null/empty, zero, positive, and positive-infinity balances stay silent. Replies preserve `說出`, UTF-16 search, typing, and `[1s,5s)` timing while suppressing all mentions. Stop Node event ownership and follow [90-autochat-fallback.md](90-autochat-fallback.md).
 
 The event-only paid auto-chat handoff requires an additional ownership acknowledgment:
 

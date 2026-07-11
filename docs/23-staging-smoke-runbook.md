@@ -279,7 +279,7 @@ export MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
 export MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 ```
 
-This event-only path registers no commands and writes no Mongo data. Configure a disposable staging `chats` channel first, seed no `chatgpt_gets` row or a negative/malformed `price`, and verify a human `你好` message receives the legacy local reply. Also verify `price: 0` and positive prices remain silent. Do not run the Node and Go Chatbot handlers against the same guild during this smoke test.
+This event-only path registers no commands and writes no Mongo data. Stop Node `events/Chatbot.js`, audit/snapshot `chats` and `chatgpt_gets`, review Message Content privacy, and use a disposable channel/messages. Verify exact corpus and `說出` replies for missing/negative/malformed/undefined balances, while null/empty, zero, and positive balances remain silent. Complete timing, duplicate, failure, mention, and rollback checks in [90-autochat-fallback.md](90-autochat-fallback.md).
 
 Optional paid auto-chat handoff smoke flags:
 
@@ -748,7 +748,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true`, the Node owner is stopped, both `codes` and `chatgpt_gets` are snapshotted, fixtures are disposable, and [88-redeem.md](88-redeem.md) partial-progress recovery is accepted.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG=true`, confirm `MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=true`, Node config owners are stopped, `chats` is snapshotted/audited, target channels are disposable, and [89-autochat-config.md](89-autochat-config.md) partial-progress recovery is accepted.
-- If `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true`, confirm gateway, Guild Messages, and Message Content are enabled; `chats.channel` targets a disposable staging channel; `chatgpt_gets` fixtures are safe; and the Node Chatbot handler is not concurrently active for that guild.
+- If `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true`, confirm gateway, Guild Messages, Message Content/privacy approval, exclusive Node/Go ownership, audited disposable `chats`/`chatgpt_gets` fixtures and channel/messages, and acceptance of [90-autochat-fallback.md](90-autochat-fallback.md).
 - If `MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED=true`, confirm `MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true`, transaction-capable Mongo, clean singleton duplicate audits, a compatible external worker, disposable `chatgpts`/`chatgpt_gets` rows, and exclusive Go MessageCreate ownership.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database/channel targets are disposable for auto-notification setup/list/delete.
 - If `MHCAT_FEATURE_AUTO_NOTIFICATION_DELIVERY_ENABLED=true`, confirm Gateway and scheduler leases are enabled, the lease owner is unique, the Node `handler/cron.js` owner is stopped, and every active staging `cron_sets` target/payload is safe to send.
@@ -1517,6 +1517,17 @@ If auto-chat config flags were enabled and command sync apply was reviewed:
 - delete repeatedly and verify one row per exact green success, followed by the exact missing red UI only after no rows remain;
 - force lookup/delete/insert failures, inspect partial state before retry, verify generic red UI and exactly one usage increment per outcome;
 - complete mixed channel coercion, no-index, rollback, and ownership checks in [89-autochat-config.md](89-autochat-config.md).
+
+If local auto-chat fallback was enabled:
+
+- stop Node `events/Chatbot.js`, verify Gateway/Guild Messages/Message Content and privacy approval, and use one disposable configured channel;
+- with no balance row send `你好`, verify typing and the exact corpus reply after 1.000 through 4.999 seconds, with no source deletion or mention ping;
+- verify bot, DM, wrong-channel, unconfigured-guild, and malformed-identity events remain silent;
+- verify exact immediate `說出`, repeated-`我`, `操`, `bitch`, `幹`, and unknown outputs with no typing delay;
+- exercise missing, negative, negative-infinity, malformed, NaN, undefined, null/empty, whitespace, zero, positive, and positive-infinity balances against the canonical split;
+- seed duplicate `chats`/`chatgpt_gets` rows and verify arbitrary first-match behavior with no mutation or index creation;
+- force Mongo, typing, send, and cancellation failures; verify no retry/duplicate reply and no Mongo or slash-usage writes;
+- complete every privacy, ownership, migration, failure, and rollback check in [90-autochat-fallback.md](90-autochat-fallback.md).
 
 If translate flags were enabled and command sync apply was reviewed:
 

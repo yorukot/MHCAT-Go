@@ -1,6 +1,6 @@
 # Auto-Chat Runtime
 
-Status: config commands, local fallback, and the bot-side paid handoff are implemented behind independent disabled-by-default gates. Config command parity is canonical in [89-autochat-config.md](89-autochat-config.md). Local fallback and paid handoff still require separate canonical audits, and the paid path requires the separately deployed external worker.
+Status: config commands, local fallback, and the bot-side paid handoff are implemented behind independent disabled-by-default gates. Config command parity is canonical in [89-autochat-config.md](89-autochat-config.md), and local fallback parity is canonical in [90-autochat-fallback.md](90-autochat-fallback.md). Paid handoff still requires a separate canonical audit and the separately deployed external worker.
 
 ## Legacy References
 
@@ -22,8 +22,8 @@ Config commands:
 Local fallback:
 
 - reads `chats.channel` and `chatgpt_gets.price`
-- uses the legacy local corpus for a missing, negative, or malformed balance
-- preserves zero-balance silence
+- uses the legacy local corpus for a missing, negative, malformed, or undefined balance
+- preserves null/empty, zero, and positive balance silence
 - preserves the broken `說出` guards, first-only `我` replacement, and single effective blocked word
 - preserves JavaScript object-key ordering, full Unicode lowercasing, UTF-16 edit distance, typing, and the randomized `[1000,5000)` millisecond delay
 - suppresses all mentions in replies
@@ -97,7 +97,7 @@ Set `MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true` only after all of these are t
 4. The Node `events/Chatbot.js` MessageCreate owner is stopped for the target guilds.
 5. The staging rows and channel are disposable.
 
-The local and paid gates may be enabled together to restore the full legacy balance split. Paid handles positive balances; local handles missing, negative, or malformed balances; zero remains silent.
+The local and paid gates may be enabled together to restore the full legacy balance split. Paid handles eligible positive finite balances; local handles missing, negative, malformed, or undefined balances; null/empty, zero, and positive-infinity states remain silent.
 
 ## Parity Contracts
 
@@ -117,7 +117,7 @@ go test ./internal/core/services/autochat ./internal/discord/features/autochat .
 6. Verify a second message inside ten seconds gets the transient busy warning and is not charged.
 7. Verify conversation IDs are retained through 40 seconds and reset after 40 seconds.
 8. Verify input and worker output containing `@` cannot ping users, roles, or everyone.
-9. Enable the local fallback as well and verify negative/missing balance uses the corpus while zero remains silent.
+9. Enable the local fallback as well and verify missing/negative/malformed/undefined balances use the corpus while null/empty/zero remain silent.
 10. Keep Node and Go MessageCreate ownership exclusive throughout the smoke test.
 
 ## Rollback
