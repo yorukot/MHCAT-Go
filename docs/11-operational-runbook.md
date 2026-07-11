@@ -636,7 +636,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_STATS_QUERY=true
 MHCAT_FEATURE_STATS_QUERY_ENABLED=true
 ```
 
-This command preserves the legacy static stats help embed. It does not create `Number`/`role_number` rows, create/delete channels, rename channels, write usage counters to Mongo, create indexes, or enable the `channel_status` scheduler.
+This command preserves the legacy static stats help embed. It does not create `numbers`/`role_numbers` feature rows, create/delete channels, rename channels, create indexes, or enable the `channel_status` scheduler. When global usage tracking is enabled, the slash middleware still writes exactly one `all_use_counts` event.
 
 Channel-create `/統計系統創建` parity is available only when all required command, runtime, gateway, and intent flags are explicitly enabled:
 
@@ -677,7 +677,7 @@ MHCAT_DISCORD_ENABLE_GATEWAY=true
 MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 ```
 
-The worker starts with the gateway runtime, then runs on the legacy 20-minute interval. It renames configured member/user/bot/channel/text/voice stat channels and role-count channels using the legacy replace-old-number-or-use-new-number rule, and updates only the corresponding stored old-number fields after a successful rename/no-op decision. It skips missing channels, logs Discord/API failures, writes no indexes, and deletes no Discord channels. Do not run it beside the legacy `channel_status.js` owner for the same guilds.
+The worker starts with the gateway runtime, then runs on the legacy 20-minute interval. It renames configured member/user/bot/channel/text/voice stat channels and role-count channels using the legacy replace-old-number-or-use-new-number rule, and updates only the corresponding stored old-number fields after a successful rename/no-op decision. It skips missing channels, logs Discord/API failures, writes no indexes, and deletes no Discord channels. Do not run it beside the legacy `channel_status.js` owner for the same guilds. Follow [93-stats.md](93-stats.md) for exact BSON, duplicate, staging, reconciliation, and rollback behavior.
 
 Config-only `/聊天經驗設定` and `/聊天經驗刪除` are available only when both staging command sync and runtime flags are explicitly enabled:
 

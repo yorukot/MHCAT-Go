@@ -1,6 +1,6 @@
 # Stats Commands
 
-Status: parity-audited.
+Status: historical implementation overview. Exact compatibility, ownership, staging, and rollback are canonical in [93-stats.md](93-stats.md).
 
 Covered legacy paths:
 - `slashCommands/統計系統/number.js`

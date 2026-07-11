@@ -58,7 +58,7 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 
 | Collection | Index name | Keys | Unique | Sparse/Partial | TTL | Query supported | Duplicate risk | Build strategy |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `numbers` | `numbers_guild` | `{guild:1}` | candidate | no | no | guild stats config singleton | singleton duplicates | audit duplicates, dry-run, explicit apply |
+| `numbers` | `numbers_guild` | `{guild:1}` | candidate | no | no | guild stats config singleton | singleton duplicates and scalar/whitespace keys | audit only, then reviewed dry-run/explicit apply; preserve [93-stats.md](93-stats.md) duplicate behavior |
 | `all_use_counts` | `all_use_counts_command` | `{slashcommand_name:1}` | candidate | no | no | slash usage counter | null/undefined command names | audit invalid names before unique |
 | `ann_all_sets` | `ann_all_sets_guild_announcement` | `{guild:1,announcement_id:1}` | candidate | no | no | announcement config/relay lookup | duplicate or scalar-drift keys, malformed values, shared Node writer | audit types/duplicates and exclusive ownership; no startup apply; see [contract](76-announcement.md) |
 | `birthdays` | `birthdays_guild_user` | `{guild:1,user:1}` | candidate | no | no | birthday profile lookup | duplicate/missing/scalar-drift keys, malformed profile values, ownership | audit only; explicit reviewed apply after clean findings; see [contract](78-birthday.md) |
@@ -90,8 +90,8 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | `message_reaction` | `message_reaction_audit_only` | `{guild:1}` | no | no | no | dashboard backup lists singular collection | unknown live shape | audit live existence before any writes |
 | `not_a_good_webs` | `not_a_good_webs_web` | `{web:1}` | candidate after explicit ADR | no | no | anti-scam report/delete lookup | duplicate/raw variants, scalar drift, external writers | audit only; no normalization/startup apply; see [contract](77-anti-scam.md) |
 | `polls` | `polls_guild_message` | `{guild:1,messageid:1}` | candidate | no | no | poll create/vote/result/owner lookup | duplicate keys, malformed key/scalar/array shapes, ambiguous rollback | require exclusive ownership plus clean duplicate/type/shape audit, dry-run, and explicit apply; never create at startup; see [poll parity contract](75-poll.md) |
-| `role_numbers` | `role_numbers_guild_role` | `{guild:1,role:1}` | candidate | no | no | role stats config | duplicate role configs | audit, dry-run, explicit apply |
-| `role_numbers` | `role_numbers_guild_channel` | `{guild:1,channel:1}` | candidate | no | no | stats channel lookup | duplicate channel configs | audit, dry-run, explicit apply |
+| `role_numbers` | `role_numbers_guild_role` | `{guild:1,role:1}` | candidate | no | no | role stats config | duplicate/scalar/whitespace role configs | audit only, then reviewed dry-run/explicit apply; see [93-stats.md](93-stats.md) |
+| `role_numbers` | `role_numbers_guild_channel` | `{guild:1,channel:1}` | candidate | no | no | stats channel lookup | duplicate/scalar/whitespace channel configs | audit only, then reviewed dry-run/explicit apply; see [93-stats.md](93-stats.md) |
 | `sign_lists` | `sign_lists_guild_member` | `{guild:1,member:1}` | candidate | no | no | sign-in history lookup | duplicate user sign docs | audit, dry-run, explicit apply |
 | `suports` | `suports_support_id` | `{support_id:1}` | candidate | no | no | support lookup | duplicate support IDs | audit, dry-run, explicit apply |
 | `systems` | `systems_none` | none | no | no | no | unclear active use | unknown | no index until usage confirmed |

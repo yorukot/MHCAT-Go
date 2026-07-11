@@ -469,6 +469,8 @@ export MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 
 Set these only when testing the event-only `channel_status` parity worker in an isolated staging guild. Seed disposable `numbers`/`role_numbers` rows and matching stat channels, leave the legacy worker stopped for that guild, wait one 20-minute interval, and verify channel names plus stored `*_name`/`channel_name` counters update. Missing channels and Discord/API failures should be skipped/logged, not fatal.
 
+Run the full canonical command, scalar/whitespace, duplicate, malformed-row, worker-loss, and rollback matrix in [93-stats.md](93-stats.md#staging-smoke), not only the happy paths below.
+
 Optional announcement config smoke flags:
 
 ```bash
