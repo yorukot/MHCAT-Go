@@ -75,6 +75,8 @@ type VoiceEventModule struct {
 	rewardRoles coreservice.VoiceRewardRoleService
 	coinRewards coreservice.VoiceCoinRewardService
 	worker      *VoiceXPWorker
+	shardID     int
+	shardCount  int
 }
 
 func NewModule(repo ports.TextXPConfigRepository, messages ports.DiscordMessagePort, usage ports.UsageTracker) Module {

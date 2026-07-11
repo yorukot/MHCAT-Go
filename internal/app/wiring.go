@@ -1021,6 +1021,7 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 			WithAnnouncementFallbacks(sideEffects, sideEffects, discordInfoProvider(session)).
 			WithRewardRoles(rewardRoleRepo, sideEffects).
 			WithCoinRewards(economyRepo).
+			WithShard(cfg.DiscordShardID, cfg.DiscordShardCount).
 			WithRuntimeWorker(featurexp.LegacyVoiceXPInterval, logger)
 		started, err := module.StartJoinedSessions(context.Background())
 		if err != nil {

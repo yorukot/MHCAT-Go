@@ -3,6 +3,7 @@ package xp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -131,6 +132,24 @@ func TestVoiceXPStartJoinedSessionsRestoresRuntimeWorkers(t *testing.T) {
 	}
 	if started != 0 || module.worker.ActiveCount() != 2 {
 		t.Fatalf("duplicate reconciliation started=%d active=%d", started, module.worker.ActiveCount())
+	}
+}
+
+func TestVoiceXPStartJoinedSessionsRestoresOnlyOwnedShard(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	for shardID := 0; shardID < 3; shardID++ {
+		guildID := fmt.Sprintf("%d", uint64(shardID)<<22)
+		repo.VoiceProfiles[guildID+"/user"] = domain.XPProfile{GuildID: guildID, UserID: "user", LeaveJoin: domain.VoiceXPSessionJoined}
+	}
+	module := NewVoiceEventModule(repo).WithRuntimeWorker(time.Hour, nil).WithShard(1, 3)
+	t.Cleanup(func() { _ = module.StopRuntimeWorker(context.Background()) })
+
+	started, err := module.StartJoinedSessions(context.Background())
+	if err != nil {
+		t.Fatalf("start joined sessions: %v", err)
+	}
+	if started != 1 || module.worker.ActiveCount() != 1 {
+		t.Fatalf("started=%d active=%d", started, module.worker.ActiveCount())
 	}
 }
 

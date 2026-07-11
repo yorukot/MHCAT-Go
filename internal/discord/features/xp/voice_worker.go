@@ -10,6 +10,7 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/xp"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/sharding"
 )
 
 const LegacyVoiceXPInterval = 30 * time.Second
@@ -178,6 +179,12 @@ func (m VoiceEventModule) WithRuntimeWorker(interval time.Duration, logger *slog
 	return m
 }
 
+func (m VoiceEventModule) WithShard(shardID int, shardCount int) VoiceEventModule {
+	m.shardID = shardID
+	m.shardCount = shardCount
+	return m
+}
+
 func (m VoiceEventModule) StopRuntimeWorker(ctx context.Context) error {
 	if m.worker == nil {
 		return nil
@@ -201,6 +208,9 @@ func (m VoiceEventModule) StartJoinedSessions(ctx context.Context) (int, error) 
 	}
 	started := 0
 	for _, profile := range profiles {
+		if !sharding.OwnsGuild(profile.GuildID, m.shardID, m.shardCount) {
+			continue
+		}
 		if m.worker.Start(profile.GuildID, profile.UserID, nil) {
 			started++
 		}
