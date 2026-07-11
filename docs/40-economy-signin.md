@@ -31,6 +31,7 @@ Status: gated write slice for legacy `/簽到` plus read-only legacy `/簽到列
 - The sign-list day write is attempted only after a successful coin award.
 - Sign-in mode selection preserves Mongoose-visible `gift_changes.time` scalars. Existing daily-mode users store marker `1`; as in legacy, a first-time signer with any config row stores rounded epoch seconds even when `time` is `0`, while a first-time signer without config stores `1`.
 - Numeric `gift_changes.sign_coin` values retain fractional and infinite JavaScript-number behavior. The `999999999` cap applies to existing balances; legacy first-time creation remains uncapped. Undefined/NaN rewards fail before any Go write instead of silently creating a zero-coin sign-in.
+- Existing numeric balances are incremented atomically; explicit `coin: null` preserves legacy `null + reward` behavior by treating null as zero. Missing or nonnumeric coin values fail before the Go calendar write instead of reproducing the legacy unawaited partial-write race.
 - New versioned custom IDs are bounded by Discord's 100-character limit.
 - `/簽到列表` preserves legacy `username#discriminator` member labels, including `#0` for migrated Discord accounts. If Discord omits the discriminator entirely, it falls back to the username; missing lookups still render the legacy `使用者已消失!` fallback.
 

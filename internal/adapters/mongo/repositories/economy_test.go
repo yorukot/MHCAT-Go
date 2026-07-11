@@ -84,6 +84,10 @@ func TestSignInRollingFilterPreservesFractionalThreshold(t *testing.T) {
 	if got, ok := todayLimit.(float64); !ok || got != 90.5 {
 		t.Fatalf("rolling threshold = %#v", todayLimit)
 	}
+	nullType := orClause[2].(bson.D)[0].Value.(bson.D)[0]
+	if nullType.Key != "$type" || nullType.Value != "null" {
+		t.Fatalf("null today clause = %#v", nullType)
+	}
 }
 
 func TestSignInCoinLimitFilterPreservesFractionalReward(t *testing.T) {
@@ -92,5 +96,31 @@ func TestSignInCoinLimitFilterPreservesFractionalReward(t *testing.T) {
 	coinLimit := orClause[0].(bson.D)[0].Value.(bson.D)[0].Value
 	if got, ok := coinLimit.(float64); !ok || got != 999999973.5 {
 		t.Fatalf("coin limit = %#v", coinLimit)
+	}
+}
+
+func TestSignInCoinLimitAllowsExplicitNullButNotMissingCoin(t *testing.T) {
+	filter := coinLimitFilter(25)
+	orClause := filter[0].Value.(bson.A)
+	nullType := orClause[1].(bson.D)[0].Value.(bson.D)[0]
+	if nullType.Key != "$type" || nullType.Value != "null" {
+		t.Fatalf("null coin clause = %#v", nullType)
+	}
+}
+
+func TestSignInUpdateAddsRewardToNullAsZero(t *testing.T) {
+	pipeline := signInUpdate(25.5, 123)
+	set := pipeline[0][0].Value.(bson.D)
+	add := set[0].Value.(bson.D)[0]
+	values := add.Value.(bson.A)
+	if add.Key != "$add" || values[1] != 25.5 {
+		t.Fatalf("coin update = %#v", set[0])
+	}
+	ifNull := values[0].(bson.D)[0]
+	if ifNull.Key != "$ifNull" {
+		t.Fatalf("coin fallback = %#v", ifNull)
+	}
+	if set[1].Key != "today" || set[1].Value != int64(123) {
+		t.Fatalf("today update = %#v", set[1])
 	}
 }

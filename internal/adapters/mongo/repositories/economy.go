@@ -536,10 +536,7 @@ func (r *EconomyRepository) SignIn(ctx context.Context, command domain.SignInCom
 		todayValue = nowUnix
 		filter = signInRollingFilter(command.GuildID, command.UserID, reward, float64(nowUnix)-cooldown)
 	}
-	update := bson.D{
-		{Key: "$inc", Value: bson.D{{Key: "coin", Value: reward}}},
-		{Key: "$set", Value: bson.D{{Key: "today", Value: todayValue}}},
-	}
+	update := signInUpdate(reward, todayValue)
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 	var updated documents.CoinDocument
 	var balance domain.CoinBalance
@@ -580,6 +577,16 @@ func legacyFirstSignToday(configFound bool, nowUnix int64) int64 {
 		return nowUnix
 	}
 	return 1
+}
+
+func signInUpdate(reward float64, todayValue int64) drivermongo.Pipeline {
+	return drivermongo.Pipeline{{{Key: "$set", Value: bson.D{
+		{Key: "coin", Value: bson.D{{Key: "$add", Value: bson.A{
+			bson.D{{Key: "$ifNull", Value: bson.A{"$coin", 0}}},
+			reward,
+		}}}},
+		{Key: "today", Value: todayValue},
+	}}}}
 }
 
 func (r *EconomyRepository) GetSignCalendar(ctx context.Context, guildID string, userID string, year string, month string) (domain.SignCalendar, error) {
@@ -624,6 +631,7 @@ func signInRollingFilter(guildID string, userID string, reward float64, eligible
 			bson.D{{Key: "$or", Value: bson.A{
 				bson.D{{Key: "today", Value: bson.D{{Key: "$lte", Value: eligibleBefore}}}},
 				bson.D{{Key: "today", Value: bson.D{{Key: "$exists", Value: false}}}},
+				bson.D{{Key: "today", Value: bson.D{{Key: "$type", Value: "null"}}}},
 				bson.D{{Key: "today", Value: 0}},
 			}}},
 			coinLimitFilter(reward),
@@ -634,7 +642,7 @@ func signInRollingFilter(guildID string, userID string, reward float64, eligible
 func coinLimitFilter(reward float64) bson.D {
 	return bson.D{{Key: "$or", Value: bson.A{
 		bson.D{{Key: "coin", Value: bson.D{{Key: "$lte", Value: float64(coreeconomy.MaxLegacyCoinBalance) - reward}}}},
-		bson.D{{Key: "coin", Value: bson.D{{Key: "$exists", Value: false}}}},
+		bson.D{{Key: "coin", Value: bson.D{{Key: "$type", Value: "null"}}}},
 	}}}
 }
 
@@ -650,6 +658,9 @@ func (r *EconomyRepository) signInMissReason(ctx context.Context, guildID string
 	if strings.TrimSpace(balance.CoinsText) == "" {
 		coins = float64(balance.Coins)
 		numeric = true
+	}
+	if !numeric {
+		return domain.ErrInvalidSignIn
 	}
 	if numeric && coins+reward > float64(coreeconomy.MaxLegacyCoinBalance) {
 		return ports.ErrCoinLimitExceeded
