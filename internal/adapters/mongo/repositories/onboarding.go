@@ -151,7 +151,7 @@ func (r *JoinRoleConfigRepository) ListJoinRoleConfigs(ctx context.Context, guil
 	defer cursor.Close(ctx)
 	var configs []domain.JoinRoleConfig
 	for cursor.Next(ctx) {
-		var document documents.JoinRoleDocument
+		var document documents.JoinRoleReadDocument
 		if err := cursor.Decode(&document); err != nil {
 			return nil, mhcatmongo.MapError(fmt.Errorf("decode join role config: %w", err))
 		}

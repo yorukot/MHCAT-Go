@@ -23,6 +23,91 @@ func TestJoinRoleDocumentRoundTrip(t *testing.T) {
 	}
 }
 
+func TestJoinRoleReadDocumentUsesMongooseStringCoercion(t *testing.T) {
+	tests := []struct {
+		name       string
+		document   bson.D
+		wantGuild  string
+		wantRole   string
+		wantGiveTo string
+	}{
+		{
+			name:       "typed strings",
+			document:   bson.D{{Key: "guild", Value: "guild"}, {Key: "role", Value: "role"}, {Key: "give_to_who", Value: domain.JoinRoleGiveBots}},
+			wantGuild:  "guild",
+			wantRole:   "role",
+			wantGiveTo: domain.JoinRoleGiveBots,
+		},
+		{
+			name:       "scalar fields",
+			document:   bson.D{{Key: "guild", Value: int64(123)}, {Key: "role", Value: int32(456)}, {Key: "give_to_who", Value: true}},
+			wantGuild:  "123",
+			wantRole:   "456",
+			wantGiveTo: "true",
+		},
+		{
+			name:       "missing audience defaults all users",
+			document:   bson.D{{Key: "guild", Value: "guild"}, {Key: "role", Value: "role"}},
+			wantGuild:  "guild",
+			wantRole:   "role",
+			wantGiveTo: domain.JoinRoleGiveAllUsers,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			payload, err := bson.Marshal(tc.document)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			var document JoinRoleReadDocument
+			if err := bson.Unmarshal(payload, &document); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			config := document.ToDomain()
+			if config.GuildID != tc.wantGuild || config.RoleID != tc.wantRole || config.GiveTo != tc.wantGiveTo {
+				t.Fatalf("config = %#v", config)
+			}
+		})
+	}
+}
+
+func TestJoinRoleReadDocumentLeavesCompoundRequiredValuesInvalid(t *testing.T) {
+	payload, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: "guild"},
+		{Key: "role", Value: bson.D{{Key: "bad", Value: true}}},
+		{Key: "give_to_who", Value: bson.A{"bad"}},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document JoinRoleReadDocument
+	if err := bson.Unmarshal(payload, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	config := document.ToDomain()
+	if config.RoleID != "" || config.GiveTo != "invalid" {
+		t.Fatalf("config = %#v", config)
+	}
+	if !errors.Is(config.Validate(), domain.ErrInvalidJoinRoleConfig) {
+		t.Fatalf("compound required role should remain invalid: %#v", config)
+	}
+}
+
+func TestJoinRoleWriteDocumentRemainsTyped(t *testing.T) {
+	payload, err := bson.Marshal(JoinRoleDocumentFromDomain(domain.JoinRoleConfig{
+		GuildID: "guild", RoleID: "role", GiveTo: domain.JoinRoleGiveMembers,
+	}))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	raw := bson.Raw(payload)
+	for _, field := range []string{"guild", "role", "give_to_who"} {
+		if raw.Lookup(field).Type != bson.TypeString {
+			t.Fatalf("field %s type = %s", field, raw.Lookup(field).Type)
+		}
+	}
+}
+
 func TestJoinRoleDocumentDefaultsGiveTo(t *testing.T) {
 	back := JoinRoleDocument{Guild: "guild", Role: "role"}.ToDomain()
 	if back.GiveTo != domain.JoinRoleGiveAllUsers {

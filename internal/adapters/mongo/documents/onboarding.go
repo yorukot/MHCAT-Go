@@ -15,6 +15,12 @@ type JoinRoleDocument struct {
 	GiveToWho string `bson:"give_to_who" json:"give_to_who"`
 }
 
+type JoinRoleReadDocument struct {
+	Guild     bson.RawValue `bson:"guild" json:"guild"`
+	Role      bson.RawValue `bson:"role" json:"role"`
+	GiveToWho bson.RawValue `bson:"give_to_who" json:"give_to_who"`
+}
+
 type JoinMessageDocument struct {
 	Guild          string  `bson:"guild" json:"guild"`
 	Enable         *bool   `bson:"enable,omitempty" json:"enable,omitempty"`
@@ -74,6 +80,18 @@ func (d JoinRoleDocument) ToDomain() domain.JoinRoleConfig {
 		RoleID:  d.Role,
 		GiveTo:  giveTo,
 	}
+}
+
+func (d JoinRoleReadDocument) ToDomain() domain.JoinRoleConfig {
+	guild, _ := legacyMongooseString(d.Guild)
+	role, _ := legacyMongooseString(d.Role)
+	giveTo, usableGiveTo := legacyMongooseString(d.GiveToWho)
+	if !usableGiveTo && d.GiveToWho.Type != 0 && d.GiveToWho.Type != bson.TypeNull {
+		giveTo = "invalid"
+	} else if strings.TrimSpace(giveTo) == "" {
+		giveTo = domain.JoinRoleGiveAllUsers
+	}
+	return domain.JoinRoleConfig{GuildID: guild, RoleID: role, GiveTo: giveTo}
 }
 
 func (d JoinMessageDocument) ToDomain() domain.JoinMessageConfig {
