@@ -52,6 +52,25 @@ func TestShopAddRequiresManageMessages(t *testing.T) {
 	}
 }
 
+func TestShopDeleteRemovesExistingItem(t *testing.T) {
+	repository := fakemongo.NewEconomyRepository()
+	repository.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 50, Description: "role reward", Count: 1})
+	module := NewShopModule(repository, nil, nil, nil, nil, nil, nil)
+	interaction := fakediscord.SlashInteractionWithOptions(ShopCommandName, shopSubcommandDelete, map[string]string{shopOptionID: "1001"})
+	interaction.Actor.PermissionBits = shopManageMessagesBit
+	responder := fakediscord.NewResponder()
+
+	if err := module.ShopHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("shop delete: %v", err)
+	}
+	if _, err := repository.GetShopItem(context.Background(), "guild-1", 1001); !errors.Is(err, ports.ErrShopItemMissing) {
+		t.Fatalf("deleted item lookup: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "已為您刪除該商品") {
+		t.Fatalf("delete response = %#v", responder.Edits)
+	}
+}
+
 func TestShopAddUsesLegacyUTF16NameLength(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	module := NewShopModule(repo, nil, nil, nil, nil, nil, shopFixedClock{now: time.UnixMilli(1_710_000_000_000)})
