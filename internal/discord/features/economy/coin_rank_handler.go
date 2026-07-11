@@ -108,7 +108,7 @@ func (m Module) coinRankMessage(ctx context.Context, interaction interactions.In
 		canvasEntries = append(canvasEntries, coinRankCanvasEntry{
 			Rank:        entry.Rank,
 			DisplayName: m.lookupCoinRankUsername(ctx, interaction.Actor.GuildID, entry.Balance.UserID),
-			Coins:       entry.Balance.Coins,
+			Coins:       coinRankBalanceText(entry.Balance),
 		})
 	}
 	viewerRankText := "沒有資料"
@@ -134,6 +134,13 @@ func (m Module) coinRankMessage(ctx context.Context, interaction interactions.In
 		Components:      coinRankComponents(result),
 		AllowedMentions: &responses.AllowedMentions{},
 	}, nil
+}
+
+func coinRankBalanceText(balance domain.CoinBalance) string {
+	if balance.CoinsText != "" {
+		return balance.CoinsText
+	}
+	return strconv.FormatInt(balance.Coins, 10)
 }
 
 func fetchCoinRankGuildIcon(ctx context.Context, iconURL string) []byte {

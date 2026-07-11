@@ -18,7 +18,7 @@ import (
 type coinRankCanvasEntry struct {
 	Rank        int
 	DisplayName string
-	Coins       int64
+	Coins       string
 }
 
 type coinRankCanvasView struct {
@@ -137,7 +137,7 @@ func drawCoinRankRows(canvas *image.RGBA, view coinRankCanvasView) {
 		}
 		drawText(canvas, 55+xOffset, rankY, strconv.Itoa(entry.Rank), color.RGBA{R: 255, G: 255, B: 255, A: 255}, rankScale)
 		drawText(canvas, 121+xOffset, nameY, truncateRunes(entry.DisplayName, 33), color.RGBA{R: 255, G: 255, B: 255, A: 255}, 2)
-		drawText(canvas, 137+xOffset, coinsY, coreeconomy.LegacyCoinRankAmount(entry.Coins), color.RGBA{R: 226, G: 230, B: 240, A: 255}, 2)
+		drawText(canvas, 137+xOffset, coinsY, coreeconomy.LegacyCoinRankAmountText(entry.Coins), color.RGBA{R: 226, G: 230, B: 240, A: 255}, 2)
 	}
 }
 
