@@ -24,5 +24,5 @@ func (s ConfigService) Delete(ctx context.Context, guildID string) (domain.Stats
 	if err != nil {
 		return domain.StatsConfig{}, err
 	}
-	return config.Normalize(), nil
+	return config, nil
 }

@@ -120,7 +120,6 @@ func (s CreateService) createOptional(ctx context.Context, req CreateRequest, ex
 	if !ok {
 		return domain.StatsConfig{}, domain.ErrInvalidStatsOption
 	}
-	existing = existing.Normalize()
 	if existing.HasOptionalChannel(option) {
 		return domain.StatsConfig{}, domain.ErrStatsChannelAlreadyExists
 	}

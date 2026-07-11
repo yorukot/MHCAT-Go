@@ -63,7 +63,7 @@ func (r *StatsConfigRepository) GetStatsConfig(ctx context.Context, guildID stri
 		}
 		return domain.StatsConfig{}, mhcatmongo.MapError(fmt.Errorf("get stats config: %w", err))
 	}
-	return document.ToDomain().Normalize(), ctx.Err()
+	return document.ToDomain(), ctx.Err()
 }
 
 func (r *StatsConfigRepository) SaveStatsConfig(ctx context.Context, config domain.StatsConfig) error {
@@ -130,7 +130,7 @@ func (r *StatsConfigRepository) DeleteStatsConfig(ctx context.Context, guildID s
 	if result.DeletedCount == 0 {
 		return domain.StatsConfig{}, ports.ErrStatsConfigMissing
 	}
-	return document.ToDomain().Normalize(), ctx.Err()
+	return document.ToDomain(), ctx.Err()
 }
 
 func (r *StatsConfigRepository) ListStatsConfigs(ctx context.Context) ([]domain.StatsConfig, error) {
@@ -148,7 +148,7 @@ func (r *StatsConfigRepository) ListStatsConfigs(ctx context.Context) ([]domain.
 		if err := cursor.Decode(&document); err != nil {
 			return nil, mhcatmongo.MapError(fmt.Errorf("decode stats config: %w", err))
 		}
-		configs = append(configs, document.ToDomain().Normalize())
+		configs = append(configs, document.ToDomain())
 	}
 	if err := cursor.Err(); err != nil {
 		return nil, mhcatmongo.MapError(fmt.Errorf("iterate stats configs: %w", err))
@@ -228,7 +228,7 @@ func (r *StatsConfigRepository) ListStatsRoleConfigs(ctx context.Context) ([]dom
 		if err := cursor.Decode(&document); err != nil {
 			return nil, mhcatmongo.MapError(fmt.Errorf("decode stats role config: %w", err))
 		}
-		configs = append(configs, document.ToDomain().Normalize())
+		configs = append(configs, document.ToDomain())
 	}
 	if err := cursor.Err(); err != nil {
 		return nil, mhcatmongo.MapError(fmt.Errorf("iterate stats role configs: %w", err))

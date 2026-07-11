@@ -85,7 +85,6 @@ func (s RenameService) renameBaseStats(ctx context.Context) (RenameResult, error
 		if err := ctx.Err(); err != nil {
 			return result, err
 		}
-		config = config.Normalize()
 		if config.GuildID == "" {
 			result.ChannelsSkipped++
 			continue
@@ -136,7 +135,6 @@ func (s RenameService) renameRoleStats(ctx context.Context) (RenameResult, error
 		if err := ctx.Err(); err != nil {
 			return result, err
 		}
-		config = config.Normalize()
 		if config.GuildID == "" || config.RoleID == "" || config.ChannelID == "" {
 			result.ChannelsSkipped++
 			continue

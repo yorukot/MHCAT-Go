@@ -22,7 +22,6 @@ func NewStatsConfigRepository() *StatsConfigRepository {
 func (r *StatsConfigRepository) Put(config domain.StatsConfig) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	config = config.Normalize()
 	r.Configs[config.GuildID] = config
 }
 
@@ -39,7 +38,7 @@ func (r *StatsConfigRepository) GetStatsConfig(ctx context.Context, guildID stri
 	if !ok {
 		return domain.StatsConfig{}, ports.ErrStatsConfigMissing
 	}
-	return config.Normalize(), nil
+	return config, nil
 }
 
 func (r *StatsConfigRepository) SaveStatsConfig(ctx context.Context, config domain.StatsConfig) error {
@@ -102,7 +101,7 @@ func (r *StatsConfigRepository) ListStatsConfigs(ctx context.Context) ([]domain.
 	defer r.mu.Unlock()
 	configs := make([]domain.StatsConfig, 0, len(r.Configs))
 	for _, config := range r.Configs {
-		configs = append(configs, config.Normalize())
+		configs = append(configs, config)
 	}
 	return configs, nil
 }
@@ -138,7 +137,7 @@ func (r *StatsConfigRepository) UpdateStatsConfigCounters(ctx context.Context, g
 	if update.VoiceNumberName != nil {
 		config.VoiceNumberName = *update.VoiceNumberName
 	}
-	r.Configs[guildID] = config.Normalize()
+	r.Configs[guildID] = config
 	return nil
 }
 
@@ -170,7 +169,7 @@ func (r *StatsConfigRepository) ListStatsRoleConfigs(ctx context.Context) ([]dom
 	defer r.mu.Unlock()
 	configs := make([]domain.StatsRoleConfig, 0, len(r.RoleConfigs))
 	for _, config := range r.RoleConfigs {
-		configs = append(configs, config.Normalize())
+		configs = append(configs, config)
 	}
 	return configs, nil
 }
@@ -190,7 +189,7 @@ func (r *StatsConfigRepository) UpdateStatsRoleConfigCounter(ctx context.Context
 		return ports.ErrStatsConfigMissing
 	}
 	config.ChannelName = currentValue
-	r.RoleConfigs[key] = config.Normalize()
+	r.RoleConfigs[key] = config
 	return nil
 }
 

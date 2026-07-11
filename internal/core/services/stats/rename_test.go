@@ -164,6 +164,61 @@ func TestRenameStatsSkipsMissingChannelsWithoutUpdatingCounter(t *testing.T) {
 	}
 }
 
+func TestRenameStatsPreservesStoredWhitespaceAsCacheMisses(t *testing.T) {
+	t.Run("base guild id", func(t *testing.T) {
+		repo := fakemongo.NewStatsConfigRepository()
+		repo.Put(domain.StatsConfig{GuildID: " guild-1 ", MemberNumberID: "member-channel", MemberNumberName: "10"})
+		discord := fakediscord.NewSideEffects()
+		discord.TotalMembers = 11
+		discord.Channels = append(discord.Channels, ports.ChannelRef{GuildID: "guild-1", ChannelID: "member-channel", Name: "members: 10"})
+		guilds := guildStatsReaderFunc(func(_ context.Context, guildID string) (domain.StatsSnapshot, error) {
+			if guildID != " guild-1 " {
+				t.Fatalf("guild id = %q", guildID)
+			}
+			return domain.StatsSnapshot{}, ports.ErrChannelNotFound
+		})
+		service := RenameService{Repository: repo, Channels: discord, GuildStats: guilds, RoleStats: discord}
+
+		result, err := service.RunOnce(context.Background())
+		if err != nil {
+			t.Fatalf("rename stats: %v", err)
+		}
+		if result.ConfigsChecked != 1 || result.ChannelsSkipped != 1 || len(discord.Renamed) != 0 {
+			t.Fatalf("result=%#v renamed=%#v", result, discord.Renamed)
+		}
+	})
+
+	t.Run("role and channel ids", func(t *testing.T) {
+		repo := fakemongo.NewStatsConfigRepository()
+		repo.RoleConfigs["seed"] = domain.StatsRoleConfig{
+			GuildID: "guild-1", ChannelID: " role-channel ", ChannelName: "4", RoleID: " role-1 ",
+		}
+		discord := fakediscord.NewSideEffects()
+		discord.Channels = append(discord.Channels, ports.ChannelRef{GuildID: "guild-1", ChannelID: "role-channel", Name: "VIP: 4"})
+		roles := roleStatsReaderFunc(func(_ context.Context, guildID string, roleID string) (domain.StatsRoleSnapshot, error) {
+			if guildID != "guild-1" || roleID != " role-1 " {
+				t.Fatalf("role lookup = %q/%q", guildID, roleID)
+			}
+			return domain.StatsRoleSnapshot{RoleID: roleID, MemberCount: 5}, nil
+		})
+		service := RenameService{Repository: repo, Channels: discord, GuildStats: discord, RoleStats: roles}
+
+		result, err := service.RunOnce(context.Background())
+		if err != nil {
+			t.Fatalf("rename role stats: %v", err)
+		}
+		if result.RoleConfigsChecked != 1 || result.ChannelsSkipped != 1 || len(discord.Renamed) != 0 {
+			t.Fatalf("result=%#v renamed=%#v", result, discord.Renamed)
+		}
+	})
+}
+
+type guildStatsReaderFunc func(context.Context, string) (domain.StatsSnapshot, error)
+
+func (f guildStatsReaderFunc) GuildStats(ctx context.Context, guildID string) (domain.StatsSnapshot, error) {
+	return f(ctx, guildID)
+}
+
 func TestLegacyStatsRenamedChannelName(t *testing.T) {
 	if got := legacyStatsRenamedChannelName("總人數: 10 / 10", "10", "12"); got != "總人數: 12 / 10" {
 		t.Fatalf("replace first old value = %q", got)

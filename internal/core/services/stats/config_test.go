@@ -12,13 +12,13 @@ import (
 
 func TestConfigServiceDeletesStatsConfig(t *testing.T) {
 	repo := fakemongo.NewStatsConfigRepository()
-	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: "parent-1"})
+	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: " parent-1 "})
 
 	config, err := (ConfigService{Repository: repo}).Delete(context.Background(), " guild-1 ")
 	if err != nil {
 		t.Fatalf("delete stats config: %v", err)
 	}
-	if config.GuildID != "guild-1" || config.ParentID != "parent-1" {
+	if config.GuildID != "guild-1" || config.ParentID != " parent-1 " {
 		t.Fatalf("config = %#v", config)
 	}
 	if _, ok := repo.Configs["guild-1"]; ok {

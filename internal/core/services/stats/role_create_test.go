@@ -149,3 +149,22 @@ func TestCreateStatsRoleRejectsMissingRole(t *testing.T) {
 		t.Fatalf("created channels = %#v", discord.Created)
 	}
 }
+
+func TestCreateStatsRolePreservesSpacedParentAsCacheMiss(t *testing.T) {
+	repo := fakemongo.NewStatsConfigRepository()
+	repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: " parent-1 "})
+	discord := fakediscord.NewSideEffects()
+	discord.Channels = append(discord.Channels, ports.ChannelRef{GuildID: "guild-1", ChannelID: "parent-1", Type: discordChannelTypeGuildCategory})
+	discord.RoleNames["guild-1/role-1"] = "VIP"
+	service := RoleCreateService{StatsRepository: repo, RoleRepository: repo, Channels: discord, Roles: discord}
+
+	_, err := service.Create(context.Background(), RoleCreateRequest{
+		GuildID: "guild-1", ChannelType: domain.StatsChannelTypeText, RoleID: "role-1",
+	})
+	if err != nil {
+		t.Fatalf("create role stats: %v", err)
+	}
+	if len(discord.Created) != 1 || discord.Created[0].ParentID != "" {
+		t.Fatalf("created channels = %#v", discord.Created)
+	}
+}

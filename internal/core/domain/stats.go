@@ -137,7 +137,6 @@ func ParseStatsOption(value string) (string, bool) {
 }
 
 func (c StatsConfig) HasOptionalChannel(option string) bool {
-	c = c.Normalize()
 	switch option {
 	case StatsOptionChannelCount:
 		return c.ChannelNumberID != ""
@@ -151,7 +150,6 @@ func (c StatsConfig) HasOptionalChannel(option string) bool {
 }
 
 func (c StatsConfig) WithOptionalChannel(option string, channelID string, currentValue int) (StatsConfig, error) {
-	c = c.Normalize()
 	channelID = strings.TrimSpace(channelID)
 	if channelID == "" {
 		return StatsConfig{}, ErrInvalidStatsConfigRequest

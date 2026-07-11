@@ -47,8 +47,6 @@ func (s RoleCreateService) Create(ctx context.Context, req RoleCreateRequest) (d
 	if err != nil {
 		return domain.StatsRoleConfig{}, err
 	}
-	statsConfig = statsConfig.Normalize()
-
 	role, err := s.Roles.RoleStats(ctx, req.GuildID, req.RoleID)
 	if err != nil {
 		return domain.StatsRoleConfig{}, err

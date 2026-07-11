@@ -24,7 +24,7 @@ func TestStatsConfigMongoIntegrationHydratesScalarsAndIsolatesMalformedRows(t *t
 	if _, err := numbers.InsertMany(context.Background(), []any{
 		bson.D{
 			{Key: "guild", Value: "guild-1"},
-			{Key: "parent", Value: int32(123)},
+			{Key: "parent", Value: " parent-channel "},
 			{Key: "memberNumber", Value: bson.Binary{Data: []byte("member-channel")}},
 			{Key: "memberNumber_name", Value: true},
 			{Key: "userNumber", Value: bson.D{{Key: "invalid", Value: true}}},
@@ -57,7 +57,7 @@ func TestStatsConfigMongoIntegrationHydratesScalarsAndIsolatesMalformedRows(t *t
 	if err != nil {
 		t.Fatalf("get scalar stats config: %v", err)
 	}
-	if config.ParentID != "123" || config.MemberNumberID != "member-channel" || config.MemberNumberName != "true" || config.UserNumberID != "" {
+	if config.ParentID != " parent-channel " || config.MemberNumberID != "member-channel" || config.MemberNumberName != "true" || config.UserNumberID != "" {
 		t.Fatalf("scalar stats config = %#v", config)
 	}
 
@@ -72,7 +72,7 @@ func TestStatsConfigMongoIntegrationHydratesScalarsAndIsolatesMalformedRows(t *t
 	for _, item := range configs {
 		byGuild[item.GuildID] = item.ParentID
 	}
-	if byGuild["guild-1"] != "123" || byGuild[""] != "malformed-row" {
+	if byGuild["guild-1"] != " parent-channel " || byGuild[""] != "malformed-row" {
 		t.Fatalf("stats configs by guild = %#v", byGuild)
 	}
 

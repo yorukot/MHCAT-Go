@@ -211,3 +211,40 @@ func TestCreateStatsConfigRejectsDuplicateOptionalChannel(t *testing.T) {
 		t.Fatalf("created channels = %#v", discord.Created)
 	}
 }
+
+func TestCreateStatsConfigPreservesStoredWhitespaceSemantics(t *testing.T) {
+	t.Run("whitespace-only optional id remains configured", func(t *testing.T) {
+		repo := fakemongo.NewStatsConfigRepository()
+		repo.Put(domain.StatsConfig{GuildID: "guild-1", TextNumberID: "   "})
+		discord := fakediscord.NewSideEffects()
+		service := CreateService{Repository: repo, Channels: discord, GuildStats: discord}
+
+		_, err := service.Create(context.Background(), CreateRequest{
+			GuildID: "guild-1", ChannelType: domain.StatsChannelTypeText, Option: domain.StatsOptionTextCount,
+		})
+		if !errors.Is(err, domain.ErrStatsChannelAlreadyExists) {
+			t.Fatalf("expected stored whitespace to remain truthy, got %v", err)
+		}
+		if len(discord.Created) != 0 {
+			t.Fatalf("created channels = %#v", discord.Created)
+		}
+	})
+
+	t.Run("spaced parent remains a cache miss", func(t *testing.T) {
+		repo := fakemongo.NewStatsConfigRepository()
+		repo.Put(domain.StatsConfig{GuildID: "guild-1", ParentID: " parent-1 "})
+		discord := fakediscord.NewSideEffects()
+		discord.Channels = append(discord.Channels, ports.ChannelRef{GuildID: "guild-1", ChannelID: "parent-1", Type: discordChannelTypeGuildCategory})
+		service := CreateService{Repository: repo, Channels: discord, GuildStats: discord}
+
+		_, err := service.Create(context.Background(), CreateRequest{
+			GuildID: "guild-1", ChannelType: domain.StatsChannelTypeText, Option: domain.StatsOptionChannelCount,
+		})
+		if err != nil {
+			t.Fatalf("create optional stats: %v", err)
+		}
+		if len(discord.Created) != 1 || discord.Created[0].ParentID != "" {
+			t.Fatalf("created channels = %#v", discord.Created)
+		}
+	})
+}
