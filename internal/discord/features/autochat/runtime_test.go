@@ -61,6 +61,38 @@ func TestAutoChatFallbackSpecialReplyIsImmediate(t *testing.T) {
 	}
 }
 
+func TestAutoChatFallbackDelayRangeMatchesLegacy(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		random int
+		want   time.Duration
+	}{
+		{name: "minimum inclusive", random: 0, want: time.Second},
+		{name: "maximum exclusive", random: 3999, want: 4999 * time.Millisecond},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			module, sideEffects := autoChatRuntimeFixture(t, "-1")
+			module.randomInt = func(maximum int) int {
+				if maximum != 4000 {
+					t.Fatalf("random maximum = %d", maximum)
+				}
+				return test.random
+			}
+			var waited time.Duration
+			module.wait = func(_ context.Context, delay time.Duration) error {
+				waited = delay
+				return nil
+			}
+			if err := module.MessageCreateHandler()(context.Background(), autoChatMessageEvent("你好")); err != nil {
+				t.Fatalf("message create: %v", err)
+			}
+			if waited != test.want || len(sideEffects.TypingChannels) != 1 || len(sideEffects.Sent) != 1 {
+				t.Fatalf("waited=%s typing=%#v sent=%#v", waited, sideEffects.TypingChannels, sideEffects.Sent)
+			}
+		})
+	}
+}
+
 func TestAutoChatFallbackMessageCreateIgnoresIneligibleEvents(t *testing.T) {
 	module, sideEffects := autoChatRuntimeFixture(t, "-1")
 	for _, event := range []events.Event{

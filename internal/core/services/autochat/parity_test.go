@@ -66,3 +66,25 @@ func TestLegacyAutoChatPriceContract(t *testing.T) {
 		}
 	}
 }
+
+func TestLegacyFallbackBalancePredicate(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		want  bool
+	}{
+		{value: "null", want: true},
+		{value: "0", want: true},
+		{value: "-0", want: true},
+		{value: "12.5", want: true},
+		{value: "Infinity", want: true},
+		{value: "-0.01"},
+		{value: "-Infinity"},
+		{value: "NaN"},
+		{value: "undefined"},
+		{value: "not-a-number"},
+	} {
+		if got := legacyNonnegativeAutoChatBalance(test.value); got != test.want {
+			t.Fatalf("legacyNonnegativeAutoChatBalance(%q) = %v, want %v", test.value, got, test.want)
+		}
+	}
+}
