@@ -159,3 +159,21 @@ func TestProfileServicePreservesLegacyCoinScalarRankAndDisplay(t *testing.T) {
 		})
 	}
 }
+
+func TestLegacyProfileRawAmountPreservesConfigScalars(t *testing.T) {
+	tests := map[string]string{
+		"undefined": "undefined",
+		"null":      "null",
+		"125.5":     "125.5",
+		"Infinity":  "InfinityG",
+		"-Infinity": "-Infinity",
+	}
+	for value, want := range tests {
+		if got := LegacyProfileRawAmount(value, 0); got != want {
+			t.Fatalf("LegacyProfileRawAmount(%q) = %q want %q", value, got, want)
+		}
+	}
+	if got := LegacyProfileRawAmount("", 1250); got != "1.3K" {
+		t.Fatalf("typed fallback = %q", got)
+	}
+}

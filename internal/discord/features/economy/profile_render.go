@@ -181,11 +181,11 @@ func drawProfileStats(canvas *image.RGBA, result coreeconomy.ProfileResult) {
 	drawProfileTextCentered(canvas, 295, 587, result.SignStatus, color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
 	drawProfileTextCentered(canvas, 639, 525, profileWorkEnergyText(result), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
 	drawProfileTextCentered(canvas, 639, 587, profileWorkStateText(result), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
-	drawProfileTextCentered(canvas, 1045, 525, profileConfigIntText(result.Config.GachaCost, result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
-	drawProfileTextCentered(canvas, 1045, 587, profileConfigIntText(result.Config.SignCoins, result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 1045, 525, profileConfigRawText(result.Config.GachaCostText, float64(result.Config.GachaCost), result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 1045, 587, profileConfigRawText(result.Config.SignCoinsText, float64(result.Config.SignCoins), result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
 	drawProfileTextCentered(canvas, 1385, 525, profileConfigIntText(result.WorkConfig.DailyEnergy, result.WorkConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
 	drawProfileTextCentered(canvas, 1385, 587, profileConfigIntText(result.WorkConfig.MaxEnergy, result.WorkConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
-	drawProfileTextCentered(canvas, 1237, 652, profileConfigFloatText(result.Config.XPMultiple, result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 1237, 652, profileConfigRawText(result.Config.XPMultipleText, result.Config.XPMultiple, result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
 }
 
 func drawProfileProgress(canvas *image.RGBA, x, y, width int, c color.RGBA) {
@@ -276,6 +276,13 @@ func profileConfigFloatText(value float64, found bool) string {
 		return "無資料"
 	}
 	return coreeconomy.LegacyProfileAmount(value)
+}
+
+func profileConfigRawText(text string, fallback float64, found bool) string {
+	if !found {
+		return "無資料"
+	}
+	return coreeconomy.LegacyProfileRawAmount(text, fallback)
 }
 
 func legacyProfileDate(value time.Time) string {

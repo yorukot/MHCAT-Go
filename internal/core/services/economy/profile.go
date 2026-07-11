@@ -262,6 +262,20 @@ func LegacyProfileCoinAmount(balance domain.CoinBalance) string {
 	return LegacyProfileAmount(value)
 }
 
+func LegacyProfileRawAmount(text string, fallback float64) string {
+	if text == "" {
+		return LegacyProfileAmount(fallback)
+	}
+	value, numeric := legacyDisplayedNumber(text)
+	if !numeric {
+		return text
+	}
+	if text == "null" {
+		return "null"
+	}
+	return LegacyProfileAmount(value)
+}
+
 func legacyProfileScaled(value float64, divisor float64, suffix string) string {
 	if math.IsInf(value, 1) {
 		return "Infinity" + suffix

@@ -92,7 +92,7 @@ func TestGiftChangeDocumentLegacyBSONDecodesDefaults(t *testing.T) {
 		t.Fatalf("decode document: %v", err)
 	}
 	config := document.ToDomain()
-	if config.GachaCost != 700 || config.GachaCostText != "700" || config.SignCoins != 20 || config.ChannelID != "channel-1" || config.XPMultiple != 2.5 || config.ResetMarker != 0 {
+	if config.GachaCost != 700 || config.GachaCostText != "700" || config.SignCoins != 20 || config.SignCoinsText != "20" || config.ChannelID != "channel-1" || config.XPMultiple != 2.5 || config.XPMultipleText != "2.5" || config.ResetMarker != 0 {
 		t.Fatalf("config = %#v", config)
 	}
 }
@@ -111,7 +111,12 @@ func TestGiftChangeDocumentPreservesMongooseCoinNumberDisplay(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			raw, err := bson.Marshal(bson.D{{Key: "guild", Value: "guild-1"}, {Key: "coin_number", Value: test.value}})
+			raw, err := bson.Marshal(bson.D{
+				{Key: "guild", Value: "guild-1"},
+				{Key: "coin_number", Value: test.value},
+				{Key: "sign_coin", Value: test.value},
+				{Key: "xp_multiple", Value: test.value},
+			})
 			if err != nil {
 				t.Fatalf("marshal fixture: %v", err)
 			}
@@ -119,8 +124,9 @@ func TestGiftChangeDocumentPreservesMongooseCoinNumberDisplay(t *testing.T) {
 			if err := bson.Unmarshal(raw, &document); err != nil {
 				t.Fatalf("decode document: %v", err)
 			}
-			if got := document.ToDomain().GachaCostText; got != test.want {
-				t.Fatalf("display = %q, want %q", got, test.want)
+			config := document.ToDomain()
+			if config.GachaCostText != test.want || config.SignCoinsText != test.want || config.XPMultipleText != test.want {
+				t.Fatalf("config = %#v, want display %q", config, test.want)
 			}
 		})
 	}
