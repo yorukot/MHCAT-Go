@@ -46,6 +46,9 @@ func TestMessageDefinitionsMatchLegacySurface(t *testing.T) {
 	if join.DefaultMemberPermissions != nil {
 		t.Fatalf("legacy join command is publicly discoverable: %#v", join.DefaultMemberPermissions)
 	}
+	if join.Ownership == nil || join.Ownership.Owner != commands.OwnerMHCATRefactor || !join.Ownership.Managed || join.Ownership.SinceWave != "welcome-message-config" || len(join.Ownership.SafeScopes) != 1 || join.Ownership.SafeScopes[0] != commands.ScopeGuild {
+		t.Fatalf("join ownership = %#v", join.Ownership)
+	}
 	if len(join.Options) != 1 || join.Options[0].Type != commands.OptionTypeChannel || join.Options[0].Name != "頻道" || join.Options[0].Description != "輸入加入訊息要在那發送!" {
 		t.Fatalf("join options = %#v", join.Options)
 	}
@@ -58,6 +61,9 @@ func TestMessageDefinitionsMatchLegacySurface(t *testing.T) {
 	}
 	if leave.DefaultMemberPermissions != nil {
 		t.Fatalf("legacy leave command is publicly discoverable: %#v", leave.DefaultMemberPermissions)
+	}
+	if leave.Ownership == nil || leave.Ownership.Owner != commands.OwnerMHCATRefactor || !leave.Ownership.Managed || leave.Ownership.SinceWave != "welcome-message-config" || len(leave.Ownership.SafeScopes) != 1 || leave.Ownership.SafeScopes[0] != commands.ScopeGuild {
+		t.Fatalf("leave ownership = %#v", leave.Ownership)
 	}
 	if len(leave.Options) != 1 || leave.Options[0].Description != "輸入加入訊息要在那發送!" {
 		t.Fatalf("leave options = %#v", leave.Options)

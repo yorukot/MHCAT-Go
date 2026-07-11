@@ -1406,17 +1406,21 @@ func joinRoleConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositor
 }
 
 func leaveMessageConfigRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.LeaveMessageConfigRepository, error) {
+	return leaveMessageConfigRepositoryFromMongoForFeature(mongoClient, "welcome-message config feature")
+}
+
+func leaveMessageConfigRepositoryFromMongoForFeature(mongoClient MongoClient, feature string) (*mongorepositories.LeaveMessageConfigRepository, error) {
 	concrete, ok := mongoClient.(*mongoadapter.Client)
 	if !ok {
-		return nil, fmt.Errorf("welcome-message config feature requires default mongo client")
+		return nil, fmt.Errorf("%s requires default mongo client", feature)
 	}
 	database, err := concrete.Database()
 	if err != nil {
-		return nil, fmt.Errorf("welcome-message config feature database: %w", err)
+		return nil, fmt.Errorf("%s database: %w", feature, err)
 	}
 	repo, err := mongorepositories.NewLeaveMessageConfigRepositoryFromDatabase(database)
 	if err != nil {
-		return nil, fmt.Errorf("welcome-message config feature repository: %w", err)
+		return nil, fmt.Errorf("%s repository: %w", feature, err)
 	}
 	return repo, nil
 }

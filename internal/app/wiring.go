@@ -889,7 +889,7 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		).RegisterEventRoutes(dispatcher)
 	}
 	if cfg.FeatureLeaveMessageDeliveryEnabled {
-		repo, err := leaveMessageConfigRepositoryFromMongo(mongoClient)
+		repo, err := leaveMessageConfigRepositoryFromMongoForFeature(mongoClient, "leave-message delivery feature")
 		if err != nil {
 			return nil, err
 		}

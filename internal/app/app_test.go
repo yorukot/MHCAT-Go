@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -510,6 +511,60 @@ func TestWelcomeMessageDeliveryRequiresDefaultRuntimeAdapters(t *testing.T) {
 	}
 	if discord.closes != 1 {
 		t.Fatalf("discord session should be closed after event runtime wiring failure, got %d", discord.closes)
+	}
+}
+
+func TestWelcomeMessageConfigRequiresDefaultRuntimeAdapters(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.FeatureWelcomeMessageConfigEnabled = true
+	mongo := &fakeMongo{}
+	discord := &fakeDiscord{}
+	application, err := New(
+		cfg,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		WithMongoFactory(func(config.Config) (MongoClient, error) { return mongo, nil }),
+		WithDiscordFactory(func(config.Config) (DiscordSession, error) { return discord, nil }),
+	)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	err = application.Start(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "welcome-message config feature requires default mongo client") {
+		t.Fatalf("start error = %v", err)
+	}
+	if mongo.connects != 1 || mongo.disconnects != 1 {
+		t.Fatalf("mongo should be cleaned up: connects=%d disconnects=%d", mongo.connects, mongo.disconnects)
+	}
+	if discord.closes != 1 {
+		t.Fatalf("discord session should be closed, got %d", discord.closes)
+	}
+}
+
+func TestLeaveMessageDeliveryRequiresDefaultRuntimeAdapters(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.DiscordEnableGateway = true
+	cfg.DiscordGuildMembersIntent = true
+	cfg.FeatureLeaveMessageDeliveryEnabled = true
+	mongo := &fakeMongo{}
+	discord := &fakeDiscord{}
+	application, err := New(
+		cfg,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		WithMongoFactory(func(config.Config) (MongoClient, error) { return mongo, nil }),
+		WithDiscordFactory(func(config.Config) (DiscordSession, error) { return discord, nil }),
+	)
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	err = application.Start(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "leave-message delivery feature requires default mongo client") {
+		t.Fatalf("start error = %v", err)
+	}
+	if mongo.connects != 1 || mongo.disconnects != 1 {
+		t.Fatalf("mongo should be cleaned up: connects=%d disconnects=%d", mongo.connects, mongo.disconnects)
+	}
+	if discord.closes != 1 {
+		t.Fatalf("discord session should be closed, got %d", discord.closes)
 	}
 }
 
