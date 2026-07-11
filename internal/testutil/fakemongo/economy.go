@@ -2,7 +2,9 @@ package fakemongo
 
 import (
 	"context"
+	"math"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -271,8 +273,12 @@ func (r *EconomyRepository) ReserveCoinGameWager(ctx context.Context, command do
 	if err != nil {
 		return domain.CoinGameBalanceResult{}, err
 	}
-	challenger.Coins -= command.Wager
-	opponent.Coins -= command.Wager
+	if err := applyCoinGameBalanceDelta(&challenger, -command.Wager); err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
+	if err := applyCoinGameBalanceDelta(&opponent, -command.Wager); err != nil {
+		return domain.CoinGameBalanceResult{}, err
+	}
 	r.Balances[economyBalanceKey(command.GuildID, command.ChallengerID)] = challenger
 	r.Balances[economyBalanceKey(command.GuildID, command.OpponentID)] = opponent
 	return domain.CoinGameBalanceResult{Challenger: challenger, Opponent: opponent, Wager: command.Wager}, nil
@@ -298,8 +304,12 @@ func (r *EconomyRepository) SettleCoinGameWager(ctx context.Context, command dom
 	if !ok {
 		return domain.CoinGameSettlementResult{}, ports.ErrCoinBalanceNotFound
 	}
-	challenger.Coins += command.ChallengerReturn
-	opponent.Coins += command.OpponentReturn
+	if err := applyCoinGameBalanceDelta(&challenger, command.ChallengerReturn); err != nil {
+		return domain.CoinGameSettlementResult{}, err
+	}
+	if err := applyCoinGameBalanceDelta(&opponent, command.OpponentReturn); err != nil {
+		return domain.CoinGameSettlementResult{}, err
+	}
 	r.Balances[challengerKey] = challenger
 	r.Balances[opponentKey] = opponent
 	return domain.CoinGameSettlementResult{Challenger: challenger, Opponent: opponent}, nil
@@ -310,17 +320,53 @@ func (r *EconomyRepository) coinGameBalancesLocked(command domain.CoinGameComman
 	if !ok {
 		return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameOpponent
 	}
-	if opponent.Coins < command.Wager {
+	opponentCoins, ok := coinGameBalanceNumber(opponent)
+	if !ok {
+		return domain.CoinBalance{}, domain.CoinBalance{}, domain.ErrInvalidCoinGameCommand
+	}
+	if opponentCoins < float64(command.Wager) {
 		return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameOpponent
 	}
 	challenger, ok := r.Balances[economyBalanceKey(command.GuildID, command.ChallengerID)]
 	if !ok {
 		return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameChallenger
 	}
-	if challenger.Coins < command.Wager {
+	challengerCoins, ok := coinGameBalanceNumber(challenger)
+	if !ok {
+		return domain.CoinBalance{}, domain.CoinBalance{}, domain.ErrInvalidCoinGameCommand
+	}
+	if challengerCoins < float64(command.Wager) {
 		return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameChallenger
 	}
 	return challenger, opponent, nil
+}
+
+func coinGameBalanceNumber(balance domain.CoinBalance) (float64, bool) {
+	text := strings.TrimSpace(balance.CoinsText)
+	if text == "" {
+		return float64(balance.Coins), true
+	}
+	if text == "null" {
+		return 0, true
+	}
+	value, err := strconv.ParseFloat(text, 64)
+	return value, err == nil && !math.IsNaN(value)
+}
+
+func applyCoinGameBalanceDelta(balance *domain.CoinBalance, delta int64) error {
+	coins, ok := coinGameBalanceNumber(*balance)
+	if !ok {
+		return domain.ErrInvalidCoinGameCommand
+	}
+	next := coins + float64(delta)
+	balance.Coins = int64(next)
+	balance.CoinsText = strconv.FormatFloat(next, 'f', -1, 64)
+	if math.IsInf(next, 1) {
+		balance.CoinsText = "Infinity"
+	} else if math.IsInf(next, -1) {
+		balance.CoinsText = "-Infinity"
+	}
+	return nil
 }
 
 func (r *EconomyRepository) SignIn(ctx context.Context, command domain.SignInCommand) (domain.SignInResult, error) {

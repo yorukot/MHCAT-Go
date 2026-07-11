@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"sync"
 	"testing"
@@ -42,6 +43,42 @@ func TestEconomyCoinGameMongoTransactionIntegrationLifecycle(t *testing.T) {
 		t.Fatalf("settled = %#v", settled)
 	}
 	assertEconomyGameBalances(t, repository, 60, 40)
+}
+
+func TestEconomyCoinGameMongoTransactionIntegrationPreservesScalars(t *testing.T) {
+	repository, database := economyGameIntegrationRepository(t)
+	_, err := database.Collection(CoinCollectionName).InsertMany(context.Background(), []any{
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "member", Value: "decimal"}, {Key: "coin", Value: 50.5}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "member", Value: "infinity"}, {Key: "coin", Value: math.Inf(1)}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "member", Value: "null-1"}, {Key: "coin", Value: nil}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "member", Value: "null-2"}, {Key: "coin", Value: nil}},
+	})
+	if err != nil {
+		t.Fatalf("insert scalar balances: %v", err)
+	}
+
+	command := domain.CoinGameCommand{GuildID: "guild-1", ChallengerID: "decimal", OpponentID: "infinity", Wager: 10, Kind: domain.CoinGameKindHigherLower}
+	if _, err := repository.ReserveCoinGameWager(context.Background(), command); err != nil {
+		t.Fatalf("reserve scalar wager: %v", err)
+	}
+	if _, err := repository.SettleCoinGameWager(context.Background(), domain.CoinGameSettlementCommand{GuildID: "guild-1", ChallengerID: "decimal", OpponentID: "infinity", ChallengerReturn: 20, OpponentReturn: 20}); err != nil {
+		t.Fatalf("settle scalar wager: %v", err)
+	}
+
+	nullCommand := domain.CoinGameCommand{GuildID: "guild-1", ChallengerID: "null-1", OpponentID: "null-2", Wager: 0, Kind: domain.CoinGameKindHigherLower}
+	if _, err := repository.ReserveCoinGameWager(context.Background(), nullCommand); err != nil {
+		t.Fatalf("reserve null wager: %v", err)
+	}
+	if _, err := repository.SettleCoinGameWager(context.Background(), domain.CoinGameSettlementCommand{GuildID: "guild-1", ChallengerID: "null-1", OpponentID: "null-2"}); err != nil {
+		t.Fatalf("settle null wager: %v", err)
+	}
+
+	for member, want := range map[string]string{"decimal": "60.5", "infinity": "Infinity", "null-1": "0", "null-2": "0"} {
+		balance, err := repository.GetCoinBalance(context.Background(), "guild-1", member)
+		if err != nil || balance.CoinsText != want {
+			t.Fatalf("balance %s = %#v, err=%v, want %s", member, balance, err, want)
+		}
+	}
 }
 
 func TestEconomyCoinGameMongoTransactionIntegrationRollsBackReserve(t *testing.T) {

@@ -413,8 +413,12 @@ func (r *EconomyRepository) ReserveCoinGameWager(ctx context.Context, command do
 		if err != nil {
 			return err
 		}
-		challenger.Coins -= command.Wager
-		opponent.Coins -= command.Wager
+		if err := applyCoinGameBalanceDelta(&challenger, -command.Wager); err != nil {
+			return err
+		}
+		if err := applyCoinGameBalanceDelta(&opponent, -command.Wager); err != nil {
+			return err
+		}
 		if err := r.setCoinGameBalance(txCtx, challenger); err != nil {
 			return err
 		}
@@ -451,8 +455,12 @@ func (r *EconomyRepository) SettleCoinGameWager(ctx context.Context, command dom
 		if err != nil {
 			return err
 		}
-		challenger.Coins += command.ChallengerReturn
-		opponent.Coins += command.OpponentReturn
+		if err := applyCoinGameBalanceDelta(&challenger, command.ChallengerReturn); err != nil {
+			return err
+		}
+		if err := applyCoinGameBalanceDelta(&opponent, command.OpponentReturn); err != nil {
+			return err
+		}
 		if err := r.setCoinGameBalance(txCtx, challenger); err != nil {
 			return err
 		}
@@ -476,7 +484,11 @@ func (r *EconomyRepository) coinGameBalances(ctx context.Context, command domain
 		}
 		return domain.CoinBalance{}, domain.CoinBalance{}, err
 	}
-	if opponent.Coins < command.Wager {
+	opponentCoins, ok := coinGameBalanceNumber(opponent)
+	if !ok {
+		return domain.CoinBalance{}, domain.CoinBalance{}, domain.ErrInvalidCoinGameCommand
+	}
+	if opponentCoins < float64(command.Wager) {
 		return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameOpponent
 	}
 	challenger, err := r.GetCoinBalance(ctx, command.GuildID, command.ChallengerID)
@@ -486,17 +498,25 @@ func (r *EconomyRepository) coinGameBalances(ctx context.Context, command domain
 		}
 		return domain.CoinBalance{}, domain.CoinBalance{}, err
 	}
-	if challenger.Coins < command.Wager {
+	challengerCoins, ok := coinGameBalanceNumber(challenger)
+	if !ok {
+		return domain.CoinBalance{}, domain.CoinBalance{}, domain.ErrInvalidCoinGameCommand
+	}
+	if challengerCoins < float64(command.Wager) {
 		return domain.CoinBalance{}, domain.CoinBalance{}, ports.ErrCoinGameChallenger
 	}
 	return challenger, opponent, nil
 }
 
 func (r *EconomyRepository) setCoinGameBalance(ctx context.Context, balance domain.CoinBalance) error {
+	coins, ok := coinGameBalanceNumber(balance)
+	if !ok {
+		return domain.ErrInvalidCoinGameCommand
+	}
 	result, err := r.coins.UpdateMany(
 		ctx,
 		bson.D{{Key: "guild", Value: balance.GuildID}, {Key: "member", Value: balance.UserID}},
-		bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: balance.Coins}}}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: coins}}}},
 	)
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("update coin game balance: %w", err))
@@ -505,6 +525,24 @@ func (r *EconomyRepository) setCoinGameBalance(ctx context.Context, balance doma
 		return ports.ErrCoinBalanceNotFound
 	}
 	return ctx.Err()
+}
+
+func coinGameBalanceNumber(balance domain.CoinBalance) (float64, bool) {
+	if strings.TrimSpace(balance.CoinsText) == "" {
+		return float64(balance.Coins), true
+	}
+	return coreeconomy.LegacyEconomyNumber(balance.CoinsText)
+}
+
+func applyCoinGameBalanceDelta(balance *domain.CoinBalance, delta int64) error {
+	coins, ok := coinGameBalanceNumber(*balance)
+	if !ok {
+		return domain.ErrInvalidCoinGameCommand
+	}
+	next := coins + float64(delta)
+	balance.Coins = int64(next)
+	balance.CoinsText = coreeconomy.LegacyEconomyNumberText(next)
+	return nil
 }
 
 func (r *EconomyRepository) SignIn(ctx context.Context, command domain.SignInCommand) (domain.SignInResult, error) {

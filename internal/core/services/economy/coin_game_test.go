@@ -86,3 +86,35 @@ func TestCoinGameRejectsSettlementBelowLegacyNegativeOneOutput(t *testing.T) {
 		t.Fatalf("expected invalid settlement, got %v", err)
 	}
 }
+
+func TestCoinGamePreservesLegacyBalanceScalars(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		text     string
+		wager    int64
+		returned int64
+		want     string
+	}{
+		{name: "decimal", text: "50.5", wager: 10, returned: 20, want: "60.5"},
+		{name: "null", text: "null", wager: 0, returned: 0, want: "0"},
+		{name: "infinity", text: "Infinity", wager: 10, returned: 20, want: "Infinity"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewEconomyRepository()
+			repo.PutBalance(domain.CoinBalance{GuildID: "guild", UserID: "main", CoinsText: test.text})
+			repo.PutBalance(domain.CoinBalance{GuildID: "guild", UserID: "user", CoinsText: test.text})
+			service := CoinGameService{Repository: repo}
+			command := domain.CoinGameCommand{GuildID: "guild", ChallengerID: "main", OpponentID: "user", Wager: test.wager, Kind: domain.CoinGameKindHigherLower}
+			if _, err := service.Reserve(context.Background(), command); err != nil {
+				t.Fatalf("reserve: %v", err)
+			}
+			result, err := service.Settle(context.Background(), domain.CoinGameSettlementCommand{GuildID: "guild", ChallengerID: "main", OpponentID: "user", ChallengerReturn: test.returned, OpponentReturn: test.returned})
+			if err != nil {
+				t.Fatalf("settle: %v", err)
+			}
+			if result.Challenger.CoinsText != test.want || result.Opponent.CoinsText != test.want {
+				t.Fatalf("settled = %#v", result)
+			}
+		})
+	}
+}
