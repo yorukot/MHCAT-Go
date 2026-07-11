@@ -14,6 +14,9 @@ func TestWarningHistoryDefinitionMatchesLegacyShape(t *testing.T) {
 	if len(definition.Options) != 1 {
 		t.Fatalf("options = %#v", definition.Options)
 	}
+	if definition.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy warning history is publicly discoverable: %#v", definition.DefaultMemberPermissions)
+	}
 	option := definition.Options[0]
 	if option.Type != commands.OptionTypeUser || option.Name != "使用者" || option.Description != "要收尋的使用者!" || !option.Required {
 		t.Fatalf("option = %#v", option)

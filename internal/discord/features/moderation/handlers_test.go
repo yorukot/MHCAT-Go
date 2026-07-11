@@ -17,8 +17,13 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
-func TestWarningHistoryRequiresManageMessages(t *testing.T) {
+func TestWarningHistoryDoesNotEnforceAdvertisedManageMessages(t *testing.T) {
 	repo := fakemongo.NewWarningHistoryRepository()
+	repo.Put(domain.WarningHistory{
+		GuildID: "guild-1",
+		UserID:  "user-2",
+		Entries: []domain.WarningEntry{{ModeratorID: "mod-1", Reason: "reason", Time: "time"}},
+	})
 	module := NewModule(repo, nil, nil, nil)
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(WarningHistoryCommandName, "", map[string]string{"使用者": "user-2"})
@@ -26,7 +31,10 @@ func TestWarningHistoryRequiresManageMessages(t *testing.T) {
 	if err := module.WarningHistoryHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") {
+	if len(responder.Defers) != 1 || responder.Defers[0].Ephemeral {
+		t.Fatalf("legacy defer should be public: %#v", responder.Defers)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || responder.Edits[0].Embeds[0].Title != "以下是user-2的警告紀錄" || responder.Edits[0].Ephemeral {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 }

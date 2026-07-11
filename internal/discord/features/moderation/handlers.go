@@ -40,9 +40,6 @@ func (m Module) WarningHistoryHandler() interactions.Handler {
 		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
 			return err
 		}
-		if !interaction.Actor.HasPermission(warningManageMessagesPermission) {
-			return responder.EditOriginal(ctx, warningErrorMessage("你需要有`訊息管理`才能使用此指令"))
-		}
 		userID := strings.TrimSpace(interaction.Options["使用者"])
 		if userID == "" {
 			return responder.EditOriginal(ctx, warningErrorMessage("這位使用者沒有任何警告!"))
