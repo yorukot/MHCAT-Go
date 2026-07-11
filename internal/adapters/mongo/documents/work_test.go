@@ -4,7 +4,6 @@ import (
 	"math"
 	"testing"
 
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -30,7 +29,7 @@ func TestWorkDocumentsConvertLegacyFields(t *testing.T) {
 		t.Fatalf("item = %#v", item)
 	}
 	user := WorkUserDocument{Guild: "guild-1", User: "user-1", State: "", EndTime: rawInt64(t, 10), Energi: rawString(t, "7"), GetCoin: rawInt64(t, 99)}.ToDomain()
-	if user.State != domain.WorkIdleState || user.EndTimeText != "10" || user.Energy != 7 || user.EnergyText != "7" || user.GetCoin != 99 || !user.Initialized {
+	if user.State != "" || user.EndTimeText != "10" || user.Energy != 7 || user.EnergyText != "7" || user.GetCoin != 99 || !user.Initialized {
 		t.Fatalf("user = %#v", user)
 	}
 }

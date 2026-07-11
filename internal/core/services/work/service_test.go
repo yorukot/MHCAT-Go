@@ -198,6 +198,20 @@ func TestStartWorkUsesRepository(t *testing.T) {
 	}
 }
 
+func TestStartWorkTreatsEmptyLegacyStateAsBusy(t *testing.T) {
+	repo := fakemongo.NewWorkInterfaceRepository()
+	item := domain.WorkItem{GuildID: "guild-1", Name: "礦坑", DurationSec: 60, EnergyCost: 2, CoinReward: 5}
+	repo.PutConfig(domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 10})
+	repo.PutItems("guild-1", item)
+	repo.PutUser(domain.WorkUserState{GuildID: "guild-1", UserID: "user-1", State: "", Energy: 10, Initialized: true})
+	service := NewServiceWithStartRepository(repo, repo, fakeClock{now: time.Unix(100, 0)})
+
+	_, _, _, err := service.Start(context.Background(), InterfaceRequest{GuildID: "guild-1", UserID: "user-1"}, item.Key(), false)
+	if !errors.Is(err, domain.ErrWorkAlreadyBusy) {
+		t.Fatalf("expected busy state, got %v", err)
+	}
+}
+
 func TestStartWorkRequiresExplicitStartRepository(t *testing.T) {
 	item := domain.WorkItem{GuildID: "guild-1", Name: "礦坑", DurationSec: 60, EnergyCost: 2, CoinReward: 5}
 	service := NewService(fakeRepo{

@@ -56,14 +56,10 @@ func (d WorkItemDocument) ToDomain() domain.WorkItem {
 }
 
 func (d WorkUserDocument) ToDomain() domain.WorkUserState {
-	state := strings.TrimSpace(d.State)
-	if state == "" {
-		state = domain.WorkIdleState
-	}
 	return domain.WorkUserState{
 		GuildID:     d.Guild,
 		UserID:      d.User,
-		State:       state,
+		State:       d.State,
 		EndTimeUnix: workLegacyInt64(d.EndTime),
 		EndTimeText: legacyPriceString(d.EndTime),
 		Energy:      workLegacyInt64(d.Energi),
