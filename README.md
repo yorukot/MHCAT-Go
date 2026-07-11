@@ -103,7 +103,7 @@ Implemented utility commands:
 - parity-audited `/代幣增加` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`; see [docs/100-economy-coin-admin.md](docs/100-economy-coin-admin.md)
 - parity-audited `/代幣排行榜` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`; see [docs/96-economy-coin-rank.md](docs/96-economy-coin-rank.md)
 - `/代幣重製` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, gateway enabled, Guild Messages intent enabled, and Message Content intent enabled
-- `/剪刀石頭布` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`
+- parity-audited `/剪刀石頭布` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`; see [docs/101-economy-rps.md](docs/101-economy-rps.md)
 - parity-audited `/my-profile` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true`; see [docs/97-economy-profile.md](docs/97-economy-profile.md)
 - parity-audited `/簽到`, `/簽到列表`, and calendar navigation when explicitly enabled with `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`; see [docs/98-economy-sign.md](docs/98-economy-sign.md)
 - `/打工系統 新增打工事項` dashboard redirect, `/打工系統 打工介面` list/detail/start flow, and work admin setup/delete/energy flows when explicitly enabled with `MHCAT_FEATURE_WORK_ENABLED=true`
@@ -170,7 +170,7 @@ Known external, intentionally inactive, or rollout gaps include lottery creation
 
 `/代幣增加` is a disabled-by-default staging admin write slice. It requires Manage Messages, writes one legacy-compatible `coins` row, and preserves signed amounts, Mongoose-visible number scalars, uncapped creation, and add-only upper/reduce-only lower guards. Pair both feature/sync flags only against disposable staging data and follow [docs/100-economy-coin-admin.md](docs/100-economy-coin-admin.md).
 
-`/剪刀石頭布` is a disabled-by-default staging game write slice. It writes existing `coins` rows only, rejects missing or insufficient balances, preserves legacy tie/win/loss wager behavior, and must be paired with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
+`/剪刀石頭布` is a disabled-by-default staging game write slice. It writes one existing `coins` row, preserves Mongoose-visible number scalars and legacy tie/win/loss wager behavior, and requires both RPS flags only against disposable staging data; follow [docs/101-economy-rps.md](docs/101-economy-rps.md).
 
 `/代幣重製` is a disabled-by-default staging owner-only destructive write slice. It writes all `coins` rows for a guild by either deleting them when `除以多少` is omitted or `0`, or dividing balances with legacy rounding when a divisor is provided. It must be paired with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true`, gateway, Guild Messages, and Message Content flags, and tested only against disposable staging balances.
 
@@ -581,7 +581,7 @@ The `/簽到` command is available only when `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABL
 
 The `/coin-related-settings` command is available only when `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command replaces one `gift_changes` row with legacy fields and duplicate behavior. It requires Manage Messages at the command definition and runtime levels; follow [docs/99-economy-settings.md](docs/99-economy-settings.md).
 
-The `/剪刀石頭布` command is available only when `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes existing `coins` rows only, rejects missing or insufficient balances, and preserves the legacy game behavior where winning can move a balance above `999999999`; use only disposable staging balances until economy ownership and duplicate audits are reviewed.
+The `/剪刀石頭布` command is available only when `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`; staging preflight and scripts reject unpaired sync/runtime flags. It writes one existing balance and preserves no-cap wins, scalar arithmetic, and duplicate ambiguity; use only disposable staging data and follow [docs/101-economy-rps.md](docs/101-economy-rps.md).
 
 The `/代幣重製` command is available only when `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true`, and `MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RESET=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command requires the Discord guild owner and a same-channel `^確認^` message within 60 seconds before deleting or dividing all guild `coins` balances. Test only against disposable staging rows.
 
