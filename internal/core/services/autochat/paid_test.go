@@ -112,6 +112,26 @@ func TestPaidHandoffSubmitPreservesStoredChannelWhitespace(t *testing.T) {
 	}
 }
 
+func TestPaidHandoffSubmitChecksEligibleBalanceBeforeConfig(t *testing.T) {
+	configs := fakemongo.NewAutoChatConfigRepository()
+	configs.Err = errors.New("config unavailable")
+	balances := fakemongo.NewBalanceRepository()
+	balances.Balances["guild-1"] = domain.Balance{GuildID: "guild-1", Amount: "0"}
+	service, err := NewPaidHandoffService(configs, balances, &fakemongo.AutoChatPaidRepository{})
+	if err != nil {
+		t.Fatalf("new paid service: %v", err)
+	}
+	submission, err := service.Submit(context.Background(), "guild-1", "channel-1", "hello", time.UnixMilli(1_700_000_000_000))
+	if err != nil || submission.State != domain.AutoChatPaidIgnored {
+		t.Fatalf("ineligible balance submission=%#v err=%v", submission, err)
+	}
+
+	balances.Balances["guild-1"] = domain.Balance{GuildID: "guild-1", Amount: "1"}
+	if _, err := service.Submit(context.Background(), "guild-1", "channel-1", "hello", time.UnixMilli(1_700_000_000_000)); err == nil {
+		t.Fatal("eligible balance should continue to the failing config lookup")
+	}
+}
+
 func TestPaidHandoffSubmitMapsQueueOutcomes(t *testing.T) {
 	for _, test := range []struct {
 		name      string
