@@ -4,8 +4,21 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    env_file:
-      - .env.production
+    environment:
+      - MHCAT_ENV
+      - MHCAT_DISCORD_TOKEN
+      - MHCAT_REPORT_WEBHOOK_URL
+      - MHCAT_MONGODB_URI
+      - MHCAT_MONGODB_DATABASE
+      - MHCAT_DISCORD_SHARD_COUNT
+      - MHCAT_SCHEDULER_LEASE_OWNER
+      - MHCAT_LEGACY_WELCOME_SPECIAL_GUILD_ID
+      - MHCAT_LEGACY_WELCOME_SPECIAL_BOT_ID
+      - MHCAT_LEGACY_WELCOME_SPECIAL_CHANNEL_ID
+      - MHCAT_LEGACY_WELCOME_SPECIAL_CHAT_CHANNEL_ID
+      - MHCAT_LEGACY_WELCOME_SPECIAL_HELP_CHANNEL_ID
+      - MHCAT_LEGACY_WELCOME_SPECIAL_BUG_CHANNEL_ID
+      - MHCAT_LEGACY_WELCOME_SPECIAL_SUPPORT_CHANNEL_ID
     stop_grace_period: 45s
     networks:
       - mhcat-net
