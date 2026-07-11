@@ -121,6 +121,7 @@ func (m Module) coinRankMessage(ctx context.Context, interaction interactions.In
 		GuildIconData:  fetchCoinRankGuildIcon(ctx, guild.IconURL),
 		ViewerRankText: viewerRankText,
 		SubtitleY:      legacyCoinRankSubtitleY(pageUpdate),
+		Page:           result.Page,
 		Entries:        canvasEntries,
 	})
 	if err != nil {

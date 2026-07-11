@@ -27,6 +27,7 @@ type coinRankCanvasView struct {
 	GuildIconData  []byte
 	ViewerRankText string
 	SubtitleY      int
+	Page           int
 	Entries        []coinRankCanvasEntry
 }
 
@@ -75,7 +76,7 @@ func drawGeneratedCoinRankBackground(canvas *image.RGBA) {
 
 func drawCoinRankHeader(canvas *image.RGBA, view coinRankCanvasView) {
 	drawCoinRankGuildIcon(canvas, view.GuildIconData)
-	guildName := truncateRunes(view.GuildName, 33)
+	guildName := truncateLegacyCoinRankText(view.GuildName)
 	if guildName == "" {
 		guildName = "MHCAT"
 	}
@@ -83,14 +84,15 @@ func drawCoinRankHeader(canvas *image.RGBA, view coinRankCanvasView) {
 	if createdAt.IsZero() {
 		createdAt = time.Unix(0, 0).UTC()
 	}
-	drawText(canvas, 115, 50, guildName, color.RGBA{R: 211, G: 211, B: 211, A: 255}, 3)
+	headerColor := color.RGBA{R: 211, G: 211, B: 211, A: 255}
+	drawCoinRankText(canvas, 115, 50, guildName, headerColor, 37)
 	subtitleY := view.SubtitleY
 	if subtitleY == 0 {
 		subtitleY = 74
 	}
-	drawText(canvas, 118, subtitleY, "代幣排行榜", color.RGBA{R: 168, G: 168, B: 168, A: 255}, 2)
-	drawText(canvas, 680, 70, view.ViewerRankText, color.RGBA{R: 230, G: 235, B: 255, A: 255}, 3)
-	drawText(canvas, 790, 70, createdAt.Format("2006/01/02"), color.RGBA{R: 230, G: 235, B: 255, A: 255}, 2)
+	drawCoinRankText(canvas, 118, subtitleY, "代幣排行榜", color.RGBA{R: 168, G: 168, B: 168, A: 255}, 20)
+	drawCoinRankCenteredNumericText(canvas, 710, 70, view.ViewerRankText, headerColor, 30)
+	drawCoinRankNumericText(canvas, 790, 70, createdAt.Format("2006/01/02"), headerColor, 30)
 }
 
 func drawCoinRankGuildIcon(canvas *image.RGBA, data []byte) {
@@ -102,9 +104,19 @@ func drawCoinRankGuildIcon(canvas *image.RGBA, data []byte) {
 		fillRect(canvas, image.Rect(33, 10, 103, 80), color.RGBA{R: 88, G: 101, B: 242, A: 255})
 		return
 	}
-	dst := image.NewRGBA(image.Rect(0, 0, 70, 70))
-	xdraw.CatmullRom.Scale(dst, dst.Bounds(), icon, icon.Bounds(), draw.Over, nil)
-	drawRoundedImage(canvas, dst, image.Pt(33, 10), 22)
+	large := image.NewRGBA(image.Rect(0, 0, 128, 128))
+	xdraw.CatmullRom.Scale(large, large.Bounds(), icon, icon.Bounds(), draw.Over, nil)
+	rounded := image.NewRGBA(large.Bounds())
+	for y := 0; y < large.Bounds().Dy(); y++ {
+		for x := 0; x < large.Bounds().Dx(); x++ {
+			if insideLegacyCoinRankIcon(x, y, 128, 128, 40) {
+				rounded.Set(x, y, large.At(x, y))
+			}
+		}
+	}
+	small := image.NewRGBA(image.Rect(0, 0, 70, 70))
+	xdraw.CatmullRom.Scale(small, small.Bounds(), rounded, rounded.Bounds(), draw.Over, nil)
+	draw.Draw(canvas, image.Rect(33, 10, 103, 80), small, image.Point{}, draw.Over)
 }
 
 func legacyCoinRankFallbackIcon() image.Image {
@@ -123,26 +135,18 @@ func legacyCoinRankFallbackIcon() image.Image {
 }
 
 func drawCoinRankRows(canvas *image.RGBA, view coinRankCanvasView) {
+	white := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	rankSize := legacyCoinRankNumberFontSize(view.Page)
+	for slot := 0; slot < coreeconomy.CoinRankPageSize; slot++ {
+		xOffset, row := legacyCoinRankSlotPosition(slot)
+		drawCoinRankCenteredNumericText(canvas, 73+xOffset, 146+row*74, strconv.Itoa(legacyCoinRankNumber(view.Page, slot)), white, rankSize)
+	}
 	for i, entry := range view.Entries {
-		xOffset := 0
-		row := i
-		if i >= 5 {
-			xOffset = 484
-			row = i - 5
-		}
-		rankY := 146 + row*74
+		xOffset, row := legacyCoinRankSlotPosition(i)
 		nameY := 131 + row*74
 		coinsY := 153 + row*74
-		rankScale := 4
-		if entry.Rank > 99 && entry.Rank < 1000 {
-			rankScale = 3
-		}
-		if entry.Rank > 999 {
-			rankScale = 2
-		}
-		drawText(canvas, 55+xOffset, rankY, strconv.Itoa(entry.Rank), color.RGBA{R: 255, G: 255, B: 255, A: 255}, rankScale)
-		drawText(canvas, 121+xOffset, nameY, truncateRunes(entry.DisplayName, 33), color.RGBA{R: 255, G: 255, B: 255, A: 255}, 2)
-		drawText(canvas, 137+xOffset, coinsY, coreeconomy.LegacyCoinRankAmountText(entry.Coins), color.RGBA{R: 226, G: 230, B: 240, A: 255}, 2)
+		drawCoinRankText(canvas, 121+xOffset, nameY, truncateLegacyCoinRankText(entry.DisplayName), white, 25)
+		drawCoinRankNumericText(canvas, 137+xOffset, coinsY, coreeconomy.LegacyCoinRankAmountText(entry.Coins), white, 15)
 	}
 }
 

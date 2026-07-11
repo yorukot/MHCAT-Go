@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -184,6 +185,55 @@ func TestCoinRankPreservesLegacyRenderLifecycleDifferences(t *testing.T) {
 	}
 	if got := legacyCoinRankSubtitleY(true); got != 70 {
 		t.Fatalf("updated subtitle y = %d", got)
+	}
+}
+
+func TestCoinRankCanvasPreservesLegacyFontAndPageLayout(t *testing.T) {
+	wantLanguageFonts := []string{
+		"fonts/language/TC.otf",
+		"fonts/language/SC.otf",
+		"fonts/language/JP.otf",
+		"fonts/language/HK.otf",
+		"fonts/language/NotoSans.ttf",
+		"fonts/language/Bengali.ttf",
+		"fonts/language/Arabic.ttf",
+		"fonts/language/emoji.ttf",
+		"fonts/TaipeiSansTCBeta-Regular.ttf",
+	}
+	if got := coinRankFontCandidates(coinRankLanguageFont); !reflect.DeepEqual(got, wantLanguageFonts) {
+		t.Fatalf("language fonts = %#v", got)
+	}
+	if got := coinRankFontCandidates(coinRankNumericFont); len(got) != len(wantLanguageFonts)+1 || got[0] != "fonts/Comic-Sans-MS-copy-5-.ttf" || !reflect.DeepEqual(got[1:], wantLanguageFonts) {
+		t.Fatalf("numeric fonts = %#v", got)
+	}
+	if x, row := legacyCoinRankSlotPosition(5); x != 484 || row != 0 {
+		t.Fatalf("right slot = (%d,%d)", x, row)
+	}
+	if got := legacyCoinRankNumber(12, 9); got != 130 {
+		t.Fatalf("last page rank = %d", got)
+	}
+	for page, want := range map[int]int{0: 40, 99: 40, 100: 30, 999: 30, 1000: 25} {
+		if got := legacyCoinRankNumberFontSize(page); got != want {
+			t.Fatalf("page %d rank font = %d want %d", page, got, want)
+		}
+	}
+	long := strings.Repeat("界", 20)
+	if got := truncateLegacyCoinRankText(long); got != strings.Repeat("界", 16) {
+		t.Fatalf("legacy truncation = %q", got)
+	}
+
+	view := coinRankCanvasView{GuildName: "Guild", ViewerRankText: "沒有資料", Page: 0}
+	first, err := renderCoinRankPNG(view)
+	if err != nil {
+		t.Fatalf("render first page: %v", err)
+	}
+	view.Page = 1
+	second, err := renderCoinRankPNG(view)
+	if err != nil {
+		t.Fatalf("render second page: %v", err)
+	}
+	if bytes.Equal(first, second) {
+		t.Fatal("empty leaderboard pages rendered identically")
 	}
 }
 
