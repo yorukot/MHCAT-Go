@@ -2,9 +2,13 @@ package discordgo
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -119,6 +123,136 @@ func TestRoleWritesUseRESTWithoutCachedMember(t *testing.T) {
 			t.Fatalf("request[%d] = %q, want %q", i, requests[i], want[i])
 		}
 	}
+}
+
+func TestCleanupMessagesUsesSafeDiscordPaginationAndFiltering(t *testing.T) {
+	type cleanupState struct {
+		messages    []*dgo.Message
+		fetches     int
+		bulkDeletes [][]string
+		singleIDs   []string
+	}
+	state := cleanupState{}
+	removeIDs := func(ids []string) {
+		deleted := make(map[string]struct{}, len(ids))
+		for _, id := range ids {
+			deleted[id] = struct{}{}
+		}
+		kept := state.messages[:0]
+		for _, message := range state.messages {
+			if _, ok := deleted[message.ID]; !ok {
+				kept = append(kept, message)
+			}
+		}
+		state.messages = kept
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		switch {
+		case request.Method == http.MethodGet && request.URL.Path == "/channels/channel-1/messages":
+			state.fetches++
+			visible := state.messages
+			if before := request.URL.Query().Get("before"); before != "" {
+				visible = nil
+				for index, message := range state.messages {
+					if message.ID == before {
+						visible = state.messages[index+1:]
+						break
+					}
+				}
+			}
+			limit, _ := strconv.Atoi(request.URL.Query().Get("limit"))
+			if limit < len(visible) {
+				visible = visible[:limit]
+			}
+			_ = json.NewEncoder(writer).Encode(visible)
+		case request.Method == http.MethodPost && request.URL.Path == "/channels/channel-1/messages/bulk-delete":
+			var payload struct {
+				Messages []string `json:"messages"`
+			}
+			if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+				writer.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			state.bulkDeletes = append(state.bulkDeletes, append([]string(nil), payload.Messages...))
+			removeIDs(payload.Messages)
+			writer.WriteHeader(http.StatusNoContent)
+		case request.Method == http.MethodDelete && strings.HasPrefix(request.URL.Path, "/channels/channel-1/messages/"):
+			id := strings.TrimPrefix(request.URL.Path, "/channels/channel-1/messages/")
+			state.singleIDs = append(state.singleIDs, id)
+			removeIDs([]string{id})
+			writer.WriteHeader(http.StatusNoContent)
+		default:
+			writer.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	previousChannels := dgo.EndpointChannels
+	dgo.EndpointChannels = server.URL + "/channels/"
+	defer func() { dgo.EndpointChannels = previousChannels }()
+	session, err := dgo.New("Bot test-token")
+	if err != nil {
+		t.Fatalf("new discord session: %v", err)
+	}
+	client := SideEffectClient{Session: &Session{session: session}}
+	now := time.Now().UTC()
+	message := func(id string, userID string, timestamp time.Time) *dgo.Message {
+		return &dgo.Message{ID: id, ChannelID: "channel-1", Author: &dgo.User{ID: userID}, Timestamp: timestamp}
+	}
+
+	t.Run("paginates batches and reports actual deletes", func(t *testing.T) {
+		state = cleanupState{}
+		for index := 0; index < 120; index++ {
+			state.messages = append(state.messages, message(fmt.Sprintf("message-%03d", index), "user-1", now))
+		}
+		deleted, err := client.CleanupMessages(context.Background(), ports.MessageCleanupRequest{ChannelID: "channel-1", Limit: 150})
+		if err != nil {
+			t.Fatalf("cleanup messages: %v", err)
+		}
+		if deleted != 120 || len(state.messages) != 0 || state.fetches != 2 {
+			t.Fatalf("deleted=%d remaining=%d fetches=%d", deleted, len(state.messages), state.fetches)
+		}
+		if len(state.bulkDeletes) != 2 || len(state.bulkDeletes[0]) != 100 || len(state.bulkDeletes[1]) != 20 || len(state.singleIDs) != 0 {
+			t.Fatalf("bulk=%#v single=%#v", state.bulkDeletes, state.singleIDs)
+		}
+	})
+
+	t.Run("target filter scans past nonmatching messages", func(t *testing.T) {
+		state = cleanupState{messages: []*dgo.Message{
+			message("other-1", "other", now),
+			message("other-2", "other", now),
+			message("target-1", "target", now),
+			message("other-3", "other", now),
+			message("target-2", "target", now),
+		}}
+		deleted, err := client.CleanupMessages(context.Background(), ports.MessageCleanupRequest{ChannelID: "channel-1", Limit: 2, UserID: "target"})
+		if err != nil {
+			t.Fatalf("cleanup messages: %v", err)
+		}
+		if deleted != 2 || state.fetches != 3 || len(state.singleIDs) != 2 || state.singleIDs[0] != "target-1" || state.singleIDs[1] != "target-2" {
+			t.Fatalf("deleted=%d fetches=%d single=%#v", deleted, state.fetches, state.singleIDs)
+		}
+		if len(state.messages) != 3 {
+			t.Fatalf("remaining = %#v", state.messages)
+		}
+	})
+
+	t.Run("old messages are never sent to delete endpoints", func(t *testing.T) {
+		state = cleanupState{messages: []*dgo.Message{
+			message("recent", "user-1", now),
+			message("old", "user-1", now.Add(-15*24*time.Hour)),
+		}}
+		deleted, err := client.CleanupMessages(context.Background(), ports.MessageCleanupRequest{ChannelID: "channel-1", Limit: 2})
+		if err != nil {
+			t.Fatalf("cleanup messages: %v", err)
+		}
+		if deleted != 1 || len(state.singleIDs) != 1 || state.singleIDs[0] != "recent" || len(state.bulkDeletes) != 0 {
+			t.Fatalf("deleted=%d bulk=%#v single=%#v", deleted, state.bulkDeletes, state.singleIDs)
+		}
+		if len(state.messages) != 1 || state.messages[0].ID != "old" {
+			t.Fatalf("remaining = %#v", state.messages)
+		}
+	})
 }
 
 func TestActorCanModerateMatchesLegacyHighestRoleComparison(t *testing.T) {
