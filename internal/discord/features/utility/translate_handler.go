@@ -26,8 +26,8 @@ func (m Module) TranslateHandler() interactions.Handler {
 		if err != nil {
 			return err
 		}
-		source := strings.TrimSpace(interaction.Options["要的翻譯"])
-		targetLanguage := strings.TrimSpace(interaction.Options["目標語言"])
+		source := interaction.Options["要的翻譯"]
+		targetLanguage := interaction.Options["目標語言"]
 		providerCtx := ctx
 		cancel := func() {}
 		if m.translateTimeout > 0 {
@@ -96,7 +96,6 @@ func translateErrorMessage(err error) responses.Message {
 }
 
 func codeField(value string) string {
-	value = strings.TrimSpace(value)
 	if value == "" {
 		value = " "
 	}

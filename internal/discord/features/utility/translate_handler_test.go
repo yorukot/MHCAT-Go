@@ -33,7 +33,7 @@ func TestTranslateHandlerRendersLegacyLoadingAndResultEmbeds(t *testing.T) {
 	module := NewModuleWithTranslator(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), nil, nil, provider, nil, usage)
 	module.translateColor = func() int { return 0x123456 }
 	interaction := fakediscord.SlashInteractionWithOptions("翻譯", "", map[string]string{
-		"要的翻譯": "你好",
+		"要的翻譯": " 你好 ",
 		"目標語言": "en",
 	})
 	interaction.Actor.UserTag = "Tester#0001"
@@ -58,8 +58,11 @@ func TestTranslateHandlerRendersLegacyLoadingAndResultEmbeds(t *testing.T) {
 	if final.Title != "<:translate:986870996147507231> 翻譯系統" || final.Color != 0x123456 || len(final.Fields) != 3 {
 		t.Fatalf("final embed = %#v", final)
 	}
-	if !strings.Contains(final.Fields[0].Value, "你好") || !strings.Contains(final.Fields[2].Value, "hello") {
+	if final.Fields[0].Value != "` 你好 `" || final.Fields[2].Value != "`hello`" {
 		t.Fatalf("fields = %#v", final.Fields)
+	}
+	if len(provider.Requests) != 1 || provider.Requests[0].Text != " 你好 " {
+		t.Fatalf("provider requests = %#v", provider.Requests)
 	}
 	if final.Footer == nil || final.Footer.Text != "Tester#0001的查詢" {
 		t.Fatalf("footer = %#v", final.Footer)

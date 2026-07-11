@@ -32,9 +32,8 @@ var SupportedTranslateLanguages = map[string]string{
 }
 
 func (s TranslateService) Translate(ctx context.Context, text string, targetLanguage string) (ports.TranslationResult, error) {
-	text = strings.TrimSpace(text)
 	targetLanguage = strings.TrimSpace(targetLanguage)
-	if text == "" || targetLanguage == "" {
+	if strings.TrimSpace(text) == "" || targetLanguage == "" {
 		return ports.TranslationResult{}, ErrInvalidTranslateInput
 	}
 	if _, ok := SupportedTranslateLanguages[targetLanguage]; !ok {

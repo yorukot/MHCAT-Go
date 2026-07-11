@@ -13,11 +13,11 @@ import (
 func TestTranslateServiceTranslatesSupportedLanguage(t *testing.T) {
 	provider := &faketranslate.Translator{Result: ports.TranslationResult{Text: "hello"}}
 	service := utility.TranslateService{Translator: provider}
-	result, err := service.Translate(context.Background(), "你好", "en")
+	result, err := service.Translate(context.Background(), " 你好 ", "en")
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}
-	if result.Text != "hello" || provider.Requests[0].TargetLanguage != "en" {
+	if result.Text != "hello" || provider.Requests[0].Text != " 你好 " || provider.Requests[0].TargetLanguage != "en" {
 		t.Fatalf("result=%#v requests=%#v", result, provider.Requests)
 	}
 }
