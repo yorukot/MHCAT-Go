@@ -179,7 +179,7 @@ func TestShopItemDocumentPreservesMongoosePriceDisplay(t *testing.T) {
 		{name: "malformed", value: bson.D{{Key: "bad", Value: true}}, want: "undefined"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			raw, err := bson.Marshal(bson.D{{Key: "need_coin", Value: test.value}, {Key: "commodity_count", Value: test.value}})
+			raw, err := bson.Marshal(bson.D{{Key: "commodity_id", Value: test.value}, {Key: "need_coin", Value: test.value}, {Key: "commodity_count", Value: test.value}})
 			if err != nil {
 				t.Fatalf("marshal: %v", err)
 			}
@@ -188,7 +188,7 @@ func TestShopItemDocumentPreservesMongoosePriceDisplay(t *testing.T) {
 				t.Fatalf("unmarshal: %v", err)
 			}
 			item := document.ToDomain()
-			if item.NeedCoinsText != test.want || item.CountText != test.want {
+			if item.CommodityIDText != test.want || item.NeedCoinsText != test.want || item.CountText != test.want {
 				t.Fatalf("item = %#v, want scalar text %q", item, test.want)
 			}
 		})

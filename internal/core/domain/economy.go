@@ -177,18 +177,19 @@ type RockPaperScissorsResult struct {
 }
 
 type ShopItem struct {
-	RecordID      string
-	GuildID       string
-	CommodityID   int64
-	Name          string
-	NeedCoins     int64
-	NeedCoinsText string
-	Description   string
-	Code          string
-	AutoDelete    bool
-	RoleID        string
-	Count         int64
-	CountText     string
+	RecordID        string
+	GuildID         string
+	CommodityID     int64
+	CommodityIDText string
+	Name            string
+	NeedCoins       int64
+	NeedCoinsText   string
+	Description     string
+	Code            string
+	AutoDelete      bool
+	RoleID          string
+	Count           int64
+	CountText       string
 }
 
 type ShopPurchaseCommand struct {
@@ -338,18 +339,19 @@ func ResolveRockPaperScissors(command RockPaperScissorsCommand) (RockPaperScisso
 
 func (i ShopItem) Normalize() ShopItem {
 	return ShopItem{
-		RecordID:      strings.TrimSpace(i.RecordID),
-		GuildID:       strings.TrimSpace(i.GuildID),
-		CommodityID:   i.CommodityID,
-		Name:          i.Name,
-		NeedCoins:     i.NeedCoins,
-		NeedCoinsText: i.NeedCoinsText,
-		Description:   i.Description,
-		Code:          i.Code,
-		AutoDelete:    i.AutoDelete,
-		RoleID:        strings.TrimSpace(i.RoleID),
-		Count:         i.Count,
-		CountText:     i.CountText,
+		RecordID:        strings.TrimSpace(i.RecordID),
+		GuildID:         strings.TrimSpace(i.GuildID),
+		CommodityID:     i.CommodityID,
+		CommodityIDText: i.CommodityIDText,
+		Name:            i.Name,
+		NeedCoins:       i.NeedCoins,
+		NeedCoinsText:   i.NeedCoinsText,
+		Description:     i.Description,
+		Code:            i.Code,
+		AutoDelete:      i.AutoDelete,
+		RoleID:          strings.TrimSpace(i.RoleID),
+		Count:           i.Count,
+		CountText:       i.CountText,
 	}
 }
 

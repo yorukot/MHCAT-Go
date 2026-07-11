@@ -377,7 +377,7 @@ func shopAddSuccessMessage(item domain.ShopItem) responses.Message {
 			Description: "已為您添加該商品!",
 			Fields: []responses.EmbedField{{
 				Name:  fmt.Sprintf("<:id:985950321975128094> 商品名稱: %s", item.Name),
-				Value: fmt.Sprintf("商品id:`%d`\n需要代幣數: `%s`\n商品描述:`%s`\n商品是否自動刪除:`%t`\n身分組:`%s\n商品數量:%s`", item.CommodityID, shopNeedCoinsText(item), item.Description, item.AutoDelete, shopRoleDisplay(item.RoleID), shopCountText(item)),
+				Value: fmt.Sprintf("商品id:`%s`\n需要代幣數: `%s`\n商品描述:`%s`\n商品是否自動刪除:`%t`\n身分組:`%s\n商品數量:%s`", shopCommodityIDText(item), shopNeedCoinsText(item), item.Description, item.AutoDelete, shopRoleDisplay(item.RoleID), shopCountText(item)),
 			}},
 			Color: shopSuccessColor,
 		}},
@@ -401,7 +401,7 @@ func shopListMessage(items []domain.ShopItem, guildName string, userTag string, 
 	for _, item := range items {
 		fields = append(fields, responses.EmbedField{
 			Name:   fmt.Sprintf("<:id:985950321975128094> **商品名 :** `%s`", item.Name),
-			Value:  fmt.Sprintf("💰 **商品價錢 :**`%s`\n<:productdescription:1001163044560314398> **商品說明 :**`%s`\n<:id:985950321975128094> **商品id:**`%d`", shopNeedCoinsText(item), item.Description, item.CommodityID),
+			Value:  fmt.Sprintf("💰 **商品價錢 :**`%s`\n<:productdescription:1001163044560314398> **商品說明 :**`%s`\n<:id:985950321975128094> **商品id:**`%s`", shopNeedCoinsText(item), item.Description, shopCommodityIDText(item)),
 			Inline: true,
 		})
 	}
@@ -415,7 +415,7 @@ func shopListMessage(items []domain.ShopItem, guildName string, userTag string, 
 		for _, item := range items[start:end] {
 			row.Components = append(row.Components, responses.Component{
 				Type:     responses.ComponentTypeButton,
-				CustomID: strconv.FormatInt(item.CommodityID, 10),
+				CustomID: shopCommodityIDText(item),
 				Label:    item.Name,
 				Style:    responses.ButtonStylePrimary,
 			})
@@ -528,6 +528,13 @@ func shopNeedCoinsText(item domain.ShopItem) string {
 		return text
 	}
 	return strconv.FormatInt(item.NeedCoins, 10)
+}
+
+func shopCommodityIDText(item domain.ShopItem) string {
+	if text := strings.TrimSpace(item.CommodityIDText); text != "" {
+		return text
+	}
+	return strconv.FormatInt(item.CommodityID, 10)
 }
 
 func shopCountText(item domain.ShopItem) string {

@@ -126,18 +126,19 @@ func (d ShopItemDocument) ToDomain() domain.ShopItem {
 		roleID = *d.Role
 	}
 	return domain.ShopItem{
-		RecordID:      d.ID.Hex(),
-		GuildID:       d.Guild,
-		CommodityID:   legacyInt64(d.CommodityID),
-		Name:          d.Name,
-		NeedCoins:     legacyInt64(d.NeedCoin),
-		NeedCoinsText: legacyPriceString(d.NeedCoin),
-		Description:   d.CommodityDescription,
-		Code:          code,
-		AutoDelete:    d.AutoDelete,
-		RoleID:        roleID,
-		Count:         legacyInt64(d.CommodityCount),
-		CountText:     legacyPriceString(d.CommodityCount),
+		RecordID:        d.ID.Hex(),
+		GuildID:         d.Guild,
+		CommodityID:     legacyInt64(d.CommodityID),
+		CommodityIDText: legacyPriceString(d.CommodityID),
+		Name:            d.Name,
+		NeedCoins:       legacyInt64(d.NeedCoin),
+		NeedCoinsText:   legacyPriceString(d.NeedCoin),
+		Description:     d.CommodityDescription,
+		Code:            code,
+		AutoDelete:      d.AutoDelete,
+		RoleID:          roleID,
+		Count:           legacyInt64(d.CommodityCount),
+		CountText:       legacyPriceString(d.CommodityCount),
 	}
 }
 

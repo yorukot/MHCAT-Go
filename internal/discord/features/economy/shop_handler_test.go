@@ -180,6 +180,14 @@ func TestShopListAndDetailPreserveLegacyPriceScalar(t *testing.T) {
 	}
 }
 
+func TestShopListPreservesAnomalousCommodityIDText(t *testing.T) {
+	item := domain.ShopItem{CommodityID: 1, CommodityIDText: "1.5", Name: "VIP", NeedCoins: 20, Description: "reward", Count: 1}
+	message := shopListMessage([]domain.ShopItem{item}, "Guild", "User", "avatar", 1)
+	if !strings.Contains(message.Embeds[0].Fields[0].Value, "商品id:**`1.5`") || message.Components[0].Components[0].CustomID != "1.5" {
+		t.Fatalf("list = %#v", message)
+	}
+}
+
 func TestShopDetailAndQuantityPreserveLegacyStockScalars(t *testing.T) {
 	for _, test := range []struct {
 		name      string
