@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf16"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
@@ -78,6 +79,20 @@ func TestLegacyTranslateRandomColorUsesFullDiscordRange(t *testing.T) {
 		if color < 0 || color > 0xFFFFFF {
 			t.Fatalf("color = %#x", color)
 		}
+	}
+}
+
+func TestTranslateCodeFieldUsesDiscordUTF16Limit(t *testing.T) {
+	value := strings.Repeat("😀", 600)
+	got := codeField(value)
+	if units := len(utf16.Encode([]rune(got))); units > 1024 {
+		t.Fatalf("UTF-16 units = %d", units)
+	}
+	if !strings.HasSuffix(got, "...`") || strings.ContainsRune(got, '\uFFFD') {
+		t.Fatalf("field = %q", got)
+	}
+	if fitting := codeField(strings.Repeat("a", 1022)); fitting != "`"+strings.Repeat("a", 1022)+"`" {
+		t.Fatalf("fitting field was truncated: %q", fitting)
 	}
 }
 

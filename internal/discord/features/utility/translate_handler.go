@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unicode/utf16"
 
 	coreutility "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/utility"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
@@ -99,10 +100,25 @@ func codeField(value string) string {
 	if value == "" {
 		value = " "
 	}
-	if len([]rune(value)) > 1000 {
-		runes := []rune(value)
-		value = string(runes[:1000]) + "..."
-	}
 	value = strings.ReplaceAll(value, "`", "'")
+	const (
+		fieldLimit     = 1024
+		wrapperLength  = 2
+		ellipsisLength = 3
+	)
+	if len(utf16.Encode([]rune(value))) > fieldLimit-wrapperLength {
+		limit := fieldLimit - wrapperLength - ellipsisLength
+		var truncated strings.Builder
+		used := 0
+		for _, r := range value {
+			width := utf16.RuneLen(r)
+			if width < 1 || used+width > limit {
+				break
+			}
+			truncated.WriteRune(r)
+			used += width
+		}
+		value = truncated.String() + "..."
+	}
 	return "`" + value + "`"
 }
