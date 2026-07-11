@@ -11,6 +11,7 @@ vet:
 
 build:
 	go build ./cmd/mhcat-bot
+	go build ./cmd/mhcat-shard-supervisor
 	go build ./cmd/mhcat-command-sync
 	go build ./cmd/mhcat-mongo-audit
 	go build ./cmd/mhcat-mongo-index

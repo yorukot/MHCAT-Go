@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/config"
 )
 
 func TestEnvExampleListsRuntimeEnvKeys(t *testing.T) {
@@ -63,4 +65,45 @@ func TestEnvExampleListsRuntimeEnvKeys(t *testing.T) {
 	if len(missing) > 0 {
 		t.Fatalf(".env.example is missing runtime env keys: %s", strings.Join(missing, ", "))
 	}
+}
+
+func TestProductionEnvExampleEnablesAValidRuntime(t *testing.T) {
+	data, err := os.ReadFile(filepath.Clean("../../.env.production.example"))
+	if err != nil {
+		t.Fatalf("read production env: %v", err)
+	}
+	values := parseEnvExample(string(data))
+	values["MHCAT_DISCORD_TOKEN"] = "token"
+	values["MHCAT_DISCORD_APPLICATION_ID"] = "123456789012345678"
+	values["MHCAT_REPORT_WEBHOOK_URL"] = "https://discord.com/api/webhooks/1/token"
+	values["MHCAT_MONGODB_URI"] = "mongodb://user:password@mongodb:27017/mhcat-database?authSource=admin&replicaSet=rs0"
+
+	cfg, err := config.LoadWithLookup(func(key string) (string, bool) {
+		value, ok := values[key]
+		return value, ok
+	})
+	if err != nil {
+		t.Fatalf("load production env: %v", err)
+	}
+	if err := config.Validate(cfg); err != nil {
+		t.Fatalf("validate production env: %v", err)
+	}
+	if cfg.DiscordShardCount != 16 || !cfg.DiscordEnableGateway || !cfg.FeatureEconomyGameEnabled || !cfg.FeatureVoiceXPSessionsEnabled {
+		t.Fatalf("production runtime flags not enabled: %#v", cfg)
+	}
+}
+
+func parseEnvExample(data string) map[string]string {
+	values := map[string]string{}
+	for _, line := range strings.Split(data, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if ok {
+			values[strings.TrimSpace(key)] = strings.TrimSpace(value)
+		}
+	}
+	return values
 }
