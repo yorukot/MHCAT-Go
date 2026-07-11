@@ -41,7 +41,7 @@ func (m Module) CoinAdminHandler() interactions.Handler {
 		if avatarURL == "" {
 			avatarURL = interaction.Actor.AvatarURL
 		}
-		if err := responder.EditOriginal(ctx, coinAdminSuccessMessage(result, targetName, avatarURL, m.randomColor())); err != nil {
+		if err := responder.EditOriginal(ctx, coinAdminSuccessMessage(result, command, targetName, avatarURL, m.randomColor())); err != nil {
 			return err
 		}
 		return m.trackCommand(ctx, interaction, CoinAdminCommandName)
@@ -92,14 +92,10 @@ func coinAdminErrorMessage(content string) responses.Message {
 	}
 }
 
-func coinAdminSuccessMessage(result domain.CoinAdminResult, targetName string, avatarURL string, color int) responses.Message {
+func coinAdminSuccessMessage(result domain.CoinAdminResult, command domain.CoinAdminCommand, targetName string, avatarURL string, color int) responses.Message {
 	action := "增加"
-	if result.Delta < 0 {
+	if command.Operation == domain.CoinAdminOperationReduce {
 		action = "減少"
-	}
-	amount := result.Delta
-	if amount < 0 {
-		amount = -amount
 	}
 	targetName = strings.TrimSpace(targetName)
 	if targetName == "" {
@@ -107,9 +103,9 @@ func coinAdminSuccessMessage(result domain.CoinAdminResult, targetName string, a
 	}
 	return responses.Message{
 		Embeds: []responses.Embed{{
-			Title: fmt.Sprintf("<:money:997374193026994236>已為%s`%s`:`%d`個代幣!", targetName, action, amount),
+			Title: fmt.Sprintf("<:money:997374193026994236>已為%s`%s`:`%d`個代幣!", targetName, action, command.Amount),
 			Footer: &responses.EmbedFooter{
-				Text:    fmt.Sprintf("%s%d", action, amount),
+				Text:    fmt.Sprintf("%s%d", action, command.Amount),
 				IconURL: avatarURL,
 			},
 			Color: color,

@@ -218,9 +218,6 @@ func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domai
 	current, err := r.GetCoinBalance(ctx, command.GuildID, command.UserID)
 	if err != nil {
 		if errors.Is(err, ports.ErrCoinBalanceNotFound) && command.Operation == domain.CoinAdminOperationAdd {
-			if command.Amount > coreeconomy.MaxLegacyCoinBalance {
-				return domain.CoinAdminResult{}, ports.ErrCoinLimitExceeded
-			}
 			balance := domain.CoinBalance{
 				GuildID: command.GuildID,
 				UserID:  command.UserID,
@@ -243,10 +240,10 @@ func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domai
 		return domain.CoinAdminResult{}, err
 	}
 	next := current.Coins + delta
-	if next < 0 {
+	if command.Operation == domain.CoinAdminOperationReduce && next < 0 {
 		return domain.CoinAdminResult{}, ports.ErrCoinNegativeBalance
 	}
-	if next > coreeconomy.MaxLegacyCoinBalance {
+	if command.Operation == domain.CoinAdminOperationAdd && next > coreeconomy.MaxLegacyCoinBalance {
 		return domain.CoinAdminResult{}, ports.ErrCoinLimitExceeded
 	}
 	result, err := r.coins.UpdateMany(

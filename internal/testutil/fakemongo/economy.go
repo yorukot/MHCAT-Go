@@ -151,10 +151,10 @@ func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domai
 		return domain.CoinAdminResult{Balance: balance, Delta: delta, Created: true}, nil
 	}
 	next := balance.Coins + delta
-	if next < 0 {
+	if command.Operation == domain.CoinAdminOperationReduce && next < 0 {
 		return domain.CoinAdminResult{}, ports.ErrCoinNegativeBalance
 	}
-	if next > 999999999 {
+	if command.Operation == domain.CoinAdminOperationAdd && next > 999999999 {
 		return domain.CoinAdminResult{}, ports.ErrCoinLimitExceeded
 	}
 	balance.Coins = next

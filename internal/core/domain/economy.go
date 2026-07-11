@@ -240,7 +240,7 @@ func (c CoinAdminCommand) Normalize() CoinAdminCommand {
 
 func (c CoinAdminCommand) Validate() error {
 	c = c.Normalize()
-	if c.GuildID == "" || c.UserID == "" || c.Amount <= 0 {
+	if c.GuildID == "" || c.UserID == "" {
 		return ErrInvalidCoinAdminCommand
 	}
 	switch c.Operation {

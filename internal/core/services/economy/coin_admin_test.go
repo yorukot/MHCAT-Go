@@ -65,3 +65,36 @@ func TestCoinAdminRejectsInvalidCommand(t *testing.T) {
 		t.Fatalf("expected invalid command, got %v", err)
 	}
 }
+
+func TestCoinAdminPreservesLegacySignedAmountSemantics(t *testing.T) {
+	tests := []struct {
+		name      string
+		operation domain.CoinAdminOperation
+		amount    int64
+		initial   int64
+		missing   bool
+		want      int64
+	}{
+		{name: "missing negative add is uncapped", operation: domain.CoinAdminOperationAdd, amount: -10, missing: true, want: -10},
+		{name: "zero add", operation: domain.CoinAdminOperationAdd, amount: 0, initial: 10, want: 10},
+		{name: "negative add can cross below zero", operation: domain.CoinAdminOperationAdd, amount: -20, initial: 10, want: -10},
+		{name: "negative reduce increases without upper cap", operation: domain.CoinAdminOperationReduce, amount: -10, initial: MaxLegacyCoinBalance, want: MaxLegacyCoinBalance + 10},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewEconomyRepository()
+			if !test.missing {
+				repo.PutBalance(domain.CoinBalance{GuildID: "guild", UserID: "user", Coins: test.initial})
+			}
+			result, err := (CoinAdminService{Repository: repo}).Adjust(context.Background(), domain.CoinAdminCommand{
+				GuildID: "guild", UserID: "user", Operation: test.operation, Amount: test.amount,
+			})
+			if err != nil {
+				t.Fatalf("adjust: %v", err)
+			}
+			if result.Balance.Coins != test.want {
+				t.Fatalf("result = %#v", result)
+			}
+		})
+	}
+}

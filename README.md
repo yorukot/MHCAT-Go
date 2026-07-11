@@ -168,7 +168,7 @@ Known external, intentionally inactive, or rollout gaps include lottery creation
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete and daily-reset ownership is assigned exclusively to the lease-backed one-shot or recurring Go path after Node cron is stopped.
 
-`/代幣增加` is a disabled-by-default staging admin write slice. It requires Manage Messages, writes legacy-compatible `coins` rows, rejects negative balances and balances above `999999999`, and must be paired with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
+`/代幣增加` is a disabled-by-default staging admin write slice. It requires Manage Messages, writes legacy-compatible `coins` rows, preserves signed amounts and the legacy add-only upper/reduce-only lower guards, and must be paired with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
 
 `/剪刀石頭布` is a disabled-by-default staging game write slice. It writes existing `coins` rows only, rejects missing or insufficient balances, preserves legacy tie/win/loss wager behavior, and must be paired with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
 

@@ -93,6 +93,22 @@ func TestCoinAdminReduceRejectsNegativeBalance(t *testing.T) {
 	}
 }
 
+func TestCoinAdminSuccessUsesSelectedOperationAndRawSignedAmount(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "target", Coins: 10})
+	module := NewCoinAdminModule(repo, &fakebotinfo.DiscordInfoProvider{Users: map[string]ports.DiscordUserInfo{"target": {Username: "Target"}}}, nil)
+	interaction := coinAdminInteraction("target", "add", -20)
+	interaction.Actor.PermissionBits = coinAdminManageMessagesPermission
+	responder := fakediscord.NewResponder()
+	if err := module.CoinAdminHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	embed := responder.Edits[0].Embeds[0]
+	if embed.Title != "<:money:997374193026994236>已為Target`增加`:`-20`個代幣!" || embed.Footer == nil || embed.Footer.Text != "增加-20" {
+		t.Fatalf("embed = %#v", embed)
+	}
+}
+
 func coinAdminInteraction(userID string, operation string, amount int64) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(CoinAdminCommandName, "", map[string]string{
 		coinAdminOptionUser:      userID,
