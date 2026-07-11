@@ -230,11 +230,15 @@ func (m Module) DeleteDataPromptHandler() interactions.Handler {
 
 func (m Module) DeleteDataSelectHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
-		if err := responder.Defer(ctx, responses.DeferOptions{Ephemeral: true}); err != nil {
+		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
 			return err
 		}
 		if !interaction.Actor.HasPermission(warningManageMessagesPermission) {
 			return responder.EditOriginal(ctx, deleteDataContentMessage("<a:Discord_AnimatedNo:1015989839809757295> **| 你需要有`訊息管理`才能使用此指令**"))
+		}
+		ownerID := strings.TrimSpace(interaction.OriginalInteractionUserID)
+		if ownerID != "" && ownerID != strings.TrimSpace(interaction.Actor.UserID) {
+			return responder.EditOriginal(ctx, deleteDataContentMessage("<a:Discord_AnimatedNo:1015989839809757295> **| 你沒有設定過這個選項!**"))
 		}
 		target, ok := selectedDeleteDataTarget(interaction)
 		if !ok {
@@ -519,7 +523,6 @@ func deleteDataContentMessage(content string) responses.Message {
 	return responses.Message{
 		Content:         content,
 		AllowedMentions: &responses.AllowedMentions{},
-		Ephemeral:       true,
 	}
 }
 

@@ -623,13 +623,33 @@ func TestDeleteDataSelectDeletesTargetWithLegacySuccess(t *testing.T) {
 	if err := module.DeleteDataSelectHandler()(context.Background(), deleteDataComponentInteraction(domain.DeleteDataTargetAutoChat), responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral {
-		t.Fatalf("defers = %#v", responder.Defers)
+	if len(responder.Defers) != 1 || responder.Defers[0].Ephemeral {
+		t.Fatalf("legacy component defer should be public: %#v", responder.Defers)
 	}
 	if len(repo.Deleted) != 1 || repo.Deleted[0].Target != domain.DeleteDataTargetAutoChat {
 		t.Fatalf("deleted = %#v", repo.Deleted)
 	}
-	if len(responder.Edits) != 1 || responder.Edits[0].Content != "<a:green_tick:994529015652163614> **| 成功刪除該設定!**" || !responder.Edits[0].Ephemeral {
+	if len(responder.Edits) != 1 || responder.Edits[0].Content != "<a:green_tick:994529015652163614> **| 成功刪除該設定!**" || responder.Edits[0].Ephemeral {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestDeleteDataSelectRejectsForeignPromptUser(t *testing.T) {
+	repo := fakemongo.NewDeleteDataRepository()
+	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
+	module := NewDeleteDataModule(repo)
+	interaction := deleteDataComponentInteraction(domain.DeleteDataTargetAutoChat)
+	interaction.Actor.UserID = "user-2"
+	interaction.OriginalInteractionUserID = "user-1"
+	responder := fakediscord.NewResponder()
+
+	if err := module.DeleteDataSelectHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(repo.Deleted) != 0 {
+		t.Fatalf("foreign user deleted data: %#v", repo.Deleted)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Content != "<a:Discord_AnimatedNo:1015989839809757295> **| 你沒有設定過這個選項!**" || responder.Edits[0].Ephemeral {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 }
@@ -736,6 +756,7 @@ func deleteDataSlashInteraction() interactions.Interaction {
 func deleteDataComponentInteraction(target domain.DeleteDataTarget) interactions.Interaction {
 	interaction := fakediscord.ComponentInteractionFromID("delete-data")
 	interaction.Actor.PermissionBits = warningManageMessagesPermission
+	interaction.OriginalInteractionUserID = interaction.Actor.UserID
 	interaction.Values = []string{string(target)}
 	return interaction
 }

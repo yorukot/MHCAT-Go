@@ -136,6 +136,9 @@ func TestDeleteDataDefinitionMatchesLegacyShape(t *testing.T) {
 	if len(definition.Options) != 0 {
 		t.Fatalf("options = %#v", definition.Options)
 	}
+	if definition.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy command is publicly discoverable: %#v", definition.DefaultMemberPermissions)
+	}
 	if !commands.IsManagedForScope(definition, commands.Scope{Kind: commands.ScopeGuild, GuildID: "guild-1"}) {
 		t.Fatal("delete-data command should be managed for guild staging")
 	}
