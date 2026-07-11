@@ -33,6 +33,9 @@ func TestHelpHandlerOverviewMatchesLegacyMenu(t *testing.T) {
 	if embed.Author == nil || embed.Author.Name != "MHCAT" {
 		t.Fatalf("legacy help author = %#v", embed.Author)
 	}
+	if embed.Timestamp.IsZero() || embed.Color < 0 || embed.Color > 0xFFFFFF {
+		t.Fatalf("legacy help presentation = %#v", embed)
+	}
 	if len(embed.Fields) != 0 {
 		t.Fatalf("legacy overview did not attach category fields: %#v", embed.Fields)
 	}
@@ -64,6 +67,9 @@ func TestHelpHandlerCommandDetail(t *testing.T) {
 	msg := responder.Edits[0]
 	if len(msg.Embeds) != 1 || !strings.Contains(msg.Embeds[0].Title, "指令資料") {
 		t.Fatalf("detail embed = %#v", msg.Embeds)
+	}
+	if msg.Embeds[0].Timestamp.IsZero() || msg.Embeds[0].Color < 0 || msg.Embeds[0].Color > 0xFFFFFF {
+		t.Fatalf("detail presentation = %#v", msg.Embeds[0])
 	}
 	foundName := false
 	foundDescription := false

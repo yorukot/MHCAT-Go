@@ -42,6 +42,9 @@ func TestInfoBotHandlerReturnsLegacyEmbed(t *testing.T) {
 	if len(msg.Embeds) != 1 || !strings.Contains(msg.Embeds[0].Title, "MHCAT目前系統使用量") {
 		t.Fatalf("legacy info embed = %#v", msg.Embeds)
 	}
+	if msg.Embeds[0].Color < 0 || msg.Embeds[0].Color > 0xFFFFFF {
+		t.Fatalf("legacy random color = %d", msg.Embeds[0].Color)
+	}
 	for _, want := range []string{"CPU型號", "CPU使用量", "分片數量", "RAM使用量", "開機時間", "總伺服器", "總使用者"} {
 		if !embedHasFieldContaining(msg.Embeds[0], want) {
 			t.Fatalf("legacy info embed missing field %q: %#v", want, msg.Embeds[0].Fields)

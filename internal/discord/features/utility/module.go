@@ -118,6 +118,10 @@ func legacyTranslateRandomColor() int {
 	return int(value.Int64())
 }
 
+func legacyUtilityRandomColor() int {
+	return legacyTranslateRandomColor()
+}
+
 func (m Module) randomTranslateColor() int {
 	if m.translateColor == nil {
 		return legacyTranslateRandomColor()

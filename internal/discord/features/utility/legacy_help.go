@@ -3,6 +3,7 @@ package utility
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
@@ -10,7 +11,6 @@ import (
 
 const (
 	legacyHelpMenuCustomID = "helphelphelphelpmenu"
-	legacyHelpColor        = 0x5865F2
 )
 
 type legacyHelpCategory struct {
@@ -155,8 +155,9 @@ func legacyHelpOverview(interaction interactions.Interaction) responses.Message 
 				URL:     "https://discord.com/api/oauth2/authorize?client_id=964185876559196181&permissions=8&scope=bot%20applications.commands",
 			},
 			Description: "**<a:cool:984263702897360897> 嗨嗨，你發現了酷東西\n使用我來讓你的discord更棒!!\n想要了解某個類別請使用下方的選單\n如要查看特定的指令請使用`/help 指令名稱`\n\n<:9605discordslashcommand:982559784429563925> 指令一律使用斜線命令，只需打`/指令名稱`即可使用**\n\n<a:buycoffeeforme:986560638304256051> [幫我買杯咖啡!](https://www.buymeacoffee.com/mhcat)\n\n[隱私權聲明](https://docsmhcat.yorukot.me/terms/privacy_policy) [服務條款](https://docsmhcat.yorukot.me/terms/Terms_of_Service)",
-			Color:       legacyHelpColor,
+			Color:       legacyUtilityRandomColor(),
 			Footer:      legacyFooter(interaction),
+			Timestamp:   time.Now(),
 		}},
 		Components: []responses.ComponentRow{
 			{Components: []responses.Component{{
@@ -197,7 +198,7 @@ func legacyHelpCategoryMessage(interaction interactions.Interaction, selected st
 			Embeds: []responses.Embed{{
 				Title:       fmt.Sprintf("__%s %s 指令!__", category.Emoji, category.Name),
 				Description: "> 使用 `/help 指令名稱:` 以獲取有關指令的更多信息!\n> 例: `/help 指令名稱:公告發送`\n\n",
-				Color:       legacyHelpColor,
+				Color:       legacyUtilityRandomColor(),
 				Footer:      legacyFooter(interaction),
 				Fields:      fields,
 			}},
@@ -224,9 +225,10 @@ func legacyHelpCommandDetail(interaction interactions.Interaction, query string)
 			}
 			return responses.Message{
 				Embeds: []responses.Embed{{
-					Title:  "**<:9605discordslashcommand:982559784429563925> 指令資料**",
-					Color:  legacyHelpColor,
-					Footer: legacyFooter(interaction),
+					Title:     "**<:9605discordslashcommand:982559784429563925> 指令資料**",
+					Color:     legacyUtilityRandomColor(),
+					Footer:    legacyFooter(interaction),
+					Timestamp: time.Now(),
 					Fields: []responses.EmbedField{
 						{Name: "<:id:985950321975128094>**指令名稱:**", Value: fmt.Sprintf("```%s```", command.Name)},
 						{Name: "<:editinfo:985950967566569503>**指令說明:**", Value: fmt.Sprintf("```%s```", command.Description)},

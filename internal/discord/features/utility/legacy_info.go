@@ -13,7 +13,6 @@ import (
 const (
 	legacyInfoBotRefreshCustomID = "botinfoupdate"
 	legacyInfoShardCustomID      = "shardinfoupdate"
-	legacyInfoColor              = 0x5865F2
 )
 
 var legacyLanguageFlag = map[string]string{
@@ -80,7 +79,7 @@ func legacyInfoBotMessageWithShardLabel(info ports.BotInfo, shardLabel string) r
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title:     "<a:mhcat:996759164875440219> MHCAT目前系統使用量:",
-			Color:     legacyInfoColor,
+			Color:     legacyUtilityRandomColor(),
 			Timestamp: now,
 			Fields: []responses.EmbedField{
 				{Name: "<:cpu:986062422383161424> CPU型號:\n", Value: fmt.Sprintf("`%s`", cpuModel), Inline: false},
@@ -129,7 +128,7 @@ func legacyInfoShardMessage() responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title:     "<:vagueness:999527612634374184> 以下是每個分片的資訊!!",
-			Color:     legacyInfoColor,
+			Color:     legacyUtilityRandomColor(),
 			Timestamp: time.Now(),
 		}},
 		Components: []responses.ComponentRow{{
@@ -196,7 +195,7 @@ func legacyInfoUserMessage(user ports.DiscordUserInfo) responses.Message {
 	}
 	embed := responses.Embed{
 		Title: fmt.Sprintf("<:info:985946738403737620> 以下是%s的資料", name),
-		Color: legacyInfoColor,
+		Color: legacyUtilityRandomColor(),
 		Fields: []responses.EmbedField{
 			{Name: "<:id:1010884394791207003> **使用者ID:**", Value: legacyCode(user.ID)},
 			{Name: "<:page:992009288232996945> **創建時間:**", Value: legacyTime(user.CreatedAt)},
@@ -216,7 +215,7 @@ func legacyInfoGuildMessage(guild ports.DiscordGuildInfo) responses.Message {
 	}
 	embed := responses.Embed{
 		Title: fmt.Sprintf("以下是%s的資料", name),
-		Color: legacyInfoColor,
+		Color: legacyUtilityRandomColor(),
 		Fields: []responses.EmbedField{
 			{Name: "<:id:1010884394791207003> **伺服器ID:**", Value: legacyCode(guild.ID), Inline: true},
 			{Name: "<:Discord_Members:1085959207725043812> **成員數量:**", Value: fmt.Sprintf("`%d`個", guild.MemberCount), Inline: true},
