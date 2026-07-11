@@ -18,6 +18,7 @@ import (
 const (
 	permissionManageMessages = int64(8192)
 	joinRoleSuccessColor     = 0x57F287
+	joinRoleConfigColor      = 0x53FF53
 	joinRoleErrorColor       = 0xED4245
 	legacyDashboardColor     = 0xDF1F2F
 )
@@ -115,7 +116,7 @@ func joinRoleSetSuccessMessage(roleID string) responses.Message {
 		Embeds: []responses.Embed{{
 			Title:       "🪂 加入身分組系統",
 			Description: "<a:green_tick:994529015652163614> **成功創建加入給身分組!**\n**身分組:** <@" + strings.TrimSpace(roleID) + ">!",
-			Color:       joinRoleSuccessColor,
+			Color:       joinRoleConfigColor,
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
@@ -126,7 +127,7 @@ func joinRoleDeleteSuccessMessage(roleID string) responses.Message {
 		Embeds: []responses.Embed{{
 			Title:       "🪂 加入身分組系統",
 			Description: "<:trashbin:986308183674990592>**成功刪除:**\n身分組: <@" + strings.TrimSpace(roleID) + ">!",
-			Color:       joinRoleSuccessColor,
+			Color:       joinRoleConfigColor,
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 )
 
@@ -22,7 +23,7 @@ func TestJoinRoleMessagesPreserveLegacyPayloads(t *testing.T) {
 				Embeds: []responses.Embed{{
 					Title:       "🪂 加入身分組系統",
 					Description: "<a:green_tick:994529015652163614> **成功創建加入給身分組!**\n**身分組:** <@role-1>!",
-					Color:       joinRoleSuccessColor,
+					Color:       0x53FF53,
 				}},
 				AllowedMentions: &responses.AllowedMentions{},
 			},
@@ -34,7 +35,7 @@ func TestJoinRoleMessagesPreserveLegacyPayloads(t *testing.T) {
 				Embeds: []responses.Embed{{
 					Title:       "🪂 加入身分組系統",
 					Description: "<:trashbin:986308183674990592>**成功刪除:**\n身分組: <@role-1>!",
-					Color:       joinRoleSuccessColor,
+					Color:       0x53FF53,
 				}},
 				AllowedMentions: &responses.AllowedMentions{},
 			},
@@ -47,6 +48,30 @@ func TestJoinRoleMessagesPreserveLegacyPayloads(t *testing.T) {
 					Title: "<a:Discord_AnimatedNo:1015989839809757295> | 你需要有`訊息管理`才能使用此指令",
 					Color: joinRoleErrorColor,
 				}},
+				AllowedMentions: &responses.AllowedMentions{},
+			},
+		},
+		{
+			name: "role hierarchy error",
+			got:  joinRoleErrorFromError(ports.ErrDiscordRoleNotAssignable),
+			want: responses.Message{
+				Embeds:          []responses.Embed{{Title: "<a:Discord_AnimatedNo:1015989839809757295> | 我沒有權限為大家增加這個身分組，請將我的身分組位階調高", Color: joinRoleErrorColor}},
+				AllowedMentions: &responses.AllowedMentions{},
+			},
+		},
+		{
+			name: "duplicate error",
+			got:  joinRoleErrorFromError(ports.ErrJoinRoleConfigExists),
+			want: responses.Message{
+				Embeds:          []responses.Embed{{Title: "<a:Discord_AnimatedNo:1015989839809757295> | 很抱歉，這個身分組已經被註冊了，請重試!", Color: joinRoleErrorColor}},
+				AllowedMentions: &responses.AllowedMentions{},
+			},
+		},
+		{
+			name: "missing error",
+			got:  joinRoleErrorFromError(ports.ErrJoinRoleConfigMissing),
+			want: responses.Message{
+				Embeds:          []responses.Embed{{Title: "<a:Discord_AnimatedNo:1015989839809757295> | 找不到這個身份組!", Color: joinRoleErrorColor}},
 				AllowedMentions: &responses.AllowedMentions{},
 			},
 		},
