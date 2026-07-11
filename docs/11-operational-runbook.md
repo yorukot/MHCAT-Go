@@ -411,41 +411,20 @@ This command requires the Discord guild owner. It sends the legacy destructive w
 
 Bot startup still does not sync commands. Run command sync manually and review dry-run output before any `--apply`.
 
-Read-only `/警告紀錄` is available only when both staging command sync and runtime flags are explicitly enabled:
+The warning command families are available only when their staging command-sync and runtime flags are paired:
 
 ```bash
 MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=true
 MHCAT_FEATURE_WARNINGS_ENABLED=true
-```
-
-This command reads `warndbs` only. It does not create/remove warnings, run escalation rules, delete messages, kick/ban members, write usage counters, or create indexes. It intentionally enforces Manage Messages and falls back to moderator IDs when old warning rows reference uncached members.
-
-Config-only `/警告設定` is available only when both staging command sync and runtime flags are explicitly enabled:
-
-```bash
 MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=true
 MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true
-```
-
-This command writes legacy `errors_sets` threshold/action config only. It does not create warning rows, remove warnings, run escalation, delete messages, kick, ban, write usage counters, or create indexes.
-
-Warning-removal `/警告清除` and `/警告全部清除` are available only when both staging command sync and runtime flags are explicitly enabled:
-
-```bash
 MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=true
 MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=true
-```
-
-These commands mutate legacy `warndbs` only and send best-effort DMs. They do not create warnings, run escalation, delete messages, kick, ban, write usage counters, or create indexes.
-
-Warning-issue `/警告` is available only when both staging command sync and runtime flags are explicitly enabled:
-
-```bash
 MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=true
 MHCAT_FEATURE_WARNING_ISSUE_ENABLED=true
 ```
 
-This command appends legacy `warndbs.content` entries, sends best-effort DMs, and reads `errors_sets` to run configured `停權`/`踢出` threshold actions for existing warning records. Use only isolated staging warning fixtures and disposable test members because threshold matches can kick or ban users. It does not delete messages, write usage counters, create indexes, or repair duplicate `warndbs` rows.
+Enable only the families under test. `/警告紀錄` reads `warndbs` and intentionally does not enforce its advertised Manage Messages metadata. Settings writes `errors_sets`; removal mutates `warndbs`; issue appends warnings, sends best-effort DMs, and may kick or ban disposable members. When global usage tracking is separately enabled, each slash attempt records exactly one event. No warning gate creates indexes or runs startup repair/migration. Back up and audit duplicate/mixed rows, unknown actions, and malformed thresholds before smoke. Exact UI, permission, scalar, threshold, duplicate, ownership, smoke, and rollback requirements are in [84-warning-system.md](84-warning-system.md).
 
 Destructive `/刪除資料` is available only when both staging command sync and runtime flags are explicitly enabled:
 

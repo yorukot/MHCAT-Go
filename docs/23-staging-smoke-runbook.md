@@ -185,7 +185,7 @@ export MHCAT_FEATURE_WARNINGS_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=true
 ```
 
-Set both together only when testing the read-only `/警告紀錄` lookup. This path reads `warndbs` and does not create, remove, or escalate warnings.
+Set both together only when testing the read-only `/警告紀錄` lookup. This path reads `warndbs`, remains usable without Manage Messages exactly as legacy, and does not create, remove, or escalate warnings.
 
 Optional warning-settings smoke flags:
 
@@ -213,6 +213,8 @@ export MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=true
 ```
 
 Set both together only when testing `/警告` against isolated staging warning fixtures and disposable test members. This path appends `warndbs`, sends best-effort DMs, and can kick or ban when `errors_sets` thresholds are met.
+
+Back up and audit `warndbs` and `errors_sets` before enabling any warning family. Preserve duplicate and mixed rows, create no indexes, stop all matching Node owners, and follow the complete [warning-system parity contract](84-warning-system.md).
 
 Optional message-cleanup smoke flags:
 
@@ -1486,6 +1488,17 @@ If translate flags were enabled and command sync apply was reviewed:
 - verify the loading embed appears before the final translated embed;
 - verify provider failures return a safe red error embed and do not expose raw provider details.
 
+If any warning flags were enabled and command sync apply was reviewed:
+
+- back up `warndbs` and `errors_sets`, stop Node warning owners, and use only disposable rows/members;
+- confirm all five definitions are public; verify a non-manager can run `/警告紀錄` while the other four commands return exact public red permission errors;
+- seed mixed history content and verify exact random-color formatting, moderator fallback, missing/empty behavior, and no index creation;
+- run `/警告設定` with safe positive, zero, and negative thresholds; verify exact green UI and typed alignment of duplicate `errors_sets` rows;
+- issue first and existing warnings with padded/all-space reasons; verify raw reason, Taipei timestamp, strict role hierarchy, first-warning threshold skip, DM behavior, and omitted audit reason;
+- in controlled cases verify exact `停權` bans, every other stored action kicks, malformed `NaN` thresholds never act, and DM/channel-send failures do not replace success;
+- run `/警告清除` with indexes `1`, `0`, negative, very negative, and too large against mixed content, then run `/警告全部清除` against duplicates and verify guild/user isolation;
+- complete every migration, failure, usage, rollback, and no-index check in [84-warning-system.md](84-warning-system.md).
+
 If message-cleanup flags were enabled and command sync apply was reviewed:
 
 - use a disposable staging text channel containing only test messages;
@@ -1766,6 +1779,7 @@ Verify:
   - Exception: logging message-event smoke sends edit/delete embeds to the configured staging log channel only.
   - Exception: logging channel-event smoke sends topic/permission embeds to the configured staging log channel only.
   - Exception: logging voice-event smoke sends join/leave embeds to the configured staging log channel only.
+  - Exception: warning smoke reads/writes disposable `warndbs`/`errors_sets`, sends best-effort DMs/messages, and may kick or ban only disposable test members.
   - Exception: delete-data smoke deletes selected disposable staging config rows only.
   - Exception: auto-notification config smoke writes/completes disposable setup `cron_sets` rows, sends a setup preview, and deletes selected rows and abandoned pending drafts only.
   - Exception: auto-notification delivery smoke sends persisted disposable messages and acquires/renews/releases `mhcat_scheduler_locks`; it does not mutate `cron_sets`.

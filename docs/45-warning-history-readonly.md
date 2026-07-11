@@ -1,65 +1,9 @@
 # Warning History Read-only Slice
 
-Status: implemented behind explicit runtime and command-sync gates.
+Status: historical implementation note, superseded by the complete [warning-system parity contract](84-warning-system.md).
 
-## Legacy Reference
+This file originally documented the first read-only `/警告紀錄` slice. The later full-system audit corrected and expanded that contract across `/警告紀錄`, `/警告設定`, `/警告`, `/警告清除`, and `/警告全部清除`.
 
-- File: `MHCAT/slashCommands/警告系統/warnings.js`
-- Command: `警告紀錄`
-- Option: required user option `使用者`
-- Cooldown: `10`
-- Permission metadata: `UserPerms: '訊息管理'`
-- Mongo read: `warndb.findOne({ guild: interaction.guild.id, user: user.id })`
-- Legacy no-data response: red embed title `<a:Discord_AnimatedNo:1015989839809757295> | 這位使用者沒有任何警告!`
-- Legacy success title: `以下是${user.username}的警告紀錄`
-- Legacy row format: `- 警告者`, `- 原因`, `- 時間`
+The important correction is permission behavior: legacy advertises `UserPerms: '訊息管理'` for history but does not enforce it in the command body or global slash dispatcher. Go therefore keeps `/警告紀錄` publicly executable at runtime. The other four warning commands enforce Manage Messages.
 
-## Go Implementation
-
-- Runtime flag: `MHCAT_FEATURE_WARNINGS_ENABLED=false` by default.
-- Command sync flag: `MHCAT_COMMAND_SYNC_INCLUDE_WARNINGS=false` by default.
-- Command sync requires staging mode and guild scope.
-- Repository: `internal/adapters/mongo/repositories.WarningHistoryRepository`
-- Service: `internal/core/services/moderation.WarningHistoryService`
-- Handler: `internal/discord/features/moderation.WarningHistoryHandler`
-- Collection: `warndbs`
-
-The repository is read-only. It performs no warning writes, no warning deletes, no escalation updates, no Mongo repairs, and no index creation.
-
-## Intentional Fixes
-
-- The Go handler enforces Manage Messages before reading warning history, matching the legacy `UserPerms` metadata and reducing moderation-data exposure.
-- The Go handler falls back to the stored moderator ID when a moderator member tag cannot be fetched, avoiding the legacy cached-member nil crash.
-- Internal errors are converted to a safe legacy-style red embed instead of exposing raw driver details.
-
-## Separate Warning Settings Slice
-
-`/警告設定` is implemented separately behind `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=false` and `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=false` by default. It writes only legacy `errors_sets` threshold/action config.
-
-`/警告清除` and `/警告全部清除` are implemented separately behind `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=false` and `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=false` by default. They mutate only legacy `warndbs` rows and send best-effort legacy-style DMs.
-
-`/警告` is implemented separately behind `MHCAT_FEATURE_WARNING_ISSUE_ENABLED=false` and `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=false` by default. It appends legacy `warndbs.content` entries, sends best-effort legacy-style DMs, preserves the moderator/target role hierarchy check, and reads `errors_sets` to run configured `停權`/`踢出` threshold actions for existing warning records.
-
-`/刪除訊息` is implemented separately behind `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=false` and `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=false` by default. It deletes recent Discord messages only and writes no Mongo data.
-
-`/刪除資料` is implemented separately behind `MHCAT_FEATURE_DELETE_DATA_ENABLED=false` and `MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=false` by default. It shows the legacy destructive select UI and deletes only the selected guild-scoped legacy config target.
-
-## Not Implemented
-
-- Usage count writes.
-- Unique indexes on `warndbs`.
-
-## Tests
-
-- Command definition shape.
-- Service not-found behavior.
-- BSON document conversion.
-- Read-only repository not-found mapping.
-- Handler permission denial.
-- Legacy success embed shape.
-- Moderator fallback.
-- App runtime wiring gate.
-- Command-sync and staging-preflight flag pairing.
-- Warning issue append, DM, timestamp, role hierarchy, and threshold kick/ban behavior.
-- Message cleanup permission gates, request mapping, and legacy completion embed.
-- Delete-data target mapping, permission gates, legacy prompt, and success/missing select responses.
+The canonical contract now owns exact metadata, public defer/edit visibility, random/red/green colors, mixed `warndbs` and `errors_sets` scalar behavior, duplicate rows, JavaScript threshold/action/splice semantics, role hierarchy, DMs, kick/ban side effects, usage ownership, migration, staging, and rollback. Do not use this historical slice as current rollout guidance.

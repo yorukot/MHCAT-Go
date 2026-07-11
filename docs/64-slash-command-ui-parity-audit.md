@@ -82,11 +82,11 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `語音經驗刪除` | `slashCommands/經驗系統/voice_set_delete.js` | matching-definition | none |
 | `語音經驗設定` | `slashCommands/經驗系統/voice_set.js` | matching-definition | none |
 | `語音經驗身分組設定` | `slashCommands/經驗系統/voice_leavel_role.js` | matching-definition | none |
-| `警告` | `slashCommands/警告系統/warn.js` | matching-definition | none |
-| `警告全部清除` | `slashCommands/警告系統/remove-all-warnings.js` | matching-definition | none |
-| `警告清除` | `slashCommands/警告系統/remove-warn.js` | matching-definition | none |
-| `警告紀錄` | `slashCommands/警告系統/warnings.js` | matching-definition | none |
-| `警告設定` | `slashCommands/警告系統/erros_set.js` | matching-definition | none |
+| `警告` | `slashCommands/警告系統/warn.js` | parity-audited | public definition; runtime Manage Messages plus strict role hierarchy; exact contract in [84-warning-system.md](84-warning-system.md) |
+| `警告全部清除` | `slashCommands/警告系統/remove-all-warnings.js` | parity-audited | public definition plus runtime Manage Messages; exact contract in [84-warning-system.md](84-warning-system.md) |
+| `警告清除` | `slashCommands/警告系統/remove-warn.js` | parity-audited | public definition plus runtime Manage Messages; exact contract in [84-warning-system.md](84-warning-system.md) |
+| `警告紀錄` | `slashCommands/警告系統/warnings.js` | parity-audited | public definition and no runtime permission check; exact contract in [84-warning-system.md](84-warning-system.md) |
+| `警告設定` | `slashCommands/警告系統/erros_set.js` | parity-audited | public definition plus runtime Manage Messages; exact contract in [84-warning-system.md](84-warning-system.md) |
 | `退出訊息設置` | `slashCommands/加入設置/leave_message.js` | parity-audited | public definition plus runtime Manage Messages; exact contract in [82-welcome-leave.md](82-welcome-leave.md) |
 | `選取身分組-按鈕` | `slashCommands/管理系統/releadd.js` | matching-definition | none |
 | `選取身分組-表情符號` | `slashCommands/管理系統/role.js` | matching-definition | none |
