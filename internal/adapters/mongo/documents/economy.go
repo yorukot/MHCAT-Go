@@ -50,20 +50,22 @@ func (d CoinDocument) ToDomain() domain.CoinBalance {
 		Coins:     legacyInt64(d.Coin),
 		CoinsText: legacyPriceString(d.Coin),
 		Today:     legacyInt64(d.Today),
+		TodayText: legacyPriceString(d.Today),
 	}
 }
 
 func (d GiftChangeDocument) ToDomain() domain.EconomyConfig {
 	return domain.EconomyConfig{
-		GuildID:        d.Guild,
-		GachaCost:      legacyInt64(d.CoinNumber),
-		GachaCostText:  legacyPriceString(d.CoinNumber),
-		SignCoins:      legacyInt64(d.SignCoin),
-		SignCoinsText:  legacyPriceString(d.SignCoin),
-		ChannelID:      d.Channel,
-		XPMultiple:     legacyFloat64(d.XPMultiple),
-		XPMultipleText: legacyPriceString(d.XPMultiple),
-		ResetMarker:    legacyInt64(d.Time),
+		GuildID:         d.Guild,
+		GachaCost:       legacyInt64(d.CoinNumber),
+		GachaCostText:   legacyPriceString(d.CoinNumber),
+		SignCoins:       legacyInt64(d.SignCoin),
+		SignCoinsText:   legacyPriceString(d.SignCoin),
+		ChannelID:       d.Channel,
+		XPMultiple:      legacyFloat64(d.XPMultiple),
+		XPMultipleText:  legacyPriceString(d.XPMultiple),
+		ResetMarker:     legacyInt64(d.Time),
+		ResetMarkerText: legacyPriceString(d.Time),
 	}
 }
 

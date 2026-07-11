@@ -84,6 +84,40 @@ func TestProfileServiceSignStatusUsesLegacyCooldown(t *testing.T) {
 	}
 }
 
+func TestProfileServiceSignStatusPreservesLegacyScalarCoercionAndRoundedNow(t *testing.T) {
+	tests := []struct {
+		name     string
+		today    string
+		cooldown string
+		now      time.Time
+		want     string
+	}{
+		{name: "strict one", today: "1", want: "已簽到"},
+		{name: "strict zero", today: "0", want: "未簽到"},
+		{name: "decimal timestamp", today: "1.5", cooldown: "1000", now: time.Unix(500, 0), want: "已簽到"},
+		{name: "undefined today", today: "undefined", cooldown: "Infinity", now: time.Unix(500, 0), want: "未簽到"},
+		{name: "positive infinity today", today: "Infinity", cooldown: "1000", now: time.Unix(500, 0), want: "已簽到"},
+		{name: "negative cooldown is truthy", today: "100", cooldown: "-1", now: time.Unix(100, 0), want: "未簽到"},
+		{name: "half second rounds up", today: "100", cooldown: "1", now: time.Unix(100, 500_000_000), want: "未簽到"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewEconomyProfileRepository()
+			repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", TodayText: test.today})
+			if test.cooldown != "" {
+				repo.PutConfig(domain.EconomyConfig{GuildID: "guild-1", ResetMarkerText: test.cooldown})
+			}
+			result, err := (ProfileService{Repository: repo}).Query(context.Background(), ProfileQuery{GuildID: "guild-1", UserID: "user-1", Now: test.now})
+			if err != nil {
+				t.Fatalf("query: %v", err)
+			}
+			if result.SignStatus != test.want {
+				t.Fatalf("status = %q want %q", result.SignStatus, test.want)
+			}
+		})
+	}
+}
+
 func TestProfileServiceRejectsInvalidQuery(t *testing.T) {
 	_, err := (ProfileService{Repository: fakemongo.NewEconomyProfileRepository()}).Query(context.Background(), ProfileQuery{GuildID: "guild-1"})
 	if !errors.Is(err, domain.ErrInvalidEconomyProfileQuery) {

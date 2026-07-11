@@ -70,7 +70,7 @@ func (s ProfileService) Query(ctx context.Context, query ProfileQuery) (ProfileR
 		GuildID:    query.GuildID,
 		UserID:     query.UserID,
 		SignStatus: "沒有資料",
-		NowUnix:    query.Now.Unix(),
+		NowUnix:    legacyProfileNowUnix(query.Now),
 	}
 
 	balance, err := s.Repository.GetCoinBalance(ctx, query.GuildID, query.UserID)
@@ -281,21 +281,35 @@ func legacyProfileSignStatus(balance domain.CoinBalance, found bool, config doma
 	if !found {
 		return "沒有資料"
 	}
-	switch balance.Today {
-	case 1:
+	todayText := balance.TodayText
+	if todayText == "" {
+		todayText = strconv.FormatInt(balance.Today, 10)
+	}
+	today, todayNumeric := legacyDisplayedNumber(todayText)
+	switch {
+	case todayNumeric && today == 1:
 		return "已簽到"
-	case 0:
-		return "未簽到"
-	default:
-		cooldown := int64(86400)
-		if configFound && config.ResetMarker > 0 {
-			cooldown = config.ResetMarker
-		}
-		if nowUnix-balance.Today < cooldown {
-			return "已簽到"
-		}
+	case todayNumeric && today == 0:
 		return "未簽到"
 	}
+	cooldown := 86400.0
+	if configFound {
+		markerText := config.ResetMarkerText
+		if markerText == "" {
+			markerText = strconv.FormatInt(config.ResetMarker, 10)
+		}
+		if marker, numeric := legacyDisplayedNumber(markerText); numeric && marker != 0 {
+			cooldown = marker
+		}
+	}
+	if todayNumeric && float64(nowUnix)-today < cooldown {
+		return "已簽到"
+	}
+	return "未簽到"
+}
+
+func legacyProfileNowUnix(now time.Time) int64 {
+	return int64(math.Floor(float64(now.UnixNano())/float64(time.Second) + 0.5))
 }
 
 func LegacyProfileAmount(value float64) string {
