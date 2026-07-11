@@ -63,7 +63,7 @@ func (r *WarningHistoryRepository) GetWarningHistory(ctx context.Context, guildI
 	if guildID == "" || userID == "" {
 		return domain.WarningHistory{}, domain.ErrInvalidWarningQuery
 	}
-	var document documents.WarningDocument
+	var document documents.WarningReadDocument
 	err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "user", Value: userID}}).Decode(&document)
 	if err != nil {
 		if err == drivermongo.ErrNoDocuments {

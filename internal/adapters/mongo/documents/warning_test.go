@@ -28,6 +28,53 @@ func TestWarningDocumentToDomain(t *testing.T) {
 	}
 }
 
+func TestWarningReadDocumentUsesMongooseMixedArrayCoercion(t *testing.T) {
+	moderatorID := bson.NewObjectID()
+	payload, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: int64(123)},
+		{Key: "user", Value: true},
+		{Key: "content", Value: bson.A{
+			bson.D{{Key: "moderator", Value: moderatorID}, {Key: "reason", Value: int32(7)}, {Key: "time", Value: false}},
+			bson.D{{Key: "reason", Value: bson.D{{Key: "nested", Value: true}}}, {Key: "time", Value: bson.A{1, nil, "x"}}},
+			"malformed-entry",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document documents.WarningReadDocument
+	if err := bson.Unmarshal(payload, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	history := document.ToDomain()
+	if history.GuildID != "123" || history.UserID != "true" || len(history.Entries) != 3 {
+		t.Fatalf("history = %#v", history)
+	}
+	if got := history.Entries[0]; got.ModeratorID != moderatorID.Hex() || got.Reason != "7" || got.Time != "false" {
+		t.Fatalf("scalar entry = %#v", got)
+	}
+	if got := history.Entries[1]; got.ModeratorID != "undefined" || got.Reason != "[object Object]" || got.Time != "1,,x" {
+		t.Fatalf("compound entry = %#v", got)
+	}
+	if got := history.Entries[2]; got.ModeratorID != "undefined" || got.Reason != "undefined" || got.Time != "undefined" {
+		t.Fatalf("malformed entry = %#v", got)
+	}
+}
+
+func TestWarningReadDocumentWrapsMongooseArrayScalar(t *testing.T) {
+	payload, err := bson.Marshal(bson.D{{Key: "guild", Value: "guild-1"}, {Key: "user", Value: "user-1"}, {Key: "content", Value: "malformed-entry"}})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document documents.WarningReadDocument
+	if err := bson.Unmarshal(payload, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if history := document.ToDomain(); len(history.Entries) != 1 || history.Entries[0].Reason != "undefined" {
+		t.Fatalf("history = %#v", history)
+	}
+}
+
 func TestWarningSettingsDocumentFromDomainStoresLegacyShape(t *testing.T) {
 	doc := documents.WarningSettingsDocumentFromDomain(domain.WarningSettings{
 		GuildID:   "guild-1",
