@@ -168,7 +168,7 @@ type RuntimeOptions struct {
 }
 
 const (
-	translateInteractionTimeout      = 10 * time.Second
+	translateInteractionTimeout      = featureutility.TranslateProviderTimeout + 5*time.Second
 	messageCleanupInteractionTimeout = 60 * time.Second
 )
 

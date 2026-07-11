@@ -3,6 +3,7 @@ package utility
 import (
 	"crypto/rand"
 	"math/big"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreutility "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/utility"
@@ -11,15 +12,16 @@ import (
 )
 
 type Module struct {
-	ping           coreutility.PingService
-	help           coreutility.HelpService
-	status         coreutility.StatusService
-	translate      coreutility.TranslateService
-	translateColor func() int
-	discord        ports.DiscordInfoProvider
-	usage          ports.UsageTracker
-	defs           []commands.Definition
-	feature        string
+	ping             coreutility.PingService
+	help             coreutility.HelpService
+	status           coreutility.StatusService
+	translate        coreutility.TranslateService
+	translateColor   func() int
+	translateTimeout time.Duration
+	discord          ports.DiscordInfoProvider
+	usage            ports.UsageTracker
+	defs             []commands.Definition
+	feature          string
 }
 
 func NewModule(registry commands.Registry, botInfo ports.BotInfoProvider, clock ports.Clock, usage ports.UsageTracker) Module {
@@ -31,14 +33,15 @@ func NewModuleWithDiscordInfo(registry commands.Registry, botInfo ports.BotInfoP
 		registry = commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal})
 	}
 	return Module{
-		ping:           coreutility.PingService{Clock: clock},
-		help:           coreutility.NewHelpService(registry),
-		status:         coreutility.StatusService{Provider: botInfo},
-		discord:        discordInfo,
-		usage:          usage,
-		defs:           commands.BuiltinDefinitions(),
-		feature:        "utility",
-		translateColor: legacyTranslateRandomColor,
+		ping:             coreutility.PingService{Clock: clock},
+		help:             coreutility.NewHelpService(registry),
+		status:           coreutility.StatusService{Provider: botInfo},
+		discord:          discordInfo,
+		usage:            usage,
+		defs:             commands.BuiltinDefinitions(),
+		feature:          "utility",
+		translateColor:   legacyTranslateRandomColor,
+		translateTimeout: TranslateProviderTimeout,
 	}
 }
 

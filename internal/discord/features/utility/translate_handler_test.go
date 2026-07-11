@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
@@ -89,4 +90,34 @@ func TestTranslateHandlerReturnsSafeProviderError(t *testing.T) {
 	if strings.Contains(last.Embeds[0].Title, "provider internal") || !strings.Contains(last.Embeds[0].Title, "翻譯失敗") {
 		t.Fatalf("error embed leaked provider detail: %#v", last.Embeds[0])
 	}
+}
+
+func TestTranslateHandlerCanRenderProviderTimeoutError(t *testing.T) {
+	module := NewModuleWithTranslator(
+		commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}),
+		nil,
+		nil,
+		blockingTranslator{},
+		nil,
+		nil,
+	)
+	module.translateTimeout = time.Millisecond
+	responder := fakediscord.NewResponder()
+	err := module.TranslateHandler()(context.Background(), fakediscord.SlashInteractionWithOptions("翻譯", "", map[string]string{
+		"要的翻譯": "hello",
+		"目標語言": "ja",
+	}), responder)
+	if err != nil {
+		t.Fatalf("translate handler: %v", err)
+	}
+	if len(responder.Edits) != 2 || !strings.Contains(responder.Edits[1].Embeds[0].Title, "翻譯失敗") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+type blockingTranslator struct{}
+
+func (blockingTranslator) Translate(ctx context.Context, _ ports.TranslationRequest) (ports.TranslationResult, error) {
+	<-ctx.Done()
+	return ports.TranslationResult{}, ctx.Err()
 }

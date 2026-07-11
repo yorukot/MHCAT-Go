@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	coreutility "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/utility"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
@@ -11,8 +12,9 @@ import (
 )
 
 const (
-	translateLoadingColor = 0x57F287
-	translateErrorColor   = 0xEA0000
+	TranslateProviderTimeout = 10 * time.Second
+	translateLoadingColor    = 0x57F287
+	translateErrorColor      = 0xEA0000
 )
 
 func (m Module) TranslateHandler() interactions.Handler {
@@ -25,7 +27,13 @@ func (m Module) TranslateHandler() interactions.Handler {
 		}
 		source := strings.TrimSpace(interaction.Options["要的翻譯"])
 		targetLanguage := strings.TrimSpace(interaction.Options["目標語言"])
-		result, err := m.translate.Translate(ctx, source, targetLanguage)
+		providerCtx := ctx
+		cancel := func() {}
+		if m.translateTimeout > 0 {
+			providerCtx, cancel = context.WithTimeout(ctx, m.translateTimeout)
+		}
+		result, err := m.translate.Translate(providerCtx, source, targetLanguage)
+		cancel()
 		if err != nil {
 			return responder.EditOriginal(ctx, translateErrorMessage(err))
 		}
