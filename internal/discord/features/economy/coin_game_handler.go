@@ -188,7 +188,7 @@ func (m Module) coinGameCommandFromInteraction(interaction interactions.Interact
 		Wager:        wager,
 		Kind:         domain.CoinGameKind(interaction.Subcommand),
 	}.Normalize()
-	if command.GuildID == "" || command.ChallengerID == "" || command.OpponentID == "" || command.ChallengerID == command.OpponentID || !command.Kind.Valid() {
+	if command.GuildID == "" || command.ChallengerID == "" || command.OpponentID == "" || !command.Kind.Valid() {
 		return domain.CoinGameCommand{}, false
 	}
 	return command, true

@@ -113,6 +113,35 @@ func TestCoinGameChallengerAcceptDoesNotDebitPlayers(t *testing.T) {
 	}
 }
 
+func TestCoinGameSelfInvitePreservesLegacyInviteAndRejectsAccept(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 50})
+	module := NewCoinGameModule(repo, nil, nil, shopFixedClock{now: time.Unix(100, 0)})
+
+	start := coinGameSlash(domain.CoinGameKindHigherLower, "10")
+	start.Options[coinGameOptionOpponent] = "user-1"
+	responder := fakediscord.NewResponder()
+	if err := module.CoinGameHandler()(context.Background(), start, responder); err != nil {
+		t.Fatalf("start self invite: %v", err)
+	}
+	if len(responder.Follow) != 1 || responder.Follow[0].Content != "<@user-1>" || !strings.Contains(responder.Follow[0].Embeds[0].Description, "<@user-1>**邀請<@user-1>") {
+		t.Fatalf("self invite = %#v", responder.Follow)
+	}
+
+	accept := coinGameComponent("yesssss", "user-1", "User")
+	acceptResponder := fakediscord.NewResponder()
+	if err := module.CoinGameComponentHandler()(context.Background(), accept, acceptResponder); err != nil {
+		t.Fatalf("accept self invite: %v", err)
+	}
+	if len(acceptResponder.Replies) != 1 || !strings.Contains(acceptResponder.Replies[0].Embeds[0].Title, "你不是被邀請者") {
+		t.Fatalf("accept reply = %#v", acceptResponder.Replies)
+	}
+	balance, _ := repo.GetCoinBalance(context.Background(), "guild-1", "user-1")
+	if balance.Coins != 50 {
+		t.Fatalf("self invite mutated balance = %#v", balance)
+	}
+}
+
 func TestCoinGameInviteAndTutorialUIMatchesLegacy(t *testing.T) {
 	for _, test := range []struct {
 		kind             domain.CoinGameKind

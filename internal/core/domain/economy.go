@@ -407,7 +407,7 @@ func (c CoinGameCommand) Validate() error {
 	if c.Kind == CoinGameKindKnowledge {
 		minimumWager = 0
 	}
-	if c.GuildID == "" || c.ChallengerID == "" || c.OpponentID == "" || c.ChallengerID == c.OpponentID || c.Wager < minimumWager || !c.Kind.Valid() {
+	if c.GuildID == "" || c.ChallengerID == "" || c.OpponentID == "" || c.Wager < minimumWager || !c.Kind.Valid() {
 		return ErrInvalidCoinGameCommand
 	}
 	return nil
