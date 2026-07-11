@@ -2,6 +2,7 @@ package onboarding
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -176,7 +177,7 @@ func TestLeaveMessageDeliveryPreservesAllSpaceText(t *testing.T) {
 
 func TestLeaveMessageDeliverySkipsUncachedLegacyChannel(t *testing.T) {
 	repo := &fakeLeaveMessageRepo{prepared: domain.LeaveMessageConfig{
-		GuildID: "guild", ChannelID: "missing", Title: "Bye", MessageContent: "Bye", Color: "Red",
+		GuildID: "guild", ChannelID: "missing", Title: "Bye", MessageContent: "Bye", Color: "not-a-color",
 	}}
 	messages := &fakeLeaveMessageSender{}
 	service := LeaveMessageDeliveryService{Repository: repo, Messages: messages, Channels: fakediscord.NewSideEffects()}
@@ -185,6 +186,27 @@ func TestLeaveMessageDeliverySkipsUncachedLegacyChannel(t *testing.T) {
 	}
 	if len(messages.sent) != 0 {
 		t.Fatalf("sent = %#v", messages.sent)
+	}
+}
+
+func TestLeaveMessageDeliveryRejectsInvalidStoredColorWithoutSending(t *testing.T) {
+	for _, color := range []string{"not-a-color", "   "} {
+		t.Run(color, func(t *testing.T) {
+			repo := &fakeLeaveMessageRepo{prepared: domain.LeaveMessageConfig{
+				GuildID: "guild", ChannelID: "channel", Title: "Bye", MessageContent: "Bye", Color: color,
+			}}
+			messages := &fakeLeaveMessageSender{}
+			channels := fakediscord.NewSideEffects()
+			cacheLegacyDeliveryChannel(channels, "guild", "channel")
+			service := LeaveMessageDeliveryService{Repository: repo, Messages: messages, Channels: channels}
+			err := service.SendOnLeave(context.Background(), LeaveMemberEvent{GuildID: "guild", UserID: "user"})
+			if !errors.Is(err, domain.ErrInvalidLeaveMessageConfig) {
+				t.Fatalf("error = %v", err)
+			}
+			if len(messages.sent) != 0 {
+				t.Fatalf("sent = %#v", messages.sent)
+			}
+		})
 	}
 }
 

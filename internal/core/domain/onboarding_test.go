@@ -39,6 +39,17 @@ func TestNormalizeJoinRoleGiveTo(t *testing.T) {
 	}
 }
 
+func TestJoinMessageDeliverablePreservesJavaScriptStringTruthiness(t *testing.T) {
+	config := JoinMessageConfig{GuildID: "guild", Enabled: true, ChannelID: "channel", MessageContent: "message", Color: "   "}
+	if !config.Deliverable() {
+		t.Fatal("nonempty all-space color should reach legacy color resolution")
+	}
+	config.Color = ""
+	if config.Deliverable() {
+		t.Fatal("empty color should remain incomplete")
+	}
+}
+
 func TestLeaveMessageConfigValidation(t *testing.T) {
 	channel := LeaveMessageConfig{GuildID: "guild", ChannelID: "channel"}
 	if err := channel.ValidateChannel(); err != nil {

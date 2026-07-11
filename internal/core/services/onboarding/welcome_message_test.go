@@ -2,6 +2,7 @@ package onboarding
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -168,7 +169,7 @@ func TestWelcomeMessageDeliverySkipsUncachedLegacyChannels(t *testing.T) {
 	t.Run("generic", func(t *testing.T) {
 		repo := fakemongo.NewJoinMessageConfigRepository()
 		repo.Configs["guild-1"] = domain.JoinMessageConfig{
-			GuildID: "guild-1", Enabled: true, ChannelID: "missing", MessageContent: "welcome", Color: "Green",
+			GuildID: "guild-1", Enabled: true, ChannelID: "missing", MessageContent: "welcome", Color: "not-a-color",
 		}
 		sideEffects := fakediscord.NewSideEffects()
 		service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects, Channels: sideEffects}
@@ -196,6 +197,27 @@ func TestWelcomeMessageDeliverySkipsUncachedLegacyChannels(t *testing.T) {
 			t.Fatalf("sent = %#v", sideEffects.Sent)
 		}
 	})
+}
+
+func TestWelcomeMessageDeliveryRejectsInvalidStoredColorWithoutSending(t *testing.T) {
+	for _, color := range []string{"not-a-color", "   "} {
+		t.Run(color, func(t *testing.T) {
+			repo := fakemongo.NewJoinMessageConfigRepository()
+			repo.Configs["guild-1"] = domain.JoinMessageConfig{
+				GuildID: "guild-1", Enabled: true, ChannelID: "channel-1", MessageContent: "welcome", Color: color,
+			}
+			sideEffects := fakediscord.NewSideEffects()
+			cacheLegacyDeliveryChannel(sideEffects, "guild-1", "channel-1")
+			service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects, Channels: sideEffects}
+			err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{GuildID: "guild-1", UserID: "user-1"})
+			if !errors.Is(err, domain.ErrInvalidJoinMessageConfig) {
+				t.Fatalf("error = %v", err)
+			}
+			if len(sideEffects.Sent) != 0 {
+				t.Fatalf("sent = %#v", sideEffects.Sent)
+			}
+		})
+	}
 }
 
 func cacheLegacyDeliveryChannel(sideEffects *fakediscord.SideEffects, guildID string, channelID string) {
@@ -247,10 +269,15 @@ func TestLegacyRandomColorNames(t *testing.T) {
 			t.Fatalf("did not expect %q to be random", value)
 		}
 	}
-	if got := welcomeMessageColor("Green"); got != 0x57F287 {
-		t.Fatalf("Discord.js Green = %#x", got)
+	if got, ok := welcomeMessageColor("Green"); !ok || got != 0x57F287 {
+		t.Fatalf("Discord.js Green = %#x/%t", got, ok)
 	}
-	if got := leaveMessageDeliveryColor("Red"); got != 0xED4245 {
-		t.Fatalf("Discord.js Red = %#x", got)
+	if got, ok := leaveMessageDeliveryColor("Red"); !ok || got != 0xED4245 {
+		t.Fatalf("Discord.js Red = %#x/%t", got, ok)
+	}
+	for _, value := range []string{"red", "invalid", " Red "} {
+		if _, ok := welcomeMessageColor(value); ok {
+			t.Fatalf("unexpected valid Discord.js color %q", value)
+		}
 	}
 }

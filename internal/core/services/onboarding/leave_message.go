@@ -73,8 +73,12 @@ func (s LeaveMessageDeliveryService) SendOnLeave(ctx context.Context, event Leav
 	if err != nil || !cached {
 		return err
 	}
+	color, ok := leaveMessageDeliveryColor(config.Color)
+	if !ok {
+		return domain.ErrInvalidLeaveMessageConfig
+	}
 	_, err = s.Messages.SendMessage(ctx, config.ChannelID, ports.OutboundMessage{
-		Embeds:          []ports.OutboundEmbed{leaveMessageDeliveryEmbed(config, event)},
+		Embeds:          []ports.OutboundEmbed{leaveMessageDeliveryEmbed(config, event, color)},
 		AllowedMentions: ports.AllowedMentions{},
 	})
 	return err
@@ -94,10 +98,10 @@ func leaveMessageConfigDeliverable(config domain.LeaveMessageConfig) bool {
 		strings.TrimSpace(config.ChannelID) != "" &&
 		config.MessageContent != "" &&
 		config.Title != "" &&
-		strings.TrimSpace(config.Color) != ""
+		config.Color != ""
 }
 
-func leaveMessageDeliveryEmbed(config domain.LeaveMessageConfig, event LeaveMemberEvent) ports.OutboundEmbed {
+func leaveMessageDeliveryEmbed(config domain.LeaveMessageConfig, event LeaveMemberEvent, color int) ports.OutboundEmbed {
 	now := event.Now
 	if now.IsZero() {
 		now = time.Now()
@@ -105,7 +109,7 @@ func leaveMessageDeliveryEmbed(config domain.LeaveMessageConfig, event LeaveMemb
 	return ports.OutboundEmbed{
 		Title:        config.Title,
 		Description:  replaceLeaveMessageDescriptionPlaceholders(config.MessageContent, event),
-		Color:        leaveMessageDeliveryColor(config.Color),
+		Color:        color,
 		ThumbnailURL: strings.TrimSpace(event.AvatarURL),
 		Timestamp:    now,
 	}
@@ -127,14 +131,11 @@ func replaceLeaveMessageDescriptionPlaceholders(value string, event LeaveMemberE
 	return out
 }
 
-func leaveMessageDeliveryColor(value string) int {
+func leaveMessageDeliveryColor(value string) (int, bool) {
 	if legacyRandomColor(value) {
-		return randomLeaveMessageColor()
+		return randomLeaveMessageColor(), true
 	}
-	if parsed, ok := domain.ParseLegacyColorValue(value); ok {
-		return parsed
-	}
-	return 0xED4245
+	return domain.ParseLegacyColorValue(value)
 }
 
 func randomLeaveMessageColor() int {

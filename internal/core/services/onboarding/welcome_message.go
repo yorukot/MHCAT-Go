@@ -80,7 +80,11 @@ func (s WelcomeMessageDeliveryService) SendOnJoin(ctx context.Context, event Wel
 	if err != nil || !cached {
 		return err
 	}
-	_, err = s.Messages.SendMessage(ctx, config.ChannelID, genericWelcomeMessage(config, event))
+	color, ok := welcomeMessageColor(config.Color)
+	if !ok {
+		return domain.ErrInvalidJoinMessageConfig
+	}
+	_, err = s.Messages.SendMessage(ctx, config.ChannelID, genericWelcomeMessage(config, event, color))
 	return err
 }
 
@@ -106,13 +110,13 @@ func (c SpecialWelcomeConfig) Matches(event WelcomeMemberEvent) bool {
 		strings.TrimSpace(event.BotUserID) == strings.TrimSpace(c.BotID)
 }
 
-func genericWelcomeMessage(config domain.JoinMessageConfig, event WelcomeMemberEvent) ports.OutboundMessage {
+func genericWelcomeMessage(config domain.JoinMessageConfig, event WelcomeMemberEvent, color int) ports.OutboundMessage {
 	return ports.OutboundMessage{
 		Embeds: []ports.OutboundEmbed{{
 			AuthorName:    "🪂 歡迎加入 " + welcomeGuildName(event),
 			AuthorIconURL: welcomeGuildIcon(event),
 			Description:   replaceWelcomeMessagePlaceholders(config.MessageContent, event),
-			Color:         welcomeMessageColor(config.Color),
+			Color:         color,
 			ThumbnailURL:  strings.TrimSpace(event.AvatarURL),
 			ImageURL:      strings.TrimSpace(config.ImageURL),
 			Timestamp:     welcomeTimestamp(event),
@@ -198,14 +202,11 @@ func welcomeTimestamp(event WelcomeMemberEvent) time.Time {
 	return time.Now()
 }
 
-func welcomeMessageColor(value string) int {
+func welcomeMessageColor(value string) (int, bool) {
 	if legacyRandomColor(value) {
-		return randomWelcomeMessageColor()
+		return randomWelcomeMessageColor(), true
 	}
-	if parsed, ok := domain.ParseLegacyColorValue(value); ok {
-		return parsed
-	}
-	return 0xED4245
+	return domain.ParseLegacyColorValue(value)
 }
 
 func legacyRandomColor(value string) bool {

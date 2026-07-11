@@ -78,7 +78,7 @@ func (c JoinMessageConfig) Deliverable() bool {
 		c.Enabled &&
 		strings.TrimSpace(c.ChannelID) != "" &&
 		c.MessageContent != "" &&
-		strings.TrimSpace(c.Color) != ""
+		c.Color != ""
 }
 
 func NormalizeJoinRoleGiveTo(value string) string {
