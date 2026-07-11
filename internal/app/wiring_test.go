@@ -1578,6 +1578,79 @@ func TestBuildRuntimeRoutesStatsRoleOnlyWithDependencies(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeStatsCommandsTrackEachSlashAttemptOnce(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		commandName string
+		build       func(*fakeusage.Tracker) RuntimeOptions
+		interaction interactions.Interaction
+	}{
+		{
+			name:        "query success",
+			commandName: "統計系統查詢",
+			build: func(tracker *fakeusage.Tracker) RuntimeOptions {
+				return RuntimeOptions{Config: validTestConfig(), UsageTracker: tracker, StatsQueryEnabled: true}
+			},
+			interaction: fakediscord.SlashInteraction("統計系統查詢"),
+		},
+		{
+			name:        "create permission denial",
+			commandName: "統計系統創建",
+			build: func(tracker *fakeusage.Tracker) RuntimeOptions {
+				discord := fakediscord.NewSideEffects()
+				return RuntimeOptions{
+					Config: validTestConfig(), UsageTracker: tracker,
+					StatsCreateRepository: fakemongo.NewStatsConfigRepository(), StatsCreateChannelPort: discord, StatsCreateGuildStats: discord,
+				}
+			},
+			interaction: fakediscord.SlashInteractionWithOptions("統計系統創建", "", map[string]string{"統計頻道類型": "文字頻道"}),
+		},
+		{
+			name:        "role missing config",
+			commandName: "統計身分組人數",
+			build: func(tracker *fakeusage.Tracker) RuntimeOptions {
+				repo := fakemongo.NewStatsConfigRepository()
+				discord := fakediscord.NewSideEffects()
+				return RuntimeOptions{
+					Config: validTestConfig(), UsageTracker: tracker,
+					StatsRoleStatsRepository: repo, StatsRoleConfigRepository: repo, StatsRoleChannelPort: discord, StatsRoleStatsReader: discord,
+				}
+			},
+			interaction: func() interactions.Interaction {
+				interaction := fakediscord.SlashInteractionWithOptions("統計身分組人數", "", map[string]string{"統計頻道類型": "文字頻道", "身分組": "role-1"})
+				interaction.Actor.PermissionBits = 8192
+				return interaction
+			}(),
+		},
+		{
+			name:        "delete missing",
+			commandName: "統計系統刪除",
+			build: func(tracker *fakeusage.Tracker) RuntimeOptions {
+				return RuntimeOptions{Config: validTestConfig(), UsageTracker: tracker, StatsDeleteRepository: fakemongo.NewStatsConfigRepository()}
+			},
+			interaction: func() interactions.Interaction {
+				interaction := fakediscord.SlashInteraction("統計系統刪除")
+				interaction.Actor.PermissionBits = 8192
+				return interaction
+			}(),
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			tracker := &fakeusage.Tracker{}
+			dispatcher, err := BuildRuntime(test.build(tracker))
+			if err != nil {
+				t.Fatalf("build runtime: %v", err)
+			}
+			if err := dispatcher.Dispatch(context.Background(), test.interaction, fakediscord.NewResponder()); err != nil {
+				t.Fatalf("dispatch stats command: %v", err)
+			}
+			if len(tracker.Events) != 1 || tracker.Events[0].CommandName != test.commandName || tracker.Events[0].UserID != "user-1" || tracker.Events[0].GuildID != "guild-1" {
+				t.Fatalf("usage events = %#v", tracker.Events)
+			}
+		})
+	}
+}
+
 func TestBuildRuntimeRoutesXPRoleConfigOnlyWithRepositories(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
