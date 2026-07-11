@@ -930,7 +930,7 @@ export MHCAT_FEATURE_WORK_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_WORK=true
 ```
 
-Run `mhcat-staging-preflight` before command sync. It rejects `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true` unless the runtime flag is also enabled, and command sync still requires staging guild scope. Do not sync `打工系統` to production until recurring payout ownership, duplicate audits, and isolated payout smoke are complete or a documented partial rollout is accepted. The start path can create a missing `work_users` row, deduct `energi`, and set `state`/`end_time`/`get_coin` through an atomic update. Admin paths can upsert/update `work_sets`, delete `work_somethings`, and clamp `work_users.energi`. They do not write payout state, coins, indexes, or scheduler leases.
+Run `mhcat-staging-preflight` before command sync. It rejects `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true` unless the runtime flag is also enabled, and command sync still requires staging guild scope. Do not sync `打工系統` to production until recurring payout ownership, duplicate audits, and isolated payout smoke are complete or a documented partial rollout is accepted. The start path can create a missing `work_users` row and atomically coerce/check/write `energi`, `state`, `end_time`, and `get_coin`. Admin setup replaces one config row, deletion removes one item row, and signed energy grants preserve upper-only clamping; untouched duplicates remain. Command handlers do not write payout state, coins, indexes, or scheduler leases. Follow [105-work-system.md](105-work-system.md).
 
 ## Birthday Command Runtime
 

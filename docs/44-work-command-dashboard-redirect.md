@@ -43,24 +43,24 @@ The Go handler preserves the visible success/error embeds and permission behavio
 - Versioned `mhcat:v1:work:<action>:job=<hash>,user=<userID>` component IDs for new job/detail/start/override/cancel buttons.
 - Explicit start repository wiring. A read-only work repository still renders detail with the confirm button disabled; the app wires the Mongo repository as a start repository only when `MHCAT_FEATURE_WORK_ENABLED=true`.
 - Explicit admin repository wiring. Admin setup/delete/energy writes are available only when a `WorkAdminRepository` is supplied; the app supplies the Mongo repository only when `MHCAT_FEATURE_WORK_ENABLED=true`.
-- Atomic start update for `work_users`: missing rows are upserted with `energi=max_energy`, then start uses a conditional `FindOneAndUpdate` with `energi >= cost`, `$inc` on `energi`, and `$set` of `state`, `end_time`, and `get_coin`.
-- Atomic admin energy grants: individual grants upsert target-user rows with `energi=max_energy`; existing-user and all-user grants clamp with a Mongo aggregation update pipeline.
-- Work config saves update all duplicate legacy config rows for a guild instead of deleting and recreating one row, which is rollback-compatible and avoids a temporary missing-config window.
+- Atomic scalar-compatible start update for `work_users`: opening the writable interface creates a missing row with `energi=max_energy`, and start uses one conversion/check/subtraction pipeline while setting `state`, `end_time`, and `get_coin`.
+- Atomic scalar-compatible admin energy grants: individual grants upsert target-user rows and existing/all-user grants preserve signed amounts and upper-only max clamping through Mongo aggregation pipelines.
+- Work config saves preserve legacy delete-one/insert-one behavior; untouched duplicate rows remain and require explicit audit before unique-index work.
 - Tests for command definition, dashboard redirect UI, read-only interface UI, admin setup/delete/energy UI, document conversion, repository boundaries, route registration, config, command sync, staging preflight, and app runtime gating.
 
-## Not Implemented Yet
+## External Ownership
 
 - `新增打工事項` direct Mongo creation remains dashboard-only, matching the current legacy visible behavior.
-- Recurring scheduler wiring.
 - Dashboard compatibility writes beyond preserving the link.
+- Production command/payout ownership and live smoke remain gated; payout implementation and ownership are documented in [43-work-payout.md](43-work-payout.md).
 
 Temporary intentional differences:
 
-- Missing `work_users` rows are treated as read-only defaults while rendering the list. The start path explicitly creates a legacy-compatible row only when the user presses the confirm button.
+- A read-only service synthesizes a missing user without writing; the runtime's writable interface creates the legacy-compatible row while opening the list.
 - New job buttons use versioned bounded custom IDs instead of raw job-name custom IDs. The visible button label remains the legacy job name, but routing avoids legacy collision/length bugs.
 - New component IDs also carry the original requester ID, preserving the legacy "only the requester can use this menu" behavior without raw custom ID routing.
-- Legacy `setColor("Random")` is represented by a stable non-error color so tests are deterministic.
-- Energy grants reject zero/negative amounts as invalid input. Legacy did not consistently guard this path, but allowing negative grants through an admin command is unsafe and can corrupt energy state.
+- Legacy random list/detail colors are preserved through an injectable color source for deterministic tests.
+- Energy grants preserve positive, zero, and negative amounts with upper-only max clamping.
 - `增加個人精力` creates a missing row for the requested target user. The legacy code accidentally used the admin actor ID in that branch.
 
 Do not sync the work command to production until the recurring payout/reset ownership and dashboard compatibility review are complete or a staging-only partial-command rollout is explicitly accepted.
@@ -101,7 +101,4 @@ Results:
 
 ## Next Work
 
-Continue the remaining work-system rollout:
-
-- decide whether completed-but-unsettled legacy rows should still force the old overwrite warning or use `end_time <= now` as a bug fix;
-- keep payout and daily reset ownership separate from command handlers.
+Continue production rollout using the canonical audit, smoke, ownership, and rollback gates in [105-work-system.md](105-work-system.md). Keep payout and daily reset ownership separate from command handlers.

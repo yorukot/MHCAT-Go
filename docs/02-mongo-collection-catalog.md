@@ -132,8 +132,8 @@ Work interface/start/admin repository status:
 - Supported write method: `StartWork`, exposed only through the explicit `ports.WorkStartRepository` app wiring path.
 - `StartWork` can upsert a missing `work_users` row with legacy fields, then atomically deduct `energi` and set `state`, `end_time`, and `get_coin`.
 - Supported admin write methods: `SaveWorkConfig`, `DeleteWorkItem`, `GrantWorkEnergy`, and `GrantWorkEnergyToAll`, exposed only through the explicit `ports.WorkAdminRepository` app wiring path.
-- `SaveWorkConfig` updates/upserts `work_sets` by guild using legacy field names. It updates all duplicate legacy config rows for that guild so reads remain rollback-compatible until duplicate audit/index work is complete.
-- `DeleteWorkItem` deletes matching `work_somethings` rows by `{guild,name}` and reports the legacy missing-item error when no row matches.
+- `SaveWorkConfig` deletes one naturally selected `work_sets` row and inserts the replacement using legacy field names; untouched duplicates remain.
+- `DeleteWorkItem` deletes one naturally selected `work_somethings` row by `{guild,name}` and reports the legacy missing-item error when no row matches.
 - `GrantWorkEnergy` upserts the target `work_users` row with `energi=max_energy` and then clamps existing energy with a Mongo aggregation update pipeline. This intentionally fixes the legacy missing-target bug that created the actor's row instead.
 - `GrantWorkEnergyToAll` clamps existing `work_users` rows for the guild only and does not create missing user rows.
 - No write methods are exposed for direct work item creation, payout, coin increments, scheduler state, or indexes in this slice.
