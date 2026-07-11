@@ -646,7 +646,7 @@ export MHCAT_FEATURE_VERIFICATION_CONFIG_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_CONFIG=true
 ```
 
-Set both together only in an isolated staging guild/database when testing `/驗證設置`. This path writes `verifications`; it does not enable `/驗證`, captcha generation, verification buttons/modals, member role assignment, nickname changes, or account-age kick behavior. Use a role below the bot's highest role to match the legacy hierarchy check.
+Set both together only in an isolated staging guild/database when testing `/驗證設置`. Stop the Node owner and audit `verifications` first. This public command writes typed duplicate-safe config, enforces Manage Messages at runtime, and does not enable `/驗證` or account-age policy. Follow [80-verification.md](80-verification.md).
 
 Optional verification flow smoke flags:
 
@@ -655,7 +655,7 @@ export MHCAT_FEATURE_VERIFICATION_FLOW_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_FLOW=true
 ```
 
-Set both together only after `/驗證設置` has configured a staging `verifications` row. This path reads `verifications`, sends `captcha.jpeg`, opens the legacy verification modal, adds the configured role, and optionally applies the nickname template. New Go-generated IDs use state IDs and do not embed captcha answers. The in-memory challenge store has a 5-minute TTL and is not shared across processes. Account-age kick remains a separate gated member-add policy.
+Set both together only after a safe staging `verifications` row exists. Keep smoke single-process: state is guild/user-bound, atomic, five-minute, and not shared across processes. Use disposable roles/members and run the complete [verification contract](80-verification.md) smoke. Account-age remains separate.
 
 Optional account-age config smoke flags:
 
@@ -1575,17 +1575,8 @@ If leave-message delivery was explicitly enabled:
 
 If verification flow was explicitly enabled:
 
-- run `/驗證設置` first if the staging `verifications` row does not already exist;
-- run `/驗證`;
-- verify the response attaches `captcha.jpeg`;
-- verify the green `點我進行驗證!` button appears with the arrow emoji;
-- click the button and verify the modal title is `請輸入驗證碼!`;
-- submit a wrong answer and verify the legacy wrong-answer error appears;
-- run `/驗證` again, click the button, submit the correct answer from the generated staging image, and verify the legacy success embed appears;
-- verify the configured staging role was added;
-- if a rename template was configured, verify `{name}` is replaced with the member username;
-- verify owner nickname changes return the legacy owner error if tested with a guild owner account;
-- verify no account-age kick, command registration, Mongo index creation, or usage-counter write happened unless the account-age policy is explicitly enabled for a separate member-add smoke.
+- run every metadata/UI, scalar/duplicate, usage, captcha/state, wrong/correct answer, role/nickname ordering, legacy-ID, failure, and rollback case in [80-verification.md](80-verification.md);
+- verify no account-age behavior, startup Mongo mutation, or handler-local usage write occurs.
 
 If account-age config smoke was explicitly enabled:
 

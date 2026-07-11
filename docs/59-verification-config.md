@@ -1,5 +1,7 @@
 # Verification Config And Flow Slice
 
+Superseded by the canonical [verification parity contract](80-verification.md). This file remains as historical implementation-slice context.
+
 Status: implemented behind separate disabled-by-default config and flow gates.
 
 ## Scope

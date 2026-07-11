@@ -72,7 +72,7 @@ Status: Phase 1 consolidated. Legacy has only a live Discord login smoke test; t
   - anti-scam config/report/deletion, including pinned URL validation, scalar reads, webhook outcomes, bot scanning, and delete-before-warning failures
   - birthday config/add/preference/delete/list, including exact selectors, five-minute state, scalar reads, duplicate-safe writes, and inactive delivery boundaries
   - account-age config/policy, including exact UI, scalar/fraction thresholds, DM/kick/log failures, cache behavior, intents, and downstream event ordering
-  - verification
+  - verification setup/flow, including exact UI/visibility, runtime permissions, scalar reads, typed duplicate-safe writes, usage, captcha, strict legacy IDs, atomic state, and role/nickname ordering; see [80-verification.md](80-verification.md)
   - ticket setup/panel/open/close
   - reaction-role setup/delete/events and button-role modal/add/remove
   - voice room create/lock/delete

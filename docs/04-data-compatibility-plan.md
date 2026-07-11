@@ -237,3 +237,13 @@ Account-age config and member policy are parity-audited as separate ownership fa
 | `create_hours` | `guild`, String `hours`, nullable String `channel` | none | exact guild lookup, Mongoose-compatible scalar strings, JavaScript Number threshold parsing | typed String/null one-row patches; full config delete removes duplicate guild matches | no | stop policy/config owners separately; typed rows remain Mongoose-readable | confirm backup/export and all external writers |
 
 No normalization, repair, deduplication, backfill, or startup index is approved. Candidate `{guild:1}` remains blocked on key/type/value/writer/ownership audits. See the [account-age parity contract](79-account-age.md).
+
+## Verification Compatibility
+
+Verification setup and captcha completion are parity-audited as independent ownership families.
+
+| Collection | Legacy fields | New fields | Read strategy | Write strategy | Backfill needed | Rollback strategy | Dashboard impact |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `verifications` | String `guild`, String `role`, nullable String `name` | none | exact guild lookup plus Mongoose-compatible scalar String DTO; unusable required role fails safely | typed String/null patches across duplicate matches; upsert only when absent | no | stop flow/config owners separately; typed rows remain Mongoose-readable | backup/export includes collection; confirm every external writer |
+
+No normalization, repair, deduplication, backfill, challenge-state migration, or startup index is approved. Candidate `{guild:1}` remains blocked on key/type/value/writer/ownership findings. Process-local challenge state expires naturally and is not migrated. See the [verification parity contract](80-verification.md).

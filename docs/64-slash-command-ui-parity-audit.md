@@ -92,8 +92,8 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `選取身分組-表情符號` | `slashCommands/管理系統/role.js` | matching-definition | none |
 | `選取身分組刪除-表情符號` | `slashCommands/管理系統/role_delete.js` | matching-definition | none |
 | `防詐騙網址` | `slashCommands/群組防護/not_a_goodweb.js` | matching-definition | none |
-| `驗證` | `slashCommands/加入設置/verification.js` | matching-definition | none |
-| `驗證設置` | `slashCommands/加入設置/verification_set.js` | matching-definition | none |
+| `驗證` | `slashCommands/加入設置/verification.js` | parity-audited | exact contract in [80-verification.md](80-verification.md) |
+| `驗證設置` | `slashCommands/加入設置/verification_set.js` | parity-audited | public definition plus runtime Manage Messages; exact contract in [80-verification.md](80-verification.md) |
 
 ## Implemented Definitions Needing UI Review
 

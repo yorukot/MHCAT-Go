@@ -788,7 +788,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_CONFIG=true
 MHCAT_FEATURE_VERIFICATION_CONFIG_ENABLED=true
 ```
 
-This command writes only legacy-compatible `verifications` config fields and requires Manage Messages. The setup command performs the legacy bot-role hierarchy check through the Discord adapter before saving. It does not enable `/驗證`, captcha generation, verification buttons/modals, member role assignment, nickname changes, account-age kick, or usage-counter writes.
+This publicly discoverable command writes legacy-compatible `verifications` fields and requires Manage Messages at runtime. It performs the legacy bot-role hierarchy check before saving. It does not enable `/驗證`, member side effects, or account-age policy. Audit and rollback requirements are in [80-verification.md](80-verification.md).
 
 The full `/驗證` captcha flow is available only when both staging command sync and runtime flags are explicitly enabled:
 
@@ -797,7 +797,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_FLOW=true
 MHCAT_FEATURE_VERIFICATION_FLOW_ENABLED=true
 ```
 
-This flow reads `verifications`, sends a legacy-style ephemeral `captcha.jpeg` prompt with the green `點我進行驗證!` button, shows the legacy `請輸入驗證碼!` modal, assigns the configured role, and optionally applies the legacy `{name}` nickname template. New Go-generated component/modal IDs use a bounded state ID rather than embedding the captcha answer; old `<captcha>verification` and `<captcha>ver` IDs remain supported for live-message compatibility. It does not create Mongo indexes or usage-counter writes.
+This flow reads `verifications`, sends the exact ephemeral captcha/button UI, opens the legacy modal, assigns the role, and optionally renames. New IDs use guild/user-bound five-minute process-local state with atomic completion; strict legacy IDs remain supported. It creates no indexes or handler-local usage writes. Multi-process rollout requires shared state or verified sticky routing; follow [80-verification.md](80-verification.md).
 
 Config-only `/帳號需創建時數` is available only when both staging command sync and runtime flags are explicitly enabled:
 

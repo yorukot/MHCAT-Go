@@ -128,6 +128,8 @@ Account-age kick: `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true` is a separate 
 Default: disabled
 ```
 
+Verification interaction ownership, process-local state, staging, and rollback are specified in [80-verification.md](80-verification.md).
+
 Current ticket interaction flow:
 
 ```txt

@@ -290,3 +290,18 @@ Audit before enabling either owner:
 - clean findings before any reviewed `create_hours_guild` index apply.
 
 Do not normalize thresholds or channels merely to enable Go; raw values affect kick/log behavior. Follow the [account-age parity contract](79-account-age.md) for staging and rollback.
+
+## Verification Rollout Audit
+
+Verification setup and flow are parity-audited but disabled by default. No production repair, deduplication, backfill, challenge migration, or automatic index mutation is authorized.
+
+Audit before enabling either owner:
+
+- duplicate, missing, null, blank, and scalar-drift `verifications.guild` keys;
+- missing/null/blank/scalar/compound `role` and `name` shapes, raw rename whitespace, and stale role IDs;
+- bot role/nickname permissions and hierarchy in every target guild;
+- every dashboard/external writer plus exclusive Node/Go setup/button/modal ownership;
+- single-process routing or a reviewed shared-state plan for flow rollout;
+- clean findings before any reviewed `verifications_guild` index apply.
+
+Do not rewrite malformed rows merely to enable Go. Runtime reads preserve usable Mongoose scalars and writes remain typed/duplicate-safe. Follow the [verification parity contract](80-verification.md) for staging and rollback.
