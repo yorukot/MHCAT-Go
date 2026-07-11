@@ -63,7 +63,7 @@ func TestLegacySignListWindowPreservesMongooseTimeSemantics(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rolling, window := legacySignListWindow(test.config, test.found)
+			rolling, window := LegacySignWindow(test.config, test.found)
 			if rolling != test.wantRolling || window != test.wantWindow {
 				t.Fatalf("window = (%v, %v), want (%v, %v)", rolling, window, test.wantRolling, test.wantWindow)
 			}

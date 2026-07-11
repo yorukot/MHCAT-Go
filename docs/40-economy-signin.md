@@ -29,6 +29,7 @@ Status: gated write slice for legacy `/簽到` plus read-only legacy `/簽到列
 - Sixth calendar rows are rendered when the month needs them.
 - The handler routes by typed `RouteKey`; it does not use legacy `customId.includes("sing")`.
 - The sign-list day write is attempted only after a successful coin award.
+- Sign-in mode selection preserves Mongoose-visible `gift_changes.time` scalars. Existing daily-mode users store marker `1`; as in legacy, a first-time signer with any config row stores rounded epoch seconds even when `time` is `0`, while a first-time signer without config stores `1`.
 - New versioned custom IDs are bounded by Discord's 100-character limit.
 - `/簽到列表` preserves legacy `username#discriminator` member labels, including `#0` for migrated Discord accounts. If Discord omits the discriminator entirely, it falls back to the username; missing lookups still render the legacy `使用者已消失!` fallback.
 

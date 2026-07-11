@@ -7,6 +7,7 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func TestEconomyCollectionNames(t *testing.T) {
@@ -63,5 +64,24 @@ func TestEconomyCoinGameTransactionRunnerConfiguration(t *testing.T) {
 	}
 	if err := repository.SetCoinGameTransactionRunner(&fakemongo.TransactionRunner{}); err != nil {
 		t.Fatalf("set runner: %v", err)
+	}
+}
+
+func TestLegacyFirstSignTodayUsesConfigPresence(t *testing.T) {
+	if got := legacyFirstSignToday(false, 12345); got != 1 {
+		t.Fatalf("missing config marker = %d", got)
+	}
+	if got := legacyFirstSignToday(true, 12345); got != 12345 {
+		t.Fatalf("existing config marker = %d", got)
+	}
+}
+
+func TestSignInRollingFilterPreservesFractionalThreshold(t *testing.T) {
+	filter := signInRollingFilter("guild", "user", 25, 90.5)
+	andClauses := filter[2].Value.(bson.A)
+	orClause := andClauses[0].(bson.D)[0].Value.(bson.A)
+	todayLimit := orClause[0].(bson.D)[0].Value.(bson.D)[0].Value
+	if got, ok := todayLimit.(float64); !ok || got != 90.5 {
+		t.Fatalf("rolling threshold = %#v", todayLimit)
 	}
 }

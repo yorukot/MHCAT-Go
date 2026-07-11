@@ -44,10 +44,10 @@ func (s SignInListService) List(ctx context.Context, guildID string, actorUserID
 		ActorUserID: actorUserID,
 		Entries:     []domain.SignInListEntry{},
 	}
-	rollingWindow, cooldown := legacySignListWindow(config, configFound)
+	rollingWindow, cooldown := LegacySignWindow(config, configFound)
 	if rollingWindow {
 		result.RollingWindow = true
-		nowUnix := legacySignListNow(now)
+		nowUnix := float64(LegacyRoundedUnixSeconds(now))
 		for _, balance := range balances {
 			today, numeric := legacySignListToday(balance)
 			delta := nowUnix - today
@@ -70,8 +70,9 @@ func (s SignInListService) List(ctx context.Context, guildID string, actorUserID
 	return result, ctx.Err()
 }
 
-func legacySignListNow(now time.Time) float64 {
-	return math.Round(float64(now.UnixNano()) / float64(time.Second))
+// LegacyRoundedUnixSeconds matches Math.round(Date.now() / 1000) for current positive epochs.
+func LegacyRoundedUnixSeconds(now time.Time) int64 {
+	return int64(math.Round(float64(now.UnixNano()) / float64(time.Second)))
 }
 
 func legacySignListToday(balance domain.CoinBalance) (float64, bool) {
@@ -82,7 +83,8 @@ func legacySignListToday(balance domain.CoinBalance) (float64, bool) {
 	return legacyDisplayedNumber(todayText)
 }
 
-func legacySignListWindow(config domain.EconomyConfig, configFound bool) (bool, float64) {
+// LegacySignWindow preserves the JavaScript mode and fallback semantics of gift_changes.time.
+func LegacySignWindow(config domain.EconomyConfig, configFound bool) (bool, float64) {
 	if !configFound {
 		return false, 0
 	}

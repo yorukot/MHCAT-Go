@@ -527,16 +527,13 @@ func (r *EconomyRepository) SignIn(ctx context.Context, command domain.SignInCom
 	if !configFound {
 		reward = coreeconomy.DefaultSignCoins
 	}
-	nowUnix := command.Now.Unix()
+	nowUnix := coreeconomy.LegacyRoundedUnixSeconds(command.Now)
 	todayValue := int64(1)
 	filter := signInDailyFilter(command.GuildID, command.UserID, reward)
-	if configFound && config.ResetMarker != 0 {
-		cooldown := config.ResetMarker
-		if cooldown < 0 {
-			cooldown = coreeconomy.DefaultSignCooldownSec
-		}
+	rollingWindow, cooldown := coreeconomy.LegacySignWindow(config, configFound)
+	if rollingWindow {
 		todayValue = nowUnix
-		filter = signInRollingFilter(command.GuildID, command.UserID, reward, nowUnix-cooldown)
+		filter = signInRollingFilter(command.GuildID, command.UserID, reward, float64(nowUnix)-cooldown)
 	}
 	update := bson.D{
 		{Key: "$inc", Value: bson.D{{Key: "coin", Value: reward}}},
@@ -548,7 +545,8 @@ func (r *EconomyRepository) SignIn(ctx context.Context, command domain.SignInCom
 	err = r.coins.FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated)
 	if err != nil {
 		if err == drivermongo.ErrNoDocuments {
-			created, createErr := r.createFirstSignInBalance(ctx, command, reward, todayValue)
+			firstTodayValue := legacyFirstSignToday(configFound, nowUnix)
+			created, createErr := r.createFirstSignInBalance(ctx, command, reward, firstTodayValue)
 			if createErr != nil {
 				return domain.SignInResult{}, createErr
 			}
@@ -574,6 +572,13 @@ func (r *EconomyRepository) SignIn(ctx context.Context, command domain.SignInCom
 		ConfigFound: configFound,
 		SignedAt:    command.Now,
 	}, ctx.Err()
+}
+
+func legacyFirstSignToday(configFound bool, nowUnix int64) int64 {
+	if configFound {
+		return nowUnix
+	}
+	return 1
 }
 
 func (r *EconomyRepository) GetSignCalendar(ctx context.Context, guildID string, userID string, year string, month string) (domain.SignCalendar, error) {
@@ -610,7 +615,7 @@ func signInDailyFilter(guildID string, userID string, reward int64) bson.D {
 	}
 }
 
-func signInRollingFilter(guildID string, userID string, reward int64, eligibleBefore int64) bson.D {
+func signInRollingFilter(guildID string, userID string, reward int64, eligibleBefore float64) bson.D {
 	return bson.D{
 		{Key: "guild", Value: guildID},
 		{Key: "member", Value: userID},
