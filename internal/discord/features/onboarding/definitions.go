@@ -42,12 +42,11 @@ func AccountAgeDefinitions() []commands.Definition {
 
 func JoinRoleSetDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     JoinRoleSetCommandName,
-		Description:              "設定玩家加入時要給甚麼身份組",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		DocsURL:                  "https://docsmhcat.yorukot.meocs/join_role",
-		Ownership:                commands.ManagedOwnership("join-role-config", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        JoinRoleSetCommandName,
+		Description: "設定玩家加入時要給甚麼身份組",
+		DocsURL:     "https://docsmhcat.yorukot.meocs/join_role",
+		Ownership:   commands.ManagedOwnership("join-role-config", commands.ScopeGuild),
 		Options: []commands.Option{
 			{
 				Type:        commands.OptionTypeRole,
@@ -71,12 +70,11 @@ func JoinRoleSetDefinition() commands.Definition {
 
 func JoinRoleDeleteDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     JoinRoleDeleteCommandName,
-		Description:              "刪除之前設定的加入身份組",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		DocsURL:                  "https://docsmhcat.yorukot.me/docs/join_role_delete",
-		Ownership:                commands.ManagedOwnership("join-role-config", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        JoinRoleDeleteCommandName,
+		Description: "刪除之前設定的加入身份組",
+		DocsURL:     "https://docsmhcat.yorukot.me/docs/join_role_delete",
+		Ownership:   commands.ManagedOwnership("join-role-config", commands.ScopeGuild),
 		Options: []commands.Option{{
 			Type:        commands.OptionTypeRole,
 			Name:        "身分組",

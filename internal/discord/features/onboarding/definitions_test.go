@@ -16,8 +16,8 @@ func TestJoinRoleDefinitionsMatchLegacySurface(t *testing.T) {
 	if set.Name != JoinRoleSetCommandName || set.Description != "設定玩家加入時要給甚麼身份組" {
 		t.Fatalf("set definition = %#v", set)
 	}
-	if set.DefaultMemberPermissions == nil || *set.DefaultMemberPermissions != manageMessagesPermission {
-		t.Fatalf("permissions = %#v", set.DefaultMemberPermissions)
+	if set.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy set command is publicly discoverable: %#v", set.DefaultMemberPermissions)
 	}
 	if len(set.Options) != 2 || set.Options[0].Type != commands.OptionTypeRole || set.Options[0].Name != "身分組" {
 		t.Fatalf("set options = %#v", set.Options)
@@ -28,6 +28,9 @@ func TestJoinRoleDefinitionsMatchLegacySurface(t *testing.T) {
 	del := defs[1]
 	if del.Name != JoinRoleDeleteCommandName || del.Description != "刪除之前設定的加入身份組" {
 		t.Fatalf("delete definition = %#v", del)
+	}
+	if del.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy delete command is publicly discoverable: %#v", del.DefaultMemberPermissions)
 	}
 }
 
