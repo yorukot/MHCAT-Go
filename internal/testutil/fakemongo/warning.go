@@ -10,17 +10,20 @@ import (
 
 type WarningHistoryRepository struct {
 	Histories map[string]domain.WarningHistory
+	Err       error
 }
 
 type WarningSettingsRepository struct {
 	Settings map[string]domain.WarningSettings
 	Saves    []domain.WarningSettings
+	Err      error
 }
 
 type WarningRemovalRepository struct {
 	Histories  map[string]domain.WarningHistory
 	RemoveOnes []domain.WarningRemoval
 	RemoveAlls []domain.WarningRemoval
+	Err        error
 }
 
 func NewWarningHistoryRepository() *WarningHistoryRepository {
@@ -48,6 +51,9 @@ func (r *WarningHistoryRepository) GetWarningHistory(_ context.Context, guildID 
 	if guildID == "" || userID == "" {
 		return domain.WarningHistory{}, domain.ErrInvalidWarningQuery
 	}
+	if r.Err != nil {
+		return domain.WarningHistory{}, r.Err
+	}
 	history, ok := r.Histories[warningHistoryKey(guildID, userID)]
 	if !ok || len(history.Entries) == 0 {
 		return domain.WarningHistory{}, ports.ErrWarningsNotFound
@@ -62,6 +68,9 @@ func (r *WarningHistoryRepository) AddWarning(_ context.Context, issue domain.Wa
 	issue.Time = strings.TrimSpace(issue.Time)
 	if err := issue.Validate(); err != nil {
 		return domain.WarningIssueResult{}, err
+	}
+	if r.Err != nil {
+		return domain.WarningIssueResult{}, r.Err
 	}
 	if r.Histories == nil {
 		r.Histories = map[string]domain.WarningHistory{}
@@ -93,6 +102,9 @@ func (r *WarningRemovalRepository) RemoveWarning(_ context.Context, removal doma
 	removal.UserID = strings.TrimSpace(removal.UserID)
 	if err := removal.ValidateSingle(); err != nil {
 		return err
+	}
+	if r.Err != nil {
+		return r.Err
 	}
 	key := warningHistoryKey(removal.GuildID, removal.UserID)
 	history, ok := r.Histories[key]
@@ -138,6 +150,9 @@ func (r *WarningRemovalRepository) RemoveAllWarnings(_ context.Context, removal 
 	if err := removal.ValidateAll(); err != nil {
 		return err
 	}
+	if r.Err != nil {
+		return r.Err
+	}
 	key := warningHistoryKey(removal.GuildID, removal.UserID)
 	history, ok := r.Histories[key]
 	if !ok || len(history.Entries) == 0 {
@@ -153,6 +168,9 @@ func (r *WarningSettingsRepository) GetWarningSettings(_ context.Context, guildI
 	if guildID == "" {
 		return domain.WarningSettings{}, domain.ErrInvalidWarningSettings
 	}
+	if r.Err != nil {
+		return domain.WarningSettings{}, r.Err
+	}
 	settings, ok := r.Settings[guildID]
 	if !ok {
 		return domain.WarningSettings{}, ports.ErrWarningSettingsNotFound
@@ -165,6 +183,9 @@ func (r *WarningSettingsRepository) SaveWarningSettings(_ context.Context, setti
 	settings.Action = strings.TrimSpace(settings.Action)
 	if err := settings.ValidateWrite(); err != nil {
 		return err
+	}
+	if r.Err != nil {
+		return r.Err
 	}
 	if r.Settings == nil {
 		r.Settings = map[string]domain.WarningSettings{}

@@ -103,6 +103,17 @@ func TestWarningHistoryMissingUsesLegacyError(t *testing.T) {
 	}
 }
 
+func TestWarningHistoryBackendFailureUsesGenericError(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	repo.Err = errors.New("mongo unavailable")
+	responder := fakediscord.NewResponder()
+
+	if err := NewModule(repo, nil, nil, nil).WarningHistoryHandler()(context.Background(), warningHistoryInteraction("user-2"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	assertWarningGenericError(t, responder)
+}
+
 func TestWarningSettingsRequiresManageMessages(t *testing.T) {
 	module := NewSettingsModule(fakemongo.NewWarningSettingsRepository(), nil)
 	responder := fakediscord.NewResponder()
@@ -173,6 +184,17 @@ func TestWarningSettingsInvalidInputUsesGenericError(t *testing.T) {
 	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "未知的錯誤") {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
+}
+
+func TestWarningSettingsBackendFailureUsesGenericError(t *testing.T) {
+	repo := fakemongo.NewWarningSettingsRepository()
+	repo.Err = errors.New("mongo unavailable")
+	responder := fakediscord.NewResponder()
+
+	if err := NewSettingsModule(repo, nil).WarningSettingsHandler()(context.Background(), warningSettingsInteraction(domain.WarningSettingsActionBan, "3"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	assertWarningGenericError(t, responder)
 }
 
 func TestWarningSettingsPreservesNonPositiveLegacyThresholds(t *testing.T) {
@@ -292,6 +314,17 @@ func TestWarningIssueAcceptsAllSpaceLegacyReason(t *testing.T) {
 	if history := repo.Histories["guild-1\x00user-2"]; len(history.Entries) != 1 || history.Entries[0].Reason != "   " {
 		t.Fatalf("history = %#v", history)
 	}
+}
+
+func TestWarningIssueBackendFailureUsesGenericError(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	repo.Err = errors.New("mongo unavailable")
+	responder := fakediscord.NewResponder()
+
+	if err := NewIssueModule(repo, nil, nil, nil, nil, nil, nil, moderationFixedClock{}, nil).WarningIssueHandler()(context.Background(), warningIssueInteraction("user-2", "reason"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	assertWarningGenericError(t, responder)
 }
 
 func TestWarningIssueDMFailureDoesNotReplaceLegacySuccess(t *testing.T) {
@@ -688,6 +721,39 @@ func TestWarningRemoveAllMissingUsesLegacyErrorWithoutExclamation(t *testing.T) 
 	}
 	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 這位使用者沒有任何警告" {
 		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestWarningRemovalBackendFailuresUseGenericError(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		handler func(Module) interactions.Handler
+		input   interactions.Interaction
+	}{
+		{name: "one", handler: func(module Module) interactions.Handler { return module.WarningRemoveHandler() }, input: warningRemoveInteraction("user-2", "1")},
+		{name: "all", handler: func(module Module) interactions.Handler { return module.WarningRemoveAllHandler() }, input: warningRemoveAllInteraction("user-2")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewWarningRemovalRepository()
+			repo.Err = errors.New("mongo unavailable")
+			responder := fakediscord.NewResponder()
+
+			if err := test.handler(NewRemovalModule(repo, nil, nil, nil))(context.Background(), test.input, responder); err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+			assertWarningGenericError(t, responder)
+		})
+	}
+}
+
+func assertWarningGenericError(t *testing.T, responder *fakediscord.Responder) {
+	t.Helper()
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	embed := responder.Edits[0].Embeds[0]
+	if embed.Title != "<a:Discord_AnimatedNo:1015989839809757295> | 很抱歉，出現了未知的錯誤，請重試!" || embed.Color != 0xED4245 {
+		t.Fatalf("embed = %#v", embed)
 	}
 }
 
