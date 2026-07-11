@@ -19,6 +19,7 @@ type LeaveMessageService struct {
 type LeaveMessageDeliveryService struct {
 	Repository ports.LeaveMessageConfigReader
 	Messages   ports.DiscordMessagePort
+	Channels   ports.DiscordCachedChannelReader
 }
 
 func (s LeaveMessageService) Prepare(ctx context.Context, guildID string, channelID string) (domain.LeaveMessageConfig, error) {
@@ -50,7 +51,7 @@ func (s LeaveMessageDeliveryService) SendOnLeave(ctx context.Context, event Leav
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if s.Repository == nil || s.Messages == nil {
+	if s.Repository == nil || s.Messages == nil || s.Channels == nil {
 		return domain.ErrInvalidLeaveMessageConfig
 	}
 	event.GuildID = strings.TrimSpace(event.GuildID)
@@ -67,6 +68,10 @@ func (s LeaveMessageDeliveryService) SendOnLeave(ctx context.Context, event Leav
 	}
 	if !leaveMessageConfigDeliverable(config) {
 		return nil
+	}
+	cached, err := legacyDeliveryChannelCached(ctx, s.Channels, event.GuildID, config.ChannelID)
+	if err != nil || !cached {
+		return err
 	}
 	_, err = s.Messages.SendMessage(ctx, config.ChannelID, ports.OutboundMessage{
 		Embeds:          []ports.OutboundEmbed{leaveMessageDeliveryEmbed(config, event)},

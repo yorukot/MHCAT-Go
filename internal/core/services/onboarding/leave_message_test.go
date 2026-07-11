@@ -7,6 +7,7 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 )
 
 func TestLeaveMessageServicePrepareNormalizesChannel(t *testing.T) {
@@ -100,7 +101,9 @@ func TestLeaveMessageDeliveryServiceSendsLegacyLeaveEmbed(t *testing.T) {
 		Color:          "#df1f2f",
 	}}
 	messages := &fakeLeaveMessageSender{}
-	service := LeaveMessageDeliveryService{Repository: repo, Messages: messages}
+	channels := fakediscord.NewSideEffects()
+	cacheLegacyDeliveryChannel(channels, "guild", "channel")
+	service := LeaveMessageDeliveryService{Repository: repo, Messages: messages, Channels: channels}
 
 	err := service.SendOnLeave(context.Background(), LeaveMemberEvent{
 		GuildID:   " guild ",
@@ -138,7 +141,7 @@ func TestLeaveMessageDeliveryServiceNoopsForMissingOrIncompleteConfig(t *testing
 		t.Run(name, func(t *testing.T) {
 			repo := &fakeLeaveMessageRepo{prepared: config}
 			messages := &fakeLeaveMessageSender{}
-			service := LeaveMessageDeliveryService{Repository: repo, Messages: messages}
+			service := LeaveMessageDeliveryService{Repository: repo, Messages: messages, Channels: fakediscord.NewSideEffects()}
 			if err := service.SendOnLeave(context.Background(), LeaveMemberEvent{GuildID: "guild", UserID: "user"}); err != nil {
 				t.Fatalf("send: %v", err)
 			}
@@ -159,12 +162,28 @@ func TestLeaveMessageDeliveryPreservesAllSpaceText(t *testing.T) {
 		Color:          "#df1f2f",
 	}}
 	messages := &fakeLeaveMessageSender{}
-	service := LeaveMessageDeliveryService{Repository: repo, Messages: messages}
+	channels := fakediscord.NewSideEffects()
+	cacheLegacyDeliveryChannel(channels, "guild", "channel")
+	service := LeaveMessageDeliveryService{Repository: repo, Messages: messages, Channels: channels}
 
 	if err := service.SendOnLeave(context.Background(), LeaveMemberEvent{GuildID: "guild", UserID: "user", Now: now}); err != nil {
 		t.Fatalf("send: %v", err)
 	}
 	if len(messages.sent) != 1 || messages.sent[0].message.Embeds[0].Title != "  " || messages.sent[0].message.Embeds[0].Description != "   " {
+		t.Fatalf("sent = %#v", messages.sent)
+	}
+}
+
+func TestLeaveMessageDeliverySkipsUncachedLegacyChannel(t *testing.T) {
+	repo := &fakeLeaveMessageRepo{prepared: domain.LeaveMessageConfig{
+		GuildID: "guild", ChannelID: "missing", Title: "Bye", MessageContent: "Bye", Color: "Red",
+	}}
+	messages := &fakeLeaveMessageSender{}
+	service := LeaveMessageDeliveryService{Repository: repo, Messages: messages, Channels: fakediscord.NewSideEffects()}
+	if err := service.SendOnLeave(context.Background(), LeaveMemberEvent{GuildID: "guild", UserID: "user"}); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if len(messages.sent) != 0 {
 		t.Fatalf("sent = %#v", messages.sent)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/onboarding"
 	discordevents "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
@@ -25,7 +26,8 @@ func TestWelcomeMessageDeliveryHandlerSendsOnMemberAdd(t *testing.T) {
 		Color:          "#53FF53",
 	}
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewWelcomeMessageDeliveryModule(repo, sideEffects, emptySpecialWelcome())
+	cacheEventDeliveryChannel(sideEffects, "guild-1", "channel-1")
+	module := NewWelcomeMessageDeliveryModule(repo, sideEffects, sideEffects, emptySpecialWelcome())
 	dispatcher := discordevents.NewDispatcher(nil)
 	module.RegisterEventRoutes(dispatcher)
 
@@ -65,7 +67,8 @@ func TestWelcomeMessageDeliveryHandlerPreservesRawUsername(t *testing.T) {
 		Color:          "#53FF53",
 	}
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewWelcomeMessageDeliveryModule(repo, sideEffects, emptySpecialWelcome())
+	cacheEventDeliveryChannel(sideEffects, "guild-1", "channel-1")
+	module := NewWelcomeMessageDeliveryModule(repo, sideEffects, sideEffects, emptySpecialWelcome())
 
 	err := module.WelcomeMessageDeliveryHandler()(context.Background(), discordevents.Event{
 		Type:    discordevents.TypeMemberAdd,
@@ -87,7 +90,7 @@ func TestWelcomeMessageDeliveryHandlerPreservesRawUsername(t *testing.T) {
 func TestWelcomeMessageDeliveryHandlerIgnoresMemberRemove(t *testing.T) {
 	repo := fakemongo.NewJoinMessageConfigRepository()
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewWelcomeMessageDeliveryModule(repo, sideEffects, emptySpecialWelcome())
+	module := NewWelcomeMessageDeliveryModule(repo, sideEffects, sideEffects, emptySpecialWelcome())
 	dispatcher := discordevents.NewDispatcher(nil)
 	module.RegisterEventRoutes(dispatcher)
 
@@ -110,7 +113,7 @@ func TestWelcomeMessageFailureDoesNotSuppressLaterMemberAddHandler(t *testing.T)
 	repo.Err = wantErr
 	sideEffects := fakediscord.NewSideEffects()
 	dispatcher := discordevents.NewDispatcher(nil)
-	NewWelcomeMessageDeliveryModule(repo, sideEffects, emptySpecialWelcome()).RegisterEventRoutes(dispatcher)
+	NewWelcomeMessageDeliveryModule(repo, sideEffects, sideEffects, emptySpecialWelcome()).RegisterEventRoutes(dispatcher)
 	laterCalled := false
 	dispatcher.Register(discordevents.TypeMemberAdd, func(context.Context, discordevents.Event) error {
 		laterCalled = true
@@ -145,7 +148,7 @@ func TestAccountAgeStopPropagationPreventsWelcomeMessage(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
 	dispatcher := discordevents.NewDispatcher(nil)
 	NewAccountAgePolicyModule(accountAgeRepo, sideEffects, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{now: now}).RegisterEventRoutes(dispatcher)
-	NewWelcomeMessageDeliveryModule(joinMessageRepo, sideEffects, emptySpecialWelcome()).RegisterEventRoutes(dispatcher)
+	NewWelcomeMessageDeliveryModule(joinMessageRepo, sideEffects, sideEffects, emptySpecialWelcome()).RegisterEventRoutes(dispatcher)
 
 	err := dispatcher.Dispatch(context.Background(), discordevents.Event{
 		Type:    discordevents.TypeMemberAdd,
@@ -169,4 +172,8 @@ func TestAccountAgeStopPropagationPreventsWelcomeMessage(t *testing.T) {
 
 func emptySpecialWelcome() coreservice.SpecialWelcomeConfig {
 	return coreservice.SpecialWelcomeConfig{}
+}
+
+func cacheEventDeliveryChannel(sideEffects *fakediscord.SideEffects, guildID string, channelID string) {
+	sideEffects.Channels = append(sideEffects.Channels, ports.ChannelRef{GuildID: guildID, ChannelID: channelID})
 }

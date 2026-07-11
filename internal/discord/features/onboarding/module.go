@@ -56,17 +56,17 @@ func NewJoinRoleAssignmentModule(repo ports.JoinRoleConfigReader, roles ports.Di
 	}
 }
 
-func NewWelcomeMessageDeliveryModule(repo ports.JoinMessageConfigReader, messages ports.DiscordMessagePort, special coreservice.SpecialWelcomeConfig) Module {
+func NewWelcomeMessageDeliveryModule(repo ports.JoinMessageConfigReader, messages ports.DiscordMessagePort, channels ports.DiscordCachedChannelReader, special coreservice.SpecialWelcomeConfig) Module {
 	return Module{
-		welcomeService: coreservice.WelcomeMessageDeliveryService{Repository: repo, Messages: messages, Special: special},
-		welcomeEnabled: repo != nil && messages != nil,
+		welcomeService: coreservice.WelcomeMessageDeliveryService{Repository: repo, Messages: messages, Channels: channels, Special: special},
+		welcomeEnabled: repo != nil && messages != nil && channels != nil,
 	}
 }
 
-func NewLeaveMessageDeliveryModule(repo ports.LeaveMessageConfigReader, messages ports.DiscordMessagePort) Module {
+func NewLeaveMessageDeliveryModule(repo ports.LeaveMessageConfigReader, messages ports.DiscordMessagePort, channels ports.DiscordCachedChannelReader) Module {
 	return Module{
-		deliveryService: coreservice.LeaveMessageDeliveryService{Repository: repo, Messages: messages},
-		deliveryEnabled: repo != nil && messages != nil,
+		deliveryService: coreservice.LeaveMessageDeliveryService{Repository: repo, Messages: messages, Channels: channels},
+		deliveryEnabled: repo != nil && messages != nil && channels != nil,
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
@@ -14,7 +15,7 @@ import (
 func TestWelcomeMessageDeliveryMissingConfigNoop(t *testing.T) {
 	repo := fakemongo.NewJoinMessageConfigRepository()
 	sideEffects := fakediscord.NewSideEffects()
-	service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects}
+	service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects, Channels: sideEffects}
 
 	if err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{GuildID: "guild-1", UserID: "user-1"}); err != nil {
 		t.Fatalf("send: %v", err)
@@ -34,7 +35,7 @@ func TestWelcomeMessageDeliveryDisabledConfigNoop(t *testing.T) {
 		Color:          "#53FF53",
 	}
 	sideEffects := fakediscord.NewSideEffects()
-	service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects}
+	service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects, Channels: sideEffects}
 
 	if err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{GuildID: "guild-1", UserID: "user-1"}); err != nil {
 		t.Fatalf("send: %v", err)
@@ -54,7 +55,8 @@ func TestWelcomeMessageDeliveryPreservesAllSpaceContent(t *testing.T) {
 		Color:          "#53FF53",
 	}
 	sideEffects := fakediscord.NewSideEffects()
-	service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects}
+	cacheLegacyDeliveryChannel(sideEffects, "guild-1", "channel-1")
+	service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects, Channels: sideEffects}
 
 	if err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{GuildID: "guild-1", UserID: "user-1"}); err != nil {
 		t.Fatalf("send: %v", err)
@@ -76,7 +78,8 @@ func TestWelcomeMessageDeliveryGenericLegacyEmbed(t *testing.T) {
 		ImageURL:       "https://example.test/welcome.png",
 	}
 	sideEffects := fakediscord.NewSideEffects()
-	service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects}
+	cacheLegacyDeliveryChannel(sideEffects, "guild-1", "channel-1")
+	service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects, Channels: sideEffects}
 
 	err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{
 		GuildID:      "guild-1",
@@ -114,8 +117,10 @@ func TestWelcomeMessageDeliveryGenericLegacyEmbed(t *testing.T) {
 func TestWelcomeMessageDeliverySpecialLegacyEmbed(t *testing.T) {
 	now := time.Unix(2_000_000, 0)
 	sideEffects := fakediscord.NewSideEffects()
+	cacheLegacyDeliveryChannel(sideEffects, "special-guild", "special-channel")
 	service := WelcomeMessageDeliveryService{
 		Messages: sideEffects,
+		Channels: sideEffects,
 		Special: SpecialWelcomeConfig{
 			GuildID:          "special-guild",
 			BotID:            "special-bot",
@@ -157,6 +162,44 @@ func TestWelcomeMessageDeliverySpecialLegacyEmbed(t *testing.T) {
 		embed.Color == 0 {
 		t.Fatalf("embed = %#v", embed)
 	}
+}
+
+func TestWelcomeMessageDeliverySkipsUncachedLegacyChannels(t *testing.T) {
+	t.Run("generic", func(t *testing.T) {
+		repo := fakemongo.NewJoinMessageConfigRepository()
+		repo.Configs["guild-1"] = domain.JoinMessageConfig{
+			GuildID: "guild-1", Enabled: true, ChannelID: "missing", MessageContent: "welcome", Color: "Green",
+		}
+		sideEffects := fakediscord.NewSideEffects()
+		service := WelcomeMessageDeliveryService{Repository: repo, Messages: sideEffects, Channels: sideEffects}
+		if err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{GuildID: "guild-1", UserID: "user-1"}); err != nil {
+			t.Fatalf("send: %v", err)
+		}
+		if len(sideEffects.Sent) != 0 {
+			t.Fatalf("sent = %#v", sideEffects.Sent)
+		}
+	})
+
+	t.Run("special", func(t *testing.T) {
+		sideEffects := fakediscord.NewSideEffects()
+		service := WelcomeMessageDeliveryService{
+			Messages: sideEffects,
+			Channels: sideEffects,
+			Special: SpecialWelcomeConfig{
+				GuildID: "guild-1", BotID: "bot-1", ChannelID: "missing", ChatChannelID: "chat", HelpChannelID: "help", BugChannelID: "bug", SupportChannelID: "support",
+			},
+		}
+		if err := service.SendOnJoin(context.Background(), WelcomeMemberEvent{GuildID: "guild-1", BotUserID: "bot-1", UserID: "user-1"}); err != nil {
+			t.Fatalf("send: %v", err)
+		}
+		if len(sideEffects.Sent) != 0 {
+			t.Fatalf("sent = %#v", sideEffects.Sent)
+		}
+	})
+}
+
+func cacheLegacyDeliveryChannel(sideEffects *fakediscord.SideEffects, guildID string, channelID string) {
+	sideEffects.Channels = append(sideEffects.Channels, ports.ChannelRef{GuildID: guildID, ChannelID: channelID})
 }
 
 func TestSpecialWelcomePreservesLegacyMigratedUsernameTag(t *testing.T) {

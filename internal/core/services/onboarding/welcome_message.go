@@ -15,6 +15,7 @@ import (
 type WelcomeMessageDeliveryService struct {
 	Repository ports.JoinMessageConfigReader
 	Messages   ports.DiscordMessagePort
+	Channels   ports.DiscordCachedChannelReader
 	Special    SpecialWelcomeConfig
 }
 
@@ -46,7 +47,7 @@ func (s WelcomeMessageDeliveryService) SendOnJoin(ctx context.Context, event Wel
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if s.Messages == nil {
+	if s.Messages == nil || s.Channels == nil {
 		return domain.ErrInvalidJoinMessageConfig
 	}
 	event.GuildID = strings.TrimSpace(event.GuildID)
@@ -55,7 +56,11 @@ func (s WelcomeMessageDeliveryService) SendOnJoin(ctx context.Context, event Wel
 		return nil
 	}
 	if s.Special.Matches(event) {
-		_, err := s.Messages.SendMessage(ctx, s.Special.ChannelID, specialWelcomeMessage(event, s.Special))
+		cached, err := legacyDeliveryChannelCached(ctx, s.Channels, event.GuildID, s.Special.ChannelID)
+		if err != nil || !cached {
+			return err
+		}
+		_, err = s.Messages.SendMessage(ctx, s.Special.ChannelID, specialWelcomeMessage(event, s.Special))
 		return err
 	}
 	if s.Repository == nil {
@@ -71,8 +76,22 @@ func (s WelcomeMessageDeliveryService) SendOnJoin(ctx context.Context, event Wel
 	if !config.Deliverable() {
 		return nil
 	}
+	cached, err := legacyDeliveryChannelCached(ctx, s.Channels, event.GuildID, config.ChannelID)
+	if err != nil || !cached {
+		return err
+	}
 	_, err = s.Messages.SendMessage(ctx, config.ChannelID, genericWelcomeMessage(config, event))
 	return err
+}
+
+func legacyDeliveryChannelCached(ctx context.Context, channels ports.DiscordCachedChannelReader, guildID string, channelID string) (bool, error) {
+	if _, err := channels.FindCachedChannelByID(ctx, guildID, channelID); err != nil {
+		if errors.Is(err, ports.ErrChannelNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func (c SpecialWelcomeConfig) Matches(event WelcomeMemberEvent) bool {

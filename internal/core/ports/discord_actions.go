@@ -133,6 +133,10 @@ type DiscordMessagePort interface {
 	DeleteMessage(ctx context.Context, ref MessageRef) error
 }
 
+type DiscordCachedChannelReader interface {
+	FindCachedChannelByID(ctx context.Context, guildID string, channelID string) (ChannelRef, error)
+}
+
 type DiscordTypingPort interface {
 	SendTyping(ctx context.Context, channelID string) error
 }

@@ -859,6 +859,7 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		featureonboarding.NewWelcomeMessageDeliveryModule(
 			repo,
 			sideEffects,
+			sideEffects,
 			coreservice.SpecialWelcomeConfig{
 				GuildID:          cfg.LegacyWelcomeSpecialGuildID,
 				BotID:            cfg.LegacyWelcomeSpecialBotID,
@@ -896,7 +897,7 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		if err != nil {
 			return nil, err
 		}
-		featureonboarding.NewLeaveMessageDeliveryModule(repo, sideEffects).RegisterEventRoutes(dispatcher)
+		featureonboarding.NewLeaveMessageDeliveryModule(repo, sideEffects, sideEffects).RegisterEventRoutes(dispatcher)
 	}
 	if cfg.FeatureXPResetEnabled {
 		repo, err := xpAdminRepositoryFromMongo(mongoClient)

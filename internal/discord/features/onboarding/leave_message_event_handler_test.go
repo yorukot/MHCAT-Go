@@ -21,7 +21,8 @@ func TestLeaveMessageDeliveryHandlerSendsLegacyEmbed(t *testing.T) {
 		Color:          "#df1f2f",
 	}
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewLeaveMessageDeliveryModule(repo, sideEffects)
+	cacheEventDeliveryChannel(sideEffects, "guild-1", "channel-1")
+	module := NewLeaveMessageDeliveryModule(repo, sideEffects, sideEffects)
 	now := time.Date(2026, 7, 4, 2, 3, 4, 0, time.UTC)
 
 	err := module.LeaveMessageDeliveryHandler()(context.Background(), events.Event{
@@ -64,7 +65,7 @@ func TestLeaveMessageDeliveryHandlerIgnoresOtherEventsAndIncompleteEvents(t *tes
 		Color:          "#df1f2f",
 	}
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewLeaveMessageDeliveryModule(repo, sideEffects)
+	module := NewLeaveMessageDeliveryModule(repo, sideEffects, sideEffects)
 	for _, event := range []events.Event{
 		{Type: events.TypeMemberAdd, GuildID: "guild-1", UserID: "user-1"},
 		{Type: events.TypeMemberRemove, UserID: "user-1"},
@@ -81,7 +82,8 @@ func TestLeaveMessageDeliveryHandlerIgnoresOtherEventsAndIncompleteEvents(t *tes
 
 func TestLeaveMessageDeliveryEventRouteRegistration(t *testing.T) {
 	dispatcher := events.NewDispatcher(nil)
-	NewLeaveMessageDeliveryModule(fakemongo.NewLeaveMessageConfigRepository(), fakediscord.NewSideEffects()).RegisterEventRoutes(dispatcher)
+	sideEffects := fakediscord.NewSideEffects()
+	NewLeaveMessageDeliveryModule(fakemongo.NewLeaveMessageConfigRepository(), sideEffects, sideEffects).RegisterEventRoutes(dispatcher)
 	if !dispatcher.HasHandlers(events.TypeMemberRemove) {
 		t.Fatal("expected member remove handler")
 	}
