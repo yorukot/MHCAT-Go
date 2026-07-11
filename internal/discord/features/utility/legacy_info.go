@@ -2,6 +2,8 @@ package utility
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -64,10 +66,7 @@ func legacyInfoBotMessageWithShardLabel(info ports.BotInfo, shardLabel string) r
 		info.ShardCount = 1
 	}
 	now := time.Now()
-	bootUnix := now.Unix()
-	if info.Uptime > 0 {
-		bootUnix = now.Add(-info.Uptime).Unix()
-	}
+	bootUnix := legacyBootUnix(now, info.Uptime)
 	cpuModel := info.CPUModel
 	if cpuModel == "" {
 		cpuModel = "unknown"
@@ -161,21 +160,26 @@ func legacyShardField(info ports.BotInfo) responses.EmbedField {
 			info.UserCount,
 			memoryUsed,
 			memoryTotal,
-			formatLegacyDuration(info.Uptime),
-			formatLegacyDuration(info.Latency),
+			formatLegacyShardUptime(info.Uptime),
+			formatLegacyShardPing(info.Latency),
 		),
 		Inline: true,
 	}
 }
 
-func formatLegacyDuration(value time.Duration) string {
+func formatLegacyShardUptime(value time.Duration) string {
 	if value < 0 {
 		value = 0
 	}
-	if value == 0 {
-		return "0s"
-	}
-	return value.Truncate(time.Millisecond).String()
+	totalSeconds := int64(value / time.Second)
+	hours := totalSeconds / 3600
+	minutes := totalSeconds % 3600 / 60
+	seconds := totalSeconds % 60
+	return fmt.Sprintf("%02dh%02dm%02ds", hours, minutes, seconds)
+}
+
+func formatLegacyShardPing(value time.Duration) string {
+	return strconv.FormatInt(value.Milliseconds(), 10)
 }
 
 func legacyInfoRefreshSuccessMessage() responses.Message {
@@ -244,14 +248,15 @@ func legacyTime(value time.Time) string {
 	if value.IsZero() {
 		return "`未知`"
 	}
-	return fmt.Sprintf("<t:%d>", value.Unix())
+	return fmt.Sprintf("<t:%d>", legacyRoundedUnix(value))
 }
 
 func legacyTimeWithRelative(value time.Time) string {
 	if value.IsZero() {
 		return "`未知`"
 	}
-	return fmt.Sprintf("<t:%d> (<t:%d:R>)", value.Unix(), value.Unix())
+	seconds := legacyRoundedUnix(value)
+	return fmt.Sprintf("<t:%d> (<t:%d:R>)", seconds, seconds)
 }
 
 func legacyMention(userID string) string {
@@ -262,14 +267,19 @@ func legacyMention(userID string) string {
 }
 
 func legacyLocale(locale string) string {
-	if locale == "" {
-		return "`未知`"
-	}
 	flag := legacyLanguageFlag[locale]
 	if flag == "" {
-		flag = "🌐"
+		flag = "undefined"
 	}
 	return fmt.Sprintf("%s`(%s)`", flag, locale)
+}
+
+func legacyRoundedUnix(value time.Time) int64 {
+	return int64(math.Floor(float64(value.UnixNano())/float64(time.Second) + 0.5))
+}
+
+func legacyBootUnix(now time.Time, uptime time.Duration) int64 {
+	return int64(math.Floor(float64(now.UnixNano())/float64(time.Second) - uptime.Seconds() + 0.5))
 }
 
 func legacyVerificationLevel(level int) string {

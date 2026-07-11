@@ -306,7 +306,11 @@ func TestInfoShardRefreshUpdatesMessage(t *testing.T) {
 	if !strings.Contains(embed.Title, "以下是每個分片的資訊") || len(embed.Fields) != 1 {
 		t.Fatalf("shard update embed = %#v", embed)
 	}
-	if !strings.Contains(embed.Fields[0].Name, "分片ID: 3") || !strings.Contains(embed.Fields[0].Value, "公會數量: 22") || !strings.Contains(embed.Fields[0].Value, "使用者數量: 330") {
+	if !strings.Contains(embed.Fields[0].Name, "分片ID: 3") ||
+		!strings.Contains(embed.Fields[0].Value, "公會數量: 22") ||
+		!strings.Contains(embed.Fields[0].Value, "使用者數量: 330") ||
+		!strings.Contains(embed.Fields[0].Value, "上線時間:00h03m00s") ||
+		!strings.Contains(embed.Fields[0].Value, "延遲: 12```") {
 		t.Fatalf("shard field = %#v", embed.Fields[0])
 	}
 }
