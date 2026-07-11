@@ -60,6 +60,16 @@ Modal submit:
 - does not create indexes;
 - does not write `join_messages`.
 
+Duplicate-row policy:
+
+- reads and modal defaults retain legacy `findOne` first-row behavior;
+- an explicit channel or modal save updates every existing `leave_messages` row for the guild to the same values;
+- this intentionally fixes the legacy sequence of first-match, non-awaited `updateOne` calls, which could leave duplicate rows with conflicting channel/content/title/color combinations;
+- rows are not deleted, merged, or backfilled, so rollback to Node remains compatible after an explicit Go save;
+- no startup repair or index creation runs. The candidate unique `{guild:1}` index remains blocked until a live duplicate, missing/null/blank key, scalar-type, and external-writer audit is clean.
+
+No database migration is required to enable this slice. Before command ownership moves to Go, run the read-only Mongo audit and inspect `leave_messages` duplicate/type findings. Keep Node and Go setup ownership exclusive during rollout; do not deduplicate or apply the candidate unique index merely to enable the feature.
+
 ## Leave Delivery
 
 When `MHCAT_FEATURE_LEAVE_MESSAGE_DELIVERY_ENABLED=true`, the Go bot listens for `guildMemberRemove`, reads the existing `leave_messages` row, and sends the legacy-style leave embed to the configured channel.
