@@ -99,7 +99,7 @@ Implemented utility commands:
 - `/info guild`
 - `/代幣查詢` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_QUERY_ENABLED=true`
 - `/簽到` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`
-- `/coin-related-settings` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`
+- parity-audited `/coin-related-settings` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`; see [docs/99-economy-settings.md](docs/99-economy-settings.md)
 - `/代幣增加` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`
 - parity-audited `/代幣排行榜` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`; see [docs/96-economy-coin-rank.md](docs/96-economy-coin-rank.md)
 - `/代幣重製` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, gateway enabled, Guild Messages intent enabled, and Message Content intent enabled
@@ -579,7 +579,7 @@ The read-only `/代幣查詢` command is available only when `MHCAT_FEATURE_ECON
 
 The `/簽到` command is available only when `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes `coins` and `sign_lists`, so use only isolated staging data until the production duplicate/index/reset blockers in [docs/98-economy-sign.md](docs/98-economy-sign.md) are closed.
 
-The `/coin-related-settings` command is available only when `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes `gift_changes` using legacy field names and an atomic patch/update path instead of the legacy delete-then-insert flow. It requires Manage Messages at the command definition and runtime levels.
+The `/coin-related-settings` command is available only when `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command replaces one `gift_changes` row with legacy fields and duplicate behavior. It requires Manage Messages at the command definition and runtime levels; follow [docs/99-economy-settings.md](docs/99-economy-settings.md).
 
 The `/剪刀石頭布` command is available only when `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes existing `coins` rows only, rejects missing or insufficient balances, and preserves the legacy game behavior where winning can move a balance above `999999999`; use only disposable staging balances until economy ownership and duplicate audits are reviewed.
 

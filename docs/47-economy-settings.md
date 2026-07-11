@@ -1,6 +1,6 @@
 # Economy Settings Slice
 
-Status: implemented behind explicit runtime and command-sync gates.
+Status: implemented behind explicit runtime and command-sync gates. The canonical audited behavior and rollout contract is [99-economy-settings.md](99-economy-settings.md).
 
 ## Legacy Reference
 
@@ -47,9 +47,8 @@ The write preserves legacy field names:
 
 ## Intentional Fixes
 
-- Existing config rows are patched atomically instead of deleted then recreated.
-- If duplicate legacy `gift_changes` rows exist for a guild, all matching rows are updated to the same values so `findOne` remains rollback-compatible until duplicate audit and unique-index work are complete.
-- Negative gacha cost, sign-in reward, cooldown, and XP multiplier are rejected. Legacy accepted some negative values, but those can corrupt economy behavior.
+- Existing config replacement sequences and checks delete-one then insert-one instead of launching unawaited writes. Extra duplicate rows remain untouched, preserving legacy final-state behavior.
+- Negative gacha cost, sign-in reward, and XP multiplier remain accepted; only negative cooldown is rejected. Oversized positive cooldowns retain JavaScript double seconds in BSON.
 - Error responses keep the initial public defer state instead of trying to become ephemeral after defer, which Discord does not allow.
 
 ## Not Implemented
@@ -57,7 +56,7 @@ The write preserves legacy field names:
 - Gacha, XP reward, notification-channel consumer behavior.
 - Unique index creation for `gift_changes.guild`.
 - Production rollout approval for economy config writes.
-- Usage count Mongo writes.
+- Production usage count writes remain controlled by the separate global usage gate.
 
 ## Tests
 
