@@ -372,9 +372,16 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	// Runtime usage belongs to the slash middleware; route-level tracking would double count.
 	opts.UsageTracker = nil
 
-	module := featureutility.NewModuleWithDiscordInfo(registry, botInfoProvider(opts.Session), concreteDiscord, clockOrSystem(opts.Clock), nil)
+	infoProvider := botInfoProvider(opts.Session)
+	var clusterInfoProvider *discordadapter.ClusterBotInfoProvider
+	if local, ok := infoProvider.(discordadapter.BotInfoProvider); ok && local.ShardCount > 1 {
+		clusterInfoProvider = &discordadapter.ClusterBotInfoProvider{Local: local}
+		runtimeShutdowns = append(runtimeShutdowns, clusterInfoProvider.Stop)
+		infoProvider = clusterInfoProvider
+	}
+	module := featureutility.NewModuleWithDiscordInfo(registry, infoProvider, concreteDiscord, clockOrSystem(opts.Clock), nil)
 	if opts.TranslateFeatureEnabled && opts.TranslateProvider != nil {
-		module = featureutility.NewModuleWithTranslator(registry, botInfoProvider(opts.Session), concreteDiscord, opts.TranslateProvider, clockOrSystem(opts.Clock), nil)
+		module = featureutility.NewModuleWithTranslator(registry, infoProvider, concreteDiscord, opts.TranslateProvider, clockOrSystem(opts.Clock), nil)
 	}
 	if err := module.RegisterRoutes(router); err != nil {
 		return nil, err
@@ -744,6 +751,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	}
 	for _, shutdown := range runtimeShutdowns {
 		dispatcher.RegisterShutdown(shutdown)
+	}
+	if clusterInfoProvider != nil {
+		clusterInfoProvider.Start(context.Background())
 	}
 	return dispatcher, nil
 }

@@ -47,6 +47,21 @@ func (s StatusService) ShardInfo(ctx context.Context) (ports.BotInfo, bool) {
 	return s.Info(ctx)
 }
 
+func (s StatusService) ShardInfos(ctx context.Context) ([]ports.BotInfo, bool) {
+	if provider, ok := s.Provider.(ports.ShardInfosProvider); ok {
+		infos, err := provider.ShardInfos(ctx)
+		if err != nil || len(infos) == 0 {
+			return nil, true
+		}
+		return infos, false
+	}
+	info, degraded := s.ShardInfo(ctx)
+	if degraded {
+		return nil, true
+	}
+	return []ports.BotInfo{info}, false
+}
+
 func (s StatusService) BotStatus(ctx context.Context) (string, error) {
 	info, degraded := s.Info(ctx)
 	if degraded && s.Provider == nil {

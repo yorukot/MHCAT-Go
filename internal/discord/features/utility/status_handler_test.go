@@ -3,6 +3,7 @@ package utility_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -73,7 +74,7 @@ func TestInfoBotHandlerDegradedProviderSafe(t *testing.T) {
 }
 
 func TestInfoShardHandlerReturnsLegacyEmbed(t *testing.T) {
-	provider := panicBotInfoProvider{}
+	provider := fakebotinfo.Provider{Info: ports.BotInfo{ShardID: 0, ShardCount: 1, GuildCount: 12, UserCount: 345}}
 	module := featureutility.NewModule(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), provider, nil, nil)
 	responder := fakediscord.NewResponder()
 	if err := module.InfoHandler()(context.Background(), fakediscord.SlashInteractionWithOptions("info", "shard", nil), responder); err != nil {
@@ -86,8 +87,8 @@ func TestInfoShardHandlerReturnsLegacyEmbed(t *testing.T) {
 	if len(msg.Embeds) != 1 || !strings.Contains(msg.Embeds[0].Title, "以下是每個分片的資訊") {
 		t.Fatalf("shard embed = %#v", msg.Embeds)
 	}
-	if len(msg.Embeds[0].Fields) != 0 {
-		t.Fatalf("legacy initial shard embed must remain empty: %#v", msg.Embeds[0].Fields)
+	if len(msg.Embeds[0].Fields) != 1 || !strings.Contains(msg.Embeds[0].Fields[0].Value, "公會數量: 12") {
+		t.Fatalf("initial shard fields = %#v", msg.Embeds[0].Fields)
 	}
 	if len(msg.Components) != 1 || len(msg.Components[0].Components) != 1 {
 		t.Fatalf("shard components = %#v", msg.Components)
@@ -96,12 +97,6 @@ func TestInfoShardHandlerReturnsLegacyEmbed(t *testing.T) {
 	if button.CustomID != "shardinfoupdate" || button.Label != "更新" || button.Style != responses.ButtonStyleSuccess {
 		t.Fatalf("shard refresh button = %#v", button)
 	}
-}
-
-type panicBotInfoProvider struct{}
-
-func (panicBotInfoProvider) BotInfo(context.Context) (ports.BotInfo, error) {
-	panic("initial info shard must not call bot info provider")
 }
 
 func TestInfoUnsupportedSubcommandSafe(t *testing.T) {
@@ -238,7 +233,7 @@ func TestInfoHandlerTracksUsage(t *testing.T) {
 	}
 }
 
-func TestInfoBotRefreshPreservesLegacyDeferredFollowUp(t *testing.T) {
+func TestInfoBotRefreshUpdatesCompleteMessage(t *testing.T) {
 	provider := fakebotinfo.Provider{Info: ports.BotInfo{
 		Name:            "MHCAT",
 		ShardCount:      1,
@@ -254,18 +249,18 @@ func TestInfoBotRefreshPreservesLegacyDeferredFollowUp(t *testing.T) {
 	if err := module.InfoBotRefreshHandler()(context.Background(), fakediscord.ComponentInteractionFromID("botinfoupdate"), responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral || len(responder.Updates) != 0 || len(responder.Follow) != 1 {
+	if len(responder.Defers) != 0 || len(responder.Updates) != 1 || len(responder.Follow) != 0 {
 		t.Fatalf("defers=%#v updates=%#v follow=%#v", responder.Defers, responder.Updates, responder.Follow)
 	}
-	msg := responder.Follow[0]
+	msg := responder.Updates[0]
 	if msg.Ephemeral || len(msg.Embeds) != 1 || !strings.Contains(msg.Embeds[0].Title, "MHCAT目前系統使用量") {
 		t.Fatalf("follow-up = %#v", msg)
 	}
-	if !embedHasFieldContaining(msg.Embeds[0], "集群數量") {
+	if !embedHasFieldContaining(msg.Embeds[0], "分片數量") {
 		t.Fatalf("refresh fields = %#v", msg.Embeds[0].Fields)
 	}
-	if len(msg.Embeds[0].Fields) != 7 || msg.Embeds[0].Fields[5].Name != "" || msg.Embeds[0].Fields[5].Value != "`2`" {
-		t.Fatalf("legacy unnamed server field = %#v", msg.Embeds[0].Fields)
+	if len(msg.Embeds[0].Fields) != 7 || !strings.Contains(msg.Embeds[0].Fields[5].Name, "總伺服器") || msg.Embeds[0].Fields[5].Value != "`2`" {
+		t.Fatalf("complete server field = %#v", msg.Embeds[0].Fields)
 	}
 }
 
@@ -289,9 +284,43 @@ func TestInfoBotRefreshRoutesByParsedLegacyID(t *testing.T) {
 	if err := router.Handle(context.Background(), fakediscord.ComponentInteractionFromID("botinfoupdate"), responder); err != nil {
 		t.Fatalf("handle: %v", err)
 	}
-	if len(responder.Defers) != 1 || len(responder.Updates) != 0 || len(responder.Follow) != 1 {
+	if len(responder.Defers) != 0 || len(responder.Updates) != 1 || len(responder.Follow) != 0 {
 		t.Fatalf("defers=%#v updates=%#v follow=%#v", responder.Defers, responder.Updates, responder.Follow)
 	}
+}
+
+func TestInfoShardDisplaysEveryClusterShardInOrder(t *testing.T) {
+	provider := clusterBotInfoProvider{infos: []ports.BotInfo{
+		{ShardID: 0, ShardCount: 3, GuildCount: 10},
+		{ShardID: 1, ShardCount: 3, GuildCount: 20},
+		{ShardID: 2, ShardCount: 3, GuildCount: 30},
+	}}
+	module := featureutility.NewModule(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), provider, nil, nil)
+	responder := fakediscord.NewResponder()
+	if err := module.InfoHandler()(context.Background(), fakediscord.SlashInteractionWithOptions("info", "shard", nil), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	fields := responder.Follow[0].Embeds[0].Fields
+	if len(fields) != 3 {
+		t.Fatalf("fields = %#v", fields)
+	}
+	for shardID := range fields {
+		if !strings.Contains(fields[shardID].Name, fmt.Sprintf("分片ID: %d", shardID)) {
+			t.Fatalf("field %d = %#v", shardID, fields[shardID])
+		}
+	}
+}
+
+type clusterBotInfoProvider struct {
+	infos []ports.BotInfo
+}
+
+func (p clusterBotInfoProvider) BotInfo(context.Context) (ports.BotInfo, error) {
+	return p.infos[0], nil
+}
+
+func (p clusterBotInfoProvider) ShardInfos(context.Context) ([]ports.BotInfo, error) {
+	return p.infos, nil
 }
 
 func TestInfoShardRefreshUpdatesMessage(t *testing.T) {

@@ -50,7 +50,8 @@ func (m Module) handleInfoShard(ctx context.Context, interaction interactions.In
 	if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
 		return err
 	}
-	msg := legacyInfoShardMessage()
+	infos, _ := m.status.ShardInfos(ctx)
+	msg := legacyInfoShardMessage(infos)
 	if err := responder.FollowUp(ctx, msg); err != nil {
 		return err
 	}
@@ -115,17 +116,14 @@ func (m Module) handleInfoGuild(ctx context.Context, interaction interactions.In
 
 func (m Module) InfoBotRefreshHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
-		if err := responder.Defer(ctx, responses.DeferOptions{Ephemeral: true}); err != nil {
-			return err
-		}
-		info, degraded := m.status.ShardInfo(ctx)
+		info, degraded := m.status.Info(ctx)
 		if degraded {
-			if err := responder.FollowUp(ctx, legacyInfoErrorMessage()); err != nil {
+			if err := responder.Reply(ctx, legacyInfoErrorMessage()); err != nil {
 				return err
 			}
 			return m.track(ctx, interaction, "info")
 		}
-		if err := responder.FollowUp(ctx, legacyInfoBotRefreshMessage(info)); err != nil {
+		if err := responder.UpdateMessage(ctx, legacyInfoBotRefreshMessage(info)); err != nil {
 			return err
 		}
 		return m.track(ctx, interaction, "info")
@@ -134,14 +132,14 @@ func (m Module) InfoBotRefreshHandler() interactions.Handler {
 
 func (m Module) InfoShardRefreshHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
-		info, degraded := m.status.Info(ctx)
+		infos, degraded := m.status.ShardInfos(ctx)
 		if degraded {
 			if err := responder.Reply(ctx, legacyInfoErrorMessage()); err != nil {
 				return err
 			}
 			return m.track(ctx, interaction, "info")
 		}
-		if err := responder.UpdateMessage(ctx, legacyInfoShardRefreshMessage(info)); err != nil {
+		if err := responder.UpdateMessage(ctx, legacyInfoShardMessage(infos)); err != nil {
 			return err
 		}
 		return m.track(ctx, interaction, "info")

@@ -29,3 +29,7 @@ type BotInfoProvider interface {
 type ShardInfoProvider interface {
 	ShardInfo(ctx context.Context) (BotInfo, error)
 }
+
+type ShardInfosProvider interface {
+	ShardInfos(ctx context.Context) ([]BotInfo, error)
+}

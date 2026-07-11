@@ -50,14 +50,14 @@ var legacyLanguageFlag = map[string]string{
 }
 
 func legacyInfoBotMessage(info ports.BotInfo) responses.Message {
-	return legacyInfoBotMessageWithShardLabel(info, "分片數量", false)
+	return legacyInfoBotMessageWithShardLabel(info, "分片數量")
 }
 
 func legacyInfoBotRefreshMessage(info ports.BotInfo) responses.Message {
-	return legacyInfoBotMessageWithShardLabel(info, "集群數量", true)
+	return legacyInfoBotMessageWithShardLabel(info, "分片數量")
 }
 
-func legacyInfoBotMessageWithShardLabel(info ports.BotInfo, shardLabel string, refresh bool) responses.Message {
+func legacyInfoBotMessageWithShardLabel(info ports.BotInfo, shardLabel string) responses.Message {
 	if info.Name == "" {
 		info.Name = "MHCAT"
 	}
@@ -77,9 +77,6 @@ func legacyInfoBotMessageWithShardLabel(info ports.BotInfo, shardLabel string, r
 		memoryPercent = (float64(memoryUsed) / float64(memoryTotal)) * 100
 	}
 	serverFieldName := "<:server:986064124209418251> 總伺服器:"
-	if refresh {
-		serverFieldName = ""
-	}
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title:     "<a:mhcat:996759164875440219> MHCAT目前系統使用量:",
@@ -128,8 +125,8 @@ func legacyInfoLookupErrorMessage() responses.Message {
 	}
 }
 
-func legacyInfoShardMessage() responses.Message {
-	return responses.Message{
+func legacyInfoShardMessage(infos []ports.BotInfo) responses.Message {
+	message := responses.Message{
 		Embeds: []responses.Embed{{
 			Title:     "<:vagueness:999527612634374184> 以下是每個分片的資訊!!",
 			Color:     legacyUtilityRandomColor(),
@@ -145,12 +142,10 @@ func legacyInfoShardMessage() responses.Message {
 			}},
 		}},
 	}
-}
-
-func legacyInfoShardRefreshMessage(info ports.BotInfo) responses.Message {
-	msg := legacyInfoShardMessage()
-	msg.Embeds[0].Fields = []responses.EmbedField{legacyShardField(info)}
-	return msg
+	for _, info := range infos {
+		message.Embeds[0].Fields = append(message.Embeds[0].Fields, legacyShardField(info))
+	}
+	return message
 }
 
 func legacyShardField(info ports.BotInfo) responses.EmbedField {
