@@ -24,6 +24,7 @@
 - For account-age member-gate smoke, use only a disposable staging member and enable `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`.
 - For role-selection smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION=true` with `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true`; use roles below the bot's highest role and disposable staging messages.
 - For anti-scam smoke, pair each config/report command-sync flag with its runtime gate, use a safe report webhook, and enable message deletion only with its event gate plus Gateway/Guild Messages/Message Content. Stop matching Node ownership, audit both collections, and follow `docs/77-anti-scam.md`.
+- For birthday smoke, pair `MHCAT_COMMAND_SYNC_INCLUDE_BIRTHDAY_CONFIG=true` with `MHCAT_FEATURE_BIRTHDAY_CONFIG_ENABLED=true`, stop Node `/生日系統`, audit `birthday_sets`/`birthdays`, keep delivery inactive, and follow `docs/78-birthday.md`.
 - For economy sign-in smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true` with `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`.
 - For economy coin-rank smoke, use an isolated staging guild/database and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_RANK=true` with `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`.
 - For economy RPS smoke, use only disposable staging `coins` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true` with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`.
@@ -66,6 +67,7 @@
 - If account-age member-gate smoke is enabled, join with a disposable too-new staging member and verify the legacy DM, kick reason, optional log embed, and that join-role/welcome side effects do not run after the kick.
 - If role-selection smoke is enabled, run `/選取身分組-表情符號` against a disposable staging message, verify the reaction is added and `message_reactions` stores `guild`, `message`, `react`, and `role`, react/unreact as a test member to verify role add/remove, run `/選取身分組刪除-表情符號`, and run `/選取身分組-按鈕` to verify the legacy modal/panel plus add/delete buttons and `btns` rows.
 - If anti-scam smoke is enabled, run the canonical config/report/deletion cases in `docs/77-anti-scam.md`, including exact UI, URL-validator edges, webhook failure, raw/scalar catalog rows, bot scanning, and delete-before-warning failures.
+- If birthday smoke is enabled, run the canonical five-subcommand and selector cases in `docs/78-birthday.md`, including exact UI, permissions, scalar/duplicate rows, stale state, attachment bytes, usage, and rollback.
 - If economy sign-in smoke is enabled, run `/簽到`, then run `/簽到列表` and verify the public `簽到人數資訊` embed plus `discord.txt`.
 - If economy coin-rank smoke is enabled, run `/代幣排行榜`, verify the public PNG attachment and pagination buttons, and verify Mongo `coins` rows are not mutated.
 - If economy profile smoke is enabled, run `/my-profile`, verify the public `user-info.png` attachment and `更新` refresh button, and verify Mongo economy/XP/work rows are not mutated.

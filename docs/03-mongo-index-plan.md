@@ -61,8 +61,8 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | `numbers` | `numbers_guild` | `{guild:1}` | candidate | no | no | guild stats config singleton | singleton duplicates | audit duplicates, dry-run, explicit apply |
 | `all_use_counts` | `all_use_counts_command` | `{slashcommand_name:1}` | candidate | no | no | slash usage counter | null/undefined command names | audit invalid names before unique |
 | `ann_all_sets` | `ann_all_sets_guild_announcement` | `{guild:1,announcement_id:1}` | candidate | no | no | announcement config/relay lookup | duplicate or scalar-drift keys, malformed values, shared Node writer | audit types/duplicates and exclusive ownership; no startup apply; see [contract](76-announcement.md) |
-| `birthdays` | `birthdays_guild_user` | `{guild:1,user:1}` | candidate | no | no | user birthday lookup | duplicate birthdays | audit, dry-run, explicit apply |
-| `birthday_sets` | `birthday_sets_guild` | `{guild:1}` | candidate | no | no | birthday guild config | singleton duplicates | audit, dry-run, explicit apply |
+| `birthdays` | `birthdays_guild_user` | `{guild:1,user:1}` | candidate | no | no | birthday profile lookup | duplicate/missing/scalar-drift keys, malformed profile values, ownership | audit only; explicit reviewed apply after clean findings; see [contract](78-birthday.md) |
+| `birthday_sets` | `birthday_sets_guild` | `{guild:1}` | candidate | no | no | birthday guild config | duplicate/missing/scalar-drift keys, external writers | audit only; explicit reviewed apply after clean findings; see [contract](78-birthday.md) |
 | `btns` | `btns_guild_number` | `{guild:1,number:1}` | candidate | no | no | role button lookup | duplicate button IDs | audit, dry-run, explicit apply |
 | `chats` | `chats_guild` | `{guild:1}` | candidate | no | no | autochat config | singleton duplicates | audit, dry-run, explicit apply |
 | `chat_roles` | `chat_roles_guild_level_role` | `{guild:1,leavel:1,role:1}` | candidate | no | no | text level role lookup | misspelled level/type drift | audit, dry-run, explicit apply |

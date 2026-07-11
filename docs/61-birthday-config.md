@@ -1,6 +1,6 @@
 # Birthday Config and Profile Slice
 
-Status: implemented behind explicit runtime and command-sync gates.
+Status: superseded by the canonical [birthday parity contract](78-birthday.md). Retained as historical implementation-slice context.
 
 ## Legacy References
 

@@ -71,6 +71,7 @@ Primary Go env vars:
 - `MHCAT_FEATURE_ANTI_SCAM_CONFIG_ENABLED`
 - `MHCAT_FEATURE_ANTI_SCAM_REPORT_ENABLED`
 - `MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED`
+- `MHCAT_FEATURE_BIRTHDAY_CONFIG_ENABLED`
 - `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED`
 - `MHCAT_FEATURE_TEXT_XP_ACCRUAL_ENABLED`
 - `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED`
@@ -929,6 +930,17 @@ export MHCAT_COMMAND_SYNC_INCLUDE_WORK=true
 ```
 
 Run `mhcat-staging-preflight` before command sync. It rejects `MHCAT_COMMAND_SYNC_INCLUDE_WORK=true` unless the runtime flag is also enabled, and command sync still requires staging guild scope. Do not sync `打工系統` to production until recurring payout ownership, duplicate audits, and isolated payout smoke are complete or a documented partial rollout is accepted. The start path can create a missing `work_users` row, deduct `energi`, and set `state`/`end_time`/`get_coin` through an atomic update. Admin paths can upsert/update `work_sets`, delete `work_somethings`, and clamp `work_users.energi`. They do not write payout state, coins, indexes, or scheduler leases.
+
+## Birthday Command Runtime
+
+Birthday command ownership is disabled by default. In an isolated staging guild/database, pair:
+
+```bash
+export MHCAT_FEATURE_BIRTHDAY_CONFIG_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_BIRTHDAY_CONFIG=true
+```
+
+Stop the Node `/生日系統` owner, audit `birthday_sets`/`birthdays`, run preflight and command-sync dry-run, and follow [78-birthday.md](78-birthday.md). These flags authorize only the five active slash subcommands and their selectors. They do not authorize the fully commented `handler/gift.js` delivery/temporary-role block, a scheduler, repairs, or index creation. During rollback, disable Go routing and wait five minutes for versioned pending selector IDs to expire before restoring Node command ownership.
 
 ## Scheduler Lease
 

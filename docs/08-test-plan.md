@@ -70,6 +70,7 @@ Status: Phase 1 consolidated. Legacy has only a live Discord login smoke test; t
   - poll create/vote/result/owner/export, including initial-versus-rerender text and component migration
   - announcement config/send/modal/confirmation/relay, including exact permissions, color semantics, six-second state, scalar reads, send-before-delete, and mention suppression
   - anti-scam config/report/deletion, including pinned URL validation, scalar reads, webhook outcomes, bot scanning, and delete-before-warning failures
+  - birthday config/add/preference/delete/list, including exact selectors, five-minute state, scalar reads, duplicate-safe writes, and inactive delivery boundaries
   - verification
   - ticket setup/panel/open/close
   - reaction-role setup/delete/events and button-role modal/add/remove
@@ -81,6 +82,8 @@ Status: Phase 1 consolidated. Legacy has only a live Discord login smoke test; t
 The canonical announcement fixtures, focused package commands, race coverage, and staging checklist are recorded in the [announcement parity contract](76-announcement.md). The locked boundary test is `internal/discord/features/announcements/parity_test.go`.
 
 The canonical anti-scam fixtures, focused commands, race coverage, and staging checklist are recorded in the [anti-scam parity contract](77-anti-scam.md). The locked boundary test is `internal/discord/features/safety/parity_test.go`.
+
+The canonical birthday fixtures, focused commands, race coverage, and staging checklist are recorded in the [birthday parity contract](78-birthday.md). The locked boundary test is `internal/discord/features/birthday/parity_test.go`.
 
 ## Golden Fixture Tests
 

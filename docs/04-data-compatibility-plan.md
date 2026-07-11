@@ -216,3 +216,14 @@ Anti-scam compatibility is parity-audited across config, report, and message del
 | `not_a_good_webs` | `web` | none | Mongoose-compatible String scalar decode; raw values preserved; compounds skipped | read-only | no | stop Go report/deletion ownership before restoring Node; preserve catalog exactly | confirm catalog ingestion/curation owner |
 
 No URL normalization, canonical field, repair, deduplication, or startup index is approved. Candidate indexes remain blocked on key/type/raw-variant audits and exclusive ownership. See the [anti-scam parity contract](77-anti-scam.md).
+
+## Birthday Compatibility
+
+Birthday command compatibility is parity-audited; the commented delivery block remains inactive.
+
+| Collection | Legacy fields | New fields | Read strategy | Write strategy | Backfill needed | Rollback strategy | Dashboard impact |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `birthday_sets` | `guild`, `msg`, `utc`, `channel`, `everyone_can_set_birthday_date`, `role` | none | exact key lookup plus Mongoose-compatible scalar DTO | typed patches across duplicate matches; upsert only when absent | no | stop Go command ownership, preserve rows, restore Node command only | backup/export already includes collection; confirm writers |
+| `birthdays` | `guild`, `user`, birthday/time Number fields, `allow` | none | exact profile lookup and broad list with permissive scalar DTO; null numbers remain absent | typed patches across duplicate matches; delete removes duplicate matches | no | stop Go command ownership; typed values remain Mongoose-readable | backup/export already includes collection; confirm writers |
+
+No repair, deduplication, backfill, scheduler restoration, or startup index is authorized. Candidate indexes remain blocked on duplicate/key/type/value/ownership findings. See the [birthday parity contract](78-birthday.md).

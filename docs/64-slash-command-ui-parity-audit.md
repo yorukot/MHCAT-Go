@@ -53,7 +53,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `投票創建` | `slashCommands/管理系統/poll.js` | matching-definition | none |
 | `抽獎設置` | `slashCommands/抽獎系統/lotter_create.js` | matching-definition | none |
 | `查看餘額` | `slashCommands/管理系統/check_price.js` | matching-definition | none |
-| `生日系統` | `slashCommands/生日系統/birthday.js` | matching-definition | none |
+| `生日系統` | `slashCommands/生日系統/birthday.js` | parity-audited | See [birthday parity contract](78-birthday.md) |
 | `私人頻道刪除` | `slashCommands/私人頻道/ticket_delete.js` | matching-definition | none |
 | `私人頻道設置` | `slashCommands/私人頻道/ticket.js` | matching-definition | none |
 | `簽到` | `slashCommands/代幣系統/sing.js` | matching-definition | none |

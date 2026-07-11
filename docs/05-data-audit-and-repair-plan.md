@@ -262,3 +262,17 @@ Audit before enabling any owner:
 - clean findings before any reviewed `good_webs_guild` or `not_a_good_webs_web` unique-index apply.
 
 Do not normalize catalog values merely to enable Go; raw values are behavioral data. Follow the [anti-scam parity contract](77-anti-scam.md) for staging and rollback.
+
+## Birthday Rollout Audit
+
+Birthday command runtime is parity-audited but disabled by default. The inactive delivery block is not a migration target, and no production repair, deduplication, backfill, or automatic index mutation is authorized.
+
+Audit before enabling command ownership:
+
+- duplicate, missing, null, blank, and scalar-drift `birthday_sets.guild` and `{birthdays.guild,birthdays.user}` keys;
+- Mongoose scalar drift and compound values across config String/Boolean fields and profile Number/Boolean fields;
+- null, fractional, overflowing, or out-of-range birthday/time values;
+- stale channel, role, and user IDs plus every dashboard/external writer;
+- exclusive Node/Go command ownership and clean findings before any reviewed index apply.
+
+Do not rewrite malformed rows merely to enable Go. Runtime reads are permissive, writes are typed and duplicate-safe, and delivery remains inactive. Follow the [birthday parity contract](78-birthday.md) for staging and rollback.

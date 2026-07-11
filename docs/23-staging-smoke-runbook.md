@@ -483,6 +483,15 @@ export MHCAT_REPORT_WEBHOOK_URL=https://example.test/webhook
 
 Enable only the families under test. Message deletion is event-only and separately requires `MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED=true`, Gateway, Guild Messages, and Message Content. Stop matching Node ownership, audit `good_webs`/`not_a_good_webs`, and use the canonical [anti-scam staging smoke](77-anti-scam.md#staging-smoke).
 
+Optional birthday command smoke flags:
+
+```bash
+export MHCAT_FEATURE_BIRTHDAY_CONFIG_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_BIRTHDAY_CONFIG=true
+```
+
+Set both together only with an isolated staging guild/database. Stop Node `/生日系統`, audit `birthday_sets`/`birthdays`, keep the commented delivery block inactive, and run the canonical [birthday staging smoke](78-birthday.md#staging-smoke).
+
 Optional text-XP config smoke flags:
 
 ```bash
@@ -746,6 +755,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_FEATURE_ANNOUNCEMENT_RELAY_ENABLED=true`, confirm Gateway/Guild Messages/Message Content flags, stop Node `events/ann_message.js` ownership for the same bot/guild, review duplicate/type findings, and use a bound channel safe for send-before-delete tests. Follow [76-announcement.md](76-announcement.md).
 - If either anti-scam command-sync flag is enabled, confirm its matching runtime gate; report also requires a safe webhook. Stop matching Node commands and review duplicate/type/raw-URL/external-writer findings.
 - If `MHCAT_FEATURE_ANTI_SCAM_MESSAGE_DELETE_ENABLED=true`, confirm Gateway/Guild Messages/Message Content flags, stop Node `events/safe_server.js`, and use a disposable channel/catalog safe for deletion and bot-message tests. Follow [77-anti-scam.md](77-anti-scam.md).
+- If `MHCAT_COMMAND_SYNC_INCLUDE_BIRTHDAY_CONFIG=true`, confirm `MHCAT_FEATURE_BIRTHDAY_CONFIG_ENABLED=true`, stop Node `/生日系統`, review duplicate/type/value/external-writer findings, keep delivery inactive, and use disposable rows. Follow [78-birthday.md](78-birthday.md).
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TEXT_XP_CONFIG=true`, confirm `MHCAT_FEATURE_TEXT_XP_CONFIG_ENABLED=true` and the staging database can safely write `text_xp_channels`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VOICE_XP_CONFIG=true`, confirm `MHCAT_FEATURE_VOICE_XP_CONFIG_ENABLED=true` and the staging database can safely write `voice_xp_channels`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_XP_ROLE_CONFIG=true`, confirm `MHCAT_FEATURE_XP_ROLE_CONFIG_ENABLED=true`, the staging database can safely write `chat_roles`/`voice_roles`, and the test roles are below the bot's highest role.

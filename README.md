@@ -56,6 +56,7 @@ This module currently provides:
 - gated paid auto-chat MessageCreate handoff with transactional `chatgpt_gets` debit plus rollback-compatible `chatgpts` publication, legacy cooldown/reset timing, and mention-safe worker replies.
 - gated `automatic-notification`, `/自動通知列表`, and `/自動通知刪除` setup/list/delete commands plus a separately gated lease-backed recurring delivery worker for legacy `cron_sets` rows.
 - parity-audited anti-scam toggle, URL report, and MessageCreate deletion flows; exact UI, pinned URL validation, Mongo compatibility, intent/ownership boundaries, staging, and rollback are in the [anti-scam parity contract](docs/77-anti-scam.md).
+- parity-audited `/生日系統` config, add-selector, preference, delete, and list flows; exact UI, Mongo compatibility, inactive delivery boundary, staging, and rollback are in the [birthday parity contract](docs/78-birthday.md).
 - parity-audited `/set-log-channel` config plus independently gated message update/delete, channel topic/permission, and voice join/leave emitters; exact UI, Mongo compatibility, ownership, and rollback are in the [logging parity contract](docs/48-logging-config.md).
 - gated read-only `/扭蛋獎池查詢` prize-pool query with legacy embed text and rollback-compatible `gifts`/`gift_changes` reads.
 - gated `/扭蛋獎池增加` prize add command with legacy Manage Messages permission, ephemeral success/error embeds, and rollback-compatible `gifts` inserts.
