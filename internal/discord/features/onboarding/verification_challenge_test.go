@@ -99,3 +99,30 @@ func TestVerificationChallengeStoreExpiresAtTTLBoundary(t *testing.T) {
 		t.Fatalf("expiry error = %v", err)
 	}
 }
+
+func TestVerificationChallengeStoreClaimsOneCompletionAtATime(t *testing.T) {
+	store := newVerificationChallengeStore()
+	challenge, err := store.Create(context.Background(), domain.VerificationChallenge{
+		StateID: "state",
+		GuildID: "guild",
+		UserID:  "user",
+		Answer:  "ABCDEF",
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, err := store.Claim(context.Background(), challenge.StateID); err != nil {
+		t.Fatalf("first claim: %v", err)
+	}
+	if _, err := store.Claim(context.Background(), challenge.StateID); !errors.Is(err, domain.ErrInvalidVerificationChallenge) {
+		t.Fatalf("concurrent claim error = %v", err)
+	}
+	store.Release(challenge.StateID)
+	if _, err := store.Claim(context.Background(), challenge.StateID); err != nil {
+		t.Fatalf("claim after release: %v", err)
+	}
+	store.Delete(challenge.StateID)
+	if _, err := store.Get(context.Background(), challenge.StateID); !errors.Is(err, domain.ErrInvalidVerificationChallenge) {
+		t.Fatalf("deleted challenge error = %v", err)
+	}
+}

@@ -70,7 +70,8 @@ func TestVerificationFlowTreatsWhitespaceRenameAsConfigured(t *testing.T) {
 func TestVerificationFlowCompleteRejectsWrongAnswerAndOwnerNickname(t *testing.T) {
 	repo := &fakeVerificationConfigReader{config: domain.VerificationConfig{GuildID: "guild", RoleID: "role", RenameTemplate: "{name}"}}
 	store := &fakeVerificationChallengeStore{challenge: domain.VerificationChallenge{StateID: "state", GuildID: "guild", UserID: "user", Answer: "1234"}}
-	service := VerificationFlowService{Repository: repo, Store: store, Roles: &fakeVerificationRolePort{}, Members: &fakeVerificationMemberPort{}, RolesCheck: fakeVerificationRoleInspectorFlow{assignable: true}, Guilds: &fakeVerificationGuildInfo{ownerID: "user"}}
+	roles := &fakeVerificationRolePort{}
+	service := VerificationFlowService{Repository: repo, Store: store, Roles: roles, Members: &fakeVerificationMemberPort{}, RolesCheck: fakeVerificationRoleInspectorFlow{assignable: true}, Guilds: &fakeVerificationGuildInfo{ownerID: "user"}}
 
 	if err := service.Complete(context.Background(), "guild", "user", "state", "9999", "Yoru"); !errors.Is(err, ErrVerificationAnswerMismatch) {
 		t.Fatalf("wrong answer error = %v", err)
@@ -80,6 +81,12 @@ func TestVerificationFlowCompleteRejectsWrongAnswerAndOwnerNickname(t *testing.T
 	}
 	if err := service.Complete(context.Background(), "guild", "user", "state", "1234", "Yoru"); !errors.Is(err, ErrVerificationOwnerNickname) {
 		t.Fatalf("owner nickname error = %v", err)
+	}
+	if roles.added != "guild:user:role" {
+		t.Fatalf("owner role add = %q", roles.added)
+	}
+	if store.deleted || store.claimed {
+		t.Fatalf("failed side effect should retain an available challenge: %#v", store)
 	}
 }
 
@@ -147,6 +154,7 @@ func (r *fakeVerificationConfigReader) GetVerificationConfig(context.Context, st
 type fakeVerificationChallengeStore struct {
 	challenge domain.VerificationChallenge
 	deleted   bool
+	claimed   bool
 }
 
 func (s *fakeVerificationChallengeStore) Create(_ context.Context, challenge domain.VerificationChallenge) (domain.VerificationChallenge, error) {
@@ -159,9 +167,20 @@ func (s *fakeVerificationChallengeStore) Get(context.Context, string) (domain.Ve
 	return s.challenge, nil
 }
 
-func (s *fakeVerificationChallengeStore) Delete(context.Context, string) error {
+func (s *fakeVerificationChallengeStore) Claim(context.Context, string) (domain.VerificationChallenge, error) {
+	if s.claimed || s.deleted {
+		return domain.VerificationChallenge{}, domain.ErrInvalidVerificationChallenge
+	}
+	s.claimed = true
+	return s.challenge, nil
+}
+
+func (s *fakeVerificationChallengeStore) Release(string) {
+	s.claimed = false
+}
+
+func (s *fakeVerificationChallengeStore) Delete(string) {
 	s.deleted = true
-	return nil
 }
 
 type fakeVerificationGenerator struct {

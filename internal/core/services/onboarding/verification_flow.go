@@ -15,7 +15,9 @@ var ErrVerificationOwnerNickname = errors.New("verification owner nickname chang
 type VerificationChallengeStore interface {
 	Create(ctx context.Context, challenge domain.VerificationChallenge) (domain.VerificationChallenge, error)
 	Get(ctx context.Context, stateID string) (domain.VerificationChallenge, error)
-	Delete(ctx context.Context, stateID string) error
+	Claim(ctx context.Context, stateID string) (domain.VerificationChallenge, error)
+	Release(stateID string)
+	Delete(stateID string)
 }
 
 type VerificationChallengeGenerator interface {
@@ -113,17 +115,24 @@ func (s VerificationFlowService) Complete(ctx context.Context, guildID string, u
 	if s.Repository == nil || s.Store == nil || s.Roles == nil {
 		return domain.ErrInvalidVerificationChallenge
 	}
-	challenge, err := s.Store.Get(ctx, stateID)
+	challenge, err := s.Store.Claim(ctx, stateID)
 	if err != nil {
 		return err
 	}
+	consume := false
+	defer func() {
+		if !consume {
+			s.Store.Release(stateID)
+		}
+	}()
 	if strings.TrimSpace(challenge.GuildID) != guildID || strings.TrimSpace(challenge.UserID) != userID || challenge.Answer != answer {
 		return ErrVerificationAnswerMismatch
 	}
 	if err := s.completeConfigured(ctx, guildID, userID, username); err != nil {
 		return err
 	}
-	_ = s.Store.Delete(ctx, stateID)
+	consume = true
+	s.Store.Delete(stateID)
 	return ctx.Err()
 }
 

@@ -40,6 +40,7 @@ type verificationChallengeStore struct {
 type storedVerificationChallenge struct {
 	challenge domain.VerificationChallenge
 	expiresAt time.Time
+	claimed   bool
 }
 
 func newVerificationChallengeStore() *verificationChallengeStore {
@@ -94,17 +95,48 @@ func (s *verificationChallengeStore) Get(ctx context.Context, stateID string) (d
 	return stored.challenge, nil
 }
 
-func (s *verificationChallengeStore) Delete(ctx context.Context, stateID string) error {
+func (s *verificationChallengeStore) Claim(ctx context.Context, stateID string) (domain.VerificationChallenge, error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return domain.VerificationChallenge{}, err
 	}
 	if s == nil {
-		return domain.ErrInvalidVerificationChallenge
+		return domain.VerificationChallenge{}, domain.ErrInvalidVerificationChallenge
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pruneLocked()
+	key := strings.TrimSpace(stateID)
+	stored, ok := s.values[key]
+	if !ok || stored.claimed {
+		return domain.VerificationChallenge{}, domain.ErrInvalidVerificationChallenge
+	}
+	stored.claimed = true
+	s.values[key] = stored
+	return stored.challenge, nil
+}
+
+func (s *verificationChallengeStore) Release(stateID string) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key := strings.TrimSpace(stateID)
+	stored, ok := s.values[key]
+	if !ok {
+		return
+	}
+	stored.claimed = false
+	s.values[key] = stored
+}
+
+func (s *verificationChallengeStore) Delete(stateID string) {
+	if s == nil {
+		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.values, strings.TrimSpace(stateID))
-	return nil
 }
 
 func (s *verificationChallengeStore) pruneLocked() {
