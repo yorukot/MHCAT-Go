@@ -50,14 +50,14 @@ var legacyLanguageFlag = map[string]string{
 }
 
 func legacyInfoBotMessage(info ports.BotInfo) responses.Message {
-	return legacyInfoBotMessageWithShardLabel(info, "分片數量")
+	return legacyInfoBotMessageWithShardLabel(info, "分片數量", false)
 }
 
 func legacyInfoBotRefreshMessage(info ports.BotInfo) responses.Message {
-	return legacyInfoBotMessageWithShardLabel(info, "集群數量")
+	return legacyInfoBotMessageWithShardLabel(info, "集群數量", true)
 }
 
-func legacyInfoBotMessageWithShardLabel(info ports.BotInfo, shardLabel string) responses.Message {
+func legacyInfoBotMessageWithShardLabel(info ports.BotInfo, shardLabel string, refresh bool) responses.Message {
 	if info.Name == "" {
 		info.Name = "MHCAT"
 	}
@@ -76,6 +76,10 @@ func legacyInfoBotMessageWithShardLabel(info ports.BotInfo, shardLabel string) r
 	if memoryTotal > 0 {
 		memoryPercent = (float64(memoryUsed) / float64(memoryTotal)) * 100
 	}
+	serverFieldName := "<:server:986064124209418251> 總伺服器:"
+	if refresh {
+		serverFieldName = ""
+	}
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title:     "<a:mhcat:996759164875440219> MHCAT目前系統使用量:",
@@ -87,7 +91,7 @@ func legacyInfoBotMessageWithShardLabel(info ports.BotInfo, shardLabel string) r
 				{Name: fmt.Sprintf("<:vagueness:999527612634374184> %s:\n", shardLabel), Value: fmt.Sprintf("`%d` **個**", info.ShardCount), Inline: true},
 				{Name: "<:rammemory:986062763598155797> RAM使用量:", Value: fmt.Sprintf("`%d\\%d` **MB**`(%.2f%%)`", memoryUsed, memoryTotal, memoryPercent), Inline: true},
 				{Name: "<:chronometer:986065703369080884> 開機時間:", Value: fmt.Sprintf("**<t:%d:R>**", bootUnix), Inline: true},
-				{Name: "<:server:986064124209418251> 總伺服器:", Value: fmt.Sprintf("`%d`", info.GuildCount), Inline: true},
+				{Name: serverFieldName, Value: fmt.Sprintf("`%d`", info.GuildCount), Inline: true},
 				{Name: "<:user:986064391139115028> 總使用者:", Value: fmt.Sprintf("`%d`", info.UserCount), Inline: true},
 			},
 		}},
@@ -179,13 +183,6 @@ func formatLegacyShardUptime(value time.Duration) string {
 
 func formatLegacyShardPing(value time.Duration) string {
 	return strconv.FormatInt(value.Milliseconds(), 10)
-}
-
-func legacyInfoRefreshSuccessMessage() responses.Message {
-	return responses.Message{
-		Content:   "<a:green_tick:994529015652163614>** | 成功更新!**",
-		Ephemeral: true,
-	}
 }
 
 func legacyInfoUserMessage(user ports.DiscordUserInfo) responses.Message {

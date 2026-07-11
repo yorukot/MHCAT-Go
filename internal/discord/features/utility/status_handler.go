@@ -119,17 +119,17 @@ func (m Module) handleInfoGuild(ctx context.Context, interaction interactions.In
 
 func (m Module) InfoBotRefreshHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+		if err := responder.Defer(ctx, responses.DeferOptions{Ephemeral: true}); err != nil {
+			return err
+		}
 		info, degraded := m.status.Info(ctx)
 		if degraded {
-			if err := responder.Reply(ctx, legacyInfoErrorMessage()); err != nil {
+			if err := responder.FollowUp(ctx, legacyInfoErrorMessage()); err != nil {
 				return err
 			}
 			return m.track(ctx, interaction, "info")
 		}
-		if err := responder.UpdateMessage(ctx, legacyInfoBotRefreshMessage(info)); err != nil {
-			return err
-		}
-		if err := responder.FollowUp(ctx, legacyInfoRefreshSuccessMessage()); err != nil {
+		if err := responder.FollowUp(ctx, legacyInfoBotRefreshMessage(info)); err != nil {
 			return err
 		}
 		return m.track(ctx, interaction, "info")

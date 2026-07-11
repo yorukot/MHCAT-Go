@@ -230,7 +230,7 @@ func TestInfoHandlerTracksUsage(t *testing.T) {
 	}
 }
 
-func TestInfoBotRefreshUpdatesMessageAndFollowsUp(t *testing.T) {
+func TestInfoBotRefreshPreservesLegacyDeferredFollowUp(t *testing.T) {
 	provider := fakebotinfo.Provider{Info: ports.BotInfo{
 		Name:            "MHCAT",
 		ShardCount:      1,
@@ -246,17 +246,18 @@ func TestInfoBotRefreshUpdatesMessageAndFollowsUp(t *testing.T) {
 	if err := module.InfoBotRefreshHandler()(context.Background(), fakediscord.ComponentInteractionFromID("botinfoupdate"), responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Updates) != 1 || len(responder.Follow) != 1 {
-		t.Fatalf("updates=%#v follow=%#v", responder.Updates, responder.Follow)
+	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral || len(responder.Updates) != 0 || len(responder.Follow) != 1 {
+		t.Fatalf("defers=%#v updates=%#v follow=%#v", responder.Defers, responder.Updates, responder.Follow)
 	}
-	if len(responder.Updates[0].Embeds) != 1 || !strings.Contains(responder.Updates[0].Embeds[0].Title, "MHCAT目前系統使用量") {
-		t.Fatalf("update = %#v", responder.Updates)
+	msg := responder.Follow[0]
+	if msg.Ephemeral || len(msg.Embeds) != 1 || !strings.Contains(msg.Embeds[0].Title, "MHCAT目前系統使用量") {
+		t.Fatalf("follow-up = %#v", msg)
 	}
-	if !embedHasFieldContaining(responder.Updates[0].Embeds[0], "集群數量") {
-		t.Fatalf("refresh fields = %#v", responder.Updates[0].Embeds[0].Fields)
+	if !embedHasFieldContaining(msg.Embeds[0], "集群數量") {
+		t.Fatalf("refresh fields = %#v", msg.Embeds[0].Fields)
 	}
-	if !responder.Follow[0].Ephemeral || !strings.Contains(responder.Follow[0].Content, "成功更新") {
-		t.Fatalf("follow-up = %#v", responder.Follow)
+	if len(msg.Embeds[0].Fields) != 7 || msg.Embeds[0].Fields[5].Name != "" || msg.Embeds[0].Fields[5].Value != "`2`" {
+		t.Fatalf("legacy unnamed server field = %#v", msg.Embeds[0].Fields)
 	}
 }
 
@@ -280,8 +281,8 @@ func TestInfoBotRefreshRoutesByParsedLegacyID(t *testing.T) {
 	if err := router.Handle(context.Background(), fakediscord.ComponentInteractionFromID("botinfoupdate"), responder); err != nil {
 		t.Fatalf("handle: %v", err)
 	}
-	if len(responder.Updates) != 1 || len(responder.Follow) != 1 {
-		t.Fatalf("updates=%#v follow=%#v", responder.Updates, responder.Follow)
+	if len(responder.Defers) != 1 || len(responder.Updates) != 0 || len(responder.Follow) != 1 {
+		t.Fatalf("defers=%#v updates=%#v follow=%#v", responder.Defers, responder.Updates, responder.Follow)
 	}
 }
 
