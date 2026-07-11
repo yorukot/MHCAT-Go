@@ -454,7 +454,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=true
 MHCAT_FEATURE_DELETE_DATA_ENABLED=true
 ```
 
-This command requires Manage Messages, shows the legacy destructive select prompt, and deletes guild-scoped rows from the selected legacy config target. Test only against disposable staging config rows for join/leave messages, logging, stats, autochat, verification, text/voice XP, or ticket settings.
+This command requires Manage Messages to create the legacy owner-scoped one-hour prompt and deletes all duplicate guild rows from only the selected legacy config target. Back up and use disposable staging rows only. Follow the exact ownership, isolation, smoke, and rollback contract in [83-delete-data.md](83-delete-data.md).
 
 `/翻譯` is available only when both staging command sync and runtime flags are explicitly enabled:
 

@@ -38,7 +38,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `公告發送` | `slashCommands/公告系統/announcement.js` | matching-definition | none |
 | `公告頻道設置` | `slashCommands/公告系統/announcement_set_channel.js` | matching-definition | none |
 | `刪除訊息` | `slashCommands/管理系統/clear.js` | matching-definition | none |
-| `刪除資料` | `slashCommands/管理系統/delete_data.js` | matching-definition | none |
+| `刪除資料` | `slashCommands/管理系統/delete_data.js` | parity-audited | Exact destructive UI, owner/deadline, deletion isolation, and rollback are in [83-delete-data.md](83-delete-data.md) |
 | `剪刀石頭布` | `slashCommands/代幣系統/rock_paper_scissors.js` | matching-definition | none |
 | `加入訊息設置` | `slashCommands/加入設置/join_messag.js` | parity-audited | public unrestricted dashboard redirect; exact contract in [82-welcome-leave.md](82-welcome-leave.md) |
 | `加入身份組刪除` | `slashCommands/加入設置/join_role_delete.js` | parity-audited | public definition/runtime permission; see [81-join-role.md](81-join-role.md) |

@@ -230,7 +230,7 @@ export MHCAT_FEATURE_DELETE_DATA_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=true
 ```
 
-Set both together only when testing `/刪除資料` against disposable staging config rows. This path deletes selected guild-scoped legacy config rows for join/leave messages, logging, stats, autochat, verification, text/voice XP, or ticket settings.
+Set both together only when testing `/刪除資料` against backed-up disposable staging config rows. This path deletes every duplicate guild row from only the selected join/leave/logging/stats/autochat/verification/text-XP/voice-XP/ticket collection. Follow [83-delete-data.md](83-delete-data.md).
 
 Optional translate smoke flags:
 
@@ -1497,11 +1497,11 @@ If message-cleanup flags were enabled and command sync apply was reviewed:
 
 If delete-data flags were enabled and command sync apply was reviewed:
 
-- seed one disposable staging config row for the selected target collection;
+- back up all candidate collections and seed duplicate disposable rows for the selected target, another target in the same guild, and the selected target in another guild;
 - run `/刪除資料` and verify the legacy destructive warning embed and `delete-data` select appear;
-- select the seeded target and verify the ephemeral legacy success content appears;
+- select the seeded target as the prompt owner and verify the effective public legacy success content appears;
 - repeat with a missing target and verify the legacy missing-config content appears;
-- verify only the selected guild-scoped disposable rows were deleted and no indexes were created.
+- verify all selected-guild duplicates were deleted, other guilds/targets remain, no indexes were created, and rollback follows [83-delete-data.md](83-delete-data.md).
 
 If auto-notification config flags were enabled and command sync apply was reviewed:
 
