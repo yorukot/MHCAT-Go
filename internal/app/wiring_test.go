@@ -1740,6 +1740,53 @@ func TestBuildRuntimeRoutesAutoNotificationConfigOnlyWithRepository(t *testing.T
 	}
 }
 
+func TestBuildRuntimeAutoNotificationConfigTracksEachSlashAttemptOnce(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		commandName string
+		interaction interactions.Interaction
+	}{
+		{
+			name:        "setup success",
+			commandName: "automatic-notification",
+			interaction: fakediscord.SlashInteractionWithOptions("automatic-notification", "", map[string]string{"channel": "channel-1"}),
+		},
+		{
+			name:        "list permission denial",
+			commandName: "自動通知列表",
+			interaction: fakediscord.SlashInteraction("自動通知列表"),
+		},
+		{
+			name:        "delete missing",
+			commandName: "自動通知刪除",
+			interaction: fakediscord.SlashInteractionWithOptions("自動通知刪除", "", map[string]string{"id": "missing"}),
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			tracker := &fakeusage.Tracker{}
+			repo := fakemongo.NewAutoNotificationScheduleRepository()
+			dispatcher, err := BuildRuntime(RuntimeOptions{
+				Config:                     validTestConfig(),
+				UsageTracker:               tracker,
+				AutoNotificationRepository: repo,
+			})
+			if err != nil {
+				t.Fatalf("build runtime: %v", err)
+			}
+			interaction := test.interaction
+			if test.name != "list permission denial" {
+				interaction.Actor.PermissionBits = 8192
+			}
+			if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+				t.Fatalf("dispatch: %v", err)
+			}
+			if len(tracker.Events) != 1 || tracker.Events[0].CommandName != test.commandName || tracker.Events[0].UserID != "user-1" || tracker.Events[0].GuildID != "guild-1" {
+				t.Fatalf("usage events = %#v", tracker.Events)
+			}
+		})
+	}
+}
+
 func TestBuildRuntimeRoutesBalanceQueryOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
