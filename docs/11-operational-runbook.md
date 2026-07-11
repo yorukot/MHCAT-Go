@@ -469,7 +469,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true
 MHCAT_FEATURE_REDEEM_ENABLED=true
 ```
 
-This command reads and deletes `codes` by `code`, then credits `chatgpt_gets.price` for the guild. It preserves the legacy 7-day expiry check and ephemeral success/error embeds. It does not itself enable either auto-chat runtime, does not require Message Content intent, and creates no indexes.
+This command reads an exact raw `codes.code`, deletes only the fetched row, then replaces one arbitrary matching `chatgpt_gets` row by delete+insert. It preserves Mongoose number coercion, the legacy 7-day `>` expiry check, duplicate rows, and exact ephemeral UI. The flow is non-transactional: snapshot both collections and use disposable staging fixtures because an error can occur after code or balance deletion. It does not enable auto-chat, require Message Content intent, or create indexes. Follow [88-redeem.md](88-redeem.md).
 
 The event-only local auto-chat fallback is available only with all message runtime prerequisites enabled:
 

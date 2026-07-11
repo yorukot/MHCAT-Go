@@ -49,7 +49,7 @@ Status: Platform Wave B. The default Go index plan is now derived from the full 
 | `birthdays` | `{guild:1, user:1}` | candidate after audit | no | no | user birthday lookup | birthday command/scheduler | scheduler inactive | audit first | safe to drop |
 | `warndbs` | `{guild:1, user:1}` | candidate after audit | no | no | warnings lookup | warn/warnings commands | array shape | audit first | safe to drop |
 | `all_use_counts` | `{slashcommand_name:1}` | candidate after audit | no | no | usage counter lookup | slash dispatcher | undefined names exist | repair before unique | safe to drop |
-| `codes` | `{code:1}` | candidate after audit | no | no | redeem code lookup | `兌換` command | duplicate/expired codes | audit first | safe to drop |
+| `codes` | `{code:1}` | blocked for parity | no | no | redeem code lookup | `兌換` command | duplicates are observable first-match state | audit only; do not create for redeem | safe to drop if previously experimental and unused |
 | `not_a_good_webs` | `{web:1}` | candidate after normalization decision | no | no | scam URL lookup | report/safe server | regex/domain normalization | audit and normalize first | safe to drop |
 
 ## Phase 1.5 Required Index Plan Table
@@ -68,7 +68,7 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | `chat_roles` | `chat_roles_guild_level_role` | `{guild:1,leavel:1,role:1}` | candidate | no | no | text level role lookup | misspelled level/type drift | audit, dry-run, explicit apply |
 | `chatgpts` | `chatgpts_guild` | `{guild:1}` | candidate | no | no | chatbot handoff state | external worker may rely on singleton | audit external worker first |
 | `chatgpt_gets` | `chatgpt_gets_guild` | `{guild:1}` | candidate | no | no | chatbot price/config | singleton duplicates | audit external worker first |
-| `codes` | `codes_code` | `{code:1}` | candidate | no | no | redeem code lookup | duplicate/expired codes | audit, dry-run, explicit apply |
+| `codes` | `codes_code` | `{code:1}` | blocked | no | no | redeem code lookup | changes duplicate behavior and can reject existing rows | do not apply under [88-redeem.md](88-redeem.md) |
 | `coins` | `coins_guild_member` | `{guild:1,member:1}` | candidate | no | no | balance lookup/update and work-payout target resolution | duplicate balances; payout fails closed until repaired | audit before unique; explicit apply |
 | `coins` | `coins_guild_coin_rank` | `{guild:1,coin:-1}` | no | no | no | coin ranking | none for non-unique | explicit apply after live count review |
 | `create_hours` | `create_hours_guild` | `{guild:1}` | candidate | no | no | account-age config/policy lookup | duplicate/missing/scalar-drift keys, malformed values, external writers, ownership | audit only; reviewed explicit apply after clean findings; no startup apply; see [contract](79-account-age.md) |

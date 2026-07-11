@@ -259,7 +259,7 @@ export MHCAT_FEATURE_REDEEM_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true
 ```
 
-Set both together only in an isolated staging database when testing `/兌換`. Seed a safe staging `codes` row with `code`, numeric `price`, and numeric millisecond `time`; the command deletes that row and credits `chatgpt_gets.price`. It does not itself enable either auto-chat runtime or require Message Content intent.
+Set both together only in an isolated staging database when testing `/兌換`. Stop the Node owner, snapshot `codes` and `chatgpt_gets`, and use disposable fixtures because the code consume and one-row balance replacement are non-transactional. Audit mixed types, duplicates, indexes, and external writers without normalizing them. It does not enable auto-chat or require Message Content intent. Follow [88-redeem.md](88-redeem.md).
 
 Optional auto-chat local fallback smoke flags:
 
@@ -737,7 +737,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=true`, confirm `MHCAT_FEATURE_DELETE_DATA_ENABLED=true` and the selected staging config rows are disposable.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`, confirm `MHCAT_FEATURE_TRANSLATE_ENABLED=true` and external translate calls are allowed for the staging bot.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
-- If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true` and the staging database has only disposable `codes` fixtures for `/兌換`.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true`, the Node owner is stopped, both `codes` and `chatgpt_gets` are snapshotted, fixtures are disposable, and [88-redeem.md](88-redeem.md) partial-progress recovery is accepted.
 - If `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true`, confirm gateway, Guild Messages, and Message Content are enabled; `chats.channel` targets a disposable staging channel; `chatgpt_gets` fixtures are safe; and the Node Chatbot handler is not concurrently active for that guild.
 - If `MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED=true`, confirm `MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true`, transaction-capable Mongo, clean singleton duplicate audits, a compatible external worker, disposable `chatgpts`/`chatgpt_gets` rows, and exclusive Go MessageCreate ownership.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database/channel targets are disposable for auto-notification setup/list/delete.
@@ -1486,9 +1486,10 @@ If redeem flags were enabled and command sync apply was reviewed:
 - seed one disposable staging `codes` row with a fresh `time` millisecond value and known `price`;
 - run `/兌換 代碼:<seeded code>`;
 - verify the ephemeral green `成功兌換代碼!` embed appears;
-- verify the `codes` row is deleted and `chatgpt_gets.price` for the staging guild increased by the code price;
+- verify the exact fetched `codes` `_id` is deleted and one selected `chatgpt_gets` row is replaced with a new `_id`, summed price, and no old extra fields;
 - run `/兌換 代碼:<missing code>` and verify the legacy red missing-code embed;
 - seed an expired code older than 7 days, run `/兌換`, and verify the legacy expired-code embed while the code remains unconsumed.
+- verify padded/all-space codes, negative price, exact seven-day boundary, null/missing/malformed time, duplicate code and balance preservation, controlled backend failures, one usage increment per outcome, and the [88-redeem.md](88-redeem.md) repair/rollback matrix using disposable rows only.
 
 If translate flags were enabled and command sync apply was reviewed:
 
