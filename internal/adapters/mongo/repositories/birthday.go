@@ -66,33 +66,23 @@ func (r *BirthdayConfigRepository) SaveBirthdayConfig(ctx context.Context, confi
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	config = trimBirthdayConfig(config)
 	if err := config.Validate(); err != nil {
 		return err
 	}
 	document := documents.BirthdayConfigDocumentFromDomain(config)
-	update, err := birthdayConfigUpdate(document)
+	update, err := birthdayConfigInsertUpdate(document)
 	if err != nil {
 		return err
 	}
-	result, err := r.collection.UpdateMany(ctx, bson.D{{Key: "guild", Value: document.Guild}}, update)
-	if err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("save birthday config: %w", err))
-	}
-	if result.MatchedCount > 0 {
-		return ctx.Err()
-	}
-	insertUpdate, err := birthdayConfigInsertUpdate(document)
-	if err != nil {
-		return err
-	}
-	_, err = r.collection.UpdateOne(
+	_, err = r.collection.UpdateMany(
 		ctx,
 		bson.D{{Key: "guild", Value: document.Guild}},
-		insertUpdate,
-		options.UpdateOne().SetUpsert(true),
+		update,
+		options.UpdateMany().SetUpsert(true),
 	)
 	if err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("upsert birthday config: %w", err))
+		return mhcatmongo.MapError(fmt.Errorf("save birthday config: %w", err))
 	}
 	return ctx.Err()
 }
@@ -132,25 +122,14 @@ func (r *BirthdayConfigRepository) SaveBirthdayProfile(ctx context.Context, prof
 		return err
 	}
 	document := documents.BirthdayProfileDocumentFromDomain(profile)
-	update, err := birthdayProfileUpdate(document)
+	update, err := birthdayProfileInsertUpdate(document)
 	if err != nil {
 		return err
 	}
 	filter := bson.D{{Key: "guild", Value: document.Guild}, {Key: "user", Value: document.User}}
-	result, err := collection.UpdateMany(ctx, filter, update)
+	_, err = collection.UpdateMany(ctx, filter, update, options.UpdateMany().SetUpsert(true))
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("save birthday profile: %w", err))
-	}
-	if result.MatchedCount > 0 {
-		return ctx.Err()
-	}
-	insertUpdate, err := birthdayProfileInsertUpdate(document)
-	if err != nil {
-		return err
-	}
-	_, err = collection.UpdateOne(ctx, filter, insertUpdate, options.UpdateOne().SetUpsert(true))
-	if err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("upsert birthday profile: %w", err))
 	}
 	return ctx.Err()
 }
@@ -234,6 +213,14 @@ func birthdayRoleValue(document documents.BirthdayConfigDocument) any {
 		return nil
 	}
 	return *document.Role
+}
+
+func trimBirthdayConfig(config domain.BirthdayConfig) domain.BirthdayConfig {
+	config.GuildID = strings.TrimSpace(config.GuildID)
+	config.UTCOffset = strings.TrimSpace(config.UTCOffset)
+	config.ChannelID = strings.TrimSpace(config.ChannelID)
+	config.RoleID = strings.TrimSpace(config.RoleID)
+	return config
 }
 
 func (r *BirthdayConfigRepository) requireProfileCollection() (*drivermongo.Collection, error) {

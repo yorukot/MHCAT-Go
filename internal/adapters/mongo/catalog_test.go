@@ -130,6 +130,8 @@ func TestPerformanceIndexesDoNotRequireDuplicateCleanup(t *testing.T) {
 		index      string
 	}{
 		{collection: "ann_all_sets", index: "ann_all_sets_guild_announcement_lookup"},
+		{collection: "birthday_sets", index: "birthday_sets_guild_lookup"},
+		{collection: "birthdays", index: "birthdays_guild_user_lookup"},
 		{collection: "chats", index: "chats_guild_lookup"},
 		{collection: "coins", index: "coins_guild_member_lookup"},
 		{collection: "coins", index: "coins_today_guild"},

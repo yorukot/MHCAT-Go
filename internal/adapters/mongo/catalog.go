@@ -27,9 +27,11 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, ""),
 		catalogSpec("birthdays", "birthday", "models/birthday.js", []string{"guild", "user"}, []catalogIndex{
 			uniqueCatalogIndex("birthdays_guild_user", []string{"guild", "user"}, "user birthday lookup"),
+			nonUniqueCatalogIndex("birthdays_guild_user_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "user", Order: 1}}, "birthday profile lookup and guild list without requiring duplicate cleanup"),
 		}, "Birthday send job is inactive in legacy; do not restore scheduler behavior without ADR."),
 		catalogSpec("birthday_sets", "birthday_set", "models/birthday_set.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("birthday_sets_guild", []string{"guild"}, "birthday guild config singleton"),
+			nonUniqueCatalogIndex("birthday_sets_guild_lookup", []IndexKey{{Field: "guild", Order: 1}}, "birthday config lookup without requiring duplicate cleanup"),
 		}, ""),
 		catalogSpec("btns", "btn", "models/btn.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("btns_guild_number", []string{"guild", "number"}, "role button lookup"),
