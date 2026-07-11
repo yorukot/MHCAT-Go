@@ -38,6 +38,10 @@ func TestWarningMongoIntegrationPreservesDuplicateIdentityAndMixedContent(t *tes
 	}); err != nil {
 		t.Fatalf("seed duplicate warnings: %v", err)
 	}
+	history, err := repository.GetWarningHistory(context.Background(), " guild-1 ", " user-1 ")
+	if err != nil || len(history.Entries) != 2 {
+		t.Fatalf("warning history = %#v err=%v", history, err)
+	}
 
 	result, err := repository.AddWarning(context.Background(), domain.WarningIssue{
 		GuildID: "guild-1", UserID: "user-1", ModeratorID: "mod-3", Reason: "added", Time: "new-time",

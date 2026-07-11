@@ -62,6 +62,7 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | Collection | Index name | Keys | Unique | Sparse/Partial | TTL | Query supported | Duplicate risk | Build strategy |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `numbers` | `numbers_guild` | `{guild:1}` | candidate | no | no | guild stats config singleton | singleton duplicates and scalar/whitespace keys | audit only, then reviewed dry-run/explicit apply; preserve [93-stats.md](93-stats.md) duplicate behavior |
+| `numbers` | `numbers_guild_lookup` | `{guild:1}` | no | no | no | stats config and rename lookup | non-unique index is duplicate-safe | explicit apply; remove before promoting the same-key unique index |
 | `all_use_counts` | `all_use_counts_command` | `{slashcommand_name:1}` | candidate | no | no | slash usage counter | null/undefined command names | audit invalid names before unique |
 | `ann_all_sets` | `ann_all_sets_guild_announcement` | `{guild:1,announcement_id:1}` | candidate | no | no | announcement config/relay lookup | duplicate or scalar-drift keys, malformed values, shared Node writer | audit types/duplicates and exclusive ownership; no startup apply; see [contract](76-announcement.md) |
 | `ann_all_sets` | `ann_all_sets_guild_announcement_lookup` | `{guild:1,announcement_id:1}` | no | no | no | cached per-message relay lookup | non-unique index is duplicate-safe; redundant after unique approval | explicit apply; remove before promoting the same-key unique index |
@@ -110,6 +111,7 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | `polls` | `polls_guild_messageid_lookup` | `{guild:1,messageid:1}` | no | no | no | poll command and component hot-path lookup | non-unique index is duplicate-safe | explicit apply; remove before promoting the same-key unique index |
 | `role_numbers` | `role_numbers_guild_role` | `{guild:1,role:1}` | candidate | no | no | role stats config | duplicate/scalar/whitespace role configs | audit only, then reviewed dry-run/explicit apply; see [93-stats.md](93-stats.md) |
 | `role_numbers` | `role_numbers_guild_channel` | `{guild:1,channel:1}` | candidate | no | no | stats channel lookup | duplicate/scalar/whitespace channel configs | audit only, then reviewed dry-run/explicit apply; see [93-stats.md](93-stats.md) |
+| `role_numbers` | `role_numbers_guild_role_lookup` | `{guild:1,role:1}` | no | no | no | role stats rename lookup | non-unique index is duplicate-safe | explicit apply; remove before promoting the same-key unique index |
 | `sign_lists` | `sign_lists_guild_member` | `{guild:1,member:1}` | candidate | no | no | sign-in history lookup | duplicate user sign docs | audit, dry-run, explicit apply |
 | `suports` | `suports_support_id` | `{support_id:1}` | candidate | no | no | support lookup | duplicate support IDs | audit, dry-run, explicit apply |
 | `systems` | `systems_none` | none | no | no | no | unclear active use | unknown | no index until usage confirmed |
@@ -130,8 +132,11 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | `votes` | `votes_guild_member` | `{guild:1,member:1}` | candidate | no | no | member vote lookup | duplicate user votes | audit, dry-run, explicit apply |
 | `warndbs` | `warndbs_guild_user` | `{guild:1,user:1}` | no by default | no | no | warnings lookup/dashboard reads | multiple warning docs may be valid | non-unique explicit apply after behavior review |
 | `work_sets` | `work_sets_guild` | `{guild:1}` | candidate | no | no | work config | singleton duplicates | audit, dry-run, explicit apply |
+| `work_sets` | `work_sets_guild_lookup` | `{guild:1}` | no | no | no | work config lookup | non-unique index is duplicate-safe | explicit apply; remove before promoting the same-key unique index |
 | `work_somethings` | `work_somethings_guild_name` | `{guild:1,name:1}` | candidate | no | no | dashboard/bot work job lookup | duplicate names per guild | do not create dashboard `guild` unique; audit first |
+| `work_somethings` | `work_somethings_guild_name_lookup` | `{guild:1,name:1}` | no | no | no | work item list and exact lookup | non-unique index is duplicate-safe and supports the `{guild}` prefix scan | explicit apply; remove before promoting the same-key unique index |
 | `work_users` | `work_users_guild_user` | `{guild:1,user:1}` | candidate | no | no | user work state lookup | duplicate jobs/payments | audit before unique; explicit apply |
+| `work_users` | `work_users_guild_user_lookup` | `{guild:1,user:1}` | no | no | no | work user command lookup | non-unique index is duplicate-safe | explicit apply; remove before promoting the same-key unique index |
 | `work_users` | `work_users_guild_energi` | `{guild:1,energi:1}` | no | no | no | daily refill/clamp candidate scan | mixed energy scalar types can reduce range selectivity but do not block creation | explicit apply |
 | `work_users` | `work_users_state_end_time` | `{state:1,end_time:1}` | no | optional active-job partial after audit | no | due job scan for one-shot and recurring work payout | type drift in `end_time`; changed partial semantics risk | explicit apply only after scheduler ownership review |
 

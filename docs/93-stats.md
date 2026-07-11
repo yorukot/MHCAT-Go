@@ -285,7 +285,7 @@ Before staging or index work, audit:
 - unknown fields and dashboard/backup writers;
 - existing indexes and every active Node/Go rename process.
 
-The current tested state creates only MongoDB's `_id_` index. Candidate `{guild:1}`, `{guild:1,role:1}`, and `{guild:1,channel:1}` indexes remain non-unique until live duplicate/type/ownership audits and explicit review. Unique indexes would alter observable first-match/duplicate behavior and can break Node rollback.
+Startup and repository construction still create only MongoDB's `_id_` index. Duplicate-safe non-unique `numbers_guild_lookup` and `role_numbers_guild_role_lookup` indexes may be explicitly applied for config and rename traffic without changing first-match behavior. Candidate unique `{guild:1}`, `{guild:1,role:1}`, and `{guild:1,channel:1}` indexes remain blocked until live duplicate/type/ownership audits and explicit review; remove a same-key lookup fallback before promotion. Unique indexes would alter observable first-match/duplicate behavior and can break Node rollback.
 
 ## Verification
 

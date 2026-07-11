@@ -34,6 +34,10 @@ func TestWorkPayoutMongoIntegrationCrashRetryAndMarkerOrdering(t *testing.T) {
 	if _, err := database.Collection(WorkUserCollectionName).InsertOne(ctx, workPayoutWorkDocument(workID, "guild-crash", "user-crash", "job-a", 100, 50)); err != nil {
 		t.Fatalf("insert work user: %v", err)
 	}
+	preview, err := repository.PreviewWorkPayout(ctx, 200)
+	if err != nil || preview.EligibleJobs != 1 {
+		t.Fatalf("preview payout = %#v err=%v", preview, err)
+	}
 
 	var pending workUserPayoutDocument
 	if err := database.Collection(WorkUserCollectionName).FindOne(ctx, bson.D{{Key: "_id", Value: workID}}).Decode(&pending); err != nil {

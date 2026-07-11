@@ -137,11 +137,22 @@ func TestStatsConfigMongoIntegrationLifecycleAndIndexes(t *testing.T) {
 	if updated.ChannelNumberID != "channel-count" || updated.ChannelNumberName != "12" || updated.ParentID != "parent-1" {
 		t.Fatalf("updated config = %#v", updated)
 	}
+	memberCounter := " 11 "
+	channelCounter := " 13 "
+	if err := repository.UpdateStatsConfigCounters(context.Background(), " guild-1 ", domain.StatsConfigCounterUpdate{
+		MemberNumberName: &memberCounter, ChannelNumberName: &channelCounter,
+	}); err != nil {
+		t.Fatalf("update stats counters: %v", err)
+	}
+	if err := repository.UpdateStatsConfigCounters(context.Background(), "guild-1", domain.StatsConfigCounterUpdate{}); err != nil {
+		t.Fatalf("skip empty stats counter update: %v", err)
+	}
 	var stored bson.M
 	if err := numbers.FindOne(context.Background(), bson.D{{Key: "guild", Value: "guild-1"}}).Decode(&stored); err != nil {
 		t.Fatalf("read stored config: %v", err)
 	}
-	if stored["marker"] != "preserved" || stored["channelnumber"] != "channel-count" || stored["channelnumber_name"] != "12" {
+	if stored["marker"] != "preserved" || stored["channelnumber"] != "channel-count" ||
+		stored["memberNumber_name"] != "11" || stored["channelnumber_name"] != "13" {
 		t.Fatalf("stored config = %#v", stored)
 	}
 	for _, field := range []string{"categoriesnumber", "rolesnumber", "statusnumber_name"} {
@@ -186,6 +197,9 @@ func TestStatsConfigMongoIntegrationLifecycleAndIndexes(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("replace role config: %v", err)
 	}
+	if err := repository.UpdateStatsRoleConfigCounter(context.Background(), " guild-1 ", " role-1 ", " 5 "); err != nil {
+		t.Fatalf("update role stats counter: %v", err)
+	}
 	var roleRows []bson.M
 	cursor, err := roleNumbers.Find(context.Background(), bson.D{{Key: "guild", Value: "guild-1"}, {Key: "role", Value: "role-1"}})
 	if err != nil {
@@ -194,7 +208,7 @@ func TestStatsConfigMongoIntegrationLifecycleAndIndexes(t *testing.T) {
 	if err := cursor.All(context.Background(), &roleRows); err != nil {
 		t.Fatalf("decode role configs: %v", err)
 	}
-	if len(roleRows) != 1 || roleRows[0]["channel"] != "new-channel" || roleRows[0]["channel_name"] != "4" || roleRows[0]["marker"] != nil {
+	if len(roleRows) != 1 || roleRows[0]["channel"] != "new-channel" || roleRows[0]["channel_name"] != "5" || roleRows[0]["marker"] != nil {
 		t.Fatalf("replacement role configs = %#v", roleRows)
 	}
 	if count, err := roleNumbers.CountDocuments(context.Background(), bson.D{{Key: "guild", Value: "guild-2"}}); err != nil || count != 1 {

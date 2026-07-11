@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"math"
 	"testing"
 
@@ -193,6 +194,10 @@ func TestWorkInterfaceMongoIntegrationReplacesOneDuplicateConfig(t *testing.T) {
 	if _, err := repository.SaveWorkConfig(ctx, domain.WorkConfigCommand{GuildID: "config-guild", DailyEnergy: 3, MaxEnergy: 30, Captcha: true}); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
+	selected, err := repository.GetWorkConfig(ctx, " config-guild ")
+	if err != nil || selected.DailyEnergy != 2 || selected.MaxEnergy != 20 {
+		t.Fatalf("selected legacy config = %#v err=%v", selected, err)
+	}
 	cursor, err := collection.Find(ctx, bson.D{{Key: "guild", Value: "config-guild"}})
 	if err != nil {
 		t.Fatalf("find configs: %v", err)
@@ -206,6 +211,33 @@ func TestWorkInterfaceMongoIntegrationReplacesOneDuplicateConfig(t *testing.T) {
 	}
 	if len(rows) != 2 || rows[0].DailyEnergy != 2 || rows[0].MaxEnergy != 20 || rows[1].DailyEnergy != 3 || rows[1].MaxEnergy != 30 {
 		t.Fatalf("configs = %#v", rows)
+	}
+}
+
+func TestWorkInterfaceMongoIntegrationExplainsStartMisses(t *testing.T) {
+	database := economyQueryIntegrationDatabase(t)
+	repository, err := NewWorkInterfaceRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	ctx := context.Background()
+	if _, err := database.Collection(WorkUserCollectionName).InsertMany(ctx, []any{
+		bson.D{{Key: "guild", Value: "miss-guild"}, {Key: "user", Value: "low"}, {Key: "state", Value: LegacyIdleWorkState}, {Key: "energi", Value: 1}},
+		bson.D{{Key: "guild", Value: "miss-guild"}, {Key: "user", Value: "busy"}, {Key: "state", Value: "working"}, {Key: "energi", Value: 10}},
+	}); err != nil {
+		t.Fatalf("seed start misses: %v", err)
+	}
+	command := domain.WorkStartCommand{
+		GuildID: "miss-guild", WorkName: "job", NowUnix: 100, DurationSec: 10,
+		EnergyCost: 2, CoinReward: 3, MaxEnergy: 10,
+	}
+	command.UserID = "low"
+	if _, err := repository.StartWork(ctx, command); !errors.Is(err, domain.ErrWorkEnergyInsufficient) {
+		t.Fatalf("insufficient energy error = %v", err)
+	}
+	command.UserID = "busy"
+	if _, err := repository.StartWork(ctx, command); !errors.Is(err, domain.ErrWorkAlreadyBusy) {
+		t.Fatalf("busy work error = %v", err)
 	}
 }
 

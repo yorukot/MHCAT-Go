@@ -20,6 +20,8 @@ Detail preserves exact item/reward/energy text and confirm button. Start preserv
 
 Setup accepts signed Discord integers. It deletes one naturally selected `work_sets` row and inserts the new row, matching legacy delete/recreate behavior; untouched duplicates remain. Delete removes one naturally selected `{guild,name}` work item and leaves other duplicates. No command creates, repairs, merges, or normalizes indexes/rows.
 
+The application creates no startup indexes. Duplicate-safe non-unique `work_sets_guild_lookup`, `work_somethings_guild_name_lookup`, and `work_users_guild_user_lookup` indexes may be explicitly applied for command traffic before the matching unique candidates pass duplicate audits; remove a same-key fallback before unique promotion. These lookup indexes do not merge duplicates or change natural first-match behavior.
+
 Individual and all-user grants accept positive, zero, and negative amounts and clamp only above `max_energy`. Existing `energi` and configured max values use JavaScript-number coercion, preserving decimals, numeric strings, null-as-zero, infinities, and malformed/NaN propagation. The all-user command updates existing guild rows only. Go intentionally fixes the legacy missing-target bug by creating/updating the selected target rather than the invoking admin.
 
 ## Start Arithmetic And Scalars

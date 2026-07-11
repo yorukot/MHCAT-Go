@@ -17,6 +17,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 	specs := []CollectionSpec{
 		catalogSpec("numbers", "Number", "models/Number.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("numbers_guild", []string{"guild"}, "guild stats channel config singleton"),
+			nonUniqueCatalogIndex("numbers_guild_lookup", []IndexKey{{Field: "guild", Order: 1}}, "stats config and rename lookup without requiring duplicate cleanup"),
 		}, "Capitalized legacy model name; verify Mongoose pluralization against live collections."),
 		catalogSpec("all_use_counts", "all_use_count", "models/all_use_count.js", []string{"slashcommand_name"}, []catalogIndex{
 			uniqueCatalogIndex("all_use_counts_slashcommand_name", []string{"slashcommand_name"}, "slash command usage counter lookup"),
@@ -126,6 +127,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		catalogSpec("role_numbers", "role_number", "models/role.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("role_numbers_guild_role", []string{"guild", "role"}, "role stats config lookup"),
 			uniqueCatalogIndex("role_numbers_guild_channel", []string{"guild", "channel"}, "role stats channel lookup"),
+			nonUniqueCatalogIndex("role_numbers_guild_role_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "role", Order: 1}}, "role stats rename lookup without requiring duplicate cleanup"),
 		}, "Legacy file is `role.js` but Mongoose model is `role_number`."),
 		catalogSpec("sign_lists", "sign_list", "models/sign_list.js", []string{"guild", "member"}, []catalogIndex{
 			uniqueCatalogIndex("sign_lists_guild_member", []string{"guild", "member"}, "sign-in history lookup"),
@@ -176,12 +178,15 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Dashboard-shared collection; multiple warning docs may be valid."),
 		catalogSpec("work_sets", "work_set", "models/work_set.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("work_sets_guild", []string{"guild"}, "work config singleton"),
+			nonUniqueCatalogIndex("work_sets_guild_lookup", []IndexKey{{Field: "guild", Order: 1}}, "work config lookup without requiring duplicate cleanup"),
 		}, ""),
 		catalogSpec("work_somethings", "work_something", "models/work_something.js", []string{"guild", "name"}, []catalogIndex{
 			uniqueCatalogIndex("work_somethings_guild_name", []string{"guild", "name"}, "work task catalog lookup"),
+			nonUniqueCatalogIndex("work_somethings_guild_name_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "name", Order: 1}}, "work item list and lookup without requiring duplicate cleanup"),
 		}, "Dashboard-shared collection; do not copy dashboard-only `guild` unique declaration."),
 		catalogSpec("work_users", "work_user", "models/work_user.js", []string{"guild", "user"}, []catalogIndex{
 			uniqueCatalogIndex("work_users_guild_user", []string{"guild", "user"}, "work user state lookup"),
+			nonUniqueCatalogIndex("work_users_guild_user_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "user", Order: 1}}, "work user command lookup without requiring duplicate cleanup"),
 			nonUniqueCatalogIndex("work_users_guild_energi", []IndexKey{{Field: "guild", Order: 1}, {Field: "energi", Order: 1}}, "daily energy refill and clamp without requiring duplicate cleanup"),
 			nonUniqueCatalogIndex("work_users_state_end_time", []IndexKey{{Field: "state", Order: 1}, {Field: "end_time", Order: 1}}, "due work-job scan"),
 		}, "Preserve misspelled legacy field `energi`; work payout uses `work_users._id` for per-row idempotency."),
