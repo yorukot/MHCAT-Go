@@ -764,6 +764,37 @@ func TestBuildRuntimeRoutesEconomyShopWithoutPublishingOtherEconomyCommands(t *t
 	}
 }
 
+func TestBuildRuntimeTracksEveryEconomyShopAttemptOnce(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), EconomyShopRepository: repo, UsageTracker: tracker})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	list := fakediscord.SlashInteractionWithOptions("代幣商店", "商品查詢", nil)
+	if err := dispatcher.Dispatch(context.Background(), list, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch empty list: %v", err)
+	}
+	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1, Name: "item", NeedCoins: 10, Description: "desc", Count: 1})
+	if err := dispatcher.Dispatch(context.Background(), list, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch list: %v", err)
+	}
+	add := fakediscord.SlashInteractionWithOptions("代幣商店", "商品增加", map[string]string{
+		"商品名": "item", "商品所需代幣": "10", "商品描述": "desc", "是否要在購買後自動刪除": "false",
+	})
+	if err := dispatcher.Dispatch(context.Background(), add, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch denied add: %v", err)
+	}
+	if len(tracker.Events) != 3 {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for index, event := range tracker.Events {
+		if event.CommandName != "代幣商店" {
+			t.Fatalf("usage event %d = %#v", index, event)
+		}
+	}
+}
+
 func TestBuildRuntimeRoutesEconomyProfileWithoutPublishingOtherEconomyCommands(t *testing.T) {
 	repo := fakemongo.NewEconomyProfileRepository()
 	userID := "123456789012345678"
