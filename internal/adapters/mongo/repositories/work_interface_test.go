@@ -100,8 +100,8 @@ func TestValidateWorkAdminCommands(t *testing.T) {
 	if err := validateWorkConfigCommand(domain.WorkConfigCommand{GuildID: "guild-1", DailyEnergy: 1, MaxEnergy: 10}); err != nil {
 		t.Fatalf("valid config: %v", err)
 	}
-	if err := validateWorkConfigCommand(domain.WorkConfigCommand{GuildID: "guild-1", DailyEnergy: -1, MaxEnergy: 10}); err == nil {
-		t.Fatal("expected invalid negative daily energy")
+	if err := validateWorkConfigCommand(domain.WorkConfigCommand{GuildID: "guild-1", DailyEnergy: -1, MaxEnergy: -10}); err != nil {
+		t.Fatalf("legacy signed config must be valid: %v", err)
 	}
 	if err := validateWorkDeleteItemCommand(domain.WorkDeleteItemCommand{GuildID: "guild-1", Name: "礦坑"}); err != nil {
 		t.Fatalf("valid delete: %v", err)

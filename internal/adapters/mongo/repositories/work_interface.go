@@ -295,7 +295,7 @@ func validateWorkStartCommand(command domain.WorkStartCommand) error {
 }
 
 func validateWorkConfigCommand(command domain.WorkConfigCommand) error {
-	if strings.TrimSpace(command.GuildID) == "" || command.DailyEnergy < 0 || command.MaxEnergy < 0 {
+	if strings.TrimSpace(command.GuildID) == "" {
 		return domain.ErrInvalidWorkQuery
 	}
 	return nil
@@ -309,7 +309,7 @@ func validateWorkDeleteItemCommand(command domain.WorkDeleteItemCommand) error {
 }
 
 func validateWorkEnergyGrantCommand(guildID string, userID string, amount int64, maxEnergy int64) error {
-	if strings.TrimSpace(guildID) == "" || strings.TrimSpace(userID) == "" || maxEnergy < 0 {
+	if strings.TrimSpace(guildID) == "" || strings.TrimSpace(userID) == "" {
 		return domain.ErrInvalidWorkQuery
 	}
 	return nil

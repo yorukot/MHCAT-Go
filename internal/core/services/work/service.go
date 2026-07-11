@@ -182,7 +182,7 @@ func (s Service) SaveConfig(ctx context.Context, command domain.WorkConfigComman
 		return domain.WorkConfig{}, domain.ErrWorkAdminUnavailable
 	}
 	command.GuildID = strings.TrimSpace(command.GuildID)
-	if command.GuildID == "" || command.DailyEnergy < 0 || command.MaxEnergy < 0 {
+	if command.GuildID == "" {
 		return domain.WorkConfig{}, domain.ErrInvalidWorkQuery
 	}
 	return s.adminRepo.SaveWorkConfig(ctx, command)

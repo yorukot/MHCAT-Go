@@ -58,7 +58,7 @@ func (r fakeRepo) EnsureWorkUser(_ context.Context, guildID string, userID strin
 }
 
 func (r fakeRepo) SaveWorkConfig(_ context.Context, command domain.WorkConfigCommand) (domain.WorkConfig, error) {
-	if command.GuildID == "" || command.DailyEnergy < 0 || command.MaxEnergy < 0 {
+	if command.GuildID == "" {
 		return domain.WorkConfig{}, domain.ErrInvalidWorkQuery
 	}
 	return domain.WorkConfig{GuildID: command.GuildID, DailyEnergy: command.DailyEnergy, MaxEnergy: command.MaxEnergy, Captcha: command.Captcha}, nil
@@ -77,7 +77,7 @@ func (r fakeRepo) DeleteWorkItem(_ context.Context, command domain.WorkDeleteIte
 }
 
 func (r fakeRepo) GrantWorkEnergy(_ context.Context, command domain.WorkEnergyGrantCommand) (domain.WorkUserState, error) {
-	if command.GuildID == "" || command.UserID == "" || command.MaxEnergy < 0 {
+	if command.GuildID == "" || command.UserID == "" {
 		return domain.WorkUserState{}, domain.ErrInvalidWorkQuery
 	}
 	if r.grant.UserID != "" {
@@ -87,7 +87,7 @@ func (r fakeRepo) GrantWorkEnergy(_ context.Context, command domain.WorkEnergyGr
 }
 
 func (r fakeRepo) GrantWorkEnergyToAll(_ context.Context, command domain.WorkEnergyGrantAllCommand) (domain.WorkEnergyGrantAllResult, error) {
-	if command.GuildID == "" || command.MaxEnergy < 0 {
+	if command.GuildID == "" {
 		return domain.WorkEnergyGrantAllResult{}, domain.ErrInvalidWorkQuery
 	}
 	if r.all.Matched != 0 || r.all.Modified != 0 {

@@ -68,7 +68,6 @@ func (r *WorkInterfaceRepository) StartWork(_ context.Context, command domain.Wo
 		command.DurationSec <= 0 ||
 		command.EnergyCost < 0 ||
 		command.CoinReward < 0 ||
-		command.MaxEnergy < 0 ||
 		command.NowUnix <= 0 {
 		return domain.WorkUserState{}, domain.ErrInvalidWorkQuery
 	}
@@ -119,7 +118,7 @@ func (r *WorkInterfaceRepository) EnsureWorkUser(_ context.Context, guildID stri
 
 func (r *WorkInterfaceRepository) SaveWorkConfig(_ context.Context, command domain.WorkConfigCommand) (domain.WorkConfig, error) {
 	command.GuildID = strings.TrimSpace(command.GuildID)
-	if command.GuildID == "" || command.DailyEnergy < 0 || command.MaxEnergy < 0 {
+	if command.GuildID == "" {
 		return domain.WorkConfig{}, domain.ErrInvalidWorkQuery
 	}
 	config := domain.WorkConfig{
@@ -151,7 +150,7 @@ func (r *WorkInterfaceRepository) DeleteWorkItem(_ context.Context, command doma
 func (r *WorkInterfaceRepository) GrantWorkEnergy(_ context.Context, command domain.WorkEnergyGrantCommand) (domain.WorkUserState, error) {
 	command.GuildID = strings.TrimSpace(command.GuildID)
 	command.UserID = strings.TrimSpace(command.UserID)
-	if command.GuildID == "" || command.UserID == "" || command.MaxEnergy < 0 {
+	if command.GuildID == "" || command.UserID == "" {
 		return domain.WorkUserState{}, domain.ErrInvalidWorkQuery
 	}
 	key := workUserKey(command.GuildID, command.UserID)
@@ -178,7 +177,7 @@ func (r *WorkInterfaceRepository) GrantWorkEnergy(_ context.Context, command dom
 
 func (r *WorkInterfaceRepository) GrantWorkEnergyToAll(_ context.Context, command domain.WorkEnergyGrantAllCommand) (domain.WorkEnergyGrantAllResult, error) {
 	command.GuildID = strings.TrimSpace(command.GuildID)
-	if command.GuildID == "" || command.MaxEnergy < 0 {
+	if command.GuildID == "" {
 		return domain.WorkEnergyGrantAllResult{}, domain.ErrInvalidWorkQuery
 	}
 	var result domain.WorkEnergyGrantAllResult

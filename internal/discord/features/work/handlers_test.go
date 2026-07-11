@@ -232,6 +232,27 @@ func TestWorkSettingsSavesLegacyConfig(t *testing.T) {
 	}
 }
 
+func TestWorkSettingsAcceptsLegacySignedConfig(t *testing.T) {
+	repo := fakemongo.NewWorkInterfaceRepository()
+	module := NewModuleWithAdminRepository(repo, nil, nil)
+	responder := fakediscord.NewResponder()
+	interaction := workAdminSlash(subcommandWorkSettings, map[string]string{
+		"每天可獲得多少精力": "-5",
+		"精力上限為多少":   "-20",
+	})
+
+	if err := module.Handler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("signed settings handler: %v", err)
+	}
+	config, err := repo.GetWorkConfig(context.Background(), "guild-1")
+	if err != nil || config.DailyEnergy != -5 || config.MaxEnergy != -20 {
+		t.Fatalf("saved config = %#v, err=%v", config, err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "`-5`") || !strings.Contains(responder.Edits[0].Embeds[0].Description, "`-20`") {
+		t.Fatalf("settings edit = %#v", responder.Edits)
+	}
+}
+
 func TestDeleteWorkUsesLegacyMessages(t *testing.T) {
 	repo := fakemongo.NewWorkInterfaceRepository()
 	repo.PutConfig(domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 20})
