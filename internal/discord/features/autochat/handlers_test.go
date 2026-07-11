@@ -2,11 +2,14 @@ package autochat
 
 import (
 	"context"
+	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
@@ -21,8 +24,8 @@ func TestSetHandlerRequiresManageMessages(t *testing.T) {
 	if err := module.SetHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") {
-		t.Fatalf("edits = %#v", responder.Edits)
+	if !reflect.DeepEqual(responder.Defers, []responses.DeferOptions{{}}) || len(responder.Edits) != 1 || !reflect.DeepEqual(responder.Edits[0], autoChatErrorMessage("你需要有`訊息管理`才能使用此指令")) {
+		t.Fatalf("defers=%#v edits=%#v", responder.Defers, responder.Edits)
 	}
 }
 
@@ -39,18 +42,11 @@ func TestSetHandlerSavesAndRendersLegacySuccess(t *testing.T) {
 	if !ok || saved.GuildID != "guild-1" || saved.ChannelID != "channel-1" {
 		t.Fatalf("saved = %#v ok=%v", saved, ok)
 	}
-	if len(responder.Defers) != 1 {
+	if !reflect.DeepEqual(responder.Defers, []responses.DeferOptions{{}}) {
 		t.Fatalf("defers = %#v", responder.Defers)
 	}
-	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
+	if len(responder.Edits) != 1 || !reflect.DeepEqual(responder.Edits[0], autoChatSetSuccessMessage("channel-1")) {
 		t.Fatalf("edits = %#v", responder.Edits)
-	}
-	embed := responder.Edits[0].Embeds[0]
-	if embed.Title != "自動聊天系統" || embed.Color != autoChatSuccessColor || !strings.Contains(embed.Description, "您的自動聊天頻道成功創建") || !strings.Contains(embed.Description, "<#channel-1>") {
-		t.Fatalf("embed = %#v", embed)
-	}
-	if responder.Edits[0].AllowedMentions == nil {
-		t.Fatalf("allowed mentions not set: %#v", responder.Edits[0])
 	}
 	if len(usage.Events) != 1 || usage.Events[0].Feature != "autochat-config" || usage.Events[0].CommandName != AutoChatSetCommandName {
 		t.Fatalf("usage = %#v", usage.Events)
@@ -71,8 +67,8 @@ func TestDeleteHandlerDeletesAndRendersLegacySuccess(t *testing.T) {
 	if _, ok := repo.Configs["guild-1"]; ok {
 		t.Fatalf("config was not deleted: %#v", repo.Configs)
 	}
-	if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Description != "您的自動聊天頻道成功刪除" {
-		t.Fatalf("edits = %#v", responder.Edits)
+	if !reflect.DeepEqual(responder.Defers, []responses.DeferOptions{{}}) || len(responder.Edits) != 1 || !reflect.DeepEqual(responder.Edits[0], autoChatDeleteSuccessMessage()) {
+		t.Fatalf("defers=%#v edits=%#v", responder.Defers, responder.Edits)
 	}
 }
 
@@ -85,8 +81,33 @@ func TestDeleteHandlerMissingConfigUsesLegacyError(t *testing.T) {
 	if err := module.DeleteHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "你沒有設定過，我不知道要刪除甚麼") {
-		t.Fatalf("edits = %#v", responder.Edits)
+	if !reflect.DeepEqual(responder.Defers, []responses.DeferOptions{{}}) || len(responder.Edits) != 1 || !reflect.DeepEqual(responder.Edits[0], autoChatErrorMessage("你沒有設定過，我不知道要刪除甚麼!")) {
+		t.Fatalf("defers=%#v edits=%#v", responder.Defers, responder.Edits)
+	}
+}
+
+func TestConfigHandlersReturnControlledBackendErrors(t *testing.T) {
+	for _, commandName := range []string{AutoChatSetCommandName, AutoChatDeleteCommandName} {
+		t.Run(commandName, func(t *testing.T) {
+			repo := fakemongo.NewAutoChatConfigRepository()
+			repo.Err = errors.New("mongo credential secret")
+			module := NewModule(repo, nil)
+			interaction := fakediscord.SlashInteraction(commandName)
+			interaction.Actor.PermissionBits = permissionManageMessages
+			handler := module.DeleteHandler()
+			if commandName == AutoChatSetCommandName {
+				interaction = autoChatSetSlash()
+				handler = module.SetHandler()
+			}
+			responder := fakediscord.NewResponder()
+			if err := handler(context.Background(), interaction, responder); err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+			want := autoChatErrorMessage("很抱歉，出現了未知的錯誤，請重試!")
+			if !reflect.DeepEqual(responder.Defers, []responses.DeferOptions{{}}) || len(responder.Edits) != 1 || !reflect.DeepEqual(responder.Edits[0], want) || strings.Contains(responder.Edits[0].Embeds[0].Title, "credential") {
+				t.Fatalf("defers=%#v edits=%#v", responder.Defers, responder.Edits)
+			}
+		})
 	}
 }
 
