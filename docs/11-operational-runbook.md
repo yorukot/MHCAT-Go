@@ -779,7 +779,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=true
 MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true
 ```
 
-These commands write only legacy-compatible `join_roles` config fields and require Manage Messages. The setup command performs the legacy bot-role hierarchy check through the Discord adapter before saving. This slice does not enable Guild Members intent, `guildMemberAdd` role assignment, join/leave message emitters, verification, account-age kick, or usage-counter writes.
+These publicly discoverable commands write typed legacy-compatible `join_roles`, require Manage Messages at runtime, and preserve exact UI. Assignment is independently gated by Gateway/Guild Members, uses cached hierarchy checks, and continues after bad rows. It does not enable welcome, verification, or account-age. Follow [81-join-role.md](81-join-role.md).
 
 Config-only `/驗證設置` is available only when both staging command sync and runtime flags are explicitly enabled:
 

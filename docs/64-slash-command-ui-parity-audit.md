@@ -41,8 +41,8 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `刪除資料` | `slashCommands/管理系統/delete_data.js` | matching-definition | none |
 | `剪刀石頭布` | `slashCommands/代幣系統/rock_paper_scissors.js` | matching-definition | none |
 | `加入訊息設置` | `slashCommands/加入設置/join_messag.js` | matching-definition | none |
-| `加入身份組刪除` | `slashCommands/加入設置/join_role_delete.js` | matching-definition | none |
-| `加入身份組設置` | `slashCommands/加入設置/join_role.js` | matching-definition | none |
+| `加入身份組刪除` | `slashCommands/加入設置/join_role_delete.js` | parity-audited | public definition/runtime permission; see [81-join-role.md](81-join-role.md) |
+| `加入身份組設置` | `slashCommands/加入設置/join_role.js` | parity-audited | public definition/runtime permission; see [81-join-role.md](81-join-role.md) |
 | `帳號需創建時數` | `slashCommands/群組防護/create_hours.js` | parity-audited | See [account-age parity contract](79-account-age.md) |
 | `打工系統` | `slashCommands/打工系統/work_set.js` | matching-definition | none |
 | `扭蛋` | `slashCommands/扭蛋系統/gashapon.js` | matching-definition | none |

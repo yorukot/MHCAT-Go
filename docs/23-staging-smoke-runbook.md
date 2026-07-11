@@ -606,7 +606,7 @@ export MHCAT_FEATURE_JOIN_ROLE_CONFIG_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_JOIN_ROLE_CONFIG=true
 ```
 
-Set both together only in an isolated staging guild/database when testing `/加入身份組設置` and `/加入身份組刪除`. This path writes `join_roles`; it does not enable Guild Members intent or automatic member-add role assignment. Use a role below the bot's highest role to match the legacy hierarchy check.
+Set both together only in an isolated staging guild/database. Stop Node command ownership and audit `join_roles` first. The commands are public, enforce Manage Messages at runtime, write typed config, and do not enable assignment. Follow [81-join-role.md](81-join-role.md).
 
 Optional join-role assignment smoke flags:
 
@@ -616,7 +616,7 @@ export MHCAT_DISCORD_ENABLE_GATEWAY=true
 export MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 ```
 
-Set these only when testing automatic role assignment in an isolated staging guild. This path registers no slash commands and has no command-sync include flag.
+Set these only for disposable member/bot assignment smoke after confirming cached roles and bot member state. This path registers no slash commands and has no command-sync include flag. Run the complete [join-role contract](81-join-role.md) smoke.
 
 Optional welcome-message config smoke flags:
 
@@ -1550,10 +1550,8 @@ If anti-scam runtime was explicitly enabled:
 
 If join-role assignment was explicitly enabled:
 
-- create or confirm staging `join_roles` rows for `all_user`, `all_member`, and/or `all_bot`;
-- join the staging guild with a test member and, if applicable, a test bot;
-- verify only matching roles are assigned;
-- verify welcome messages, verification, account-age kick, and leave messages are not expected unless their separate feature flags are explicitly enabled.
+- run every UI/color, scalar/duplicate, usage, audience, cache/hierarchy, owner-DM, role-failure, continuation, account-age-ordering, and rollback case in [81-join-role.md](81-join-role.md);
+- verify welcome, verification, account-age, and leave behavior occurs only under its separate gate.
 
 If welcome-message delivery was explicitly enabled:
 

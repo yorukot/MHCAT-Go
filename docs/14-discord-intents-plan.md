@@ -117,6 +117,8 @@ Required additional flag: MHCAT_DISCORD_ENABLE_GATEWAY=true
 Default: disabled
 ```
 
+Join-role cache semantics, ownership, staging, and rollback are specified in [81-join-role.md](81-join-role.md).
+
 Account-age intent ownership, event order, cache-only log behavior, staging, and rollback are specified in [79-account-age.md](79-account-age.md).
 
 Current verification command flow:

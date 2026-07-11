@@ -305,3 +305,18 @@ Audit before enabling either owner:
 - clean findings before any reviewed `verifications_guild` index apply.
 
 Do not rewrite malformed rows merely to enable Go. Runtime reads preserve usable Mongoose scalars and writes remain typed/duplicate-safe. Follow the [verification parity contract](80-verification.md) for staging and rollback.
+
+## Join-Role Rollout Audit
+
+Join-role config and assignment are parity-audited but disabled by default. No production repair, audience normalization, deduplication, backfill, or automatic index mutation is authorized.
+
+Audit before enabling either owner:
+
+- duplicate, missing, null, blank, and scalar-drift `{join_roles.guild,join_roles.role}` keys;
+- missing/null/empty/scalar/unknown/compound `give_to_who` values and natural row order;
+- stale/deleted/high roles plus cached bot-member/highest-role readiness;
+- every dashboard/external writer and exclusive Node/Go config/member-add ownership;
+- account-age and welcome ownership/order when those families are also enabled;
+- clean findings before any reviewed `join_roles_guild_role` index apply.
+
+Do not rewrite malformed rows merely to enable Go. Permissive reads skip unsafe rows, typed writes remain Node-readable, and only explicit config delete removes duplicate matches. Follow the [join-role parity contract](81-join-role.md) for staging and rollback.

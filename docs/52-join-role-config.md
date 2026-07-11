@@ -1,5 +1,7 @@
 # Join Role Config Slice
 
+Superseded by the canonical [join-role parity contract](81-join-role.md). This file remains as historical implementation-slice context.
+
 Status: config commands implemented, with member-add assignment implemented behind a separate explicit runtime gate.
 
 ## Scope
