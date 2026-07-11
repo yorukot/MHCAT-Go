@@ -258,7 +258,7 @@ func TestWarningIssueSavesRendersLegacyEmbedAndDMs(t *testing.T) {
 	}
 }
 
-func TestWarningIssuePreservesRawReasonAcrossWritesAndSideEffects(t *testing.T) {
+func TestWarningIssuePreservesRawReasonWithoutAddingLegacyAuditReason(t *testing.T) {
 	repo := fakemongo.NewWarningHistoryRepository()
 	repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}}})
 	settings := fakemongo.NewWarningSettingsRepository()
@@ -274,7 +274,7 @@ func TestWarningIssuePreservesRawReasonAcrossWritesAndSideEffects(t *testing.T) 
 	if len(history.Entries) != 2 || history.Entries[1].Reason != "  raw reason  " {
 		t.Fatalf("history = %#v", history)
 	}
-	if len(sideEffects.Kicked) != 1 || sideEffects.Kicked[0].Reason != "  raw reason  " {
+	if len(sideEffects.Kicked) != 1 || sideEffects.Kicked[0].Reason != "" {
 		t.Fatalf("kicks = %#v", sideEffects.Kicked)
 	}
 	if len(sideEffects.DirectMessages) != 1 || !strings.Contains(sideEffects.DirectMessages[0].Message.Embeds[0].Description, "**原因:**  raw reason  \n") {
@@ -326,7 +326,7 @@ func TestWarningIssueThresholdKicksExistingWarning(t *testing.T) {
 	if err := module.WarningIssueHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(sideEffects.Kicked) != 1 || sideEffects.Kicked[0].UserID != "user-2" || sideEffects.Kicked[0].Reason != "second" {
+	if len(sideEffects.Kicked) != 1 || sideEffects.Kicked[0].UserID != "user-2" || sideEffects.Kicked[0].Reason != "" {
 		t.Fatalf("kicked = %#v", sideEffects.Kicked)
 	}
 	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != "<a:greentick:980496858445135893> | 這位使用者已到達警告須執行條件，成功對他執行`踢出`!" {
@@ -348,7 +348,7 @@ func TestWarningIssueThresholdBansExistingWarning(t *testing.T) {
 	if err := module.WarningIssueHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(sideEffects.Banned) != 1 || sideEffects.Banned[0].UserID != "user-2" || sideEffects.Banned[0].Reason != "second" {
+	if len(sideEffects.Banned) != 1 || sideEffects.Banned[0].UserID != "user-2" || sideEffects.Banned[0].Reason != "" {
 		t.Fatalf("banned = %#v", sideEffects.Banned)
 	}
 	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != "<a:greentick:980496858445135893> | 這位使用者已到達警告須執行條件，成功對他執行`停權`!" {

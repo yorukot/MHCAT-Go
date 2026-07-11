@@ -164,7 +164,7 @@ func (m Module) WarningIssueHandler() interactions.Handler {
 		}
 		m.sendWarningIssueDM(ctx, interaction, userID, reason)
 		if !result.Created {
-			if message, failed := m.applyWarningThreshold(ctx, interaction, userID, reason, len(result.History.Entries)); failed {
+			if message, failed := m.applyWarningThreshold(ctx, interaction, userID, len(result.History.Entries)); failed {
 				return responder.EditOriginal(ctx, message)
 			}
 		}
@@ -417,7 +417,7 @@ func warningIssueSuccessMessage() responses.Message {
 	}
 }
 
-func (m Module) applyWarningThreshold(ctx context.Context, interaction interactions.Interaction, userID string, reason string, warningCount int) (responses.Message, bool) {
+func (m Module) applyWarningThreshold(ctx context.Context, interaction interactions.Interaction, userID string, warningCount int) (responses.Message, bool) {
 	if m.settings.Repository == nil {
 		return responses.Message{}, false
 	}
@@ -433,7 +433,7 @@ func (m Module) applyWarningThreshold(ctx context.Context, interaction interacti
 		if m.memberActions == nil {
 			return warningErrorMessage("我沒有權限ban掉他"), true
 		}
-		if err := m.memberActions.BanMember(ctx, interaction.Actor.GuildID, userID, reason, 0); err != nil {
+		if err := m.memberActions.BanMember(ctx, interaction.Actor.GuildID, userID, "", 0); err != nil {
 			return warningErrorMessage("我沒有權限ban掉他"), true
 		}
 		m.sendWarningActionMessage(ctx, interaction.ChannelID, domain.WarningSettingsActionBan)
@@ -441,7 +441,7 @@ func (m Module) applyWarningThreshold(ctx context.Context, interaction interacti
 		if m.memberActions == nil {
 			return warningErrorMessage("我沒有權限踢出他"), true
 		}
-		if err := m.memberActions.KickMember(ctx, interaction.Actor.GuildID, userID, reason); err != nil {
+		if err := m.memberActions.KickMember(ctx, interaction.Actor.GuildID, userID, ""); err != nil {
 			return warningErrorMessage("我沒有權限踢出他"), true
 		}
 		m.sendWarningActionMessage(ctx, interaction.ChannelID, domain.WarningSettingsActionKick)
