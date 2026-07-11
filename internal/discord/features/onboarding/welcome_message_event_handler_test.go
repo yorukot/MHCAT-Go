@@ -107,18 +107,16 @@ func TestWelcomeMessageDeliveryHandlerIgnoresMemberRemove(t *testing.T) {
 	}
 }
 
-func TestWelcomeMessageFailureDoesNotSuppressLaterMemberAddHandler(t *testing.T) {
+func TestWelcomeMessageFailureDoesNotSuppressJoinRoleAssignment(t *testing.T) {
 	repo := fakemongo.NewJoinMessageConfigRepository()
 	wantErr := errors.New("join message read failed")
 	repo.Err = wantErr
+	roleRepo := fakemongo.NewJoinRoleConfigRepository()
+	roleRepo.Configs["guild-1/role-1"] = domain.JoinRoleConfig{GuildID: "guild-1", RoleID: "role-1", GiveTo: domain.JoinRoleGiveAllUsers}
 	sideEffects := fakediscord.NewSideEffects()
 	dispatcher := discordevents.NewDispatcher(nil)
 	NewWelcomeMessageDeliveryModule(repo, sideEffects, sideEffects, emptySpecialWelcome()).RegisterEventRoutes(dispatcher)
-	laterCalled := false
-	dispatcher.Register(discordevents.TypeMemberAdd, func(context.Context, discordevents.Event) error {
-		laterCalled = true
-		return nil
-	})
+	NewJoinRoleAssignmentModule(roleRepo, sideEffects, nil, nil, nil).RegisterEventRoutes(dispatcher)
 
 	err := dispatcher.Dispatch(context.Background(), discordevents.Event{
 		Type:    discordevents.TypeMemberAdd,
@@ -128,12 +126,12 @@ func TestWelcomeMessageFailureDoesNotSuppressLaterMemberAddHandler(t *testing.T)
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("dispatch error = %v", err)
 	}
-	if !laterCalled {
-		t.Fatal("later member-add handler was suppressed")
+	if len(sideEffects.AddedRoles) != 1 || sideEffects.AddedRoles[0].RoleID != "role-1" {
+		t.Fatalf("join-role assignment was suppressed: %#v", sideEffects.AddedRoles)
 	}
 }
 
-func TestAccountAgeStopPropagationPreventsWelcomeMessage(t *testing.T) {
+func TestAccountAgeStopPropagationPreventsWelcomeAndJoinRole(t *testing.T) {
 	now := time.Unix(2_000_000, 0)
 	accountAgeRepo := fakemongo.NewAccountAgeConfigRepository()
 	accountAgeRepo.Configs["guild-1"] = domain.AccountAgeConfig{GuildID: "guild-1", RequiredSeconds: 3600}
@@ -145,10 +143,13 @@ func TestAccountAgeStopPropagationPreventsWelcomeMessage(t *testing.T) {
 		MessageContent: "歡迎 {MEMBERNAME}",
 		Color:          "#53FF53",
 	}
+	joinRoleRepo := fakemongo.NewJoinRoleConfigRepository()
+	joinRoleRepo.Configs["guild-1/role-1"] = domain.JoinRoleConfig{GuildID: "guild-1", RoleID: "role-1", GiveTo: domain.JoinRoleGiveAllUsers}
 	sideEffects := fakediscord.NewSideEffects()
 	dispatcher := discordevents.NewDispatcher(nil)
 	NewAccountAgePolicyModule(accountAgeRepo, sideEffects, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{now: now}).RegisterEventRoutes(dispatcher)
 	NewWelcomeMessageDeliveryModule(joinMessageRepo, sideEffects, sideEffects, emptySpecialWelcome()).RegisterEventRoutes(dispatcher)
+	NewJoinRoleAssignmentModule(joinRoleRepo, sideEffects, nil, nil, nil).RegisterEventRoutes(dispatcher)
 
 	err := dispatcher.Dispatch(context.Background(), discordevents.Event{
 		Type:    discordevents.TypeMemberAdd,
@@ -167,6 +168,34 @@ func TestAccountAgeStopPropagationPreventsWelcomeMessage(t *testing.T) {
 	}
 	if len(sideEffects.Sent) != 0 {
 		t.Fatalf("welcome should not send after account-age stop: %#v", sideEffects.Sent)
+	}
+	if len(sideEffects.AddedRoles) != 0 {
+		t.Fatalf("join roles should not be assigned after account-age stop: %#v", sideEffects.AddedRoles)
+	}
+}
+
+func TestWelcomeSendsBeforeJoinRoleFailure(t *testing.T) {
+	joinMessageRepo := fakemongo.NewJoinMessageConfigRepository()
+	joinMessageRepo.Configs["guild-1"] = domain.JoinMessageConfig{
+		GuildID: "guild-1", Enabled: true, ChannelID: "channel-1", MessageContent: "Welcome", Color: "Green",
+	}
+	wantErr := errors.New("join-role read failed")
+	joinRoleRepo := fakemongo.NewJoinRoleConfigRepository()
+	joinRoleRepo.Err = wantErr
+	sideEffects := fakediscord.NewSideEffects()
+	cacheEventDeliveryChannel(sideEffects, "guild-1", "channel-1")
+	dispatcher := discordevents.NewDispatcher(nil)
+	NewWelcomeMessageDeliveryModule(joinMessageRepo, sideEffects, sideEffects, emptySpecialWelcome()).RegisterEventRoutes(dispatcher)
+	NewJoinRoleAssignmentModule(joinRoleRepo, sideEffects, nil, nil, nil).RegisterEventRoutes(dispatcher)
+
+	err := dispatcher.Dispatch(context.Background(), discordevents.Event{
+		Type: discordevents.TypeMemberAdd, GuildID: "guild-1", Member: &discordevents.Member{UserID: "user-1", Username: "Tester"},
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("dispatch error = %v", err)
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].ChannelID != "channel-1" {
+		t.Fatalf("welcome was suppressed by later join-role failure: %#v", sideEffects.Sent)
 	}
 }
 
