@@ -29,7 +29,7 @@ func TestAccountAgeGateStopsLaterMemberAddHandlersAfterKick(t *testing.T) {
 	repo.Configs["guild-1"] = domain.AccountAgeConfig{GuildID: "guild-1", RequiredSeconds: 3600}
 	sideEffects := fakediscord.NewSideEffects()
 	info := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{Name: "測試伺服器"}}
-	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, info, accountAgeEventClock{now: now})
+	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, sideEffects, info, accountAgeEventClock{now: now})
 	dispatcher := discordevents.NewDispatcher(nil)
 	module.RegisterEventRoutes(dispatcher)
 	laterCalled := false
@@ -63,7 +63,7 @@ func TestAccountAgeGateUsesEventGuildNameInDM(t *testing.T) {
 	repo := fakemongo.NewAccountAgeConfigRepository()
 	repo.Configs["guild-1"] = domain.AccountAgeConfig{GuildID: "guild-1", RequiredSeconds: 3600}
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{now: now})
+	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{now: now})
 	dispatcher := discordevents.NewDispatcher(nil)
 	module.RegisterEventRoutes(dispatcher)
 
@@ -88,12 +88,37 @@ func TestAccountAgeGateUsesEventGuildNameInDM(t *testing.T) {
 	}
 }
 
+func TestAccountAgeGateUsesGlobalUserAvatarLikeLegacy(t *testing.T) {
+	now := time.Unix(2_000_000, 0)
+	repo := fakemongo.NewAccountAgeConfigRepository()
+	repo.Configs["guild-1"] = domain.AccountAgeConfig{GuildID: "guild-1", RequiredSeconds: 3600}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{now: now})
+	dispatcher := discordevents.NewDispatcher(nil)
+	module.RegisterEventRoutes(dispatcher)
+
+	err := dispatcher.Dispatch(context.Background(), discordevents.Event{
+		Type: discordevents.TypeMemberAdd, GuildID: "guild-1", GuildName: "測試伺服器",
+		AvatarURL: "https://example.test/global-avatar.png",
+		Member: &discordevents.Member{
+			UserID: "user-1", AvatarURL: "https://example.test/guild-avatar.png",
+			AccountCreatedAt: now.Add(-time.Minute),
+		},
+	})
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(sideEffects.DirectMessages) != 1 || sideEffects.DirectMessages[0].Message.Embeds[0].FooterIconURL != "https://example.test/global-avatar.png" {
+		t.Fatalf("direct messages = %#v", sideEffects.DirectMessages)
+	}
+}
+
 func TestAccountAgeGateAllowsLaterHandlersForOldEnoughMember(t *testing.T) {
 	now := time.Unix(2_000_000, 0)
 	repo := fakemongo.NewAccountAgeConfigRepository()
 	repo.Configs["guild-1"] = domain.AccountAgeConfig{GuildID: "guild-1", RequiredSeconds: 3600}
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{now: now})
+	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{now: now})
 	dispatcher := discordevents.NewDispatcher(nil)
 	module.RegisterEventRoutes(dispatcher)
 	laterCalled := false
@@ -126,7 +151,7 @@ func TestAccountAgeGateAllowsLaterHandlersForInvalidLegacyConfig(t *testing.T) {
 	repo := fakemongo.NewAccountAgeConfigRepository()
 	repo.Configs["guild-1"] = domain.AccountAgeConfig{GuildID: "guild-1"}
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{now: now})
+	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{now: now})
 	dispatcher := discordevents.NewDispatcher(nil)
 	module.RegisterEventRoutes(dispatcher)
 	laterCalled := false
@@ -159,7 +184,7 @@ func TestAccountAgeReadFailureDoesNotSuppressLaterMemberAddHandler(t *testing.T)
 	wantErr := errors.New("account age read failed")
 	repo.Err = wantErr
 	sideEffects := fakediscord.NewSideEffects()
-	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{})
+	module := NewAccountAgePolicyModule(repo, sideEffects, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{})
 	dispatcher := discordevents.NewDispatcher(nil)
 	module.RegisterEventRoutes(dispatcher)
 	laterCalled := false

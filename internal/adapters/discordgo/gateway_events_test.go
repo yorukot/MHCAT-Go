@@ -204,6 +204,9 @@ func TestEventFromMemberIncludesGuildNameFromState(t *testing.T) {
 		!strings.Contains(event.Member.AvatarURL, "/guilds/guild-1/users/113779359301998592/avatars/guild-user-avatar") {
 		t.Fatalf("guild avatars were not preserved: %#v", event)
 	}
+	if !strings.Contains(event.AvatarURL, "/avatars/113779359301998592/user-avatar") || event.UserTag != "Yoru" || event.Username != "Yoru" {
+		t.Fatalf("global user identity was not preserved: %#v", event)
+	}
 }
 
 func TestEventFromVoiceState(t *testing.T) {

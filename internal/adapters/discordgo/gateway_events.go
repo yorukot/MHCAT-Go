@@ -315,6 +315,13 @@ func eventFromMember(eventType events.Type, member *dgo.Member, guild *dgo.Guild
 			event.BotAvatarURL = guildMemberAvatarURL(guild, bot)
 		}
 		event.UserID = event.Member.UserID
+		event.Username = event.Member.Username
+		event.UserTag = event.Member.UserTag
+		event.IsBot = event.Member.IsBot
+		if member != nil && member.User != nil {
+			event.AvatarURL = member.User.AvatarURL("")
+			event.AvatarIsDefault = member.User.Avatar == ""
+		}
 	}
 	return event
 }

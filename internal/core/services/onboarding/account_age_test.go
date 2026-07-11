@@ -42,12 +42,14 @@ func TestAccountAgePolicyKicksTooNewMemberAndLogs(t *testing.T) {
 	repo := fakemongo.NewAccountAgeConfigRepository()
 	repo.Configs["guild-1"] = domain.AccountAgeConfig{GuildID: "guild-1", RequiredSeconds: 24 * 3600, ChannelID: "log-1"}
 	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.Channels = []ports.ChannelRef{{GuildID: "guild-1", ChannelID: "log-1"}}
 	info := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{Name: "測試伺服器"}}
 	service := AccountAgePolicyService{
 		Repository:     repo,
 		DirectMessages: sideEffects,
 		Members:        sideEffects,
 		Messages:       sideEffects,
+		Channels:       sideEffects,
 		Guilds:         info,
 		Clock:          accountAgeClock{now: now},
 	}
@@ -122,6 +124,27 @@ func TestAccountAgePolicyDoesNotLogBanWhenKickFails(t *testing.T) {
 	}
 	if len(sideEffects.Sent) != 0 {
 		t.Fatalf("BAN log should not be sent when kick failed: %#v", sideEffects.Sent)
+	}
+}
+
+func TestAccountAgePolicySkipsUncachedLegacyLogChannel(t *testing.T) {
+	now := time.Unix(2_000_000, 0)
+	repo := fakemongo.NewAccountAgeConfigRepository()
+	repo.Configs["guild-1"] = domain.AccountAgeConfig{GuildID: "guild-1", RequiredSeconds: 3600, ChannelID: "missing-log"}
+	sideEffects := fakediscord.NewSideEffects()
+	service := AccountAgePolicyService{
+		Repository: repo, Members: sideEffects, Messages: sideEffects, Channels: sideEffects,
+		Clock: accountAgeClock{now: now},
+	}
+
+	result, err := service.GateMemberAdd(context.Background(), AccountAgeMemberEvent{
+		GuildID: "guild-1", UserID: "user-1", AccountCreatedAt: now.Add(-time.Minute),
+	})
+	if err != nil {
+		t.Fatalf("gate: %v", err)
+	}
+	if !result.Matched || !result.Kicked || result.Logged || len(sideEffects.Sent) != 0 {
+		t.Fatalf("result=%#v sent=%#v", result, sideEffects.Sent)
 	}
 }
 

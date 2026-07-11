@@ -104,13 +104,14 @@ func NewAccountAgeModule(repo ports.AccountAgeConfigRepository) Module {
 	}
 }
 
-func NewAccountAgePolicyModule(repo ports.AccountAgeConfigReader, direct ports.DiscordDirectMessagePort, members ports.DiscordMemberPort, messages ports.DiscordMessagePort, guilds ports.DiscordInfoProvider, clock ports.Clock) Module {
+func NewAccountAgePolicyModule(repo ports.AccountAgeConfigReader, direct ports.DiscordDirectMessagePort, members ports.DiscordMemberPort, messages ports.DiscordMessagePort, channels ports.DiscordChannelPort, guilds ports.DiscordInfoProvider, clock ports.Clock) Module {
 	return Module{
 		accountAgePolicy: coreservice.AccountAgePolicyService{
 			Repository:     repo,
 			DirectMessages: direct,
 			Members:        members,
 			Messages:       messages,
+			Channels:       channels,
 			Guilds:         guilds,
 			Clock:          clock,
 		},

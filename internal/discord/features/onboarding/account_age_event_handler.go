@@ -23,10 +23,10 @@ func (m Module) AccountAgeGateHandler() events.Handler {
 			if member.UserID != "" {
 				userID = member.UserID
 			}
-			if member.UserTag != "" {
+			if userTag == "" && member.UserTag != "" {
 				userTag = member.UserTag
 			}
-			if member.AvatarURL != "" {
+			if avatarURL == "" && member.AvatarURL != "" {
 				avatarURL = member.AvatarURL
 			}
 			if !member.AccountCreatedAt.IsZero() {

@@ -25,6 +25,7 @@ type AccountAgePolicyService struct {
 	DirectMessages ports.DiscordDirectMessagePort
 	Members        ports.DiscordMemberPort
 	Messages       ports.DiscordMessagePort
+	Channels       ports.DiscordChannelPort
 	Guilds         ports.DiscordInfoProvider
 	Clock          ports.Clock
 }
@@ -149,6 +150,15 @@ func (s AccountAgePolicyService) GateMemberAdd(ctx context.Context, event Accoun
 	result.Kicked = true
 	if strings.TrimSpace(config.ChannelID) == "" || s.Messages == nil {
 		return result, ctx.Err()
+	}
+	if s.Channels == nil {
+		return result, ctx.Err()
+	}
+	if _, err := s.Channels.FindCachedChannelByID(ctx, event.GuildID, config.ChannelID); err != nil {
+		if errors.Is(err, ports.ErrChannelNotFound) {
+			return result, ctx.Err()
+		}
+		return result, err
 	}
 	if _, err := s.Messages.SendMessage(ctx, config.ChannelID, accountAgeLogMessage(event)); err != nil {
 		return result, err

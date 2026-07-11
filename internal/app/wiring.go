@@ -843,6 +843,7 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 			sideEffects,
 			sideEffects,
 			sideEffects,
+			sideEffects,
 			discordInfoProvider(session),
 			clockOrSystem(nil),
 		).RegisterEventRoutes(dispatcher)

@@ -144,7 +144,7 @@ func TestAccountAgeStopPropagationPreventsWelcomeMessage(t *testing.T) {
 	}
 	sideEffects := fakediscord.NewSideEffects()
 	dispatcher := discordevents.NewDispatcher(nil)
-	NewAccountAgePolicyModule(accountAgeRepo, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{now: now}).RegisterEventRoutes(dispatcher)
+	NewAccountAgePolicyModule(accountAgeRepo, sideEffects, sideEffects, sideEffects, sideEffects, nil, accountAgeEventClock{now: now}).RegisterEventRoutes(dispatcher)
 	NewWelcomeMessageDeliveryModule(joinMessageRepo, sideEffects, emptySpecialWelcome()).RegisterEventRoutes(dispatcher)
 
 	err := dispatcher.Dispatch(context.Background(), discordevents.Event{
