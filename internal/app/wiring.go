@@ -167,7 +167,10 @@ type RuntimeOptions struct {
 	Clock                         ports.Clock
 }
 
-const translateInteractionTimeout = 10 * time.Second
+const (
+	translateInteractionTimeout      = 10 * time.Second
+	messageCleanupInteractionTimeout = 60 * time.Second
+)
 
 func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	concreteDiscord := discordInfoProvider(opts.Session)
@@ -353,6 +356,9 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 	interactionTimeout := opts.Config.DiscordInteractionTimeout
 	if opts.TranslateFeatureEnabled && interactionTimeout < translateInteractionTimeout {
 		interactionTimeout = translateInteractionTimeout
+	}
+	if opts.MessageCleanupFeatureEnabled && interactionTimeout < messageCleanupInteractionTimeout {
+		interactionTimeout = messageCleanupInteractionTimeout
 	}
 	router := interactions.NewRouter(
 		interactions.Recover(),

@@ -982,6 +982,43 @@ func TestBuildRuntimeTracksEachMessageCleanupAttemptOnce(t *testing.T) {
 	}
 }
 
+type delayedMessageCleaner struct {
+	delay time.Duration
+}
+
+func (c delayedMessageCleaner) CleanupMessages(ctx context.Context, _ ports.MessageCleanupRequest) (int, error) {
+	select {
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	case <-time.After(c.delay):
+		return 1, nil
+	}
+}
+
+func TestBuildRuntimeExtendsMessageCleanupInteractionTimeout(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.DiscordInteractionTimeout = time.Millisecond
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                       cfg,
+		MessageCleanupFeatureEnabled: true,
+		MessageCleaner:               delayedMessageCleaner{delay: 20 * time.Millisecond},
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteractionWithOptions("刪除訊息", "", map[string]string{"刪除數量": "1"})
+	interaction.Actor.PermissionBits = 8192
+	interaction.ChannelID = "channel-1"
+	responder := fakediscord.NewResponder()
+
+	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("dispatch cleanup: %v", err)
+	}
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "`1`/`1`") {
+		t.Fatalf("cleanup response = %#v", responder.Edits)
+	}
+}
+
 func TestBuildRuntimeRoutesDeleteDataOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), DeleteDataFeatureEnabled: true})
 	if err != nil {
