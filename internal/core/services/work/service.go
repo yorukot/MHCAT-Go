@@ -82,14 +82,21 @@ func (s Service) Interface(ctx context.Context, request InterfaceRequest) (domai
 		if !errors.Is(err, ports.ErrWorkUserMissing) {
 			return domain.WorkInterfaceView{}, err
 		}
-		user = domain.WorkUserState{
-			GuildID:     strings.TrimSpace(request.GuildID),
-			UserID:      strings.TrimSpace(request.UserID),
-			State:       domain.WorkIdleState,
-			EndTimeUnix: 0,
-			Energy:      config.MaxEnergy,
-			GetCoin:     0,
-			Initialized: false,
+		if s.startRepo != nil {
+			user, err = s.startRepo.EnsureWorkUser(ctx, request.GuildID, request.UserID, config.MaxEnergy)
+			if err != nil {
+				return domain.WorkInterfaceView{}, err
+			}
+		} else {
+			user = domain.WorkUserState{
+				GuildID:     strings.TrimSpace(request.GuildID),
+				UserID:      strings.TrimSpace(request.UserID),
+				State:       domain.WorkIdleState,
+				EndTimeUnix: 0,
+				Energy:      config.MaxEnergy,
+				GetCoin:     0,
+				Initialized: false,
+			}
 		}
 	}
 	nowUnix := request.NowUnix

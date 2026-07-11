@@ -102,6 +102,21 @@ func (r *WorkInterfaceRepository) StartWork(_ context.Context, command domain.Wo
 	return user, nil
 }
 
+func (r *WorkInterfaceRepository) EnsureWorkUser(_ context.Context, guildID string, userID string, maxEnergy int64) (domain.WorkUserState, error) {
+	guildID = strings.TrimSpace(guildID)
+	userID = strings.TrimSpace(userID)
+	if guildID == "" || userID == "" || maxEnergy < 0 {
+		return domain.WorkUserState{}, domain.ErrInvalidWorkQuery
+	}
+	key := workUserKey(guildID, userID)
+	if user, ok := r.Users[key]; ok {
+		return user, nil
+	}
+	user := domain.WorkUserState{GuildID: guildID, UserID: userID, State: domain.WorkIdleState, Energy: maxEnergy, Initialized: true}
+	r.Users[key] = user
+	return user, nil
+}
+
 func (r *WorkInterfaceRepository) SaveWorkConfig(_ context.Context, command domain.WorkConfigCommand) (domain.WorkConfig, error) {
 	command.GuildID = strings.TrimSpace(command.GuildID)
 	if command.GuildID == "" || command.DailyEnergy < 0 || command.MaxEnergy < 0 {

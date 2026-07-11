@@ -137,6 +137,16 @@ func (r *WorkInterfaceRepository) StartWork(ctx context.Context, command domain.
 	return updated.ToDomain(), ctx.Err()
 }
 
+func (r *WorkInterfaceRepository) EnsureWorkUser(ctx context.Context, guildID string, userID string, maxEnergy int64) (domain.WorkUserState, error) {
+	if strings.TrimSpace(guildID) == "" || strings.TrimSpace(userID) == "" || maxEnergy < 0 {
+		return domain.WorkUserState{}, domain.ErrInvalidWorkQuery
+	}
+	if err := r.ensureWorkUserWithMaxEnergy(ctx, guildID, userID, maxEnergy); err != nil {
+		return domain.WorkUserState{}, err
+	}
+	return r.GetWorkUser(ctx, guildID, userID)
+}
+
 func (r *WorkInterfaceRepository) SaveWorkConfig(ctx context.Context, command domain.WorkConfigCommand) (domain.WorkConfig, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.WorkConfig{}, err

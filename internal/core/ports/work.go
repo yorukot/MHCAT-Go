@@ -23,6 +23,7 @@ type WorkInterfaceRepository interface {
 
 type WorkStartRepository interface {
 	WorkInterfaceRepository
+	EnsureWorkUser(ctx context.Context, guildID string, userID string, maxEnergy int64) (domain.WorkUserState, error)
 	StartWork(ctx context.Context, command domain.WorkStartCommand) (domain.WorkUserState, error)
 }
 

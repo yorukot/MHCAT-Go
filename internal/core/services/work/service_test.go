@@ -8,6 +8,7 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
 
 type fakeClock struct{ now time.Time }
@@ -50,6 +51,10 @@ func (r fakeRepo) StartWork(_ context.Context, command domain.WorkStartCommand) 
 		return r.start, nil
 	}
 	return domain.WorkUserState{GuildID: command.GuildID, UserID: command.UserID, State: command.WorkName, EndTimeUnix: command.NowUnix + command.DurationSec, Energy: command.MaxEnergy - command.EnergyCost, GetCoin: command.CoinReward, Initialized: true}, nil
+}
+
+func (r fakeRepo) EnsureWorkUser(_ context.Context, guildID string, userID string, maxEnergy int64) (domain.WorkUserState, error) {
+	return domain.WorkUserState{GuildID: guildID, UserID: userID, State: domain.WorkIdleState, Energy: maxEnergy, Initialized: true}, nil
 }
 
 func (r fakeRepo) SaveWorkConfig(_ context.Context, command domain.WorkConfigCommand) (domain.WorkConfig, error) {
@@ -106,6 +111,22 @@ func TestInterfaceDefaultsMissingUserWithoutWriting(t *testing.T) {
 	}
 	if view.User.State != domain.WorkIdleState || view.User.Energy != 12 || view.NowUnix != 100 {
 		t.Fatalf("unexpected user/default view: %#v", view)
+	}
+}
+
+func TestInterfaceInitializesMissingUserWhenStartRepositoryIsAvailable(t *testing.T) {
+	repo := fakemongo.NewWorkInterfaceRepository()
+	repo.PutConfig(domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 20})
+	repo.PutItems("guild-1", domain.WorkItem{GuildID: "guild-1", Name: "礦坑", DurationSec: 60})
+	service := NewServiceWithStartRepository(repo, repo, fakeClock{now: time.Unix(100, 0)})
+
+	view, err := service.Interface(context.Background(), InterfaceRequest{GuildID: "guild-1", UserID: "user-1"})
+	if err != nil {
+		t.Fatalf("interface: %v", err)
+	}
+	stored, err := repo.GetWorkUser(context.Background(), "guild-1", "user-1")
+	if err != nil || !view.User.Initialized || !stored.Initialized || stored.Energy != 20 || stored.State != domain.WorkIdleState {
+		t.Fatalf("view=%#v stored=%#v err=%v", view.User, stored, err)
 	}
 }
 
