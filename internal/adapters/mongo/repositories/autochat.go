@@ -12,7 +12,6 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	drivermongo "go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 const AutoChatConfigCollectionName = "chats"
@@ -60,25 +59,28 @@ func (r *AutoChatConfigRepository) SaveAutoChatConfig(ctx context.Context, confi
 	if err := config.Validate(); err != nil {
 		return err
 	}
-	document := documents.AutoChatConfigDocumentFromDomain(config)
-	update, err := mhcatAutoChatConfigUpdate(document, false)
-	if err != nil {
-		return err
+	type configRow struct {
+		ID any `bson:"_id"`
 	}
-	result, err := r.collection.UpdateMany(ctx, bson.D{{Key: "guild", Value: document.Guild}}, update)
-	if err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("save autochat config: %w", err))
+	var row configRow
+	err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: config.GuildID}}).Decode(&row)
+	if err != nil && err != drivermongo.ErrNoDocuments {
+		return mhcatmongo.MapError(fmt.Errorf("get autochat config for replacement: %w", err))
 	}
-	if result.MatchedCount > 0 {
-		return ctx.Err()
+	if err == nil {
+		result, deleteErr := r.collection.DeleteOne(ctx, bson.D{{Key: "_id", Value: row.ID}})
+		if deleteErr != nil {
+			return mhcatmongo.MapError(fmt.Errorf("delete autochat config for replacement: %w", deleteErr))
+		}
+		if result.DeletedCount == 0 {
+			return mhcatmongo.MapError(errors.New("autochat config changed before replacement"))
+		}
 	}
-	insertUpdate, err := mhcatAutoChatConfigUpdate(document, true)
-	if err != nil {
-		return err
-	}
-	_, err = r.collection.UpdateOne(ctx, bson.D{{Key: "guild", Value: document.Guild}}, insertUpdate, options.UpdateOne().SetUpsert(true))
-	if err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("upsert autochat config: %w", err))
+	if _, err := r.collection.InsertOne(ctx, bson.D{
+		{Key: "guild", Value: config.GuildID},
+		{Key: "channel", Value: config.ChannelID},
+	}); err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("insert autochat config replacement: %w", err))
 	}
 	return ctx.Err()
 }
@@ -91,7 +93,17 @@ func (r *AutoChatConfigRepository) DeleteAutoChatConfig(ctx context.Context, gui
 	if guildID == "" {
 		return domain.ErrInvalidAutoChatConfig
 	}
-	result, err := r.collection.DeleteMany(ctx, bson.D{{Key: "guild", Value: guildID}})
+	type configRow struct {
+		ID any `bson:"_id"`
+	}
+	var row configRow
+	if err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&row); err != nil {
+		if err == drivermongo.ErrNoDocuments {
+			return ports.ErrAutoChatConfigMissing
+		}
+		return mhcatmongo.MapError(fmt.Errorf("get autochat config for delete: %w", err))
+	}
+	result, err := r.collection.DeleteOne(ctx, bson.D{{Key: "_id", Value: row.ID}})
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("delete autochat config: %w", err))
 	}
@@ -99,14 +111,6 @@ func (r *AutoChatConfigRepository) DeleteAutoChatConfig(ctx context.Context, gui
 		return ports.ErrAutoChatConfigMissing
 	}
 	return ctx.Err()
-}
-
-func mhcatAutoChatConfigUpdate(document documents.AutoChatConfigDocument, upsert bool) (bson.D, error) {
-	builder := mhcatmongo.NewUpdate().Set("channel", document.Channel)
-	if upsert {
-		builder.SetOnInsert("guild", document.Guild)
-	}
-	return builder.Build()
 }
 
 var _ ports.AutoChatConfigRepository = (*AutoChatConfigRepository)(nil)
