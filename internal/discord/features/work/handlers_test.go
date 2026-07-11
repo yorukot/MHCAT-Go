@@ -292,6 +292,26 @@ func TestAddUserEnergyClampsAndCreatesTargetUser(t *testing.T) {
 	}
 }
 
+func TestAddUserEnergyAcceptsLegacyNegativeAmount(t *testing.T) {
+	repo := fakemongo.NewWorkInterfaceRepository()
+	repo.PutConfig(domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 20})
+	repo.PutUser(domain.WorkUserState{GuildID: "guild-1", UserID: "target-user", Energy: 5, Initialized: true})
+	module := NewModuleWithAdminRepository(repo, nil, nil)
+	responder := fakediscord.NewResponder()
+	interaction := workAdminSlash(subcommandAddUserEnergy, map[string]string{"使用者": "target-user", "要給多少精力": "-7"})
+
+	if err := module.Handler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("negative grant handler: %v", err)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "`-7`") {
+		t.Fatalf("negative grant edit = %#v", responder.Edits)
+	}
+	user, err := repo.GetWorkUser(context.Background(), "guild-1", "target-user")
+	if err != nil || user.Energy != -2 {
+		t.Fatalf("target user = %#v, err=%v", user, err)
+	}
+}
+
 func TestAddAllEnergyClampsExistingUsersOnly(t *testing.T) {
 	repo := fakemongo.NewWorkInterfaceRepository()
 	repo.PutConfig(domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 20})

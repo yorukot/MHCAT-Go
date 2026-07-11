@@ -77,7 +77,7 @@ func (r fakeRepo) DeleteWorkItem(_ context.Context, command domain.WorkDeleteIte
 }
 
 func (r fakeRepo) GrantWorkEnergy(_ context.Context, command domain.WorkEnergyGrantCommand) (domain.WorkUserState, error) {
-	if command.GuildID == "" || command.UserID == "" || command.Amount <= 0 || command.MaxEnergy < 0 {
+	if command.GuildID == "" || command.UserID == "" || command.MaxEnergy < 0 {
 		return domain.WorkUserState{}, domain.ErrInvalidWorkQuery
 	}
 	if r.grant.UserID != "" {
@@ -87,7 +87,7 @@ func (r fakeRepo) GrantWorkEnergy(_ context.Context, command domain.WorkEnergyGr
 }
 
 func (r fakeRepo) GrantWorkEnergyToAll(_ context.Context, command domain.WorkEnergyGrantAllCommand) (domain.WorkEnergyGrantAllResult, error) {
-	if command.GuildID == "" || command.Amount <= 0 || command.MaxEnergy < 0 {
+	if command.GuildID == "" || command.MaxEnergy < 0 {
 		return domain.WorkEnergyGrantAllResult{}, domain.ErrInvalidWorkQuery
 	}
 	if r.all.Matched != 0 || r.all.Modified != 0 {
@@ -268,13 +268,18 @@ func TestAdminMethodsUseRepositoryAndConfig(t *testing.T) {
 	}
 }
 
-func TestAdminMethodsRejectUnsafeEnergyAmounts(t *testing.T) {
-	service := NewServiceWithAdminRepository(fakeRepo{config: domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 10}}, nil)
-	if _, err := service.GrantEnergy(context.Background(), domain.WorkEnergyGrantCommand{GuildID: "guild-1", UserID: "target", Amount: -1}); !errors.Is(err, domain.ErrInvalidWorkQuery) {
-		t.Fatalf("expected invalid grant, got %v", err)
+func TestAdminMethodsAcceptLegacySignedEnergyAmounts(t *testing.T) {
+	repo := fakemongo.NewWorkInterfaceRepository()
+	repo.PutConfig(domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 10})
+	repo.PutUser(domain.WorkUserState{GuildID: "guild-1", UserID: "target", Energy: 5, Initialized: true})
+	service := NewServiceWithAdminRepository(repo, nil)
+	user, err := service.GrantEnergy(context.Background(), domain.WorkEnergyGrantCommand{GuildID: "guild-1", UserID: "target", Amount: -2})
+	if err != nil || user.Energy != 3 {
+		t.Fatalf("negative grant = %#v, %v", user, err)
 	}
-	if _, err := service.GrantEnergyToAll(context.Background(), domain.WorkEnergyGrantAllCommand{GuildID: "guild-1", Amount: 0}); !errors.Is(err, domain.ErrInvalidWorkQuery) {
-		t.Fatalf("expected invalid grant all, got %v", err)
+	result, err := service.GrantEnergyToAll(context.Background(), domain.WorkEnergyGrantAllCommand{GuildID: "guild-1", Amount: 0})
+	if err != nil || result.Matched != 1 || result.Modified != 0 {
+		t.Fatalf("zero grant = %#v, %v", result, err)
 	}
 }
 

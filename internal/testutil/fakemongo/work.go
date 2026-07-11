@@ -151,7 +151,7 @@ func (r *WorkInterfaceRepository) DeleteWorkItem(_ context.Context, command doma
 func (r *WorkInterfaceRepository) GrantWorkEnergy(_ context.Context, command domain.WorkEnergyGrantCommand) (domain.WorkUserState, error) {
 	command.GuildID = strings.TrimSpace(command.GuildID)
 	command.UserID = strings.TrimSpace(command.UserID)
-	if command.GuildID == "" || command.UserID == "" || command.Amount <= 0 || command.MaxEnergy < 0 {
+	if command.GuildID == "" || command.UserID == "" || command.MaxEnergy < 0 {
 		return domain.WorkUserState{}, domain.ErrInvalidWorkQuery
 	}
 	key := workUserKey(command.GuildID, command.UserID)
@@ -178,7 +178,7 @@ func (r *WorkInterfaceRepository) GrantWorkEnergy(_ context.Context, command dom
 
 func (r *WorkInterfaceRepository) GrantWorkEnergyToAll(_ context.Context, command domain.WorkEnergyGrantAllCommand) (domain.WorkEnergyGrantAllResult, error) {
 	command.GuildID = strings.TrimSpace(command.GuildID)
-	if command.GuildID == "" || command.Amount <= 0 || command.MaxEnergy < 0 {
+	if command.GuildID == "" || command.MaxEnergy < 0 {
 		return domain.WorkEnergyGrantAllResult{}, domain.ErrInvalidWorkQuery
 	}
 	var result domain.WorkEnergyGrantAllResult

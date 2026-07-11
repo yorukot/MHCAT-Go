@@ -207,7 +207,7 @@ func (s Service) GrantEnergy(ctx context.Context, command domain.WorkEnergyGrant
 	}
 	command.GuildID = strings.TrimSpace(command.GuildID)
 	command.UserID = strings.TrimSpace(command.UserID)
-	if command.GuildID == "" || command.UserID == "" || command.Amount <= 0 {
+	if command.GuildID == "" || command.UserID == "" {
 		return domain.WorkUserState{}, domain.ErrInvalidWorkQuery
 	}
 	config, err := s.Settings(ctx, command.GuildID)
@@ -223,7 +223,7 @@ func (s Service) GrantEnergyToAll(ctx context.Context, command domain.WorkEnergy
 		return domain.WorkEnergyGrantAllResult{}, domain.ErrWorkAdminUnavailable
 	}
 	command.GuildID = strings.TrimSpace(command.GuildID)
-	if command.GuildID == "" || command.Amount <= 0 {
+	if command.GuildID == "" {
 		return domain.WorkEnergyGrantAllResult{}, domain.ErrInvalidWorkQuery
 	}
 	config, err := s.Settings(ctx, command.GuildID)

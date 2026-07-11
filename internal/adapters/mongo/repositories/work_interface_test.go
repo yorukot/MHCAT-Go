@@ -112,8 +112,8 @@ func TestValidateWorkAdminCommands(t *testing.T) {
 	if err := validateWorkEnergyGrantCommand("guild-1", "user-1", 1, 10); err != nil {
 		t.Fatalf("valid grant: %v", err)
 	}
-	if err := validateWorkEnergyGrantCommand("guild-1", "user-1", 0, 10); err == nil {
-		t.Fatal("expected invalid zero grant")
+	if err := validateWorkEnergyGrantCommand("guild-1", "user-1", -1, 10); err != nil {
+		t.Fatalf("legacy signed grant must be valid: %v", err)
 	}
 }
 

@@ -152,3 +152,26 @@ func TestWorkInterfaceMongoIntegrationReplacesOneDuplicateConfig(t *testing.T) {
 		t.Fatalf("configs = %#v", rows)
 	}
 }
+
+func TestWorkInterfaceMongoIntegrationAcceptsSignedEnergyGrants(t *testing.T) {
+	database := economyQueryIntegrationDatabase(t)
+	repository, err := NewWorkInterfaceRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	ctx := context.Background()
+	if _, err := database.Collection(WorkUserCollectionName).InsertMany(ctx, []any{
+		bson.D{{Key: "guild", Value: "grant-guild"}, {Key: "user", Value: "one"}, {Key: "energi", Value: 5}},
+		bson.D{{Key: "guild", Value: "grant-guild"}, {Key: "user", Value: "two"}, {Key: "energi", Value: 1}},
+	}); err != nil {
+		t.Fatalf("insert users: %v", err)
+	}
+	updated, err := repository.GrantWorkEnergy(ctx, domain.WorkEnergyGrantCommand{GuildID: "grant-guild", UserID: "one", Amount: -7, MaxEnergy: 10})
+	if err != nil || updated.Energy != -2 {
+		t.Fatalf("negative grant = %#v, err=%v", updated, err)
+	}
+	result, err := repository.GrantWorkEnergyToAll(ctx, domain.WorkEnergyGrantAllCommand{GuildID: "grant-guild", Amount: 0, MaxEnergy: 10})
+	if err != nil || result.Matched != 2 || result.Modified != 0 {
+		t.Fatalf("zero grant = %#v, err=%v", result, err)
+	}
+}

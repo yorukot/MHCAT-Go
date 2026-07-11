@@ -310,7 +310,7 @@ func validateWorkDeleteItemCommand(command domain.WorkDeleteItemCommand) error {
 }
 
 func validateWorkEnergyGrantCommand(guildID string, userID string, amount int64, maxEnergy int64) error {
-	if strings.TrimSpace(guildID) == "" || strings.TrimSpace(userID) == "" || amount <= 0 || maxEnergy < 0 {
+	if strings.TrimSpace(guildID) == "" || strings.TrimSpace(userID) == "" || maxEnergy < 0 {
 		return domain.ErrInvalidWorkQuery
 	}
 	return nil
