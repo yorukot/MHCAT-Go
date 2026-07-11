@@ -575,9 +575,9 @@ func TestDeleteDataPromptRequiresManageMessages(t *testing.T) {
 		t.Fatalf("handler: %v", err)
 	}
 	if len(responder.Defers) != 1 || responder.Defers[0].Ephemeral {
-		t.Fatalf("defers = %#v", responder.Defers)
+		t.Fatalf("legacy slash defer should be public: %#v", responder.Defers)
 	}
-	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "訊息管理") {
+	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || responder.Edits[0].Embeds[0].Title != "<a:Discord_AnimatedNo:1015989839809757295> | 你需要有`訊息管理`才能使用此指令" || responder.Edits[0].Embeds[0].Color != warningErrorColor || responder.Edits[0].Ephemeral {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 	if len(responder.Follow) != 0 {
@@ -597,19 +597,34 @@ func TestDeleteDataPromptRendersLegacyMenu(t *testing.T) {
 		t.Fatalf("followups = %#v", responder.Follow)
 	}
 	embed := responder.Follow[0].Embeds[0]
-	if embed.Title != "<:trashbin:995991389043163257> 刪除資料" || !strings.Contains(embed.Description, "一但刪除將__**無法復原**__") || embed.Footer == nil || embed.Thumbnail == nil {
+	warningImageURL := "https://media.discordapp.net/attachments/991337796960784424/996749656161779853/6lnjr0.gif"
+	if embed.Title != "<:trashbin:995991389043163257> 刪除資料" || embed.Description != "<a:NukeExplosion:986558305885368321>這邊刪除的都是全刪!!!\n<:warning:985590881698590730> 一但刪除將__**無法復原**__，請三思!\n<:warning:985590881698590730> 一但刪除將__**無法復原**__，請三思!" || embed.Color < 0 || embed.Color >= 0x1000000 || embed.Footer == nil || embed.Footer.Text != "請三思!!!" || embed.Footer.IconURL != warningImageURL || embed.Thumbnail == nil || embed.Thumbnail.URL != warningImageURL {
 		t.Fatalf("embed = %#v", embed)
+	}
+	if responder.Follow[0].Ephemeral || responder.Follow[0].AllowedMentions == nil {
+		t.Fatalf("legacy prompt visibility/mentions = %#v", responder.Follow[0])
 	}
 	if len(responder.Follow[0].Components) != 1 || len(responder.Follow[0].Components[0].Components) != 1 {
 		t.Fatalf("components = %#v", responder.Follow[0].Components)
 	}
 	selectMenu := responder.Follow[0].Components[0].Components[0]
-	if selectMenu.CustomID != "delete-data" || selectMenu.Placeholder != "🗑 選擇你要刪除的資料!" || len(selectMenu.Options) != 9 {
+	if selectMenu.CustomID != "delete-data" || selectMenu.Placeholder != "🗑 選擇你要刪除的資料!" || selectMenu.MinValues != 1 || selectMenu.MaxValues != 1 || len(selectMenu.Options) != 9 {
 		t.Fatalf("select menu = %#v", selectMenu)
+	}
+	wantEmojis := []string{
+		"<:joines:953970547849592884>",
+		"<:leaves:956444050792280084>",
+		"<:logfile:985948561625710663>",
+		"<:statistics:986108146747600928>",
+		"<:ChatBot:956863473910947850>",
+		"<:tickmark:985949769224556614>",
+		"<:xp:990254386792005663>",
+		"<:Voice:994844272790610011>",
+		"<:ticket:985945491093205073>",
 	}
 	for index, target := range domain.LegacyDeleteDataTargets() {
 		option := selectMenu.Options[index]
-		if option.Label != string(target) || option.Value != string(target) || option.Description != "🗑 "+string(target)+" 刪除!" || option.Emoji == "" {
+		if option.Label != string(target) || option.Value != string(target) || option.Description != "🗑 "+string(target)+" 刪除!" || option.Emoji != wantEmojis[index] || option.Default {
 			t.Fatalf("option %d = %#v", index, option)
 		}
 	}
