@@ -12,7 +12,6 @@ import (
 
 const (
 	translateLoadingColor = 0x57F287
-	translateFinalColor   = 0x5865F2
 	translateErrorColor   = 0xEA0000
 )
 
@@ -30,7 +29,7 @@ func (m Module) TranslateHandler() interactions.Handler {
 		if err != nil {
 			return responder.EditOriginal(ctx, translateErrorMessage(err))
 		}
-		if err := responder.EditOriginal(ctx, translateResultMessage(interaction, source, targetLanguage, result.Text)); err != nil {
+		if err := responder.EditOriginal(ctx, translateResultMessage(interaction, source, targetLanguage, result.Text, m.randomTranslateColor())); err != nil {
 			return err
 		}
 		return m.track(ctx, interaction, "翻譯")
@@ -47,7 +46,7 @@ func translateLoadingMessage() responses.Message {
 	}
 }
 
-func translateResultMessage(interaction interactions.Interaction, source string, targetLanguage string, translated string) responses.Message {
+func translateResultMessage(interaction interactions.Interaction, source string, targetLanguage string, translated string, color int) responses.Message {
 	footerText := strings.TrimSpace(interaction.Actor.UserTag)
 	if footerText == "" {
 		footerText = strings.TrimSpace(interaction.Actor.UserID)
@@ -58,7 +57,7 @@ func translateResultMessage(interaction interactions.Interaction, source string,
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title: "<:translate:986870996147507231> 翻譯系統",
-			Color: translateFinalColor,
+			Color: color,
 			Fields: []responses.EmbedField{
 				{Name: "**<:edittext:986873966884962304> 原文**:", Value: codeField(source), Inline: false},
 				{Name: "**<:answer:986873630178832414> 目標語言:**", Value: codeField(targetLanguage), Inline: false},

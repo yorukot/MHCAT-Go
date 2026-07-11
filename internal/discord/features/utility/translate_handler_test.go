@@ -30,6 +30,7 @@ func TestTranslateHandlerRendersLegacyLoadingAndResultEmbeds(t *testing.T) {
 	provider := &faketranslate.Translator{Result: ports.TranslationResult{Text: "hello"}}
 	usage := &fakeusage.Tracker{}
 	module := NewModuleWithTranslator(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), nil, nil, provider, nil, usage)
+	module.translateColor = func() int { return 0x123456 }
 	interaction := fakediscord.SlashInteractionWithOptions("翻譯", "", map[string]string{
 		"要的翻譯": "你好",
 		"目標語言": "en",
@@ -50,7 +51,7 @@ func TestTranslateHandlerRendersLegacyLoadingAndResultEmbeds(t *testing.T) {
 		t.Fatalf("loading embed = %#v", responder.Edits[0].Embeds[0])
 	}
 	final := responder.Edits[1].Embeds[0]
-	if final.Title != "<:translate:986870996147507231> 翻譯系統" || len(final.Fields) != 3 {
+	if final.Title != "<:translate:986870996147507231> 翻譯系統" || final.Color != 0x123456 || len(final.Fields) != 3 {
 		t.Fatalf("final embed = %#v", final)
 	}
 	if !strings.Contains(final.Fields[0].Value, "你好") || !strings.Contains(final.Fields[2].Value, "hello") {
@@ -61,6 +62,15 @@ func TestTranslateHandlerRendersLegacyLoadingAndResultEmbeds(t *testing.T) {
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != "翻譯" {
 		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
+func TestLegacyTranslateRandomColorUsesFullDiscordRange(t *testing.T) {
+	for range 100 {
+		color := legacyTranslateRandomColor()
+		if color < 0 || color > 0xFFFFFF {
+			t.Fatalf("color = %#x", color)
+		}
 	}
 }
 

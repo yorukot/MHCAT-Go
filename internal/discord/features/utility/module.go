@@ -1,6 +1,9 @@
 package utility
 
 import (
+	"crypto/rand"
+	"math/big"
+
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreutility "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/utility"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
@@ -8,14 +11,15 @@ import (
 )
 
 type Module struct {
-	ping      coreutility.PingService
-	help      coreutility.HelpService
-	status    coreutility.StatusService
-	translate coreutility.TranslateService
-	discord   ports.DiscordInfoProvider
-	usage     ports.UsageTracker
-	defs      []commands.Definition
-	feature   string
+	ping           coreutility.PingService
+	help           coreutility.HelpService
+	status         coreutility.StatusService
+	translate      coreutility.TranslateService
+	translateColor func() int
+	discord        ports.DiscordInfoProvider
+	usage          ports.UsageTracker
+	defs           []commands.Definition
+	feature        string
 }
 
 func NewModule(registry commands.Registry, botInfo ports.BotInfoProvider, clock ports.Clock, usage ports.UsageTracker) Module {
@@ -27,13 +31,14 @@ func NewModuleWithDiscordInfo(registry commands.Registry, botInfo ports.BotInfoP
 		registry = commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal})
 	}
 	return Module{
-		ping:    coreutility.PingService{Clock: clock},
-		help:    coreutility.NewHelpService(registry),
-		status:  coreutility.StatusService{Provider: botInfo},
-		discord: discordInfo,
-		usage:   usage,
-		defs:    commands.BuiltinDefinitions(),
-		feature: "utility",
+		ping:           coreutility.PingService{Clock: clock},
+		help:           coreutility.NewHelpService(registry),
+		status:         coreutility.StatusService{Provider: botInfo},
+		discord:        discordInfo,
+		usage:          usage,
+		defs:           commands.BuiltinDefinitions(),
+		feature:        "utility",
+		translateColor: legacyTranslateRandomColor,
 	}
 }
 
@@ -100,4 +105,19 @@ func (m Module) RegisterRoutes(router *interactions.Router) error {
 		}
 	}
 	return router.RegisterSlash("ping", m.PingHandler())
+}
+
+func legacyTranslateRandomColor() int {
+	value, err := rand.Int(rand.Reader, big.NewInt(0xFFFFFF+1))
+	if err != nil {
+		return 0x5865F2
+	}
+	return int(value.Int64())
+}
+
+func (m Module) randomTranslateColor() int {
+	if m.translateColor == nil {
+		return legacyTranslateRandomColor()
+	}
+	return m.translateColor()
 }
