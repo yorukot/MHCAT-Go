@@ -169,14 +169,17 @@ func (r *WorkInterfaceRepository) SaveWorkConfig(ctx context.Context, command do
 		MaxEnergy:   command.MaxEnergy,
 		Captcha:     command.Captcha,
 	}
-	update := bson.D{{Key: "$set", Value: bson.D{
+	document := bson.D{
 		{Key: "guild", Value: config.GuildID},
 		{Key: "get_energy", Value: config.DailyEnergy},
 		{Key: "max_energy", Value: config.MaxEnergy},
 		{Key: "captcha", Value: config.Captcha},
-	}}}
-	if _, err := r.workSets.UpdateMany(ctx, bson.D{{Key: "guild", Value: config.GuildID}}, update, options.UpdateMany().SetUpsert(true)); err != nil {
-		return domain.WorkConfig{}, mhcatmongo.MapError(fmt.Errorf("save work config: %w", err))
+	}
+	if _, err := r.workSets.DeleteOne(ctx, bson.D{{Key: "guild", Value: config.GuildID}}); err != nil {
+		return domain.WorkConfig{}, mhcatmongo.MapError(fmt.Errorf("delete previous work config: %w", err))
+	}
+	if _, err := r.workSets.InsertOne(ctx, document); err != nil {
+		return domain.WorkConfig{}, mhcatmongo.MapError(fmt.Errorf("insert work config: %w", err))
 	}
 	return config, ctx.Err()
 }

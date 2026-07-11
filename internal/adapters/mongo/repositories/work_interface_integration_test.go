@@ -119,3 +119,36 @@ func TestWorkInterfaceMongoIntegrationDeletesOneDuplicateItem(t *testing.T) {
 		t.Fatalf("duplicate count = %d, err=%v", count, err)
 	}
 }
+
+func TestWorkInterfaceMongoIntegrationReplacesOneDuplicateConfig(t *testing.T) {
+	database := economyQueryIntegrationDatabase(t)
+	repository, err := NewWorkInterfaceRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	ctx := context.Background()
+	collection := database.Collection(WorkSetCollectionName)
+	if _, err := collection.InsertMany(ctx, []any{
+		bson.D{{Key: "guild", Value: "config-guild"}, {Key: "get_energy", Value: 1}, {Key: "max_energy", Value: 10}},
+		bson.D{{Key: "guild", Value: "config-guild"}, {Key: "get_energy", Value: 2}, {Key: "max_energy", Value: 20}},
+	}); err != nil {
+		t.Fatalf("insert duplicate configs: %v", err)
+	}
+	if _, err := repository.SaveWorkConfig(ctx, domain.WorkConfigCommand{GuildID: "config-guild", DailyEnergy: 3, MaxEnergy: 30, Captcha: true}); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	cursor, err := collection.Find(ctx, bson.D{{Key: "guild", Value: "config-guild"}})
+	if err != nil {
+		t.Fatalf("find configs: %v", err)
+	}
+	var rows []struct {
+		DailyEnergy int64 `bson:"get_energy"`
+		MaxEnergy   int64 `bson:"max_energy"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		t.Fatalf("decode configs: %v", err)
+	}
+	if len(rows) != 2 || rows[0].DailyEnergy != 2 || rows[0].MaxEnergy != 20 || rows[1].DailyEnergy != 3 || rows[1].MaxEnergy != 30 {
+		t.Fatalf("configs = %#v", rows)
+	}
+}
