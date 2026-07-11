@@ -19,10 +19,10 @@ func TestHelpHandlerOverviewMatchesLegacyMenu(t *testing.T) {
 	if err := module.HelpHandler()(context.Background(), fakediscord.SlashInteraction("help"), responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Defers) != 1 || len(responder.Edits) != 1 {
-		t.Fatalf("defers=%d edits=%d", len(responder.Defers), len(responder.Edits))
+	if len(responder.Defers) != 1 || len(responder.Follow) != 1 || len(responder.Edits) != 0 {
+		t.Fatalf("defers=%d follow=%d edits=%d", len(responder.Defers), len(responder.Follow), len(responder.Edits))
 	}
-	msg := responder.Edits[0]
+	msg := responder.Follow[0]
 	if msg.Content != "" {
 		t.Fatalf("legacy help overview should use embeds, got content %q", msg.Content)
 	}
@@ -64,7 +64,7 @@ func TestHelpHandlerCommandDetail(t *testing.T) {
 	if err := module.HelpHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	msg := responder.Edits[0]
+	msg := responder.Follow[0]
 	if len(msg.Embeds) != 1 || !strings.Contains(msg.Embeds[0].Title, "指令資料") {
 		t.Fatalf("detail embed = %#v", msg.Embeds)
 	}
@@ -105,10 +105,10 @@ func TestHelpHandlerCommandDetailPreservesLegacyPermissionsAndTutorials(t *testi
 			if err := module.HelpHandler()(context.Background(), interaction, responder); err != nil {
 				t.Fatalf("handler: %v", err)
 			}
-			if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
-				t.Fatalf("response = %#v", responder.Edits)
+			if len(responder.Follow) != 1 || len(responder.Follow[0].Embeds) != 1 {
+				t.Fatalf("response = %#v", responder.Follow)
 			}
-			fields := responder.Edits[0].Embeds[0].Fields
+			fields := responder.Follow[0].Embeds[0].Fields
 			if len(fields) != 4 || fields[2].Value != test.permission || fields[3].Value != test.tutorial {
 				t.Fatalf("detail fields = %#v", fields)
 			}
@@ -123,7 +123,7 @@ func TestHelpHandlerUnknownCommandSafe(t *testing.T) {
 	if err := module.HelpHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	msg := responder.Edits[0]
+	msg := responder.Follow[0]
 	if len(msg.Embeds) != 1 || !strings.Contains(msg.Embeds[0].Title, "無效的指令") || strings.Contains(msg.Embeds[0].Title, "help command not found") {
 		t.Fatalf("unsafe not-found response: %#v", msg.Embeds)
 	}
@@ -136,7 +136,7 @@ func TestHelpHandlerSlashCategoryMatchesLegacyShape(t *testing.T) {
 	if err := module.HelpHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	msg := responder.Edits[0]
+	msg := responder.Follow[0]
 	if msg.Ephemeral || len(msg.Embeds) != 1 || msg.Embeds[0].Title != "__實用工具 指令!__" {
 		t.Fatalf("slash category message = %#v", msg)
 	}
@@ -162,8 +162,8 @@ func TestHelpHandlerPreservesLiteralSpaceQuerySplit(t *testing.T) {
 		if err := module.HelpHandler()(context.Background(), interaction, responder); err != nil {
 			t.Fatalf("handler for %q: %v", query, err)
 		}
-		if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "無效的指令") {
-			t.Fatalf("query %q response = %#v", query, responder.Edits)
+		if len(responder.Follow) != 1 || len(responder.Follow[0].Embeds) != 1 || !strings.Contains(responder.Follow[0].Embeds[0].Title, "無效的指令") {
+			t.Fatalf("query %q response = %#v", query, responder.Follow)
 		}
 	}
 }

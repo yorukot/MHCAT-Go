@@ -24,7 +24,7 @@ func (m Module) HelpHandler() interactions.Handler {
 				msg = legacyHelpInvalidCommand()
 			}
 		}
-		if err := responder.EditOriginal(ctx, msg); err != nil {
+		if err := responder.FollowUp(ctx, msg); err != nil {
 			return err
 		}
 		return m.track(ctx, interaction, "help")

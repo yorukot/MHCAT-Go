@@ -163,8 +163,8 @@ func TestBuildRuntimeRoutesHelpDetail(t *testing.T) {
 	if err := dispatcher.Dispatch(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("dispatch help detail: %v", err)
 	}
-	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "指令資料") {
-		t.Fatalf("edits = %#v replies=%#v", responder.Edits, responder.Replies)
+	if len(responder.Follow) != 1 || len(responder.Follow[0].Embeds) != 1 || !strings.Contains(responder.Follow[0].Embeds[0].Title, "指令資料") {
+		t.Fatalf("follow = %#v edits=%#v replies=%#v", responder.Follow, responder.Edits, responder.Replies)
 	}
 }
 
