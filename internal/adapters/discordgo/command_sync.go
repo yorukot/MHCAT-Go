@@ -2,8 +2,10 @@ package discordgo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	dgo "github.com/bwmarrin/discordgo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
@@ -14,7 +16,14 @@ type CommandSyncClient struct {
 	applicationID string
 }
 
+var errCommandSyncClientNotConfigured = errors.New("discord command sync client is not configured")
+
 func NewCommandSyncClient(token, applicationID string) (*CommandSyncClient, error) {
+	token = strings.TrimSpace(token)
+	applicationID = strings.TrimSpace(applicationID)
+	if token == "" || applicationID == "" {
+		return nil, errCommandSyncClientNotConfigured
+	}
 	session, err := dgo.New("Bot " + token)
 	if err != nil {
 		return nil, fmt.Errorf("create discord rest session: %w", err)
@@ -23,10 +32,10 @@ func NewCommandSyncClient(token, applicationID string) (*CommandSyncClient, erro
 }
 
 func (c *CommandSyncClient) ListCommands(ctx context.Context, scope commands.Scope) ([]commands.RemoteCommand, error) {
-	if err := ctx.Err(); err != nil {
+	if err := c.ready(ctx); err != nil {
 		return nil, err
 	}
-	remote, err := c.session.ApplicationCommands(c.applicationID, scope.GuildID)
+	remote, err := c.session.ApplicationCommands(c.applicationID, scope.GuildID, dgo.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("list application commands: %w", err)
 	}
@@ -35,6 +44,9 @@ func (c *CommandSyncClient) ListCommands(ctx context.Context, scope commands.Sco
 	}
 	result := make([]commands.RemoteCommand, 0, len(remote))
 	for _, command := range remote {
+		if command == nil {
+			continue
+		}
 		result = append(result, fromDiscordCommand(command))
 	}
 	commands.SortRemote(result)
@@ -42,52 +54,58 @@ func (c *CommandSyncClient) ListCommands(ctx context.Context, scope commands.Sco
 }
 
 func (c *CommandSyncClient) CreateCommand(ctx context.Context, scope commands.Scope, definition commands.Definition) (commands.RemoteCommand, error) {
-	if err := ctx.Err(); err != nil {
+	if err := c.ready(ctx); err != nil {
 		return commands.RemoteCommand{}, err
 	}
-	created, err := c.session.ApplicationCommandCreate(c.applicationID, scope.GuildID, toDiscordCommand(definition))
+	created, err := c.session.ApplicationCommandCreate(c.applicationID, scope.GuildID, toDiscordCommand(definition), dgo.WithContext(ctx))
 	if err != nil {
 		return commands.RemoteCommand{}, fmt.Errorf("create application command: %w", err)
 	}
 	if err := ctx.Err(); err != nil {
 		return commands.RemoteCommand{}, err
 	}
+	if created == nil {
+		return commands.RemoteCommand{}, errors.New("create application command returned an empty response")
+	}
 	return fromDiscordCommand(created), nil
 }
 
 func (c *CommandSyncClient) UpdateCommand(ctx context.Context, scope commands.Scope, remoteID string, definition commands.Definition) (commands.RemoteCommand, error) {
-	if err := ctx.Err(); err != nil {
+	if err := c.ready(ctx); err != nil {
 		return commands.RemoteCommand{}, err
 	}
-	updated, err := c.session.ApplicationCommandEdit(c.applicationID, scope.GuildID, remoteID, toDiscordCommand(definition))
+	updated, err := c.session.ApplicationCommandEdit(c.applicationID, scope.GuildID, remoteID, toDiscordCommand(definition), dgo.WithContext(ctx))
 	if err != nil {
 		return commands.RemoteCommand{}, fmt.Errorf("edit application command: %w", err)
 	}
 	if err := ctx.Err(); err != nil {
 		return commands.RemoteCommand{}, err
 	}
+	if updated == nil {
+		return commands.RemoteCommand{}, errors.New("edit application command returned an empty response")
+	}
 	return fromDiscordCommand(updated), nil
 }
 
 func (c *CommandSyncClient) DeleteCommand(ctx context.Context, scope commands.Scope, remoteID string) error {
-	if err := ctx.Err(); err != nil {
+	if err := c.ready(ctx); err != nil {
 		return err
 	}
-	if err := c.session.ApplicationCommandDelete(c.applicationID, scope.GuildID, remoteID); err != nil {
+	if err := c.session.ApplicationCommandDelete(c.applicationID, scope.GuildID, remoteID, dgo.WithContext(ctx)); err != nil {
 		return fmt.Errorf("delete application command: %w", err)
 	}
 	return ctx.Err()
 }
 
 func (c *CommandSyncClient) BulkOverwriteCommands(ctx context.Context, scope commands.Scope, definitions []commands.Definition) ([]commands.RemoteCommand, error) {
-	if err := ctx.Err(); err != nil {
+	if err := c.ready(ctx); err != nil {
 		return nil, err
 	}
 	payload := make([]*dgo.ApplicationCommand, 0, len(definitions))
 	for _, definition := range definitions {
 		payload = append(payload, toDiscordCommand(definition))
 	}
-	created, err := c.session.ApplicationCommandBulkOverwrite(c.applicationID, scope.GuildID, payload)
+	created, err := c.session.ApplicationCommandBulkOverwrite(c.applicationID, scope.GuildID, payload, dgo.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("bulk overwrite application commands: %w", err)
 	}
@@ -96,10 +114,26 @@ func (c *CommandSyncClient) BulkOverwriteCommands(ctx context.Context, scope com
 	}
 	result := make([]commands.RemoteCommand, 0, len(created))
 	for _, command := range created {
+		if command == nil {
+			continue
+		}
 		result = append(result, fromDiscordCommand(command))
 	}
 	commands.SortRemote(result)
 	return result, nil
+}
+
+func (c *CommandSyncClient) ready(ctx context.Context) error {
+	if ctx == nil {
+		return errCommandSyncClientNotConfigured
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if c == nil || c.session == nil || strings.TrimSpace(c.applicationID) == "" {
+		return errCommandSyncClientNotConfigured
+	}
+	return nil
 }
 
 func toDiscordCommand(definition commands.Definition) *dgo.ApplicationCommand {
@@ -217,6 +251,9 @@ func fromDiscordCommand(command *dgo.ApplicationCommand) commands.RemoteCommand 
 func fromDiscordOptions(options []*dgo.ApplicationCommandOption) []commands.Option {
 	result := make([]commands.Option, 0, len(options))
 	for _, option := range options {
+		if option == nil {
+			continue
+		}
 		result = append(result, commands.Option{
 			Type:                     commands.OptionType(option.Type),
 			Name:                     option.Name,
@@ -235,6 +272,9 @@ func fromDiscordOptions(options []*dgo.ApplicationCommandOption) []commands.Opti
 func fromDiscordChoices(choices []*dgo.ApplicationCommandOptionChoice) []commands.Choice {
 	result := make([]commands.Choice, 0, len(choices))
 	for _, choice := range choices {
+		if choice == nil {
+			continue
+		}
 		result = append(result, commands.Choice{
 			Name:              choice.Name,
 			NameLocalizations: fromDiscordLocalesMap(choice.NameLocalizations),
