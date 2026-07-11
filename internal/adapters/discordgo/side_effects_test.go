@@ -121,6 +121,71 @@ func TestRoleWritesUseRESTWithoutCachedMember(t *testing.T) {
 	}
 }
 
+func TestActorCanModerateMatchesLegacyHighestRoleComparison(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet || request.URL.Path != "/guilds/guild-1/roles" {
+			writer.WriteHeader(http.StatusNotFound)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`[
+			{"id":"guild-1","name":"@everyone","position":0},
+			{"id":"role-low","name":"low","position":1},
+			{"id":"role-equal","name":"equal","position":2},
+			{"id":"role-high","name":"high","position":3}
+		]`))
+	}))
+	defer server.Close()
+	previousGuilds := dgo.EndpointGuilds
+	dgo.EndpointGuilds = server.URL + "/guilds/"
+	defer func() { dgo.EndpointGuilds = previousGuilds }()
+
+	state := dgo.NewState()
+	if err := state.GuildAdd(&dgo.Guild{
+		ID: "guild-1",
+		Members: []*dgo.Member{
+			{GuildID: "guild-1", User: &dgo.User{ID: "target-low"}, Roles: []string{"role-low"}},
+			{GuildID: "guild-1", User: &dgo.User{ID: "target-equal"}, Roles: []string{"role-equal"}},
+			{GuildID: "guild-1", User: &dgo.User{ID: "target-high"}, Roles: []string{"role-high"}},
+			{GuildID: "guild-1", User: &dgo.User{ID: "target-none"}},
+			{GuildID: "guild-1", User: &dgo.User{ID: "actor-self"}, Roles: []string{"role-equal"}},
+		},
+	}); err != nil {
+		t.Fatalf("seed guild state: %v", err)
+	}
+	session, err := dgo.New("Bot test-token")
+	if err != nil {
+		t.Fatalf("new discord session: %v", err)
+	}
+	session.State = state
+	client := SideEffectClient{Session: &Session{session: session}}
+
+	tests := []struct {
+		name         string
+		actorRoleIDs []string
+		targetUserID string
+		wantModerate bool
+	}{
+		{name: "higher", actorRoleIDs: []string{"role-high"}, targetUserID: "target-low", wantModerate: true},
+		{name: "equal", actorRoleIDs: []string{"role-equal"}, targetUserID: "target-equal", wantModerate: false},
+		{name: "lower", actorRoleIDs: []string{"role-low"}, targetUserID: "target-high", wantModerate: false},
+		{name: "highest actor role wins", actorRoleIDs: []string{"role-low", "role-high"}, targetUserID: "target-equal", wantModerate: true},
+		{name: "everyone roles are equal", targetUserID: "target-none", wantModerate: false},
+		{name: "self", actorRoleIDs: []string{"role-equal"}, targetUserID: "actor-self", wantModerate: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			allowed, err := client.ActorCanModerate(context.Background(), "guild-1", test.actorRoleIDs, test.targetUserID)
+			if err != nil {
+				t.Fatalf("actor can moderate: %v", err)
+			}
+			if allowed != test.wantModerate {
+				t.Fatalf("allowed = %t, want %t", allowed, test.wantModerate)
+			}
+		})
+	}
+}
+
 func TestOutboundMessageSendIncludesReplyReference(t *testing.T) {
 	send := outboundMessageSend(" channel-1 ", ports.OutboundMessage{
 		Content:          "hello",
