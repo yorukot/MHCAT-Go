@@ -48,8 +48,8 @@ func TestCoinGameHigherLowerAcceptShowsDrawBeforeDelayedSettlement(t *testing.T)
 	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Content, "正在為您隨機抽取數字") || len(responder.Updates[0].Embeds) != 0 || len(responder.Updates[0].Components) != 0 {
 		t.Fatalf("drawing update = %#v", responder.Updates)
 	}
-	if len(responder.Follow) != 1 || !responder.Follow[0].Ephemeral || !strings.Contains(responder.Follow[0].Content, "成功接受") {
-		t.Fatalf("accept feedback = %#v", responder.Follow)
+	if len(responder.Follow) != 0 {
+		t.Fatalf("higher/lower accept unexpectedly sent follow-up = %#v", responder.Follow)
 	}
 	session, ok := module.gameSessions.GetForComponent("guild-1", "user-1", "channel-1", "message-1")
 	if !ok || session.Phase != coinGamePhaseHigherLowerDrawing || session.HigherLowerChallenger != 90 || session.HigherLowerOpponent != 10 {
@@ -252,7 +252,7 @@ func TestCoinGameInviteCanBeAcceptedBeforeLegacyDeadline(t *testing.T) {
 	if err := module.CoinGameComponentHandler()(context.Background(), accept, responder); err != nil {
 		t.Fatalf("accept game: %v", err)
 	}
-	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Content, "正在為您隨機抽取數字") || len(responder.Follow) != 1 || scheduler.Len() != 1 {
+	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Content, "正在為您隨機抽取數字") || len(responder.Follow) != 0 || scheduler.Len() != 1 {
 		t.Fatalf("accept update = %#v", responder.Updates)
 	}
 	assertCoinGameBalances(t, repo, 40, 40)

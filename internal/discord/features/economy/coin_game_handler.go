@@ -255,7 +255,7 @@ func (m Module) startHigherLower(ctx context.Context, responder responses.Respon
 	if err := responder.UpdateMessage(ctx, higherLowerDrawingMessage()); err != nil {
 		return err
 	}
-	return responder.FollowUp(ctx, coinGameAcceptedTextMessage())
+	return nil
 }
 
 func (m Module) startKnowledge(ctx context.Context, responder responses.Responder, session coinGameSession, claim *coinGameSessionClaim) error {
