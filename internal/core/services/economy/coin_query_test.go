@@ -21,8 +21,37 @@ func TestCoinQueryUsesConfiguredGachaCost(t *testing.T) {
 	if !result.ConfigFound {
 		t.Fatal("expected config to be found")
 	}
-	if result.GachaCost != 700 || result.GachaCostText != "700" || result.MissingCoins != 575 || result.MissingCoinsText != "575" || result.CanGacha {
+	if result.GachaCost != 700 || result.GachaCostText != "700" || result.BalanceText != "125" || result.MissingCoins != 575 || result.MissingCoinsText != "575" || result.CanGacha {
 		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
+func TestCoinQueryPreservesLegacyBalanceNumberEdges(t *testing.T) {
+	tests := []struct {
+		name        string
+		text        string
+		wantMissing string
+		wantCan     bool
+	}{
+		{name: "undefined", text: "undefined", wantCan: true},
+		{name: "null", text: "null", wantMissing: "500"},
+		{name: "decimal", text: "125.5", wantMissing: "374.5"},
+		{name: "positive infinity", text: "Infinity", wantCan: true},
+		{name: "negative infinity", text: "-Infinity", wantMissing: "Infinity"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewEconomyRepository()
+			repo.PutBalance(domain.CoinBalance{GuildID: "guild", UserID: "user", CoinsText: test.text})
+			repo.PutConfig(domain.EconomyConfig{GuildID: "guild", GachaCost: 500})
+			result, err := (CoinQueryService{Repository: repo}).Query(context.Background(), "guild", "user")
+			if err != nil {
+				t.Fatalf("query: %v", err)
+			}
+			if result.BalanceText != test.text || result.MissingCoinsText != test.wantMissing || result.CanGacha != test.wantCan {
+				t.Fatalf("result = %#v", result)
+			}
+		})
 	}
 }
 

@@ -83,7 +83,7 @@ func legacyCoinQueryMessage(result coreeconomy.CoinQueryResult, subjectName stri
 	return responses.Message{
 		Ephemeral: true,
 		Embeds: []responses.Embed{{
-			Title:       fmt.Sprintf("%s%s目前有:`%d`個代幣!", legacyCoinMoneyEmoji, subjectName, result.Balance.Coins),
+			Title:       fmt.Sprintf("%s%s目前有:`%s`個代幣!", legacyCoinMoneyEmoji, subjectName, result.BalanceText),
 			Description: legacyCoinDescription(result.GachaCostText),
 			Color:       color,
 			Footer: &responses.EmbedFooter{

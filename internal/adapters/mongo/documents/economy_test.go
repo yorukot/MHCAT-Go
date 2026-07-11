@@ -23,7 +23,7 @@ func TestCoinDocumentLegacyBSONDecodesMixedNumericTypes(t *testing.T) {
 		t.Fatalf("decode document: %v", err)
 	}
 	balance := document.ToDomain()
-	if balance.GuildID != "guild-1" || balance.UserID != "user-1" || balance.Coins != 1234 || balance.Today != 7 {
+	if balance.GuildID != "guild-1" || balance.UserID != "user-1" || balance.Coins != 1234 || balance.CoinsText != "1234" || balance.Today != 7 {
 		t.Fatalf("balance = %#v", balance)
 	}
 }
@@ -41,8 +41,37 @@ func TestCoinDocumentMissingNumericFieldsDecodeSafe(t *testing.T) {
 		t.Fatalf("decode document: %v", err)
 	}
 	balance := document.ToDomain()
-	if balance.Coins != 0 || balance.Today != 0 {
+	if balance.Coins != 0 || balance.CoinsText != "undefined" || balance.Today != 0 {
 		t.Fatalf("balance = %#v", balance)
+	}
+}
+
+func TestCoinDocumentPreservesMongooseCoinDisplay(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+		want  string
+	}{
+		{name: "null", value: nil, want: "null"},
+		{name: "decimal", value: 125.5, want: "125.5"},
+		{name: "positive infinity", value: math.Inf(1), want: "Infinity"},
+		{name: "negative infinity", value: math.Inf(-1), want: "-Infinity"},
+		{name: "malformed", value: bson.A{1}, want: "undefined"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			raw, err := bson.Marshal(bson.D{{Key: "guild", Value: "guild-1"}, {Key: "member", Value: "user-1"}, {Key: "coin", Value: test.value}})
+			if err != nil {
+				t.Fatalf("marshal fixture: %v", err)
+			}
+			var document CoinDocument
+			if err := bson.Unmarshal(raw, &document); err != nil {
+				t.Fatalf("decode document: %v", err)
+			}
+			if got := document.ToDomain().CoinsText; got != test.want {
+				t.Fatalf("display = %q, want %q", got, test.want)
+			}
+		})
 	}
 }
 

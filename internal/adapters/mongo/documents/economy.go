@@ -45,10 +45,11 @@ type ShopItemDocument struct {
 
 func (d CoinDocument) ToDomain() domain.CoinBalance {
 	return domain.CoinBalance{
-		GuildID: d.Guild,
-		UserID:  d.Member,
-		Coins:   legacyInt64(d.Coin),
-		Today:   legacyInt64(d.Today),
+		GuildID:   d.Guild,
+		UserID:    d.Member,
+		Coins:     legacyInt64(d.Coin),
+		CoinsText: legacyPriceString(d.Coin),
+		Today:     legacyInt64(d.Today),
 	}
 }
 

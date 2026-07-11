@@ -22,6 +22,7 @@ type CoinQueryResult struct {
 	ConfigFound      bool
 	GachaCost        int64
 	GachaCostText    string
+	BalanceText      string
 	MissingCoins     int64
 	MissingCoinsText string
 	CanGacha         bool
@@ -56,34 +57,34 @@ func (s CoinQueryService) Query(ctx context.Context, guildID string, userID stri
 	if missing < 0 {
 		missing = 0
 	}
-	missingText, canGacha := legacyCoinDifference(gachaCostText, balance.Coins)
+	balanceText := balance.CoinsText
+	if balanceText == "" {
+		balanceText = strconv.FormatInt(balance.Coins, 10)
+	}
+	missingText, canGacha := legacyCoinDifference(gachaCostText, balanceText)
 	return CoinQueryResult{
 		Balance:          balance,
 		Config:           config,
 		ConfigFound:      configFound,
 		GachaCost:        gachaCost,
 		GachaCostText:    gachaCostText,
+		BalanceText:      balanceText,
 		MissingCoins:     missing,
 		MissingCoinsText: missingText,
 		CanGacha:         canGacha,
 	}, nil
 }
 
-func legacyCoinDifference(gachaCost string, coins int64) (string, bool) {
-	var cost float64
-	switch gachaCost {
-	case "null":
-		cost = 0
-	case "undefined", "NaN":
+func legacyCoinDifference(gachaCost string, coins string) (string, bool) {
+	cost, ok := legacyDisplayedNumber(gachaCost)
+	if !ok {
 		return "", true
-	default:
-		parsed, err := strconv.ParseFloat(gachaCost, 64)
-		if err != nil || math.IsNaN(parsed) {
-			return "", true
-		}
-		cost = parsed
 	}
-	difference := cost - float64(coins)
+	balance, ok := legacyDisplayedNumber(coins)
+	if !ok {
+		return "", true
+	}
+	difference := cost - balance
 	if !(difference > 0) {
 		return "", true
 	}
@@ -91,4 +92,15 @@ func legacyCoinDifference(gachaCost string, coins int64) (string, bool) {
 		return "Infinity", false
 	}
 	return strconv.FormatFloat(difference, 'f', -1, 64), false
+}
+
+func legacyDisplayedNumber(value string) (float64, bool) {
+	switch value {
+	case "null":
+		return 0, true
+	case "undefined", "NaN":
+		return 0, false
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	return parsed, err == nil && !math.IsNaN(parsed)
 }

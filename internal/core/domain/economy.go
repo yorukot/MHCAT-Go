@@ -42,10 +42,11 @@ const (
 )
 
 type CoinBalance struct {
-	GuildID string
-	UserID  string
-	Coins   int64
-	Today   int64
+	GuildID   string
+	UserID    string
+	Coins     int64
+	CoinsText string
+	Today     int64
 }
 
 type EconomyConfig struct {
