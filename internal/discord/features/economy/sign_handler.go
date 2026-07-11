@@ -11,6 +11,7 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	coreeconomy "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/economy"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/customid"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
@@ -141,13 +142,17 @@ func (m Module) signInErrorMessage(ctx context.Context, interaction interactions
 
 func (m Module) signDuplicateText(ctx context.Context, guildID string) string {
 	if m.query.Repository == nil {
-		return signRollingDuplicateText
-	}
-	config, err := m.query.Repository.GetEconomyConfig(ctx, guildID)
-	if err != nil || config.ResetMarker == 0 {
 		return signDailyDuplicateText
 	}
-	return signRollingDuplicateText
+	config, err := m.query.Repository.GetEconomyConfig(ctx, guildID)
+	if err != nil {
+		return signDailyDuplicateText
+	}
+	rolling, _ := coreeconomy.LegacySignWindow(config, true)
+	if rolling {
+		return signRollingDuplicateText
+	}
+	return signDailyDuplicateText
 }
 
 func (m Module) signCalendarMessage(calendar domain.SignCalendar, request signPageRequest, username string, avatarData []byte, status string) (responses.Message, error) {

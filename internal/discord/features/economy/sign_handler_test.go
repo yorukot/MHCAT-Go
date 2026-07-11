@@ -85,6 +85,14 @@ func TestSignInDuplicateUsesDailyOrRollingLegacyText(t *testing.T) {
 	if got := module.signDuplicateText(context.Background(), signTestGuildID); got != signRollingDuplicateText {
 		t.Fatalf("rolling duplicate text = %q", got)
 	}
+	for _, marker := range []string{"undefined", "null", "3600.5", "Infinity", "-1"} {
+		repo := fakemongo.NewEconomyRepository()
+		repo.PutConfig(domain.EconomyConfig{GuildID: signTestGuildID, ResetMarkerText: marker})
+		module := NewModuleWithSignIn(repo, repo, nil, nil, nil)
+		if got := module.signDuplicateText(context.Background(), signTestGuildID); got != signRollingDuplicateText {
+			t.Fatalf("marker %q duplicate text = %q", marker, got)
+		}
+	}
 }
 
 func TestSignInHandlerRendersDuplicateCalendarInsteadOfRawError(t *testing.T) {
