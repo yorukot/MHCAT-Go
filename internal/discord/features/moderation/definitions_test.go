@@ -6,6 +6,24 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 )
 
+func TestWarningDefinitionsRemainPubliclyDiscoverable(t *testing.T) {
+	definitions := []commands.Definition{
+		WarningHistoryDefinition(),
+		WarningSettingsDefinition(),
+		WarningRemoveDefinition(),
+		WarningRemoveAllDefinition(),
+		WarningIssueDefinition(),
+	}
+	for _, definition := range definitions {
+		if definition.Type != commands.CommandTypeChatInput {
+			t.Errorf("%s type = %q", definition.Name, definition.Type)
+		}
+		if definition.DefaultMemberPermissions != nil {
+			t.Errorf("%s default permissions = %#v", definition.Name, definition.DefaultMemberPermissions)
+		}
+	}
+}
+
 func TestWarningHistoryDefinitionMatchesLegacyShape(t *testing.T) {
 	definition := WarningHistoryDefinition()
 	if definition.Name != "警告紀錄" || definition.Description != "收尋一位使用者的警告" {
