@@ -882,7 +882,7 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 		featureonboarding.NewJoinRoleAssignmentModule(
 			repo,
 			sideEffects,
-			sideEffects,
+			discordadapter.NewCachedRoleInspector(sideEffects),
 			discordInfoProvider(session),
 			sideEffects,
 		).RegisterEventRoutes(dispatcher)
