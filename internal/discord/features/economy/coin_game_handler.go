@@ -105,7 +105,7 @@ func (m Module) CoinGameHandler() interactions.Handler {
 		if !ok {
 			return responder.EditOriginal(ctx, coinGameSlashErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 		}
-		if command.Wager < 0 {
+		if (command.Kind == domain.CoinGameKindKnowledge && command.Wager < 0) || command.Wager < -1 {
 			return responder.EditOriginal(ctx, coinGameSlashErrorMessage("賭注必須大於-1"))
 		}
 		if _, err := m.game.CheckBalances(ctx, command); err != nil {

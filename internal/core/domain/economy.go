@@ -403,7 +403,11 @@ func (c CoinGameCommand) Normalize() CoinGameCommand {
 
 func (c CoinGameCommand) Validate() error {
 	c = c.Normalize()
-	if c.GuildID == "" || c.ChallengerID == "" || c.OpponentID == "" || c.ChallengerID == c.OpponentID || c.Wager < 0 || !c.Kind.Valid() {
+	minimumWager := int64(-1)
+	if c.Kind == CoinGameKindKnowledge {
+		minimumWager = 0
+	}
+	if c.GuildID == "" || c.ChallengerID == "" || c.OpponentID == "" || c.ChallengerID == c.OpponentID || c.Wager < minimumWager || !c.Kind.Valid() {
 		return ErrInvalidCoinGameCommand
 	}
 	return nil
@@ -421,7 +425,7 @@ func (c CoinGameSettlementCommand) Normalize() CoinGameSettlementCommand {
 
 func (c CoinGameSettlementCommand) Validate() error {
 	c = c.Normalize()
-	if c.GuildID == "" || c.ChallengerID == "" || c.OpponentID == "" || c.ChallengerID == c.OpponentID || c.ChallengerReturn < 0 || c.OpponentReturn < 0 {
+	if c.GuildID == "" || c.ChallengerID == "" || c.OpponentID == "" || c.ChallengerID == c.OpponentID || c.ChallengerReturn < -2 || c.OpponentReturn < -2 {
 		return ErrInvalidCoinGameCommand
 	}
 	return nil

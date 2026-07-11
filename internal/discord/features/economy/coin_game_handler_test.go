@@ -207,6 +207,38 @@ func TestCoinGameRejectsOpponentWithoutEnoughCoins(t *testing.T) {
 	}
 }
 
+func TestCoinGamePreservesKindSpecificNegativeWagerGuard(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		kind       domain.CoinGameKind
+		wager      string
+		wantInvite bool
+	}{
+		{name: "blackjack accepts negative one", kind: domain.CoinGameKindBlackjack, wager: "-1", wantInvite: true},
+		{name: "higher lower accepts negative one", kind: domain.CoinGameKindHigherLower, wager: "-1", wantInvite: true},
+		{name: "knowledge rejects negative one", kind: domain.CoinGameKindKnowledge, wager: "-1"},
+		{name: "blackjack rejects below negative one", kind: domain.CoinGameKindBlackjack, wager: "-2"},
+		{name: "higher lower rejects below negative one", kind: domain.CoinGameKindHigherLower, wager: "-2"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			responder := fakediscord.NewResponder()
+			module := NewCoinGameModule(coinGameTestRepository(), nil, nil, shopFixedClock{now: time.Unix(100, 0)})
+			if err := module.CoinGameHandler()(context.Background(), coinGameSlash(test.kind, test.wager), responder); err != nil {
+				t.Fatalf("handle slash: %v", err)
+			}
+			if test.wantInvite {
+				if len(responder.Follow) != 1 || !strings.Contains(responder.Follow[0].Embeds[0].Description, "`"+test.wager+"`") {
+					t.Fatalf("invite = %#v", responder.Follow)
+				}
+				return
+			}
+			if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:error:980086028113182730> | 賭注必須大於-1" {
+				t.Fatalf("rejection = %#v", responder.Edits)
+			}
+		})
+	}
+}
+
 func TestCoinGameInviteExpiresAtLegacyDeadline(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 50})
