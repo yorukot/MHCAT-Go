@@ -64,7 +64,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `統計身分組人數` | `slashCommands/統計系統/role_create.js` | matching-definition | none |
 | `經驗值改變` | `slashCommands/經驗系統/xp_add.js` | matching-definition | none |
 | `經驗值重製` | `slashCommands/經驗系統/reset_xp.js` | matching-definition | none |
-| `翻譯` | `slashCommands/實用工具/translate.js` | matching-definition | none |
+| `翻譯` | `slashCommands/實用工具/translate.js` | parity-audited | See [translate parity contract](86-translate.md) |
 | `聊天排行榜` | `slashCommands/經驗系統/text_rank.js` | matching-definition | none |
 | `聊天經驗` | `slashCommands/經驗系統/text_xp.js` | matching-definition | none |
 | `聊天經驗刪除` | `slashCommands/經驗系統/text_set_delete.js` | matching-definition | none |

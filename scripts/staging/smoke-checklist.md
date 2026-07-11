@@ -41,6 +41,7 @@
 - For warning-system smoke, stop Node warning owners, back up and audit `warndbs`/`errors_sets`, use disposable members, pair only the four warning runtime/sync families under test, create no indexes, and follow `docs/84-warning-system.md`.
 - For message cleanup smoke, stop the Node owner, use only a disposable staging channel, pair `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true` with `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`, and follow `docs/85-message-cleanup.md`; it irreversibly deletes recent Discord messages and writes no Mongo data.
 - For delete-data smoke, back up and use only disposable staging config rows, pair `MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=true` with `MHCAT_FEATURE_DELETE_DATA_ENABLED=true`, and follow `docs/83-delete-data.md`; it deletes all duplicate guild rows in the selected collection.
+- For translate smoke, stop the Node owner, pair `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true` with `MHCAT_FEATURE_TRANSLATE_ENABLED=true`, confirm outbound provider access, and follow `docs/86-translate.md`; it uses no Mongo feature data or Message Content intent.
 - Run `scripts/staging/command-sync-dry-run.sh`.
 - Review the diff plan before apply.
 - Optionally run `scripts/staging/command-sync-apply-guild.sh` only with `MHCAT_STAGING_MODE=true` and `MHCAT_STAGING_ALLOW_COMMAND_APPLY=true`.
@@ -80,6 +81,7 @@
 - If warning-system smoke is enabled, run the canonical metadata/UI, audience, mixed-scalar/duplicate, raw-reason/timestamp, first-warning threshold skip, exact-ban/fallback-kick, splice-index, failure-continuation, usage, no-index, and rollback cases in `docs/84-warning-system.md`.
 - If message cleanup smoke is enabled, run the canonical exact UI/color, permission/count, filtered-zero, multi-page actual-count, target-user scan, old-message retention, partial-failure, usage, no-Mongo, and rollback cases in `docs/85-message-cleanup.md`.
 - If delete-data smoke is enabled, run `/刪除資料`, verify the exact public owner-scoped select UI, select only a backed-up disposable target, and confirm public success/missing responses, duplicate cleanup, guild/target isolation, no indexes, and rollback.
+- If translate smoke is enabled, run the exact public loading/result UI, representative target, raw-whitespace, emoji/long-input, forced provider failure/timeout, one-usage-event, no-Mongo, and rollback cases in `docs/86-translate.md`.
 - Verify no duplicate initial response and no raw internal error.
 - Verify no command deletion or bulk overwrite happened.
 - Verify no Mongo feature write happened except explicitly tested staging config writes, role-selection `message_reactions`/`btns` writes, economy coin-admin disposable `coins` writes, economy coin-reset disposable `coins` deletes/divisions after owner confirmation, warning-system disposable `warndbs`/`errors_sets` writes, and verify no index creation happened.

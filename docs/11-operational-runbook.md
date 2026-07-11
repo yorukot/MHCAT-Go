@@ -451,7 +451,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true
 MHCAT_FEATURE_TRANSLATE_ENABLED=true
 ```
 
-This command calls the external translate provider through a driver-agnostic port. It does not require Message Content intent, does not read or write Mongo feature data, and returns a safe red error embed instead of leaving the legacy loading embed stuck when the provider fails.
+This command calls the external translate provider through a driver-agnostic port. It does not require Message Content intent or Mongo feature data. Go preserves the public loading follow-up, uses a 10-second provider budget inside a 15-second interaction floor, and edits the same follow-up to a safe red error instead of leaving it stuck. Follow [86-translate.md](86-translate.md) for exact UI, live provider smoke, ownership, and rollback.
 
 `/查看餘額` is available only when both staging command sync and runtime flags are explicitly enabled:
 

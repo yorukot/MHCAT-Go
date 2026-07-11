@@ -241,7 +241,7 @@ export MHCAT_FEATURE_TRANSLATE_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true
 ```
 
-Set both together only when testing `/翻譯`. This path calls the external translate provider, does not require Message Content intent, and does not write Mongo feature data.
+Set both together only when testing `/翻譯`. Stop the Node owner first. This path calls the external translate provider, does not require Message Content intent, and does not write Mongo feature data. Follow [86-translate.md](86-translate.md).
 
 Optional balance-query smoke flags:
 
@@ -1485,8 +1485,10 @@ If redeem flags were enabled and command sync apply was reviewed:
 If translate flags were enabled and command sync apply was reviewed:
 
 - `/翻譯 要的翻譯:你好 目標語言:en`;
-- verify the loading embed appears before the final translated embed;
-- verify provider failures return a safe red error embed and do not expose raw provider details.
+- verify the exact public green loading follow-up is edited in place to the random-color translated embed with exact fields/footer;
+- test representative `zh-TW`, `zh-CN`, `ja`, and Latin targets plus source whitespace, emoji, and long non-ASCII input;
+- force provider failure/timeout and verify the same follow-up becomes the exact safe `0xEA0000` error without raw details;
+- verify one global usage event per success/failure, no Mongo feature/index changes, and complete [86-translate.md](86-translate.md) rollback checks.
 
 If any warning flags were enabled and command sync apply was reviewed:
 

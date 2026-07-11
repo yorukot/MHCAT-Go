@@ -1,6 +1,6 @@
 # Translate Utility Slice
 
-Status: implemented behind explicit runtime and command-sync gates.
+Status: superseded by the canonical [translate parity contract](86-translate.md). Implemented behind explicit runtime and command-sync gates.
 
 ## Legacy Reference
 
@@ -25,7 +25,7 @@ Status: implemented behind explicit runtime and command-sync gates.
 - HTTP adapter: `internal/adapters/external.GoogleTranslateClient`
 - Handler: `internal/discord/features/utility.TranslateHandler`
 
-The handler defers immediately, shows the legacy loading embed, calls the provider, and then edits the original response to the legacy final embed. This differs from legacy's follow-up/edit-follow-up mechanics because the internal responder does not expose a follow-up message handle yet, but the user-visible loading and final embed content is preserved.
+The handler defers publicly, creates the legacy loading follow-up, calls the provider, and edits that same follow-up to the legacy final embed. The responder now exposes the required follow-up message handle.
 
 ## Intentional Fixes
 
@@ -39,7 +39,7 @@ The handler defers immediately, shows the legacy loading embed, calls the provid
 - Auto-chat / ChatGPT message runtime.
 - Message Content intent usage.
 - Provider selection/config beyond the current Google Translate-compatible adapter.
-- Usage count Mongo writes.
+- Feature-specific Mongo reads or writes. Optional global usage middleware remains independent.
 
 ## Tests
 
