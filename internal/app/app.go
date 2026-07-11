@@ -270,7 +270,7 @@ func defaultDiscordFactory(cfg config.Config) (DiscordSession, error) {
 		VoiceStates:      cfg.DiscordVoiceStateIntent,
 		MessageContent:   cfg.DiscordMessageContentIntent,
 	})
-	return discordadapter.NewSession(cfg.DiscordToken, intents)
+	return discordadapter.NewSession(cfg.DiscordToken, intents, cfg.DiscordShardID, cfg.DiscordShardCount)
 }
 
 func openWithTimeout(ctx context.Context, session DiscordSession, timeout time.Duration) error {

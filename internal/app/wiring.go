@@ -1182,7 +1182,8 @@ func botInfoProvider(session DiscordSession) ports.BotInfoProvider {
 			Session:    concrete,
 			Name:       "MHCAT",
 			StartedAt:  time.Now(),
-			ShardCount: 1,
+			ShardID:    concrete.ShardID(),
+			ShardCount: concrete.ShardCount(),
 		}
 	}
 	return nil

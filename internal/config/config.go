@@ -7,6 +7,8 @@ const (
 	DefaultLogLevel                             = "info"
 	DefaultLogFormat                            = "text"
 	DefaultDiscordEnableGateway                 = false
+	DefaultDiscordShardID                       = 0
+	DefaultDiscordShardCount                    = 1
 	DefaultMessageContentIntent                 = false
 	DefaultGuildMembersIntent                   = false
 	DefaultGuildMessagesIntent                  = false
@@ -104,6 +106,8 @@ type Config struct {
 	LogFormat                            string
 	DiscordToken                         string
 	DiscordEnableGateway                 bool
+	DiscordShardID                       int
+	DiscordShardCount                    int
 	DiscordMessageContentIntent          bool
 	DiscordGuildMembersIntent            bool
 	DiscordGuildMessagesIntent           bool

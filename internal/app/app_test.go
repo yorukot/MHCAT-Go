@@ -823,6 +823,8 @@ func validTestConfig() config.Config {
 		LogLevel:                     config.DefaultLogLevel,
 		LogFormat:                    config.DefaultLogFormat,
 		DiscordToken:                 "test-token",
+		DiscordShardID:               config.DefaultDiscordShardID,
+		DiscordShardCount:            config.DefaultDiscordShardCount,
 		MongoDBURI:                   "mongodb://localhost:27017/mhcat",
 		MongoDBDatabase:              "mhcat",
 		MongoConnectTimeout:          config.DefaultMongoConnectTimeout,

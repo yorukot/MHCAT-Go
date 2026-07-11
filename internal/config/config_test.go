@@ -902,6 +902,59 @@ func TestFeatureJoinRoleAssignmentRequiresGatewayAndGuildMembers(t *testing.T) {
 	}
 }
 
+func TestDiscordShardConfigParsesAndValidates(t *testing.T) {
+	cfg, err := LoadWithLookup(mapLookup(map[string]string{
+		"MHCAT_DISCORD_TOKEN":       "token",
+		"MHCAT_MONGODB_URI":         "mongodb://localhost",
+		"MHCAT_MONGODB_DATABASE":    "mhcat",
+		"MHCAT_DISCORD_SHARD_ID":    "7",
+		"MHCAT_DISCORD_SHARD_COUNT": "16",
+	}))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.DiscordShardID != 7 || cfg.DiscordShardCount != 16 {
+		t.Fatalf("shard = %d/%d", cfg.DiscordShardID, cfg.DiscordShardCount)
+	}
+	if err := Validate(cfg); err != nil {
+		t.Fatalf("validate config: %v", err)
+	}
+}
+
+func TestDiscordShardConfigRejectsInvalidRanges(t *testing.T) {
+	base := Config{
+		DiscordToken:                 "token",
+		MongoDBURI:                   "mongodb://localhost",
+		MongoDBDatabase:              "mhcat",
+		LogLevel:                     DefaultLogLevel,
+		LogFormat:                    DefaultLogFormat,
+		DiscordGatewayConnectTimeout: DefaultGatewayConnectTimeout,
+		DiscordInteractionTimeout:    DefaultInteractionTimeout,
+		DiscordGatewaySmokeTimeout:   DefaultGatewaySmokeTimeout,
+		MongoConnectTimeout:          DefaultMongoConnectTimeout,
+		MongoPingTimeout:             DefaultMongoPingTimeout,
+		ShutdownTimeout:              DefaultShutdownTimeout,
+	}
+	for _, tc := range []struct {
+		name  string
+		id    int
+		count int
+	}{
+		{name: "zero count", id: 0, count: 0},
+		{name: "negative id", id: -1, count: 16},
+		{name: "id equal count", id: 16, count: 16},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := base
+			cfg.DiscordShardID = tc.id
+			cfg.DiscordShardCount = tc.count
+			if err := Validate(cfg); err == nil {
+				t.Fatal("expected shard validation error")
+			}
+		})
+	}
+}
+
 func TestFeatureLeaveMessageDeliveryRequiresGatewayAndGuildMembers(t *testing.T) {
 	base := map[string]string{
 		"MHCAT_DISCORD_TOKEN":                          "token",

@@ -41,6 +41,12 @@ func Validate(cfg Config) error {
 	if cfg.DiscordGatewayConnectTimeout <= 0 {
 		return fmt.Errorf("%w: MHCAT_DISCORD_GATEWAY_CONNECT_TIMEOUT must be positive", ErrInvalidConfig)
 	}
+	if cfg.DiscordShardCount <= 0 {
+		return fmt.Errorf("%w: MHCAT_DISCORD_SHARD_COUNT must be positive", ErrInvalidConfig)
+	}
+	if cfg.DiscordShardID < 0 || cfg.DiscordShardID >= cfg.DiscordShardCount {
+		return fmt.Errorf("%w: MHCAT_DISCORD_SHARD_ID must be between 0 and MHCAT_DISCORD_SHARD_COUNT-1", ErrInvalidConfig)
+	}
 	if cfg.DiscordInteractionTimeout <= 0 {
 		return fmt.Errorf("%w: MHCAT_DISCORD_INTERACTION_TIMEOUT must be positive", ErrInvalidConfig)
 	}

@@ -20,6 +20,8 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 		LogLevel:                             getString(lookup, "MHCAT_LOG_LEVEL", DefaultLogLevel),
 		LogFormat:                            getString(lookup, "MHCAT_LOG_FORMAT", DefaultLogFormat),
 		DiscordEnableGateway:                 DefaultDiscordEnableGateway,
+		DiscordShardID:                       DefaultDiscordShardID,
+		DiscordShardCount:                    DefaultDiscordShardCount,
 		DiscordMessageContentIntent:          DefaultMessageContentIntent,
 		DiscordGuildMembersIntent:            DefaultGuildMembersIntent,
 		DiscordGuildMessagesIntent:           DefaultGuildMessagesIntent,
@@ -125,6 +127,12 @@ func LoadWithLookup(lookup LookupFunc) (Config, error) {
 
 	var err error
 	if cfg.DiscordEnableGateway, err = getBool(lookup, "MHCAT_DISCORD_ENABLE_GATEWAY", DefaultDiscordEnableGateway); err != nil {
+		return Config{}, err
+	}
+	if cfg.DiscordShardID, err = getInt(lookup, "MHCAT_DISCORD_SHARD_ID", DefaultDiscordShardID); err != nil {
+		return Config{}, err
+	}
+	if cfg.DiscordShardCount, err = getInt(lookup, "MHCAT_DISCORD_SHARD_COUNT", DefaultDiscordShardCount); err != nil {
 		return Config{}, err
 	}
 	if cfg.DiscordMessageContentIntent, err = getBool(lookup, "MHCAT_DISCORD_MESSAGE_CONTENT_INTENT", DefaultMessageContentIntent); err != nil {

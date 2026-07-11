@@ -17,7 +17,7 @@ type Session struct {
 	readyOnce sync.Once
 }
 
-func NewSession(token string, intents dgo.Intent) (*Session, error) {
+func NewSession(token string, intents dgo.Intent, shardID int, shardCount int) (*Session, error) {
 	if strings.TrimSpace(token) == "" {
 		return nil, errors.New("discord token is required")
 	}
@@ -26,11 +26,21 @@ func NewSession(token string, intents dgo.Intent) (*Session, error) {
 		return nil, fmt.Errorf("create discord session: %w", err)
 	}
 	session.Identify.Intents = intents
+	session.ShardID = shardID
+	session.ShardCount = shardCount
 	wrapped := &Session{session: session, ready: make(chan struct{})}
 	session.AddHandler(func(_ *dgo.Session, _ *dgo.Ready) {
 		wrapped.readyOnce.Do(func() { close(wrapped.ready) })
 	})
 	return wrapped, nil
+}
+
+func (s *Session) ShardID() int {
+	return s.session.ShardID
+}
+
+func (s *Session) ShardCount() int {
+	return s.session.ShardCount
 }
 
 func (s *Session) Open() error {
