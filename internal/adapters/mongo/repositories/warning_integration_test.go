@@ -103,12 +103,12 @@ func TestWarningMongoIntegrationNormalizesScalarContentOnAppend(t *testing.T) {
 	}
 
 	result, err := repository.AddWarning(context.Background(), domain.WarningIssue{
-		GuildID: "guild-1", UserID: "user-1", ModeratorID: "mod-1", Reason: "added", Time: "time",
+		GuildID: "guild-1", UserID: "user-1", ModeratorID: "mod-1", Reason: "  added  ", Time: "time",
 	})
 	if err != nil {
 		t.Fatalf("append warning: %v", err)
 	}
-	if result.Created || len(result.History.Entries) != 2 || result.History.Entries[1].Reason != "added" {
+	if result.Created || len(result.History.Entries) != 2 || result.History.Entries[1].Reason != "  added  " {
 		t.Fatalf("result = %#v", result)
 	}
 	assertWarningContentLength(t, collection, id, 2)

@@ -75,7 +75,7 @@ func (i WarningIssue) Validate() error {
 	if strings.TrimSpace(i.GuildID) == "" ||
 		strings.TrimSpace(i.UserID) == "" ||
 		strings.TrimSpace(i.ModeratorID) == "" ||
-		strings.TrimSpace(i.Reason) == "" ||
+		i.Reason == "" ||
 		strings.TrimSpace(i.Time) == "" {
 		return ErrInvalidWarningIssue
 	}

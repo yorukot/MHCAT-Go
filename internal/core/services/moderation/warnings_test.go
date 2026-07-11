@@ -98,7 +98,7 @@ func TestWarningIssueServiceAppendsWarnings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first issue: %v", err)
 	}
-	if !first.Created || len(first.History.Entries) != 1 {
+	if !first.Created || len(first.History.Entries) != 1 || first.History.Entries[0].Reason != " spam " {
 		t.Fatalf("first issue result = %#v", first)
 	}
 	second, err := service.Issue(context.Background(), domain.WarningIssue{

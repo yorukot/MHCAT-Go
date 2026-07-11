@@ -59,7 +59,6 @@ func (r *WarningHistoryRepository) AddWarning(_ context.Context, issue domain.Wa
 	issue.GuildID = strings.TrimSpace(issue.GuildID)
 	issue.UserID = strings.TrimSpace(issue.UserID)
 	issue.ModeratorID = strings.TrimSpace(issue.ModeratorID)
-	issue.Reason = strings.TrimSpace(issue.Reason)
 	issue.Time = strings.TrimSpace(issue.Time)
 	if err := issue.Validate(); err != nil {
 		return domain.WarningIssueResult{}, err

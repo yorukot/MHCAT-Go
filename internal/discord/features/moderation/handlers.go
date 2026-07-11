@@ -139,7 +139,7 @@ func (m Module) WarningIssueHandler() interactions.Handler {
 			return responder.EditOriginal(ctx, warningErrorMessage("你需要有`訊息管理`才能使用此指令"))
 		}
 		userID := warningStringOption(interaction, warningOptionUser)
-		reason := warningStringOption(interaction, warningIssueOptionReason)
+		reason := warningRawStringOption(interaction, warningIssueOptionReason)
 		if m.hierarchy != nil {
 			allowed, err := m.hierarchy.ActorCanModerate(ctx, interaction.Actor.GuildID, interaction.Actor.RoleIDs, userID)
 			if err != nil {
@@ -588,7 +588,7 @@ func (m Module) sendWarningIssueDM(ctx context.Context, interaction interactions
 	_, _ = m.direct.SendDirectMessage(ctx, userID, ports.OutboundMessage{
 		Embeds: []ports.OutboundEmbed{{
 			Title:       "<:warning:985590881698590730> | 警告系統",
-			Description: fmt.Sprintf("<:KannaSip:997764767433379850> **你在%s被__警告__了!**\n<:lightbulb:1002169670574546964> **原因:**%s\n<:implementation:1002170846292488232> **執行者:**%s(id:%s)", guildName, strings.TrimSpace(reason), interaction.Actor.Username, interaction.Actor.UserID),
+			Description: fmt.Sprintf("<:KannaSip:997764767433379850> **你在%s被__警告__了!**\n<:lightbulb:1002169670574546964> **原因:**%s\n<:implementation:1002170846292488232> **執行者:**%s(id:%s)", guildName, reason, interaction.Actor.Username, interaction.Actor.UserID),
 			Color:       warningIssueDMColor,
 		}},
 		AllowedMentions: ports.AllowedMentions{},
@@ -627,6 +627,13 @@ func warningStringOption(interaction interactions.Interaction, name string) stri
 		return strings.TrimSpace(value.String)
 	}
 	return strings.TrimSpace(interaction.Options[name])
+}
+
+func warningRawStringOption(interaction interactions.Interaction, name string) string {
+	if value, ok := interaction.CommandOptions[name]; ok {
+		return value.String
+	}
+	return interaction.Options[name]
 }
 
 func warningIntegerOption(interaction interactions.Interaction, name string) (int64, bool) {

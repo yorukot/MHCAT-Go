@@ -43,6 +43,9 @@ func TestWarningIssueValidate(t *testing.T) {
 			t.Fatalf("issue %#v err = %v", issue, err)
 		}
 	}
+	if err := (domain.WarningIssue{GuildID: "guild-1", UserID: "user-1", ModeratorID: "mod-1", Reason: "   ", Time: "time"}).Validate(); err != nil {
+		t.Fatalf("legacy all-space reason should remain valid: %v", err)
+	}
 }
 
 func TestWarningRemovalValidate(t *testing.T) {

@@ -258,6 +258,42 @@ func TestWarningIssueSavesRendersLegacyEmbedAndDMs(t *testing.T) {
 	}
 }
 
+func TestWarningIssuePreservesRawReasonAcrossWritesAndSideEffects(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}}})
+	settings := fakemongo.NewWarningSettingsRepository()
+	settings.Settings["guild-1"] = domain.WarningSettings{GuildID: "guild-1", Threshold: 2, Action: domain.WarningSettingsActionKick}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewIssueModule(repo, settings, sideEffects, nil, sideEffects, sideEffects, sideEffects, moderationFixedClock{}, nil)
+	interaction := warningIssueInteraction("user-2", "  raw reason  ")
+
+	if err := module.WarningIssueHandler()(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	history := repo.Histories["guild-1\x00user-2"]
+	if len(history.Entries) != 2 || history.Entries[1].Reason != "  raw reason  " {
+		t.Fatalf("history = %#v", history)
+	}
+	if len(sideEffects.Kicked) != 1 || sideEffects.Kicked[0].Reason != "  raw reason  " {
+		t.Fatalf("kicks = %#v", sideEffects.Kicked)
+	}
+	if len(sideEffects.DirectMessages) != 1 || !strings.Contains(sideEffects.DirectMessages[0].Message.Embeds[0].Description, "**原因:**  raw reason  \n") {
+		t.Fatalf("direct messages = %#v", sideEffects.DirectMessages)
+	}
+}
+
+func TestWarningIssueAcceptsAllSpaceLegacyReason(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	module := NewIssueModule(repo, nil, nil, nil, nil, nil, nil, moderationFixedClock{}, nil)
+
+	if err := module.WarningIssueHandler()(context.Background(), warningIssueInteraction("user-2", "   "), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if history := repo.Histories["guild-1\x00user-2"]; len(history.Entries) != 1 || history.Entries[0].Reason != "   " {
+		t.Fatalf("history = %#v", history)
+	}
+}
+
 func TestWarningIssueThresholdSkipsNewLegacyRecord(t *testing.T) {
 	repo := fakemongo.NewWarningHistoryRepository()
 	settings := fakemongo.NewWarningSettingsRepository()
