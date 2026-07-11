@@ -15,7 +15,6 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakebotinfo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestWarningHistoryDoesNotEnforceAdvertisedManageMessages(t *testing.T) {
@@ -845,8 +844,7 @@ func TestCleanupCleanerErrorUsesGenericLegacyError(t *testing.T) {
 func TestCleanupRequestsMessagesAndRendersLegacyCompletion(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
 	sideEffects.CleanupDeleted = 7
-	usage := &fakeusage.Tracker{}
-	module := NewCleanupModule(sideEffects, usage)
+	module := NewCleanupModule(sideEffects, nil)
 	responder := fakediscord.NewResponder()
 	interaction := cleanupInteraction("", "user-2")
 	interaction.CommandOptions = map[string]interactions.CommandOptionValue{
@@ -882,9 +880,6 @@ func TestCleanupRequestsMessagesAndRendersLegacyCompletion(t *testing.T) {
 	}
 	if !strings.Contains(embed.Description, "**成功清除:**`7`/`10`") || !strings.Contains(embed.Description, "代表可能超過14天或沒這麼多訊息給清") {
 		t.Fatalf("description = %q", embed.Description)
-	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != CleanupCommandName || usage.Events[0].Feature != "message-cleanup" {
-		t.Fatalf("usage events = %#v", usage.Events)
 	}
 }
 

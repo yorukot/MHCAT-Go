@@ -21,28 +21,25 @@ type Module struct {
 	messages      ports.DiscordMessagePort
 	cleaner       ports.DiscordMessageCleaner
 	clock         ports.Clock
-	usage         ports.UsageTracker
 }
 
-func NewModule(repo ports.WarningHistoryRepository, members ports.DiscordGuildMemberReader, discord ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
+func NewModule(repo ports.WarningHistoryRepository, members ports.DiscordGuildMemberReader, discord ports.DiscordInfoProvider, _ ports.UsageTracker) Module {
 	return Module{
 		warnings: coremoderation.WarningHistoryService{Repository: repo},
 		members:  members,
 		discord:  discord,
-		usage:    usage,
 	}
 }
 
-func NewRemovalModule(repo ports.WarningRemovalRepository, direct ports.DiscordDirectMessagePort, discord ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
+func NewRemovalModule(repo ports.WarningRemovalRepository, direct ports.DiscordDirectMessagePort, discord ports.DiscordInfoProvider, _ ports.UsageTracker) Module {
 	return Module{
 		removal: coremoderation.WarningRemovalService{Repository: repo},
 		direct:  direct,
 		discord: discord,
-		usage:   usage,
 	}
 }
 
-func NewIssueModule(repo ports.WarningIssueRepository, settings ports.WarningSettingsRepository, direct ports.DiscordDirectMessagePort, discord ports.DiscordInfoProvider, hierarchy ports.DiscordMemberHierarchyInspector, memberActions ports.DiscordMemberPort, messages ports.DiscordMessagePort, clock ports.Clock, usage ports.UsageTracker) Module {
+func NewIssueModule(repo ports.WarningIssueRepository, settings ports.WarningSettingsRepository, direct ports.DiscordDirectMessagePort, discord ports.DiscordInfoProvider, hierarchy ports.DiscordMemberHierarchyInspector, memberActions ports.DiscordMemberPort, messages ports.DiscordMessagePort, clock ports.Clock, _ ports.UsageTracker) Module {
 	return Module{
 		issue:         coremoderation.WarningIssueService{Repository: repo},
 		settings:      coremoderation.WarningSettingsService{Repository: settings},
@@ -52,21 +49,18 @@ func NewIssueModule(repo ports.WarningIssueRepository, settings ports.WarningSet
 		memberActions: memberActions,
 		messages:      messages,
 		clock:         clock,
-		usage:         usage,
 	}
 }
 
-func NewSettingsModule(repo ports.WarningSettingsRepository, usage ports.UsageTracker) Module {
+func NewSettingsModule(repo ports.WarningSettingsRepository, _ ports.UsageTracker) Module {
 	return Module{
 		settings: coremoderation.WarningSettingsService{Repository: repo},
-		usage:    usage,
 	}
 }
 
-func NewCleanupModule(cleaner ports.DiscordMessageCleaner, usage ports.UsageTracker) Module {
+func NewCleanupModule(cleaner ports.DiscordMessageCleaner, _ ports.UsageTracker) Module {
 	return Module{
 		cleaner: cleaner,
-		usage:   usage,
 	}
 }
 

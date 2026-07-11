@@ -207,7 +207,7 @@ func (m Module) CleanupHandler() interactions.Handler {
 		if err := responder.EditOriginal(ctx, cleanupSuccessMessage(deleted, int(count))); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, CleanupCommandName, "message-cleanup")
+		return nil
 	}
 }
 
@@ -660,16 +660,4 @@ func warningIssueTimestamp(clock ports.Clock) string {
 		location = time.FixedZone("Asia/Taipei", 8*60*60)
 	}
 	return now.In(location).Format("2006年01月02日 15點04分")
-}
-
-func (m Module) track(ctx context.Context, interaction interactions.Interaction, commandName string, feature string) error {
-	if m.usage == nil {
-		return nil
-	}
-	return m.usage.TrackCommand(ctx, ports.UsageEvent{
-		CommandName: commandName,
-		UserID:      interaction.Actor.UserID,
-		GuildID:     interaction.Actor.GuildID,
-		Feature:     feature,
-	})
 }

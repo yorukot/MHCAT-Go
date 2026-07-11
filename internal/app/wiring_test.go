@@ -948,6 +948,40 @@ func TestBuildRuntimeRoutesMessageCleanupOnlyWithCleaner(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeTracksEachMessageCleanupAttemptOnce(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	sideEffects := fakediscord.NewSideEffects()
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                       validTestConfig(),
+		UsageTracker:                 tracker,
+		MessageCleanupFeatureEnabled: true,
+		MessageCleaner:               sideEffects,
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+
+	denied := fakediscord.SlashInteractionWithOptions("刪除訊息", "", map[string]string{"刪除數量": "1"})
+	denied.ChannelID = "channel-1"
+	if err := dispatcher.Dispatch(context.Background(), denied, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch denial: %v", err)
+	}
+	allowed := denied
+	allowed.Actor.PermissionBits = 8192
+	if err := dispatcher.Dispatch(context.Background(), allowed, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch allowed: %v", err)
+	}
+
+	if len(tracker.Events) != 2 {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for index, event := range tracker.Events {
+		if event.CommandName != "刪除訊息" {
+			t.Fatalf("usage event %d = %#v", index, event)
+		}
+	}
+}
+
 func TestBuildRuntimeRoutesDeleteDataOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), DeleteDataFeatureEnabled: true})
 	if err != nil {
