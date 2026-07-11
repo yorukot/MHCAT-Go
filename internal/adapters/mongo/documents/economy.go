@@ -70,12 +70,18 @@ func (d GiftChangeDocument) ToDomain() domain.EconomyConfig {
 }
 
 func GiftChangeUpdateFromDomain(config domain.EconomyConfig) bson.D {
+	resetMarker := any(config.ResetMarker)
+	if text := strings.TrimSpace(config.ResetMarkerText); text != "" {
+		if parsed, err := strconv.ParseFloat(text, 64); err == nil {
+			resetMarker = parsed
+		}
+	}
 	return bson.D{
 		{Key: "coin_number", Value: config.GachaCost},
 		{Key: "sign_coin", Value: config.SignCoins},
 		{Key: "channel", Value: config.ChannelID},
 		{Key: "xp_multiple", Value: config.XPMultiple},
-		{Key: "time", Value: config.ResetMarker},
+		{Key: "time", Value: resetMarker},
 	}
 }
 

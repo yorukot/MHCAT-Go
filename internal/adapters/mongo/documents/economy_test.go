@@ -152,6 +152,21 @@ func TestGiftChangeUpdateFromDomainUsesLegacyFieldNames(t *testing.T) {
 	}
 }
 
+func TestGiftChangeUpdateUsesPreservedCooldownScalar(t *testing.T) {
+	update := GiftChangeUpdateFromDomain(domain.EconomyConfig{ResetMarker: math.MaxInt64, ResetMarkerText: "9223372036854778000"})
+	raw, err := bson.Marshal(update)
+	if err != nil {
+		t.Fatalf("marshal update: %v", err)
+	}
+	var decoded map[string]any
+	if err := bson.Unmarshal(raw, &decoded); err != nil {
+		t.Fatalf("decode update: %v", err)
+	}
+	if got, ok := decoded["time"].(float64); !ok || got != 9.223372036854778e18 {
+		t.Fatalf("time = %#v", decoded["time"])
+	}
+}
+
 func documentTestEconomyConfig() domain.EconomyConfig {
 	return domain.EconomyConfig{
 		GuildID:     "guild-1",

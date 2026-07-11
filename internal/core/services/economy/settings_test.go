@@ -3,6 +3,8 @@ package economy_test
 import (
 	"context"
 	"errors"
+	"math"
+	"strconv"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -45,12 +47,27 @@ func TestSettingsSaveRejectsInvalidValues(t *testing.T) {
 		{GuildID: "guild", GachaCost: economy.MaxLegacyCoinBalance + 1, SignCoins: 1, NotificationID: "channel", XPMultiple: 1},
 		{GuildID: "guild", GachaCost: 1, SignCoins: economy.MaxLegacyCoinBalance + 1, NotificationID: "channel", XPMultiple: 1},
 		{GuildID: "guild", GachaCost: 1, SignCoins: 1, SignCooldownHours: -1, NotificationID: "channel", XPMultiple: 1},
-		{GuildID: "guild", GachaCost: 1, SignCoins: 1, SignCooldownHours: int64(1<<63-1)/3600 + 1, NotificationID: "channel", XPMultiple: 1},
 		{GuildID: "guild", GachaCost: 1, SignCoins: 1, NotificationID: "", XPMultiple: 1},
 	}
 	for _, command := range cases {
 		if _, err := service.Save(context.Background(), command); !errors.Is(err, domain.ErrInvalidEconomySettings) {
 			t.Fatalf("Save(%#v) error = %v, want ErrInvalidEconomySettings", command, err)
 		}
+	}
+}
+
+func TestSettingsSavePreservesOversizedLegacyCooldown(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	hours := int64(math.MaxInt64)/3600 + 1
+	config, err := (economy.SettingsService{Repository: repo}).Save(context.Background(), domain.EconomySettingsCommand{
+		GuildID: "guild", GachaCost: 1, SignCoins: 1, SignCooldownHours: hours, NotificationID: "channel", XPMultiple: 1,
+	})
+	if err != nil {
+		t.Fatalf("save settings: %v", err)
+	}
+	wantSeconds := float64(hours) * 3600
+	gotSeconds, err := strconv.ParseFloat(config.ResetMarkerText, 64)
+	if err != nil || gotSeconds != wantSeconds || config.ResetMarker != math.MaxInt64 {
+		t.Fatalf("config = %#v, parsed=%v err=%v", config, gotSeconds, err)
 	}
 }
