@@ -14,17 +14,31 @@ import (
 func TestServiceRedeemsValidCode(t *testing.T) {
 	now := time.UnixMilli(1700000000000)
 	repo := fakemongo.NewRedeemRepository()
-	repo.Codes["abc"] = domain.RedeemCode{Code: "abc", Price: 12.5, CreatedAtMillis: now.Add(-time.Hour).UnixMilli()}
+	repo.Codes[" abc "] = domain.RedeemCode{Code: " abc ", Price: 12.5, CreatedAtMillis: now.Add(-time.Hour).UnixMilli()}
 	service := NewService(repo, fixedClock{now: now})
 
 	if err := service.Redeem(context.Background(), " guild-1 ", " abc "); err != nil {
 		t.Fatalf("redeem: %v", err)
 	}
-	if _, ok := repo.Codes["abc"]; ok {
+	if _, ok := repo.Codes[" abc "]; ok {
 		t.Fatal("expected code to be consumed")
 	}
 	if got := repo.Balances["guild-1"]; got != 12.5 {
 		t.Fatalf("balance = %v", got)
+	}
+}
+
+func TestServicePreservesAllSpaceCode(t *testing.T) {
+	now := time.UnixMilli(1700000000000)
+	repo := fakemongo.NewRedeemRepository()
+	repo.Codes["   "] = domain.RedeemCode{Code: "   ", Price: 1, CreatedAtMillis: now.UnixMilli()}
+	service := NewService(repo, fixedClock{now: now})
+
+	if err := service.Redeem(context.Background(), "guild-1", "   "); err != nil {
+		t.Fatalf("redeem: %v", err)
+	}
+	if _, ok := repo.Codes["   "]; ok || repo.Balances["guild-1"] != 1 {
+		t.Fatalf("codes=%#v balances=%#v", repo.Codes, repo.Balances)
 	}
 }
 

@@ -43,7 +43,6 @@ func (r *RedeemRepository) GetRedeemCode(ctx context.Context, code string) (doma
 	if err := ctx.Err(); err != nil {
 		return domain.RedeemCode{}, err
 	}
-	code = strings.TrimSpace(code)
 	if code == "" {
 		return domain.RedeemCode{}, domain.ErrInvalidRedeemCode
 	}
@@ -61,7 +60,6 @@ func (r *RedeemRepository) ConsumeRedeemCode(ctx context.Context, command domain
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	command.Code = strings.TrimSpace(command.Code)
 	command.GuildID = strings.TrimSpace(command.GuildID)
 	if err := command.Validate(); err != nil {
 		return err

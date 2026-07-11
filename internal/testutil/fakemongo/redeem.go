@@ -2,7 +2,6 @@ package fakemongo
 
 import (
 	"context"
-	"strings"
 	"sync"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -29,7 +28,6 @@ func (r *RedeemRepository) GetRedeemCode(ctx context.Context, code string) (doma
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	code = strings.TrimSpace(code)
 	value, ok := r.Codes[code]
 	if !ok {
 		return domain.RedeemCode{}, ports.ErrRedeemCodeNotFound

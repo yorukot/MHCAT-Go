@@ -29,7 +29,7 @@ func (s Service) Redeem(ctx context.Context, guildID string, code string) error 
 	}
 	command := domain.RedeemCommand{
 		GuildID: strings.TrimSpace(guildID),
-		Code:    strings.TrimSpace(code),
+		Code:    code,
 		NowMS:   s.now().UnixMilli(),
 	}
 	if err := command.Validate(); err != nil {

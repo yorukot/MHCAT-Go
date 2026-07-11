@@ -26,11 +26,11 @@ func (c fixedClock) Now() time.Time {
 func TestHandlerRedeemsCodeAndRendersLegacySuccess(t *testing.T) {
 	now := time.UnixMilli(1700000000000)
 	repo := fakemongo.NewRedeemRepository()
-	repo.Codes["abc"] = domain.RedeemCode{Code: "abc", Price: 5, CreatedAtMillis: now.UnixMilli()}
+	repo.Codes[" abc "] = domain.RedeemCode{Code: " abc ", Price: 5, CreatedAtMillis: now.UnixMilli()}
 	usage := &fakeusage.Tracker{}
 	module := NewModule(repo, fixedClock{now: now}, usage)
 	responder := fakediscord.NewResponder()
-	interaction := fakediscord.SlashInteractionWithOptions(CommandName, "", map[string]string{optionCode: "abc"})
+	interaction := fakediscord.SlashInteractionWithOptions(CommandName, "", map[string]string{optionCode: " abc "})
 
 	if err := module.Handler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)

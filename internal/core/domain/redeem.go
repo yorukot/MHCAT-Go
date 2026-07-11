@@ -20,14 +20,14 @@ type RedeemCommand struct {
 }
 
 func (c RedeemCode) Validate() error {
-	if strings.TrimSpace(c.Code) == "" || c.Price < 0 || c.CreatedAtMillis <= 0 {
+	if c.Code == "" || c.Price < 0 || c.CreatedAtMillis <= 0 {
 		return ErrInvalidRedeemCode
 	}
 	return nil
 }
 
 func (c RedeemCommand) Validate() error {
-	if strings.TrimSpace(c.GuildID) == "" || strings.TrimSpace(c.Code) == "" || c.NowMS <= 0 {
+	if strings.TrimSpace(c.GuildID) == "" || c.Code == "" || c.NowMS <= 0 {
 		return ErrInvalidRedeemCode
 	}
 	return nil

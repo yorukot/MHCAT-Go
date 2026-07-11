@@ -3,7 +3,6 @@ package redeem
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
@@ -21,9 +20,9 @@ func (m Module) Handler() interactions.Handler {
 		if err := responder.Defer(ctx, responses.DeferOptions{Ephemeral: true}); err != nil {
 			return err
 		}
-		code := strings.TrimSpace(interaction.Options[optionCode])
+		code := interaction.Options[optionCode]
 		if option, ok := interaction.CommandOptions[optionCode]; ok {
-			code = strings.TrimSpace(option.String)
+			code = option.String
 		}
 		if err := m.service.Redeem(ctx, interaction.Actor.GuildID, code); err != nil {
 			return responder.EditOriginal(ctx, redeemErrorMessage(redeemErrorText(err)))
