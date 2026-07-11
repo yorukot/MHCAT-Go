@@ -78,6 +78,14 @@ func (d *Dispatcher) Dispatch(ctx context.Context, interaction interactions.Inte
 	}
 	err := d.router.Handle(ctx, interaction, tracked)
 	if err != nil {
+		if errors.Is(err, interactions.ErrRouteNotFound) && interaction.Type == interactions.TypeSlash && !tracked.responded {
+			if replyErr := tracked.Reply(ctx, unknownSlashMessage(interaction)); replyErr == nil {
+				if d.logger != nil {
+					d.logger.InfoContext(ctx, "runtime unknown slash fallback", "command", interaction.CommandName)
+				}
+				return err
+			}
+		}
 		if !tracked.responded {
 			_ = tracked.Error(ctx, err)
 		}
@@ -90,6 +98,20 @@ func (d *Dispatcher) Dispatch(ctx context.Context, interaction interactions.Inte
 		d.logger.InfoContext(ctx, "runtime interaction finished", "route", interaction.Route().String(), "command", interaction.CommandName)
 	}
 	return nil
+}
+
+func unknownSlashMessage(interaction interactions.Interaction) responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<a:error:980086028113182730> | 很抱歉，這個指令已不再支援或進行改名!",
+			Color: 0xA6FFA6,
+			Footer: &responses.EmbedFooter{
+				Text:    "非常抱歉造成你的困擾，推薦使用/help進行查詢指令",
+				IconURL: interaction.Actor.AvatarURL,
+			},
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
 }
 
 type trackingResponder struct {
