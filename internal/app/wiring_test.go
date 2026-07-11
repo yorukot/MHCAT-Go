@@ -647,6 +647,36 @@ func TestBuildRuntimeRoutesEconomyRPSWithoutPublishingOtherEconomyCommands(t *te
 	}
 }
 
+func TestBuildRuntimeTracksEveryRPSAttemptOnce(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), EconomyRPSRepository: repo, UsageTracker: tracker})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := func(wager string) interactions.Interaction {
+		return fakediscord.SlashInteractionWithOptions("剪刀石頭布", "", map[string]string{"使用多少代幣來進行": wager, "剪刀石頭或布": "剪刀"})
+	}
+	if err := dispatcher.Dispatch(context.Background(), interaction("5"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch missing balance: %v", err)
+	}
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 100})
+	if err := dispatcher.Dispatch(context.Background(), interaction("5"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch success: %v", err)
+	}
+	if err := dispatcher.Dispatch(context.Background(), interaction("0"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch invalid wager: %v", err)
+	}
+	if len(tracker.Events) != 3 {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for index, event := range tracker.Events {
+		if event.CommandName != "剪刀石頭布" {
+			t.Fatalf("usage event %d = %#v", index, event)
+		}
+	}
+}
+
 func TestBuildRuntimeRoutesEconomyGameWithoutPublishingOtherEconomyCommands(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 42})
