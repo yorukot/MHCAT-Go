@@ -69,12 +69,20 @@ func (s FallbackService) Reply(ctx context.Context, guildID string, channelID st
 		return domain.AutoChatFallbackReply{}, err
 	}
 	if err == nil {
-		amount, parseErr := strconv.ParseFloat(strings.TrimSpace(balance.Amount), 64)
-		if parseErr == nil && amount >= 0 {
+		if legacyNonnegativeAutoChatBalance(balance.Amount) {
 			return domain.AutoChatFallbackReply{}, nil
 		}
 	}
 	return s.localReply(content), ctx.Err()
+}
+
+func legacyNonnegativeAutoChatBalance(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "null" {
+		return true
+	}
+	amount, err := strconv.ParseFloat(value, 64)
+	return err == nil && amount >= 0
 }
 
 func (s FallbackService) localReply(content string) domain.AutoChatFallbackReply {

@@ -62,6 +62,8 @@ func TestFallbackServicePreservesBalanceAndChannelGates(t *testing.T) {
 	}{
 		{name: "wrong channel", channelID: "channel-2", amount: "-1"},
 		{name: "zero balance", channelID: "channel-1", amount: "0"},
+		{name: "null balance", channelID: "channel-1", amount: "null"},
+		{name: "positive infinity", channelID: "channel-1", amount: "Infinity"},
 		{name: "positive balance", channelID: "channel-1", amount: "2.5"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
