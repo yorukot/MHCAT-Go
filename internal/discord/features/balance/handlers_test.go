@@ -24,15 +24,22 @@ func TestHandlerRendersLegacyEphemeralBalance(t *testing.T) {
 	if err := module.Handler()(context.Background(), fakediscord.SlashInteraction(CommandName), responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral {
+	if !reflect.DeepEqual(responder.Defers, []responses.DeferOptions{{Ephemeral: true}}) {
 		t.Fatalf("defers = %#v", responder.Defers)
 	}
-	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
-		t.Fatalf("edits = %#v", responder.Edits)
+	want := responses.Message{
+		Embeds: []responses.Embed{{
+			Author: &responses.EmbedAuthor{
+				Name:    "伺服器目前剩於餘額: 88",
+				IconURL: "https://media.discordapp.net/attachments/991337796960784424/1078883215462383697/success.gif",
+			},
+			Color: 0x57F287,
+		}},
+		Ephemeral:       true,
+		AllowedMentions: &responses.AllowedMentions{},
 	}
-	embed := responder.Edits[0].Embeds[0]
-	if embed.Author == nil || embed.Author.Name != "伺服器目前剩於餘額: 88" || embed.Author.IconURL != successIconURL || embed.Color != successColor {
-		t.Fatalf("embed = %#v", embed)
+	if len(responder.Edits) != 1 || !reflect.DeepEqual(responder.Edits[0], want) {
+		t.Fatalf("edits = %#v, want %#v", responder.Edits, want)
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != CommandName || usage.Events[0].Feature != "balance-query" {
 		t.Fatalf("usage = %#v", usage.Events)

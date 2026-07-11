@@ -1724,6 +1724,37 @@ func TestBuildRuntimeRoutesBalanceQueryOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeBalanceQueryTracksOneUsageBeforeRepositoryResult(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		err  error
+	}{
+		{name: "success"},
+		{name: "backend failure", err: context.DeadlineExceeded},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewBalanceRepository()
+			repo.Balances["guild-1"] = domain.Balance{GuildID: "guild-1", Amount: "18"}
+			repo.Err = test.err
+			tracker := &fakeusage.Tracker{}
+			dispatcher, err := BuildRuntime(RuntimeOptions{
+				Config:            validTestConfig(),
+				BalanceRepository: repo,
+				UsageTracker:      tracker,
+			})
+			if err != nil {
+				t.Fatalf("build runtime: %v", err)
+			}
+			if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction("查看餘額"), fakediscord.NewResponder()); err != nil {
+				t.Fatalf("dispatch balance query: %v", err)
+			}
+			if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "查看餘額" {
+				t.Fatalf("usage events = %#v", tracker.Events)
+			}
+		})
+	}
+}
+
 func TestBuildRuntimeRoutesRedeemOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
