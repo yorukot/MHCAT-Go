@@ -1,6 +1,6 @@
 # Component and Modal Grammar
 
-Status: Phase 1.5 Gate B input. Source evidence is local legacy code plus a read-only component/modal archaeology subagent. Legacy source was not modified.
+Status: parity-audited against active legacy component/modal creators and handlers, the centralized Go custom-ID parser/router, all registered feature routes, collision fixtures, focused feature tests, and app wiring. Live Discord smoke remains required before production rollout. Legacy source was not modified.
 
 ## 1. Inventory Table
 
@@ -219,6 +219,14 @@ Required tests:
 - Parse rejection tests for missing delimiters, malformed snowflakes, negative pages, oversized payloads, and conflicting substrings.
 - Legacy live-message compatibility tests for `tic`, `del`, poll votes, rank pages, verification, voice lock, shop, work, games, and cron/birthday selects.
 - New `mhcat:v1` encode/decode round-trip tests with max-length checks.
+
+Current disposition:
+
+- Active legacy help/info, ticket, announcement, role, cron, voice-lock, verification, poll, rank, sign/profile, XP role, lottery, shop, work, delete-data, logging, birthday, and game interactions have explicit parsers and registered handlers behind their feature gates.
+- `help-menus` has no live creator/parser pair and remains a recognized dead helper ID with no route registration.
+- `disabled_legacy` rank IDs are rendered disabled and intentionally have no handler.
+- Ambiguous shared IDs (`announcement_yes/no`, raw cron/birthday selects, and raw item/work text) are rejected globally; new flows use feature-scoped or requester/state-bound IDs. Collector-local legacy messages require continued Node ownership or retirement during migration.
+- Live-message rollback constraints and feature-specific intentional differences are authoritative in the linked parity contracts.
 
 ## 5. Wave 4 Re-check and Implementation Notes
 
