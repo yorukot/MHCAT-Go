@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 
 	mhcatmongo "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo"
@@ -41,8 +43,8 @@ type workUserPayoutDocument struct {
 type workPayoutIdentity struct {
 	MarkerKey string
 	Token     string
-	EndTime   int64
-	Reward    int64
+	EndTime   float64
+	Reward    float64
 }
 
 type workPayoutCoinTarget struct {
@@ -112,7 +114,7 @@ func (r *WorkPayoutRepository) RunWorkPayout(ctx context.Context, nowUnix int64)
 		if err := cursor.Decode(&document); err != nil {
 			return domain.WorkPayoutResult{}, mhcatmongo.MapError(fmt.Errorf("decode due work payout: %w", err))
 		}
-		if !validWorkPayoutDocument(document) {
+		if !validWorkPayoutDocument(document, nowUnix) {
 			result.SkippedInvalidJobs++
 			continue
 		}
@@ -277,8 +279,8 @@ func newWorkPayoutIdentity(document workUserPayoutDocument) (workPayoutIdentity,
 	if err != nil {
 		return workPayoutIdentity{}, err
 	}
-	endTime := rawInt64(document.EndTime)
-	reward := rawInt64(document.GetCoin)
+	endTime := workPayoutNumber(document.EndTime)
+	reward := workPayoutNumber(document.GetCoin)
 	tokenDigest, err := workPayoutDigest(
 		"mhcat-work-payout-token-v1",
 		document.ID,
@@ -333,12 +335,38 @@ func workPayoutTodayFromConfig(configFound bool, resetMarker int64, nowUnix int6
 	return nowUnix
 }
 
-func validWorkPayoutDocument(document workUserPayoutDocument) bool {
+func validWorkPayoutDocument(document workUserPayoutDocument, nowUnix int64) bool {
 	return document.ID != nil &&
 		strings.TrimSpace(document.Guild) != "" &&
 		strings.TrimSpace(document.User) != "" &&
 		strings.TrimSpace(document.State) != LegacyIdleWorkState &&
-		rawInt64(document.EndTime) > 0
+		workPayoutNumber(document.EndTime) < float64(nowUnix)
+}
+
+func workPayoutNumber(value bson.RawValue) float64 {
+	switch value.Type {
+	case bson.TypeDouble:
+		return value.Double()
+	case bson.TypeInt32:
+		return float64(value.Int32())
+	case bson.TypeInt64:
+		return float64(value.Int64())
+	case bson.TypeString:
+		parsed, err := strconv.ParseFloat(strings.TrimSpace(value.StringValue()), 64)
+		if err != nil {
+			return math.NaN()
+		}
+		return parsed
+	case bson.TypeNull:
+		return 0
+	case bson.TypeBoolean:
+		if value.Boolean() {
+			return 1
+		}
+		return 0
+	default:
+		return math.NaN()
+	}
 }
 
 var _ ports.WorkPayoutRepository = (*WorkPayoutRepository)(nil)

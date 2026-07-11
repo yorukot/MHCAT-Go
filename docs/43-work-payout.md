@@ -76,7 +76,7 @@ The Go payout does not copy the legacy read-modify-write coin update. It uses on
 
 The Go payout also fixes the legacy `gift_change.time == 0` new-balance bug. A normalized reset marker of `0` means daily-reset mode, so a newly created coin document gets `today = 1`. Non-zero reset markers still use `today = now_seconds` like the legacy rolling-cooldown path.
 
-Due payout rows must have Mongo's guaranteed `_id`, non-empty `guild`, non-empty `user`, non-idle `state`, and positive `end_time`. `get_coin` is applied as stored, including zero or negative values, because the legacy code did not block those values. Operators should audit impossible rewards before apply.
+Due payout rows must have Mongo's guaranteed `_id`, non-empty `guild`, non-empty `user`, and non-idle `state`. After Mongo selects `end_time <= now`, Go repeats the legacy strict JavaScript-number comparison `end_time < now`; decimal, zero/null, and negative values retain their legacy behavior, while `NaN` and positive infinity are not processed. `get_coin` is applied as a JavaScript number, including decimal, zero, negative, and non-finite values, because the legacy code did not block those values. Operators should audit impossible rewards before apply.
 
 ## Lease Safety
 

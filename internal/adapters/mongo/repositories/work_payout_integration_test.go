@@ -159,6 +159,44 @@ func TestWorkPayoutMongoIntegrationCreatesMissingCoinWithMarker(t *testing.T) {
 	assertWorkPayoutState(t, database, workID, LegacyIdleWorkState)
 }
 
+func TestWorkPayoutMongoIntegrationPreservesDecimalScalars(t *testing.T) {
+	database := workPayoutIntegrationDatabase(t)
+	repository, err := NewWorkPayoutRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	ctx := context.Background()
+	workID := bson.NewObjectID()
+	coinID := bson.NewObjectID()
+	if _, err := database.Collection(CoinCollectionName).InsertOne(ctx, bson.D{
+		{Key: "_id", Value: coinID}, {Key: "guild", Value: "guild-decimal"},
+		{Key: "member", Value: "user-decimal"}, {Key: "coin", Value: 1.25},
+	}); err != nil {
+		t.Fatalf("insert coin: %v", err)
+	}
+	if _, err := database.Collection(WorkUserCollectionName).InsertOne(ctx, bson.D{
+		{Key: "_id", Value: workID}, {Key: "guild", Value: "guild-decimal"},
+		{Key: "user", Value: "user-decimal"}, {Key: "state", Value: "job"},
+		{Key: "end_time", Value: 0.5}, {Key: "get_coin", Value: 2.5},
+	}); err != nil {
+		t.Fatalf("insert work user: %v", err)
+	}
+	result, err := repository.RunWorkPayout(ctx, 1)
+	if err != nil || result.ProcessedJobs != 1 {
+		t.Fatalf("run payout = %#v, err=%v", result, err)
+	}
+	var coin struct {
+		Balance float64 `bson:"coin"`
+	}
+	if err := database.Collection(CoinCollectionName).FindOne(ctx, bson.D{{Key: "_id", Value: coinID}}).Decode(&coin); err != nil {
+		t.Fatalf("decode coin: %v", err)
+	}
+	if coin.Balance != 3.75 {
+		t.Fatalf("coin balance = %v", coin.Balance)
+	}
+	assertWorkPayoutState(t, database, workID, LegacyIdleWorkState)
+}
+
 func TestWorkPayoutMongoIntegrationConcurrentSameTokenCreditsOnce(t *testing.T) {
 	database := workPayoutIntegrationDatabase(t)
 	ctx := context.Background()

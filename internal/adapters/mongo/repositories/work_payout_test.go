@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"math"
 	"strings"
 	"testing"
 
@@ -227,28 +228,58 @@ func TestWorkPayoutTodayFromConfig(t *testing.T) {
 
 func TestValidWorkPayoutDocument(t *testing.T) {
 	valid := validWorkPayoutTestDocument(t)
-	if !validWorkPayoutDocument(valid) {
+	if !validWorkPayoutDocument(valid, 123) {
 		t.Fatalf("expected valid document")
 	}
 	invalid := valid
 	invalid.State = LegacyIdleWorkState
-	if validWorkPayoutDocument(invalid) {
+	if validWorkPayoutDocument(invalid, 123) {
 		t.Fatalf("idle work state must be invalid")
 	}
 	invalid = valid
-	invalid.EndTime = rawValue(t, int64(0))
-	if validWorkPayoutDocument(invalid) {
-		t.Fatalf("zero end_time must be invalid")
+	invalid.EndTime = rawValue(t, int64(123))
+	if validWorkPayoutDocument(invalid, 123) {
+		t.Fatalf("equal end_time is not strictly due")
 	}
 	zeroCoin := valid
 	zeroCoin.GetCoin = rawValue(t, int64(0))
-	if !validWorkPayoutDocument(zeroCoin) {
+	if !validWorkPayoutDocument(zeroCoin, 123) {
 		t.Fatalf("zero get_coin is legacy-compatible and must not invalidate the row")
 	}
 	missingID := valid
 	missingID.ID = nil
-	if validWorkPayoutDocument(missingID) {
+	if validWorkPayoutDocument(missingID, 123) {
 		t.Fatalf("missing _id cannot produce a safe payout identity")
+	}
+}
+
+func TestWorkPayoutScalarCoercionAndDueComparison(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   any
+		want    float64
+		wantDue bool
+	}{
+		{name: "decimal", value: 0.5, want: 0.5, wantDue: true},
+		{name: "negative", value: -1.5, want: -1.5, wantDue: true},
+		{name: "null", value: nil, want: 0, wantDue: true},
+		{name: "infinity", value: math.Inf(1), want: math.Inf(1), wantDue: false},
+		{name: "nan", value: math.NaN(), want: math.NaN(), wantDue: false},
+		{name: "malformed", value: "bad", want: math.NaN(), wantDue: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			raw := rawValue(t, test.value)
+			got := workPayoutNumber(raw)
+			if !(got == test.want || math.IsNaN(got) && math.IsNaN(test.want)) {
+				t.Fatalf("number = %v, want %v", got, test.want)
+			}
+			document := validWorkPayoutTestDocument(t)
+			document.EndTime = raw
+			if gotDue := validWorkPayoutDocument(document, 1); gotDue != test.wantDue {
+				t.Fatalf("due = %t, want %t", gotDue, test.wantDue)
+			}
+		})
 	}
 }
 
