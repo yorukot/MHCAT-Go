@@ -79,7 +79,12 @@ func (m Module) signInListDisplayName(ctx context.Context, guildID string, userI
 	if err != nil || strings.TrimSpace(info.Username) == "" {
 		return disappearedUserLabel
 	}
-	return info.Username
+	username := strings.TrimSpace(info.Username)
+	discriminator := strings.TrimSpace(info.Discriminator)
+	if discriminator == "" {
+		return username
+	}
+	return username + "#" + discriminator
 }
 
 func legacySignInListBool(value bool) string {

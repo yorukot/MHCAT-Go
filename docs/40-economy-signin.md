@@ -30,7 +30,7 @@ Status: gated write slice for legacy `/簽到` plus read-only legacy `/簽到列
 - The handler routes by typed `RouteKey`; it does not use legacy `customId.includes("sing")`.
 - The sign-list day write is attempted only after a successful coin award.
 - New versioned custom IDs are bounded by Discord's 100-character limit.
-- `/簽到列表` uses the current Discord username from member lookup rather than legacy `username#discriminator`, because Discord no longer consistently exposes discriminators through the current info port. Missing lookups still render the legacy `使用者已消失!` fallback.
+- `/簽到列表` preserves legacy `username#discriminator` member labels, including `#0` for migrated Discord accounts. If Discord omits the discriminator entirely, it falls back to the username; missing lookups still render the legacy `使用者已消失!` fallback.
 
 ## Production Blockers
 

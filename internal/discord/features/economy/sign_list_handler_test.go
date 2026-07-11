@@ -21,8 +21,8 @@ func TestSignInListHandlerRendersLegacyDailyList(t *testing.T) {
 	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-2", Today: 0})
 	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-3", Today: 1})
 	discordInfo := &fakebotinfo.DiscordInfoProvider{Users: map[string]ports.DiscordUserInfo{
-		"user-1": {ID: "user-1", Username: "Alice"},
-		"user-3": {ID: "user-3", Username: "Bob"},
+		"user-1": {ID: "user-1", Username: "Alice", Discriminator: "1234"},
+		"user-3": {ID: "user-3", Username: "Bob", Discriminator: "0"},
 	}}
 	usage := &fakeusage.Tracker{}
 	module := NewSignInOnlyModule(repo, discordInfo, fixedClock{now: time.Unix(10_000, 0)}, usage)
@@ -42,7 +42,7 @@ func TestSignInListHandlerRendersLegacyDailyList(t *testing.T) {
 	if embed.Title != signInListTitle || embed.Color != 0x123456 {
 		t.Fatalf("embed = %#v", embed)
 	}
-	for _, want := range []string{"**目前共有**`2`**人已經簽到**", "**您是否有簽到:**`有`", "┃ Alice ┃ Bob┃"} {
+	for _, want := range []string{"**目前共有**`2`**人已經簽到**", "**您是否有簽到:**`有`", "┃ Alice#1234 ┃ Bob#0┃"} {
 		if !strings.Contains(embed.Description, want) {
 			t.Fatalf("description missing %q: %q", want, embed.Description)
 		}
@@ -51,7 +51,7 @@ func TestSignInListHandlerRendersLegacyDailyList(t *testing.T) {
 	if file.Name != signInListFileName || file.ContentType != signInListFileType {
 		t.Fatalf("file = %#v", file)
 	}
-	if string(file.Data) != "Alice(id:user-1)\nBob(id:user-3)" {
+	if string(file.Data) != "Alice#1234(id:user-1)\nBob#0(id:user-3)" {
 		t.Fatalf("file data = %q", string(file.Data))
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != SignInListCommandName || usage.Events[0].Feature != "economy-signin" {
