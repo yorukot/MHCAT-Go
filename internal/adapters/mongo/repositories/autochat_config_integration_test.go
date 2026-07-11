@@ -72,6 +72,39 @@ func TestAutoChatConfigMongoIntegrationReplacesAndDeletesOneFetchedRow(t *testin
 	}
 }
 
+func TestAutoChatConfigMongoIntegrationHydratesMongooseStringChannels(t *testing.T) {
+	database := autoChatConfigIntegrationDatabase(t)
+	repository, err := NewAutoChatConfigRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new autochat config repository: %v", err)
+	}
+	collection := database.Collection(AutoChatConfigCollectionName)
+	for _, row := range []any{
+		bson.D{{Key: "guild", Value: "numeric"}, {Key: "channel", Value: int64(123456789012345678)}},
+		bson.D{{Key: "guild", Value: "binary"}, {Key: "channel", Value: bson.Binary{Data: []byte("channel-1")}}},
+		bson.D{{Key: "guild", Value: "null"}, {Key: "channel", Value: nil}},
+		bson.D{{Key: "guild", Value: "compound"}, {Key: "channel", Value: bson.D{{Key: "bad", Value: true}}}},
+	} {
+		if _, err := collection.InsertOne(context.Background(), row); err != nil {
+			t.Fatalf("seed autochat config: %v", err)
+		}
+	}
+	for _, test := range []struct {
+		guild string
+		want  string
+	}{
+		{guild: "numeric", want: "123456789012345678"},
+		{guild: "binary", want: "channel-1"},
+		{guild: "null"},
+		{guild: "compound"},
+	} {
+		config, err := repository.GetAutoChatConfig(context.Background(), test.guild)
+		if err != nil || config.GuildID != test.guild || config.ChannelID != test.want {
+			t.Fatalf("guild=%q config=%#v err=%v", test.guild, config, err)
+		}
+	}
+}
+
 func autoChatConfigIntegrationDatabase(t *testing.T) *drivermongo.Database {
 	t.Helper()
 	if os.Getenv("MHCAT_RUN_MONGO_INTEGRATION_TESTS") != "true" {

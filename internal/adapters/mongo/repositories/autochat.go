@@ -42,7 +42,7 @@ func (r *AutoChatConfigRepository) GetAutoChatConfig(ctx context.Context, guildI
 	if guildID == "" {
 		return domain.AutoChatConfig{}, domain.ErrInvalidAutoChatConfig
 	}
-	var document documents.AutoChatConfigDocument
+	var document documents.AutoChatConfigReadDocument
 	if err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document); err != nil {
 		if err == drivermongo.ErrNoDocuments {
 			return domain.AutoChatConfig{}, ports.ErrAutoChatConfigMissing
