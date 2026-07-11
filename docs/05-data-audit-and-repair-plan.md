@@ -99,7 +99,7 @@ Before running `mhcat-work-payout --apply` or enabling the recurring worker, per
 | Audit | Problem | Detection | Write behavior | Automatic repair |
 | --- | --- | --- | --- | --- |
 | Duplicate work users | Multiple `work_users` rows for the same `{guild,user}` are each treated as independent jobs keyed by `_id`, but may still indicate legacy corruption | group by `{guild,user}` with count > 1 | none | no; Go markers prevent token collision but do not choose a repair winner |
-| Duplicate coin balances | Multiple `coins` rows for `{guild,member}` make the canonical balance ambiguous | group by `{guild,member}` with count > 1 | none | no; Go payout fails with `ErrWorkPayoutCoinConflict` before crediting the affected job |
+| Duplicate coin balances | Multiple `coins` rows for `{guild,member}` make the canonical balance ambiguous | group by `{guild,member}` with count > 1 | none | no; Go payout preserves legacy `findOne`/`updateOne` behavior and credits one naturally selected row |
 | Duplicate gift config | Multiple `gift_changes` rows for a guild can make new-balance `today` behavior ambiguous | group by `guild` with count > 1 | none | no |
 | Oversized gacha prize pools | More than 25 `gifts` rows for one guild can make the legacy single embed fail Discord validation | group `gifts` by `guild` with count > 25 | none | no; Go read-only prize-list splits embeds as a runtime compatibility fix |
 | Gacha prize numeric drift | `gift_chence` and `gift_count` may be strings, numbers, null, or impossible values | sample `gifts` field types and range-check negative chance/count | none | no |

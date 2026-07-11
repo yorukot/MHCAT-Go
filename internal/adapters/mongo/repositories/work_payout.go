@@ -53,8 +53,7 @@ type workPayoutCoinTarget struct {
 }
 
 type workPayoutCoinIDDocument struct {
-	ID   any           `bson:"_id"`
-	Coin bson.RawValue `bson:"coin"`
+	ID any `bson:"_id"`
 }
 
 func NewWorkPayoutRepository(coins *drivermongo.Collection, giftChanges *drivermongo.Collection, workUsers *drivermongo.Collection) (*WorkPayoutRepository, error) {
@@ -166,27 +165,17 @@ func (r *WorkPayoutRepository) RunWorkPayout(ctx context.Context, nowUnix int64)
 }
 
 func (r *WorkPayoutRepository) workPayoutCoinTarget(ctx context.Context, guildID string, userID string) (workPayoutCoinTarget, error) {
-	cursor, err := r.coins.Find(
+	var document workPayoutCoinIDDocument
+	err := r.coins.FindOne(
 		ctx,
 		bson.D{{Key: "guild", Value: guildID}, {Key: "member", Value: userID}},
-		options.Find().SetProjection(bson.D{{Key: "_id", Value: 1}, {Key: "coin", Value: 1}}).SetSort(bson.D{{Key: "_id", Value: 1}}).SetLimit(2),
-	)
-	if err != nil {
+		options.FindOne().SetProjection(bson.D{{Key: "_id", Value: 1}}),
+	).Decode(&document)
+	if err == nil {
+		return workPayoutCoinTarget{ID: document.ID}, nil
+	}
+	if err != drivermongo.ErrNoDocuments {
 		return workPayoutCoinTarget{}, mhcatmongo.MapError(fmt.Errorf("resolve work payout coin for guild %s user %s: %w", guildID, userID, err))
-	}
-	defer cursor.Close(ctx)
-	var documents []workPayoutCoinIDDocument
-	if err := cursor.All(ctx, &documents); err != nil {
-		return workPayoutCoinTarget{}, mhcatmongo.MapError(fmt.Errorf("decode work payout coin target for guild %s user %s: %w", guildID, userID, err))
-	}
-	if len(documents) > 1 {
-		return workPayoutCoinTarget{}, fmt.Errorf("%w: multiple coins rows for guild %s user %s", domain.ErrWorkPayoutCoinConflict, guildID, userID)
-	}
-	if len(documents) == 1 {
-		if documents[0].Coin.Type != 0 && !documents[0].Coin.IsNumber() {
-			return workPayoutCoinTarget{}, fmt.Errorf("%w: non-numeric coins.coin for guild %s user %s", domain.ErrWorkPayoutCoinConflict, guildID, userID)
-		}
-		return workPayoutCoinTarget{ID: documents[0].ID}, nil
 	}
 	id, err := newWorkPayoutCoinID(guildID, userID)
 	if err != nil {
@@ -236,18 +225,11 @@ func workPayoutCoinFilter(coinID any, guildID string, userID string, identity wo
 		bson.D{{Key: markerPath + ".token", Value: identity.Token}},
 		bson.D{{Key: markerPath + ".end_time", Value: bson.D{{Key: "$lt", Value: identity.EndTime}}}},
 	}}}
-	coinGuard := bson.D{{Key: "$or", Value: bson.A{
-		bson.D{{Key: "coin", Value: bson.D{{Key: "$type", Value: "number"}}}},
-		bson.D{{Key: "$and", Value: bson.A{
-			bson.D{{Key: "coin", Value: bson.D{{Key: "$exists", Value: false}}}},
-			bson.D{{Key: markerPath, Value: bson.D{{Key: "$exists", Value: false}}}},
-		}}},
-	}}}
 	return bson.D{
 		{Key: "_id", Value: coinID},
 		{Key: "guild", Value: guildID},
 		{Key: "member", Value: userID},
-		{Key: "$and", Value: bson.A{markerGuard, coinGuard}},
+		{Key: "$and", Value: bson.A{markerGuard}},
 	}
 }
 
@@ -255,8 +237,12 @@ func workPayoutCoinPipeline(guildID string, userID string, today int64, identity
 	markerPath := WorkPayoutMarkerField + "." + identity.MarkerKey
 	markerTokenPath := "$" + markerPath + ".token"
 	sameToken := bson.D{{Key: "$eq", Value: bson.A{markerTokenPath, identity.Token}}}
-	coinMissing := bson.D{{Key: "$eq", Value: bson.A{bson.D{{Key: "$type", Value: "$coin"}}, "missing"}}}
-	coinBase := bson.D{{Key: "$cond", Value: bson.A{coinMissing, int64(0), "$coin"}}}
+	coinBase := bson.D{{Key: "$convert", Value: bson.D{
+		{Key: "input", Value: "$coin"},
+		{Key: "to", Value: "double"},
+		{Key: "onError", Value: math.NaN()},
+		{Key: "onNull", Value: float64(0)},
+	}}}
 	todayMissing := bson.D{{Key: "$eq", Value: bson.A{bson.D{{Key: "$type", Value: "$today"}}, "missing"}}}
 	return drivermongo.Pipeline{bson.D{{Key: "$set", Value: bson.D{
 		{Key: "guild", Value: guildID},

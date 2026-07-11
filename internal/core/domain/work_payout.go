@@ -8,7 +8,6 @@ import (
 
 var ErrInvalidWorkPayout = errors.New("invalid work payout")
 var ErrWorkPayoutStateConflict = errors.New("work payout state conflict")
-var ErrWorkPayoutCoinConflict = errors.New("work payout coin conflict")
 var ErrWorkPayoutMarkerConflict = errors.New("work payout marker conflict")
 
 type WorkPayoutResult struct {

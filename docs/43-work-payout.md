@@ -97,7 +97,7 @@ The coin update stores the latest token and `end_time` under `coins.mhcat_work_p
 
 Only the latest marker for each distinct `work_users._id` is retained, so repeated jobs on the normal single work row do not append unbounded history. Deleting and recreating work rows can leave historical marker keys; no automatic cleanup is performed.
 
-Existing coin rows are targeted by their stable `_id`. A missing balance is created with a deterministic BSON ObjectID so a crash retry resolves the same row. If more than one `coins` row exists for `{guild,member}`, the command returns `ErrWorkPayoutCoinConflict` before crediting that job. Duplicate `work_users` rows remain independently payable because each has a distinct `_id` and marker key.
+Existing coin rows follow legacy `findOne` natural selection and are then targeted by their stable `_id`; other duplicate rows remain unchanged. Mixed scalar balances are converted to a JavaScript-style number in the atomic update, including null as zero. A missing balance is created with a deterministic BSON ObjectID so a crash retry resolves the same row. Duplicate `work_users` rows remain independently payable because each has a distinct `_id` and marker key.
 
 The final state update matches the exact `_id`, guild, user, state, end time, and reward snapshot. If that snapshot changed after the credit, the command returns a state-conflict error and does not reset a newer job. The already-written marker makes retrying the original snapshot balance-safe.
 

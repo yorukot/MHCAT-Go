@@ -129,7 +129,7 @@ func TestWorkPayoutCoinFilterAllowsOnlyMissingSameOrNewerMarker(t *testing.T) {
 		t.Fatalf("coin identity filter = %#v", filter)
 	}
 	combined, ok := lookupD(filter, "$and").(bson.A)
-	if !ok || len(combined) != 2 {
+	if !ok || len(combined) != 1 {
 		t.Fatalf("combined guards = %#v", lookupD(filter, "$and"))
 	}
 	markerGuard, ok := combined[0].(bson.D)
@@ -154,19 +154,6 @@ func TestWorkPayoutCoinFilterAllowsOnlyMissingSameOrNewerMarker(t *testing.T) {
 	newerCondition, ok := lookupD(newer, markerPath+".end_time").(bson.D)
 	if !ok || lookupD(newerCondition, "$lt") != identity.EndTime {
 		t.Fatalf("newer-job guard = %#v", newer)
-	}
-	coinGuard, ok := combined[1].(bson.D)
-	if !ok {
-		t.Fatalf("coin guard = %#v", combined[1])
-	}
-	coinChoices, ok := lookupD(coinGuard, "$or").(bson.A)
-	if !ok || len(coinChoices) != 2 {
-		t.Fatalf("coin choices = %#v", coinGuard)
-	}
-	numericCoin := coinChoices[0].(bson.D)
-	typeCondition, ok := lookupD(numericCoin, "coin").(bson.D)
-	if !ok || lookupD(typeCondition, "$type") != "number" {
-		t.Fatalf("numeric coin guard = %#v", numericCoin)
 	}
 }
 
@@ -211,6 +198,14 @@ func TestWorkPayoutCoinPipelineWritesMarkerWithConditionalIncrement(t *testing.T
 	operands, ok := lookupD(add, "$add").(bson.A)
 	if !ok || len(operands) != 2 || operands[1] != identity.Reward {
 		t.Fatalf("increment operands = %#v", add)
+	}
+	convert, ok := operands[0].(bson.D)
+	if !ok {
+		t.Fatalf("coin base = %#v", operands[0])
+	}
+	conversion, ok := lookupD(convert, "$convert").(bson.D)
+	if !ok || lookupD(conversion, "input") != "$coin" || lookupD(conversion, "to") != "double" || lookupD(conversion, "onNull") != float64(0) {
+		t.Fatalf("coin conversion = %#v", convert)
 	}
 }
 

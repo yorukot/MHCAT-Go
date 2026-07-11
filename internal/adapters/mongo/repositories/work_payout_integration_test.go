@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	mhcatmongo "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	drivermongo "go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -261,7 +259,7 @@ func TestWorkPayoutMongoIntegrationConcurrentSameTokenCreditsOnce(t *testing.T) 
 	assertWorkPayoutBalance(t, database, coinID, 150)
 }
 
-func TestWorkPayoutMongoIntegrationRejectsDuplicateCoinsBeforeCredit(t *testing.T) {
+func TestWorkPayoutMongoIntegrationCreditsOneDuplicateCoin(t *testing.T) {
 	database := workPayoutIntegrationDatabase(t)
 	repository, err := NewWorkPayoutRepositoryFromDatabase(database)
 	if err != nil {
@@ -272,36 +270,23 @@ func TestWorkPayoutMongoIntegrationRejectsDuplicateCoinsBeforeCredit(t *testing.
 	if _, err := database.Collection(WorkUserCollectionName).InsertOne(ctx, workPayoutWorkDocument(workID, "guild-duplicate", "user-duplicate", "job", 100, 50)); err != nil {
 		t.Fatalf("insert work user: %v", err)
 	}
-	if _, err := database.Collection(CoinCollectionName).InsertMany(ctx, []any{
+	inserted, err := database.Collection(CoinCollectionName).InsertMany(ctx, []any{
 		bson.D{{Key: "guild", Value: "guild-duplicate"}, {Key: "member", Value: "user-duplicate"}, {Key: "coin", Value: int64(10)}, {Key: "today", Value: int64(1)}},
 		bson.D{{Key: "guild", Value: "guild-duplicate"}, {Key: "member", Value: "user-duplicate"}, {Key: "coin", Value: int64(20)}, {Key: "today", Value: int64(1)}},
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("insert duplicate coins: %v", err)
 	}
 	result, err := repository.RunWorkPayout(ctx, 200)
-	if !errors.Is(err, domain.ErrWorkPayoutCoinConflict) {
-		t.Fatalf("expected coin conflict, got result=%#v err=%v", result, err)
+	if err != nil || result.ProcessedJobs != 1 || result.CoinModified != 1 || result.StateModified != 1 {
+		t.Fatalf("payout result=%#v err=%v", result, err)
 	}
-	if result.CoinMatched != 0 || result.CoinModified != 0 || result.StateModified != 0 {
-		t.Fatalf("conflict must not write: %#v", result)
-	}
-	assertWorkPayoutState(t, database, workID, "job")
-	var total []struct {
-		Coin int64 `bson:"coin"`
-	}
-	cursor, err := database.Collection(CoinCollectionName).Find(ctx, bson.D{{Key: "guild", Value: "guild-duplicate"}, {Key: "member", Value: "user-duplicate"}})
-	if err != nil {
-		t.Fatalf("find duplicate coins: %v", err)
-	}
-	if err := cursor.All(ctx, &total); err != nil {
-		t.Fatalf("decode duplicate coins: %v", err)
-	}
-	if len(total) != 2 || total[0].Coin+total[1].Coin != 30 {
-		t.Fatalf("duplicate balances changed: %#v", total)
-	}
+	assertWorkPayoutState(t, database, workID, LegacyIdleWorkState)
+	assertWorkPayoutDecimalBalance(t, database, inserted.InsertedIDs[0], 60)
+	assertWorkPayoutDecimalBalance(t, database, inserted.InsertedIDs[1], 20)
 }
 
-func TestWorkPayoutMongoIntegrationRejectsNonnumericCoinBeforeCredit(t *testing.T) {
+func TestWorkPayoutMongoIntegrationCoercesNullCoin(t *testing.T) {
 	database := workPayoutIntegrationDatabase(t)
 	repository, err := NewWorkPayoutRepositoryFromDatabase(database)
 	if err != nil {
@@ -323,20 +308,11 @@ func TestWorkPayoutMongoIntegrationRejectsNonnumericCoinBeforeCredit(t *testing.
 		t.Fatalf("insert invalid coin: %v", err)
 	}
 	result, err := repository.RunWorkPayout(ctx, 200)
-	if !errors.Is(err, domain.ErrWorkPayoutCoinConflict) {
-		t.Fatalf("expected coin conflict, got result=%#v err=%v", result, err)
+	if err != nil || result.ProcessedJobs != 1 || result.CoinModified != 1 || result.StateModified != 1 {
+		t.Fatalf("payout result=%#v err=%v", result, err)
 	}
-	if result.CoinModified != 0 || result.StateModified != 0 {
-		t.Fatalf("invalid coin must not write: %#v", result)
-	}
-	assertWorkPayoutState(t, database, workID, "job")
-	count, err := database.Collection(CoinCollectionName).CountDocuments(ctx, bson.D{
-		{Key: "_id", Value: coinID},
-		{Key: WorkPayoutMarkerField, Value: bson.D{{Key: "$exists", Value: true}}},
-	})
-	if err != nil || count != 0 {
-		t.Fatalf("invalid coin marker count=%d err=%v", count, err)
-	}
+	assertWorkPayoutState(t, database, workID, LegacyIdleWorkState)
+	assertWorkPayoutDecimalBalance(t, database, coinID, 50)
 }
 
 func TestWorkPayoutMongoIntegrationPaysDuplicateWorkRowsIndependently(t *testing.T) {
@@ -460,6 +436,19 @@ func assertWorkPayoutBalance(t *testing.T, database *drivermongo.Database, coinI
 	}
 	if coin.Balance != want {
 		t.Fatalf("coin balance = %d, want %d", coin.Balance, want)
+	}
+}
+
+func assertWorkPayoutDecimalBalance(t *testing.T, database *drivermongo.Database, coinID any, want float64) {
+	t.Helper()
+	var coin struct {
+		Balance float64 `bson:"coin"`
+	}
+	if err := database.Collection(CoinCollectionName).FindOne(context.Background(), bson.D{{Key: "_id", Value: coinID}}).Decode(&coin); err != nil {
+		t.Fatalf("decode coin: %v", err)
+	}
+	if coin.Balance != want {
+		t.Fatalf("coin balance = %v, want %v", coin.Balance, want)
 	}
 }
 
