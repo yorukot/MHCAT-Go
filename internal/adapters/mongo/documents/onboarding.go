@@ -30,12 +30,29 @@ type JoinMessageDocument struct {
 	Image          *string `bson:"img,omitempty" json:"img,omitempty"`
 }
 
+type JoinMessageReadDocument struct {
+	Guild          bson.RawValue `bson:"guild" json:"guild"`
+	Enable         bson.RawValue `bson:"enable" json:"enable"`
+	MessageContent bson.RawValue `bson:"message_content" json:"message_content"`
+	Color          bson.RawValue `bson:"color" json:"color"`
+	Channel        bson.RawValue `bson:"channel" json:"channel"`
+	Image          bson.RawValue `bson:"img" json:"img"`
+}
+
 type LeaveMessageDocument struct {
 	Guild          string  `bson:"guild" json:"guild"`
 	MessageContent *string `bson:"message_content,omitempty" json:"message_content,omitempty"`
 	Title          *string `bson:"title,omitempty" json:"title,omitempty"`
 	Color          *string `bson:"color,omitempty" json:"color,omitempty"`
 	Channel        string  `bson:"channel" json:"channel"`
+}
+
+type LeaveMessageReadDocument struct {
+	Guild          bson.RawValue `bson:"guild" json:"guild"`
+	MessageContent bson.RawValue `bson:"message_content" json:"message_content"`
+	Title          bson.RawValue `bson:"title" json:"title"`
+	Color          bson.RawValue `bson:"color" json:"color"`
+	Channel        bson.RawValue `bson:"channel" json:"channel"`
 }
 
 type VerificationDocument struct {
@@ -109,6 +126,51 @@ func (d JoinMessageDocument) ToDomain() domain.JoinMessageConfig {
 	}
 }
 
+func (d JoinMessageReadDocument) ToDomain() domain.JoinMessageConfig {
+	guild, _ := legacyMongooseString(d.Guild)
+	content, _ := legacyMongooseString(d.MessageContent)
+	color, _ := legacyMongooseString(d.Color)
+	channel, _ := legacyMongooseString(d.Channel)
+	image, _ := legacyMongooseString(d.Image)
+	return domain.JoinMessageConfig{
+		GuildID:        guild,
+		Enabled:        legacyJoinMessageEnabled(d.Enable),
+		ChannelID:      channel,
+		MessageContent: content,
+		Color:          color,
+		ImageURL:       image,
+	}
+}
+
+func legacyJoinMessageEnabled(value bson.RawValue) bool {
+	if parsed, ok := value.BooleanOK(); ok {
+		return parsed
+	}
+	if parsed, ok := value.StringValueOK(); ok {
+		switch parsed {
+		case "false", "0", "no":
+			return false
+		case "true", "1", "yes":
+			return true
+		default:
+			return true
+		}
+	}
+	switch value.Type {
+	case bson.TypeDouble:
+		parsed, _ := value.DoubleOK()
+		return parsed != 0
+	case bson.TypeInt32:
+		parsed, _ := value.Int32OK()
+		return parsed != 0
+	case bson.TypeInt64:
+		parsed, _ := value.Int64OK()
+		return parsed != 0
+	default:
+		return true
+	}
+}
+
 func LeaveMessageDocumentFromDomain(config domain.LeaveMessageConfig) LeaveMessageDocument {
 	return LeaveMessageDocument{
 		Guild:          config.GuildID,
@@ -126,6 +188,21 @@ func (d LeaveMessageDocument) ToDomain() domain.LeaveMessageConfig {
 		MessageContent: stringValue(d.MessageContent),
 		Title:          stringValue(d.Title),
 		Color:          stringValue(d.Color),
+	}
+}
+
+func (d LeaveMessageReadDocument) ToDomain() domain.LeaveMessageConfig {
+	guild, _ := legacyMongooseString(d.Guild)
+	content, _ := legacyMongooseString(d.MessageContent)
+	title, _ := legacyMongooseString(d.Title)
+	color, _ := legacyMongooseString(d.Color)
+	channel, _ := legacyMongooseString(d.Channel)
+	return domain.LeaveMessageConfig{
+		GuildID:        guild,
+		ChannelID:      channel,
+		MessageContent: content,
+		Title:          title,
+		Color:          color,
 	}
 }
 

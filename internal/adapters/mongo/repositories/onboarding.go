@@ -208,7 +208,7 @@ func (r *JoinMessageConfigRepository) GetJoinMessageConfig(ctx context.Context, 
 	if guildID == "" {
 		return domain.JoinMessageConfig{}, domain.ErrInvalidJoinMessageConfig
 	}
-	var document documents.JoinMessageDocument
+	var document documents.JoinMessageReadDocument
 	if err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document); err != nil {
 		if errors.Is(err, drivermongo.ErrNoDocuments) {
 			return domain.JoinMessageConfig{}, ports.ErrJoinMessageConfigMissing
@@ -230,7 +230,7 @@ func (r *LeaveMessageConfigRepository) PrepareLeaveMessageConfig(ctx context.Con
 	if err := config.ValidateChannel(); err != nil {
 		return domain.LeaveMessageConfig{}, err
 	}
-	var document documents.LeaveMessageDocument
+	var document documents.LeaveMessageReadDocument
 	err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: config.GuildID}}).Decode(&document)
 	if err != nil && !errors.Is(err, drivermongo.ErrNoDocuments) {
 		return domain.LeaveMessageConfig{}, mhcatmongo.MapError(fmt.Errorf("load leave message config: %w", err))
@@ -271,7 +271,7 @@ func (r *LeaveMessageConfigRepository) GetLeaveMessageConfig(ctx context.Context
 	if guildID == "" {
 		return domain.LeaveMessageConfig{}, domain.ErrInvalidLeaveMessageConfig
 	}
-	var document documents.LeaveMessageDocument
+	var document documents.LeaveMessageReadDocument
 	err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document)
 	if errors.Is(err, drivermongo.ErrNoDocuments) {
 		return domain.LeaveMessageConfig{}, ports.ErrLeaveMessageConfigMissing

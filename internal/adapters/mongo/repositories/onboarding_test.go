@@ -19,6 +19,11 @@ func TestLeaveMessagePrepareInsertUpdate(t *testing.T) {
 	if !bsonDHas(update, "$setOnInsert", "guild", "guild") {
 		t.Fatalf("missing guild setOnInsert: %#v", update)
 	}
+	for _, field := range []string{"message_content", "title", "color"} {
+		if !bsonDHas(update, "$setOnInsert", field, nil) {
+			t.Fatalf("missing null %s setOnInsert: %#v", field, update)
+		}
+	}
 }
 
 func TestJoinRoleInsertUpdateRemainsTyped(t *testing.T) {

@@ -147,41 +147,103 @@ func TestJoinMessageDocumentMissingEnableDefaultsEnabled(t *testing.T) {
 	}
 }
 
-func TestJoinMessageDocumentDecodesLegacyEnableShapes(t *testing.T) {
+func TestJoinMessageReadDocumentUsesMongooseScalarCoercion(t *testing.T) {
+	objectID := bson.NewObjectID()
 	for _, tc := range []struct {
 		name        string
-		enable      any
-		include     bool
+		document    bson.D
 		wantEnabled bool
+		wantGuild   string
+		wantChannel string
+		wantContent string
+		wantColor   string
+		wantImage   string
 	}{
-		{name: "missing", wantEnabled: true},
-		{name: "null", enable: nil, include: true, wantEnabled: true},
-		{name: "false", enable: false, include: true},
-		{name: "true", enable: true, include: true, wantEnabled: true},
+		{
+			name:        "typed fields and missing enable",
+			document:    bson.D{{Key: "guild", Value: "guild"}, {Key: "channel", Value: "channel"}, {Key: "message_content", Value: "   "}, {Key: "color", Value: "Green"}, {Key: "img", Value: "image"}},
+			wantEnabled: true, wantGuild: "guild", wantChannel: "channel", wantContent: "   ", wantColor: "Green", wantImage: "image",
+		},
+		{
+			name:      "legacy scalar fields",
+			document:  bson.D{{Key: "guild", Value: int64(123)}, {Key: "enable", Value: "false"}, {Key: "channel", Value: objectID}, {Key: "message_content", Value: true}, {Key: "color", Value: int32(456)}, {Key: "img", Value: 1.5}},
+			wantGuild: "123", wantChannel: objectID.Hex(), wantContent: "true", wantColor: "456", wantImage: "1.5",
+		},
+		{
+			name:        "null optional fields",
+			document:    bson.D{{Key: "guild", Value: "guild"}, {Key: "enable", Value: nil}, {Key: "channel", Value: "channel"}, {Key: "message_content", Value: nil}, {Key: "color", Value: nil}, {Key: "img", Value: nil}},
+			wantEnabled: true, wantGuild: "guild", wantChannel: "channel",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			raw := bson.D{
-				{Key: "guild", Value: "guild"},
-				{Key: "channel", Value: "channel"},
-				{Key: "message_content", Value: "   "},
-				{Key: "color", Value: "Green"},
-			}
-			if tc.include {
-				raw = append(raw, bson.E{Key: "enable", Value: tc.enable})
-			}
-			encoded, err := bson.Marshal(raw)
+			encoded, err := bson.Marshal(tc.document)
 			if err != nil {
 				t.Fatalf("marshal: %v", err)
 			}
-			var document JoinMessageDocument
+			var document JoinMessageReadDocument
 			if err := bson.Unmarshal(encoded, &document); err != nil {
 				t.Fatalf("unmarshal: %v", err)
 			}
 			config := document.ToDomain()
-			if config.Enabled != tc.wantEnabled || config.MessageContent != "   " || config.Color != "Green" {
+			if config.Enabled != tc.wantEnabled || config.GuildID != tc.wantGuild || config.ChannelID != tc.wantChannel || config.MessageContent != tc.wantContent || config.Color != tc.wantColor || config.ImageURL != tc.wantImage {
 				t.Fatalf("config = %#v", config)
 			}
 		})
+	}
+}
+
+func TestJoinMessageReadDocumentPreservesLegacyEnableSemantics(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		enable any
+		want   bool
+	}{
+		{name: "false boolean", enable: false},
+		{name: "zero integer", enable: int32(0)},
+		{name: "zero double", enable: float64(0)},
+		{name: "false string", enable: "false"},
+		{name: "zero string", enable: "0"},
+		{name: "no string", enable: "no"},
+		{name: "true boolean", enable: true, want: true},
+		{name: "one integer", enable: int64(1), want: true},
+		{name: "yes string", enable: "yes", want: true},
+		{name: "unknown scalar remains enabled", enable: "unknown", want: true},
+		{name: "compound remains enabled", enable: bson.D{{Key: "bad", Value: true}}, want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded, err := bson.Marshal(bson.D{{Key: "enable", Value: tc.enable}})
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			var document JoinMessageReadDocument
+			if err := bson.Unmarshal(encoded, &document); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if got := document.ToDomain().Enabled; got != tc.want {
+				t.Fatalf("enabled = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestJoinMessageReadDocumentLeavesCompoundStringsUnusable(t *testing.T) {
+	encoded, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: bson.D{{Key: "bad", Value: true}}},
+		{Key: "channel", Value: bson.A{"bad"}},
+		{Key: "message_content", Value: bson.D{{Key: "bad", Value: true}}},
+		{Key: "color", Value: bson.A{"bad"}},
+		{Key: "img", Value: bson.D{{Key: "bad", Value: true}}},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document JoinMessageReadDocument
+	if err := bson.Unmarshal(encoded, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	config := document.ToDomain()
+	if config.GuildID != "" || config.ChannelID != "" || config.MessageContent != "" || config.Color != "" || config.ImageURL != "" || !config.Enabled {
+		t.Fatalf("config = %#v", config)
 	}
 }
 
@@ -209,23 +271,80 @@ func TestLeaveMessageDocumentNullFieldsDecodeEmpty(t *testing.T) {
 	}
 }
 
-func TestLeaveMessageDocumentDecodesNullableLegacyFields(t *testing.T) {
+func TestLeaveMessageReadDocumentUsesMongooseScalarCoercion(t *testing.T) {
+	objectID := bson.NewObjectID()
+	encoded, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: int64(123)},
+		{Key: "channel", Value: objectID},
+		{Key: "message_content", Value: "   "},
+		{Key: "title", Value: true},
+		{Key: "color", Value: int32(456)},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document LeaveMessageReadDocument
+	if err := bson.Unmarshal(encoded, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	config := document.ToDomain()
+	if config.GuildID != "123" || config.ChannelID != objectID.Hex() || config.MessageContent != "   " || config.Title != "true" || config.Color != "456" {
+		t.Fatalf("config = %#v", config)
+	}
+}
+
+func TestLeaveMessageReadDocumentTreatsMissingNullAndCompoundFieldsAsEmpty(t *testing.T) {
 	encoded, err := bson.Marshal(bson.D{
 		{Key: "guild", Value: "guild"},
-		{Key: "channel", Value: "channel"},
-		{Key: "message_content", Value: "   "},
+		{Key: "channel", Value: bson.A{"bad"}},
+		{Key: "message_content", Value: bson.D{{Key: "bad", Value: true}}},
 		{Key: "title", Value: nil},
 	})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	var document LeaveMessageDocument
+	var document LeaveMessageReadDocument
 	if err := bson.Unmarshal(encoded, &document); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	config := document.ToDomain()
-	if config.MessageContent != "   " || config.Title != "" || config.Color != "" || config.ChannelID != "channel" {
+	if config.GuildID != "guild" || config.ChannelID != "" || config.MessageContent != "" || config.Title != "" || config.Color != "" {
 		t.Fatalf("config = %#v", config)
+	}
+}
+
+func TestWelcomeMessageWriteDocumentsRemainTyped(t *testing.T) {
+	enabled := false
+	content := "  message  "
+	color := "Random"
+	image := "https://example.test/image.png"
+	joinPayload, err := bson.Marshal(JoinMessageDocument{
+		Guild: "guild", Enable: &enabled, MessageContent: &content, Color: &color, Channel: "channel", Image: &image,
+	})
+	if err != nil {
+		t.Fatalf("marshal join: %v", err)
+	}
+	joinRaw := bson.Raw(joinPayload)
+	for _, field := range []string{"guild", "message_content", "color", "channel", "img"} {
+		if joinRaw.Lookup(field).Type != bson.TypeString {
+			t.Fatalf("join field %s type = %s", field, joinRaw.Lookup(field).Type)
+		}
+	}
+	if joinRaw.Lookup("enable").Type != bson.TypeBoolean {
+		t.Fatalf("join enable type = %s", joinRaw.Lookup("enable").Type)
+	}
+
+	leavePayload, err := bson.Marshal(LeaveMessageDocumentFromDomain(domain.LeaveMessageConfig{
+		GuildID: "guild", ChannelID: "channel", MessageContent: content, Title: "title", Color: color,
+	}))
+	if err != nil {
+		t.Fatalf("marshal leave: %v", err)
+	}
+	leaveRaw := bson.Raw(leavePayload)
+	for _, field := range []string{"guild", "message_content", "title", "color", "channel"} {
+		if leaveRaw.Lookup(field).Type != bson.TypeString {
+			t.Fatalf("leave field %s type = %s", field, leaveRaw.Lookup(field).Type)
+		}
 	}
 }
 
