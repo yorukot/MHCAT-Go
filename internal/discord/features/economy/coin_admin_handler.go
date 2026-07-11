@@ -15,7 +15,6 @@ import (
 const (
 	coinAdminManageMessagesPermission = int64(8192)
 	coinAdminErrorColor               = 0xED4245
-	coinAdminSuccessColor             = 0x5865F2
 	coinAdminOptionUser               = "使用者"
 	coinAdminOptionOperation          = "增加或減少"
 	coinAdminOptionAmount             = "數量"
@@ -38,7 +37,11 @@ func (m Module) CoinAdminHandler() interactions.Handler {
 			return responder.EditOriginal(ctx, coinAdminErrorFromError(err))
 		}
 		targetName := m.lookupUsername(ctx, interaction.Actor.GuildID, command.UserID)
-		if err := responder.EditOriginal(ctx, coinAdminSuccessMessage(result, targetName, interaction.Actor.AvatarURL)); err != nil {
+		avatarURL := strings.TrimSpace(interaction.Actor.GuildAvatarURL)
+		if avatarURL == "" {
+			avatarURL = interaction.Actor.AvatarURL
+		}
+		if err := responder.EditOriginal(ctx, coinAdminSuccessMessage(result, targetName, avatarURL, m.randomColor())); err != nil {
 			return err
 		}
 		return m.trackCommand(ctx, interaction, CoinAdminCommandName)
@@ -89,7 +92,7 @@ func coinAdminErrorMessage(content string) responses.Message {
 	}
 }
 
-func coinAdminSuccessMessage(result domain.CoinAdminResult, targetName string, avatarURL string) responses.Message {
+func coinAdminSuccessMessage(result domain.CoinAdminResult, targetName string, avatarURL string, color int) responses.Message {
 	action := "增加"
 	if result.Delta < 0 {
 		action = "減少"
@@ -109,7 +112,7 @@ func coinAdminSuccessMessage(result domain.CoinAdminResult, targetName string, a
 				Text:    fmt.Sprintf("%s%d", action, amount),
 				IconURL: avatarURL,
 			},
-			Color: coinAdminSuccessColor,
+			Color: color,
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}

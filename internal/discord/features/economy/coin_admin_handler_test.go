@@ -51,10 +51,12 @@ func TestCoinAdminAddCreatesBalanceAndRendersLegacySuccess(t *testing.T) {
 	usage := &fakeusage.Tracker{}
 	info := &fakebotinfo.DiscordInfoProvider{Users: map[string]ports.DiscordUserInfo{"target": {Username: "Target"}}}
 	module := NewCoinAdminModule(repo, info, usage)
+	module.color = func() int { return 0x123456 }
 	responder := fakediscord.NewResponder()
 	interaction := coinAdminInteraction("target", "add", 10)
 	interaction.Actor.PermissionBits = coinAdminManageMessagesPermission
 	interaction.Actor.AvatarURL = "https://example.test/mod.png"
+	interaction.Actor.GuildAvatarURL = "https://example.test/guild-mod.gif"
 	if err := module.CoinAdminHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
@@ -67,6 +69,9 @@ func TestCoinAdminAddCreatesBalanceAndRendersLegacySuccess(t *testing.T) {
 	}
 	if responder.Edits[0].Embeds[0].Footer == nil || responder.Edits[0].Embeds[0].Footer.Text != "增加10" {
 		t.Fatalf("footer = %#v", responder.Edits[0].Embeds[0].Footer)
+	}
+	if responder.Edits[0].Embeds[0].Footer.IconURL != "https://example.test/guild-mod.gif" || responder.Edits[0].Embeds[0].Color != 0x123456 {
+		t.Fatalf("success embed = %#v", responder.Edits[0].Embeds[0])
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != CoinAdminCommandName || usage.Events[0].Feature != "economy-coin-admin" {
 		t.Fatalf("usage = %#v", usage.Events)
