@@ -452,6 +452,47 @@ func TestBuildRuntimeRoutesEconomySettingsWithoutPublishingQueryOrSignIn(t *test
 	}
 }
 
+func TestBuildRuntimeTracksEveryEconomySettingsAttemptOnce(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                    validTestConfig(),
+		EconomySettingsRepository: repo,
+		UsageTracker:              tracker,
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	valid := fakediscord.SlashInteractionWithOptions("coin-related-settings", "", map[string]string{
+		"coin-raffle-takes": "700", "check-in-cooldown-time": "2", "check-in-give-coins": "30",
+		"notification-channel": "222222222222222222", "level-up-multiply-amount": "2.5",
+	})
+	valid.Actor.PermissionBits = 8192
+	permissionDenied := valid
+	permissionDenied.Actor.PermissionBits = 0
+	tooLarge := valid
+	tooLarge.Options = map[string]string{
+		"coin-raffle-takes": "1000000000", "check-in-cooldown-time": "2", "check-in-give-coins": "30",
+		"notification-channel": "222222222222222222", "level-up-multiply-amount": "2.5",
+	}
+	for _, interaction := range []interactions.Interaction{valid, permissionDenied, tooLarge} {
+		if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+			t.Fatalf("dispatch settings: %v", err)
+		}
+	}
+	if len(tracker.Events) != 3 {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for index, event := range tracker.Events {
+		if event.CommandName != "coin-related-settings" {
+			t.Fatalf("usage event %d = %#v", index, event)
+		}
+	}
+	if len(repo.SavedConfigs) != 1 {
+		t.Fatalf("saved configs = %#v", repo.SavedConfigs)
+	}
+}
+
 func TestBuildRuntimeRoutesEconomyCoinAdminWithoutPublishingQueryOrSignIn(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	dispatcher, err := BuildRuntime(RuntimeOptions{
