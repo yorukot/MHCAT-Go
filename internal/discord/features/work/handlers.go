@@ -406,11 +406,11 @@ func workInterfaceMessage(view domain.WorkInterfaceView, colors ...int) response
 }
 
 func workInterfaceDescription(view domain.WorkInterfaceView) string {
-	return fmt.Sprintf("<:status:1048643690572283965> **你目前的打工狀態 :** `%s`\n<:chronometer:986065703369080884> **剩餘時間:** %s\n<:lighting:1048626093994803200> **剩餘體力:** `%d \\ %d`\n<a:arrow_pink:996242460294512690> **點擊下方的按扭進行打工!**",
+	return fmt.Sprintf("<:status:1048643690572283965> **你目前的打工狀態 :** `%s`\n<:chronometer:986065703369080884> **剩餘時間:** %s\n<:lighting:1048626093994803200> **剩餘體力:** `%s \\ %s`\n<a:arrow_pink:996242460294512690> **點擊下方的按扭進行打工!**",
 		view.User.EffectiveState(view.NowUnix),
 		view.User.RemainingTimeText(view.NowUnix),
-		view.User.Energy,
-		view.Config.MaxEnergy,
+		workScalarText(view.User.EnergyText, view.User.Energy),
+		workScalarText(view.Config.MaxEnergyText, view.Config.MaxEnergy),
 	)
 }
 
@@ -427,11 +427,11 @@ func workItemFields(items []domain.WorkItem) []responses.EmbedField {
 		}
 		fields = append(fields, responses.EmbedField{
 			Name: fmt.Sprintf("<:id:985950321975128094> **打工地點名稱 :** `%s`", item.Name),
-			Value: fmt.Sprintf("<:lighting:1048626093994803200> **打工所需精力 : **`%d` \n<:ontime:981966857718353950> **耗費時間 : **`%s分(%s小時)` \n<:id:985950321975128094> **打工報酬 : **`%d`(代幣)\n<:roleplaying:985945121264635964> **所需身分組 : ** %s",
-				item.EnergyCost,
-				legacyDurationNumber(float64(item.DurationSec)/60),
-				legacyDurationNumber(float64(item.DurationSec)/60/60),
-				item.CoinReward,
+			Value: fmt.Sprintf("<:lighting:1048626093994803200> **打工所需精力 : **`%s` \n<:ontime:981966857718353950> **耗費時間 : **`%s分(%s小時)` \n<:id:985950321975128094> **打工報酬 : **`%s`(代幣)\n<:roleplaying:985945121264635964> **所需身分組 : ** %s",
+				workScalarText(item.EnergyCostText, item.EnergyCost),
+				legacyDurationNumber(workScalarNumber(item.DurationText, item.DurationSec)/60),
+				legacyDurationNumber(workScalarNumber(item.DurationText, item.DurationSec)/60/60),
+				workScalarText(item.CoinRewardText, item.CoinReward),
 				role,
 			),
 			Inline: true,
@@ -473,10 +473,10 @@ func workDetailMessage(view domain.WorkInterfaceView, item domain.WorkItem, star
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title: fmt.Sprintf("<:creativeteaching:986060052949524600> 以下是%s打工的詳細資料", item.Name),
-			Description: fmt.Sprintf("<:id:1010884394791207003> **打工地點名稱:**`%s`\n<:money:997374193026994236> **可獲得代幣:**`%d 個代幣`\n<:lighting:1048626093994803200> **耗費精力:**`%d`\n",
+			Description: fmt.Sprintf("<:id:1010884394791207003> **打工地點名稱:**`%s`\n<:money:997374193026994236> **可獲得代幣:**`%s 個代幣`\n<:lighting:1048626093994803200> **耗費精力:**`%s`\n",
 				item.Name,
-				item.CoinReward,
-				item.EnergyCost,
+				workScalarText(item.CoinRewardText, item.CoinReward),
+				workScalarText(item.EnergyCostText, item.EnergyCost),
 			),
 			Color: color,
 		}},
@@ -804,7 +804,38 @@ func boolOption(interaction interactions.Interaction, name string, fallback bool
 }
 
 func legacyDurationNumber(value float64) string {
+	if math.IsNaN(value) {
+		return "NaN"
+	}
+	if math.IsInf(value, 1) {
+		return "Infinity"
+	}
+	if math.IsInf(value, -1) {
+		return "-Infinity"
+	}
 	return strconv.FormatFloat(value, 'f', -1, 64)
+}
+
+func workScalarText(text string, fallback int64) string {
+	if text = strings.TrimSpace(text); text != "" {
+		return text
+	}
+	return strconv.FormatInt(fallback, 10)
+}
+
+func workScalarNumber(text string, fallback int64) float64 {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return float64(fallback)
+	}
+	if text == "null" {
+		return 0
+	}
+	value, err := strconv.ParseFloat(text, 64)
+	if err != nil {
+		return math.NaN()
+	}
+	return value
 }
 
 func buttonLabel(value string) string {

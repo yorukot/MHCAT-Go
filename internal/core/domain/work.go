@@ -29,12 +29,15 @@ type WorkConfig struct {
 }
 
 type WorkItem struct {
-	GuildID     string
-	Name        string
-	DurationSec int64
-	EnergyCost  int64
-	CoinReward  int64
-	RoleID      string
+	GuildID        string
+	Name           string
+	DurationSec    int64
+	DurationText   string
+	EnergyCost     int64
+	EnergyCostText string
+	CoinReward     int64
+	CoinRewardText string
+	RoleID         string
 }
 
 func (i WorkItem) Key() string {
@@ -51,6 +54,7 @@ type WorkUserState struct {
 	Energy      int64
 	EnergyText  string
 	GetCoin     int64
+	GetCoinText string
 	Initialized bool
 }
 

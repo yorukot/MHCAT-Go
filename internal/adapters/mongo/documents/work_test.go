@@ -52,8 +52,12 @@ func TestWorkDocumentsPreserveProfileScalarText(t *testing.T) {
 				{Key: "user", Value: "user-1"},
 				{Key: "get_energy", Value: test.value},
 				{Key: "max_energy", Value: test.value},
+				{Key: "time", Value: test.value},
+				{Key: "energy", Value: test.value},
+				{Key: "coin", Value: test.value},
 				{Key: "energi", Value: test.value},
 				{Key: "end_time", Value: test.value},
+				{Key: "get_coin", Value: test.value},
 			})
 			if err != nil {
 				t.Fatalf("marshal: %v", err)
@@ -66,10 +70,17 @@ func TestWorkDocumentsPreserveProfileScalarText(t *testing.T) {
 			if err := bson.Unmarshal(raw, &user); err != nil {
 				t.Fatalf("decode user: %v", err)
 			}
+			var item WorkItemDocument
+			if err := bson.Unmarshal(raw, &item); err != nil {
+				t.Fatalf("decode item: %v", err)
+			}
 			gotConfig := config.ToDomain()
+			gotItem := item.ToDomain()
 			gotUser := user.ToDomain()
-			if gotConfig.DailyEnergyText != test.want || gotConfig.MaxEnergyText != test.want || gotUser.EnergyText != test.want || gotUser.EndTimeText != test.want {
-				t.Fatalf("config=%#v user=%#v want=%q", gotConfig, gotUser, test.want)
+			if gotConfig.DailyEnergyText != test.want || gotConfig.MaxEnergyText != test.want ||
+				gotItem.DurationText != test.want || gotItem.EnergyCostText != test.want || gotItem.CoinRewardText != test.want ||
+				gotUser.EnergyText != test.want || gotUser.EndTimeText != test.want || gotUser.GetCoinText != test.want {
+				t.Fatalf("config=%#v item=%#v user=%#v want=%q", gotConfig, gotItem, gotUser, test.want)
 			}
 		})
 	}

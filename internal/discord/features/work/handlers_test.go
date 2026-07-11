@@ -105,6 +105,59 @@ func TestWorkInterfaceRendersLegacyListReadOnly(t *testing.T) {
 	}
 }
 
+func TestWorkInterfaceRendersPreservedScalarText(t *testing.T) {
+	view := domain.WorkInterfaceView{
+		Config: domain.WorkConfig{MaxEnergy: 20, MaxEnergyText: "20.5"},
+		User: domain.WorkUserState{
+			State:      domain.WorkIdleState,
+			Energy:     9,
+			EnergyText: "9.5",
+		},
+	}
+	if got := workInterfaceDescription(view); !strings.Contains(got, "`9.5 \\ 20.5`") {
+		t.Fatalf("interface description = %q", got)
+	}
+
+	item := domain.WorkItem{
+		Name:           "礦坑",
+		DurationText:   "90.5",
+		EnergyCostText: "3.5",
+		CoinRewardText: "88.5",
+	}
+	field := workItemFields([]domain.WorkItem{item})[0].Value
+	for _, want := range []string{"`3.5`", "`1.5083333333333333分(0.025138888888888888小時)`", "`88.5`"} {
+		if !strings.Contains(field, want) {
+			t.Fatalf("work list field %q does not contain %q", field, want)
+		}
+	}
+	detail := workDetailMessage(view, item, false, 0).Embeds[0].Description
+	for _, want := range []string{"`88.5 個代幣`", "`3.5`"} {
+		if !strings.Contains(detail, want) {
+			t.Fatalf("work detail %q does not contain %q", detail, want)
+		}
+	}
+}
+
+func TestWorkListRendersLegacyDurationCoercion(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{name: "null", raw: "null", want: "`0分(0小時)`"},
+		{name: "infinity", raw: "Infinity", want: "`Infinity分(Infinity小時)`"},
+		{name: "malformed", raw: "undefined", want: "`NaN分(NaN小時)`"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			field := workItemFields([]domain.WorkItem{{Name: "礦坑", DurationText: test.raw}})[0].Value
+			if !strings.Contains(field, test.want) {
+				t.Fatalf("work list field = %q, want %q", field, test.want)
+			}
+		})
+	}
+}
+
 func TestWorkInterfaceShowsCaptchaModalWhenEnabled(t *testing.T) {
 	repo := fakemongo.NewWorkInterfaceRepository()
 	repo.PutConfig(domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 20, Captcha: true})

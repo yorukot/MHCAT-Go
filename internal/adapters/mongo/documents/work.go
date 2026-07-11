@@ -46,12 +46,15 @@ func (d WorkConfigDocument) ToDomain() domain.WorkConfig {
 
 func (d WorkItemDocument) ToDomain() domain.WorkItem {
 	return domain.WorkItem{
-		GuildID:     d.Guild,
-		Name:        d.Name,
-		DurationSec: workLegacyInt64(d.Time),
-		EnergyCost:  workLegacyInt64(d.Energy),
-		CoinReward:  workLegacyInt64(d.Coin),
-		RoleID:      d.Role,
+		GuildID:        d.Guild,
+		Name:           d.Name,
+		DurationSec:    workLegacyInt64(d.Time),
+		DurationText:   legacyPriceString(d.Time),
+		EnergyCost:     workLegacyInt64(d.Energy),
+		EnergyCostText: legacyPriceString(d.Energy),
+		CoinReward:     workLegacyInt64(d.Coin),
+		CoinRewardText: legacyPriceString(d.Coin),
+		RoleID:         d.Role,
 	}
 }
 
@@ -65,6 +68,7 @@ func (d WorkUserDocument) ToDomain() domain.WorkUserState {
 		Energy:      workLegacyInt64(d.Energi),
 		EnergyText:  legacyPriceString(d.Energi),
 		GetCoin:     workLegacyInt64(d.GetCoin),
+		GetCoinText: legacyPriceString(d.GetCoin),
 		Initialized: true,
 	}
 }
