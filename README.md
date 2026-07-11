@@ -105,6 +105,7 @@ Implemented utility commands:
 - `/代幣重製` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, gateway enabled, Guild Messages intent enabled, and Message Content intent enabled
 - `/剪刀石頭布` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`
 - parity-audited `/my-profile` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true`; see [docs/97-economy-profile.md](docs/97-economy-profile.md)
+- parity-audited `/簽到`, `/簽到列表`, and calendar navigation when explicitly enabled with `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`; see [docs/98-economy-sign.md](docs/98-economy-sign.md)
 - `/打工系統 新增打工事項` dashboard redirect, `/打工系統 打工介面` list/detail/start flow, and work admin setup/delete/energy flows when explicitly enabled with `MHCAT_FEATURE_WORK_ENABLED=true`
 - `/警告紀錄` when explicitly enabled with `MHCAT_FEATURE_WARNINGS_ENABLED=true`
 - `/警告設定` when explicitly enabled with `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true`
@@ -576,7 +577,7 @@ Wave 5.7 applied the managed `help`, `info`, and `ping` commands to the staging 
 
 The read-only `/代幣查詢` command is available only when `MHCAT_FEATURE_ECONOMY_QUERY_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_QUERY=true`; staging preflight and scripts reject unpaired sync/runtime flags. Exact UI, scalar coercion, duplicate-read, usage, migration, smoke, and rollback behavior is canonical in [docs/95-economy-query.md](docs/95-economy-query.md).
 
-The `/簽到` command is available only when `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes `coins` and `sign_lists`, so use only isolated staging data until the production duplicate/index/reset blockers in `docs/40-economy-signin.md` are closed.
+The `/簽到` command is available only when `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SIGNIN=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes `coins` and `sign_lists`, so use only isolated staging data until the production duplicate/index/reset blockers in [docs/98-economy-sign.md](docs/98-economy-sign.md) are closed.
 
 The `/coin-related-settings` command is available only when `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command writes `gift_changes` using legacy field names and an atomic patch/update path instead of the legacy delete-then-insert flow. It requires Manage Messages at the command definition and runtime levels.
 

@@ -1,6 +1,6 @@
 # Economy Sign-In Slice
 
-Status: gated write slice for legacy `/簽到` plus read-only legacy `/簽到列表`.
+Status: gated write slice for legacy `/簽到` plus read-only legacy `/簽到列表`. The canonical audited behavior and rollout contract is [98-economy-sign.md](98-economy-sign.md).
 
 ## Implemented
 
@@ -40,7 +40,7 @@ Status: gated write slice for legacy `/簽到` plus read-only legacy `/簽到列
 - Production duplicate audit must be clean for `coins` logical key `{guild, member}`.
 - Production duplicate audit must be clean for `sign_lists` logical key `{guild, member}`.
 - A unique-index plan for both logical keys must be approved and applied through the explicit Mongo index process.
-- Daily-mode sign-in depends on the Asia/Taipei midnight reset. The Go refactor now has a dry-run-first one-shot reset tool, but production sign-in still needs an operator-owned reset process or a future lease-backed scheduler.
+- Daily-mode sign-in depends on exactly one Asia/Taipei midnight reset owner. The one-shot and recurring Go paths share lease `daily-reset`; production still requires explicit exclusive ownership.
 - Coin award and calendar update are not yet wrapped in a Mongo transaction. The calendar write is idempotent and repairable, but production enablement needs either transaction support or a documented repair/audit path.
 
 ## Staging Use
@@ -58,7 +58,8 @@ Do not run command-sync apply until the dry-run plan is reviewed.
 
 Smoke `/簽到列表` in both modes if possible:
 
-- daily mode: ensure `gift_changes.time` is missing or `0`, set at least one staging `coins.today=1`, and verify the count, `有`/`沒有` text, inline names, and `discord.txt`;
+- daily mode: remove the `gift_changes` row or set its numeric `time` to `0`, set at least one staging `coins.today=1`, and verify the count, `有`/`沒有` text, inline names, and `discord.txt`;
+- default rolling mode: keep a `gift_changes` row with missing/null `time`, use a recent Unix `coins.today`, and verify the 86400-second window;
 - rolling mode: set `gift_changes.time` to a positive cooldown, use staging `coins.today` Unix timestamps, and verify the exported `簽到時間:` values use Taipei time.
 
 ## Duplicate Audit
