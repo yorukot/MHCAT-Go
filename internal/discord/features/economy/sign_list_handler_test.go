@@ -82,6 +82,12 @@ func TestSignInListHandlerRendersRollingTimesAndMissingUsers(t *testing.T) {
 	}
 }
 
+func TestLegacySignListTimePreservesFractionalNegativeEpoch(t *testing.T) {
+	if got := legacySignListTime(-0.5); got != "1970/01/01\u200907:59:59 [台北標準時間]" {
+		t.Fatalf("time = %q", got)
+	}
+}
+
 func TestSignInListHandlerMatchesActorByExactUserID(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "prefix-user-1", Today: 1})

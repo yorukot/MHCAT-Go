@@ -3,6 +3,7 @@ package economy
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -94,12 +95,16 @@ func legacySignInListBool(value bool) string {
 	return "`沒有`"
 }
 
-func legacySignListTime(unixSeconds int64) string {
+func legacySignListTime(unixSeconds float64) string {
+	if math.IsNaN(unixSeconds) || math.IsInf(unixSeconds, 0) {
+		return "Invalid Date"
+	}
 	location, err := time.LoadLocation("Asia/Taipei")
 	if err != nil {
 		location = time.FixedZone("Asia/Taipei", 8*60*60)
 	}
-	return time.Unix(unixSeconds, 0).In(location).Format("2006/01/02\u200915:04:05 [台北標準時間]")
+	milliseconds := int64(unixSeconds * 1000)
+	return time.UnixMilli(milliseconds).In(location).Format("2006/01/02\u200915:04:05 [台北標準時間]")
 }
 
 func (m Module) randomColor() int {

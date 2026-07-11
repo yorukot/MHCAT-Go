@@ -113,7 +113,7 @@ type SignInResult struct {
 
 type SignInListEntry struct {
 	UserID       string
-	SignedAtUnix int64
+	SignedAtUnix float64
 	ShowSignedAt bool
 }
 

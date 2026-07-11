@@ -3,6 +3,7 @@ package economy
 import (
 	"context"
 	"errors"
+	"math"
 	"strings"
 	"time"
 
@@ -46,13 +47,14 @@ func (s SignInListService) List(ctx context.Context, guildID string, actorUserID
 	rollingWindow, cooldown := legacySignListWindow(config, configFound)
 	if rollingWindow {
 		result.RollingWindow = true
-		nowUnix := now.Unix()
+		nowUnix := legacySignListNow(now)
 		for _, balance := range balances {
-			delta := nowUnix - balance.Today
-			if float64(delta) < cooldown && delta > 0 {
+			today, numeric := legacySignListToday(balance)
+			delta := nowUnix - today
+			if numeric && delta < cooldown && delta > 0 {
 				result.Entries = append(result.Entries, domain.SignInListEntry{
 					UserID:       balance.UserID,
-					SignedAtUnix: balance.Today,
+					SignedAtUnix: today,
 					ShowSignedAt: true,
 				})
 			}
@@ -60,11 +62,24 @@ func (s SignInListService) List(ctx context.Context, guildID string, actorUserID
 		return result, ctx.Err()
 	}
 	for _, balance := range balances {
-		if balance.Today == 1 {
+		today, numeric := legacySignListToday(balance)
+		if numeric && today == 1 {
 			result.Entries = append(result.Entries, domain.SignInListEntry{UserID: balance.UserID})
 		}
 	}
 	return result, ctx.Err()
+}
+
+func legacySignListNow(now time.Time) float64 {
+	return math.Round(float64(now.UnixNano()) / float64(time.Second))
+}
+
+func legacySignListToday(balance domain.CoinBalance) (float64, bool) {
+	todayText := strings.TrimSpace(balance.TodayText)
+	if todayText == "" {
+		return float64(balance.Today), true
+	}
+	return legacyDisplayedNumber(todayText)
 }
 
 func legacySignListWindow(config domain.EconomyConfig, configFound bool) (bool, float64) {

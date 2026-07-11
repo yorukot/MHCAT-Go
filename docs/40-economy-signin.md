@@ -20,7 +20,7 @@ Status: gated write slice for legacy `/簽到` plus read-only legacy `/簽到列
 - Mongo repository writes only `coins` and `sign_lists`.
 - Calendar updates use `$addToSet` instead of the legacy duplicate-prone full object replacement.
 - `/簽到列表` defers publicly, reads `coins` by guild and `gift_changes.time`, and edits to the legacy `簽到人數資訊` embed with `discord.txt`.
-- `/簽到列表` preserves the legacy daily marker mode (`coin.today == 1`) and rolling cooldown mode (`now - coin.today < gift_changes.time` and `> 0`), including Mongoose-visible missing/null `time` falling back to 86400 seconds and fractional, negative, or infinite numeric values retaining JavaScript comparison behavior.
+- `/簽到列表` preserves the legacy daily marker mode (`coin.today === 1`) and rolling cooldown mode (`now - coin.today < gift_changes.time` and `> 0`), including rounded current epoch seconds, Mongoose-visible scalar coercion, missing/null `time` falling back to 86400 seconds, and fractional, negative, or infinite numeric values retaining JavaScript comparison behavior.
 - `/簽到列表` does not write to Mongo.
 
 ## Intentional Legacy Bug Fixes

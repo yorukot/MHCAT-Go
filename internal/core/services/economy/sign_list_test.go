@@ -100,6 +100,36 @@ func TestSignInListAppliesLegacyMissingAndNegativeTimeWindows(t *testing.T) {
 	}
 }
 
+func TestSignInListPreservesLegacyTodayNumberSemantics(t *testing.T) {
+	t.Run("daily strict equality excludes decimal", func(t *testing.T) {
+		repo := fakemongo.NewEconomyRepository()
+		repo.PutBalance(domain.CoinBalance{GuildID: "guild", UserID: "exact", TodayText: "1"})
+		repo.PutBalance(domain.CoinBalance{GuildID: "guild", UserID: "decimal", Today: 1, TodayText: "1.5"})
+		result, err := (SignInListService{Repository: repo}).List(context.Background(), "guild", "exact", time.Unix(100, 0))
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		if len(result.Entries) != 1 || result.Entries[0].UserID != "exact" {
+			t.Fatalf("entries = %#v", result.Entries)
+		}
+	})
+
+	t.Run("rolling comparison retains decimal and rounded now", func(t *testing.T) {
+		repo := fakemongo.NewEconomyRepository()
+		repo.PutConfig(domain.EconomyConfig{GuildID: "guild", ResetMarkerText: "10"})
+		repo.PutBalance(domain.CoinBalance{GuildID: "guild", UserID: "inside", TodayText: "91.5"})
+		repo.PutBalance(domain.CoinBalance{GuildID: "guild", UserID: "boundary", TodayText: "91"})
+		repo.PutBalance(domain.CoinBalance{GuildID: "guild", UserID: "undefined", TodayText: "undefined"})
+		result, err := (SignInListService{Repository: repo}).List(context.Background(), "guild", "inside", time.Unix(100, 600_000_000))
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		if len(result.Entries) != 1 || result.Entries[0].UserID != "inside" || result.Entries[0].SignedAtUnix != 91.5 {
+			t.Fatalf("entries = %#v", result.Entries)
+		}
+	})
+}
+
 func TestSignInListRequiresRepositoryIDsAndNow(t *testing.T) {
 	_, err := (SignInListService{}).List(context.Background(), "guild", "user", time.Unix(1, 0))
 	if !errors.Is(err, domain.ErrInvalidSignIn) {
