@@ -1,5 +1,7 @@
 # Wave 5.11 System Buildout Fan-Out And Info Parity
 
+Status: historical implementation note. The current help/ping/info behavior and reviewed intentional differences are canonical in [94-utility-builtins.md](94-utility-builtins.md). In particular, initial shard fields are no longer shown and unknown locale preserves literal `undefined`.
+
 ## Gate C Review
 
 - Legacy `MHCAT/` source remained read-only.
@@ -66,8 +68,8 @@ Implemented read-only `/info user` and `/info guild` handlers.
 
 ## Intentional Bug Fixes
 
-- The old `/info shard` empty initial embed remains fixed: Go responds with shard fields immediately.
-- `/info user` and `/info guild` do not copy fragile nil/undefined behavior. Missing timestamps, locale, owner, or images render safe fallback text or omit optional media.
+- `/info shard` preserves the old empty initial embed and adds fields only after refresh.
+- `/info user` and `/info guild` preserve JavaScript timestamp rounding and literal `undefined` for unknown locales; impossible missing IDs/timestamps use controlled fallback text and optional media is omitted.
 - Lookup errors are safe and do not leak raw internal errors.
 
 ## Platform Gaps Before Stateful Systems

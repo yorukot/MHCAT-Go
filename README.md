@@ -155,13 +155,13 @@ Implemented event features:
 - Account-age member join gate when explicitly enabled with `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`.
 - Reaction role add/remove handling when explicitly enabled with `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true`.
 
-`/help` now uses the legacy embed/select-menu interface instead of the temporary text placeholder. The help menu can display legacy categories and command documentation entries before every linked feature handler is implemented; that mirrors the Node.js bot's help interface and does not mean those feature groups are runtime-complete.
+`/help` uses the parity-audited legacy embed/select-menu interface. The overview intentionally has no category fields, while slash categories and ephemeral selector categories preserve their distinct legacy layouts. The inventory includes all 74 commands regardless of runtime gates; listing a command does not mean its handler is enabled. See [docs/94-utility-builtins.md](docs/94-utility-builtins.md).
 
-`/info bot` now uses the legacy embed/button interface instead of the temporary text status output. The refresh button uses the legacy `botinfoupdate` custom ID through the typed parser/router path.
+`/info bot` uses the legacy embed/button interface, sampled host CPU/RAM metrics, and exact `botinfoupdate` deferred-follow-up lifecycle through the typed parser/router path. See [docs/94-utility-builtins.md](docs/94-utility-builtins.md).
 
-`/info shard` uses the legacy embed/button style and `shardinfoupdate` route, but it intentionally shows shard fields immediately instead of copying the old empty initial embed.
+`/info shard` preserves the legacy empty initial embed and adds local process heap/RSS, uptime, and bare latency fields only after `shardinfoupdate`. The supported runtime is currently one Discord session/shard; see [docs/94-utility-builtins.md](docs/94-utility-builtins.md).
 
-`/info user` and `/info guild` use the legacy embed layouts with read-only Discord snapshots. Lookup failures return a red safe error embed and do not expose internal errors.
+`/info user` and `/info guild` use exact legacy field layouts, JavaScript timestamp rounding, and Discord CDN media forms over read-only Discord snapshots. Lookup failures return a red safe error embed and do not expose internal errors. See [docs/94-utility-builtins.md](docs/94-utility-builtins.md).
 
 Known external, intentionally inactive, or rollout gaps include lottery creation/panel generation, the disabled legacy XP profile-card branches, commented-out birthday delivery, production scheduler ownership, external ChatGPT worker confirmation/deployment, and dashboard-owned workflows. Announcement attachment-only retention and mention suppression are reviewed intentional behavior, not rollout gaps. Economy game/shop writes, economy/profile/XP leaderboard images, and gacha prize delivery are implemented behind their explicit gates.
 

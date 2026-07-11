@@ -1,6 +1,6 @@
 # Wave 5.9 Utility UI Parity
 
-Status: implemented and verified locally.
+Status: historical implementation note. Superseded by the parity-audited [built-in utility contract](94-utility-builtins.md). The current `botinfoupdate` path ephemerally defers and posts a new public follow-up; it does not update the old message or send a success confirmation.
 
 ## Trigger
 
@@ -25,7 +25,7 @@ Read-only legacy files used:
 - legacy green refresh button with custom ID `botinfoupdate`, emoji `<:update:1020532095212335235>`, and label `更新`;
 - safe red error embed when bot info cannot be collected.
 
-The `botinfoupdate` legacy component route is now registered through the typed custom ID parser. It updates the existing message through the responder state machine and sends an ephemeral success follow-up matching the legacy `done` emoji text. The refresh path also preserves the legacy `集群數量` label used in `events/btn.js`.
+The `botinfoupdate` legacy component route is registered through the typed custom ID parser. The final parity audit corrected its lifecycle: it ephemerally defers and posts a new public follow-up, preserving `集群數量` and the unnamed server-count field from `events/btn.js`.
 
 ## Files Updated
 
@@ -69,7 +69,7 @@ CPU model, CPU usage, and memory values are provided by the Go runtime/system pr
 
 - `/info bot` handler asserts the legacy embed fields and refresh button.
 - Degraded provider path asserts the legacy red error embed without leaking internal errors.
-- `botinfoupdate` handler asserts message update plus ephemeral success follow-up.
+- `botinfoupdate` handler now asserts ephemeral defer plus a new public follow-up, with no message update or success confirmation.
 - `botinfoupdate` route is tested through the legacy custom ID parser and router.
 - Responder state tests cover update-message then follow-up.
 - DiscordGo responder tests cover timestamp and success button conversion.

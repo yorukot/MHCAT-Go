@@ -1,6 +1,6 @@
 # Wave 5.10 Info Shard UI Parity
 
-Status: implemented and verified locally.
+Status: historical implementation note. Superseded by the parity-audited [built-in utility contract](94-utility-builtins.md). The earlier intentional immediate-field change was reverted: the initial shard embed is empty and fields appear only after `shardinfoupdate`.
 
 ## Trigger
 
@@ -20,9 +20,9 @@ Read-only legacy files used:
 
 - deferred slash interaction;
 - follow-up embed titled `<:vagueness:999527612634374184> 以下是每個分片的資訊!!`;
-- shard info field is included immediately;
+- initial embed has no shard field;
 - green `更新` button with custom ID `shardinfoupdate`;
-- the old empty initial shard embed is treated as a legacy UX bug and is intentionally not preserved.
+- shard fields appear only after the refresh button, matching legacy.
 
 The `shardinfoupdate` legacy component route is now registered through the typed custom ID parser. It updates the existing message with the same shard field shape:
 
@@ -63,7 +63,7 @@ Follow-up: Wave 5.11 implements the remaining read-only legacy `/info user` and 
 
 ## Intentional Behavior Fix
 
-Legacy `info.js` initially sends `/info shard` with only a title and update button, then adds the fields only after `shardinfoupdate`. Staging showed that empty embed as confusing. Go keeps the legacy visual style but shows the shard fields immediately.
+Legacy `info.js` initially sends `/info shard` with only a title and update button, then adds the fields only after `shardinfoupdate`. The final parity audit reverted the earlier UX change and preserves this sequence.
 
 ## Tests Added or Updated
 

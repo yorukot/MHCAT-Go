@@ -1,6 +1,6 @@
 # Wave 5.8 Help UI Parity Correction
 
-Status: implemented and verified locally.
+Status: historical implementation note. The parity-audited behavior is canonical in [94-utility-builtins.md](94-utility-builtins.md); notably, the overview does not attach category fields, slash and selector category layouts differ, and command-detail metadata now covers all 74 commands.
 
 ## Trigger
 

@@ -1821,10 +1821,11 @@ If voice-room lock flags were enabled and command sync apply was reviewed:
 Verify:
 
 - response arrives through the interaction response path;
-- `/info bot` uses the legacy system embed and the refresh button updates through `botinfoupdate`;
-- `/info shard` shows shard fields immediately and the refresh button updates through `shardinfoupdate`;
-- `/info user` uses the legacy user-information embed without leaking lookup errors;
-- `/info guild` uses the legacy server-information embed without leaking lookup errors;
+- `/info bot` uses the legacy system embed; `botinfoupdate` ephemerally defers and posts a new public follow-up with `集群數量`, an unnamed server-count field, and no success message;
+- `/info shard` initially has no fields; `shardinfoupdate` updates it with immediate local process heap/RSS, uptime, and bare latency;
+- `/info user` uses the exact legacy user-information fields, rounded timestamps, and member avatar without leaking lookup errors;
+- `/info guild` uses the exact eight legacy server-information fields, icon/banner, locale, verification text, and owner mention without leaking lookup errors;
+- complete the canonical [built-in utility smoke](94-utility-builtins.md#staging-smoke), including help path differences, usage ownership, failure injection, no-Mongo behavior, and the single-shard assumption;
 - no duplicate initial response;
 - no raw internal error displayed;
 - no Message Content intent required;

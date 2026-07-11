@@ -307,6 +307,8 @@ Production command registration must be diff-based and must not run independentl
 
 Wave 5.2 ships local definitions and runtime handlers for `help`, `ping`, and `info` with the `bot` subcommand. Dry-run output may show create/update operations for only those commands and skipped unknown remote commands for the remaining legacy set. Full legacy command definitions are later feature-parity waves.
 
+The current built-in `help`, `ping`, and all four `info` subcommands are parity-audited in [94-utility-builtins.md](94-utility-builtins.md). They require no utility Mongo collection or migration. Linux `/info bot` samples host CPU for one second; `/info shard` initially has no fields and its refresh reads local process metrics immediately. App wiring currently supports one Discord session/shard. Do not raise shard count without explicit cross-process count/metric aggregation and staging.
+
 Parity-audited `/私人頻道設置` and `/私人頻道刪除` are available only when both staging command sync and runtime flags are explicitly enabled:
 
 ```bash
