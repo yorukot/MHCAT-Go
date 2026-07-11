@@ -49,6 +49,9 @@ func TestCoinResetDeletesGuildBalancesAfterOwnerConfirmation(t *testing.T) {
 	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != coinResetDeleteEmoji+"成功重製伺服器內所有代幣" {
 		t.Fatalf("sent = %#v", sideEffects.Sent)
 	}
+	if len(usage.Events) != 1 {
+		t.Fatalf("confirmation changed usage = %#v", usage.Events)
+	}
 }
 
 func TestCoinResetDividesGuildBalancesWithLegacyRounding(t *testing.T) {

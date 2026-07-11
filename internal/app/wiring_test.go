@@ -2871,6 +2871,36 @@ func TestBuildRuntimeRoutesEconomyCoinResetOnlyWithDependencies(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeTracksEveryCoinResetSlashAttemptOnce(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                      validTestConfig(),
+		EconomyCoinResetRepository:  fakemongo.NewEconomyRepository(),
+		EconomyCoinResetMessagePort: fakediscord.NewSideEffects(),
+		EconomyCoinResetGuildInfo:   &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "owner"}},
+		UsageTracker:                tracker,
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	for _, userID := range []string{"owner", "not-owner"} {
+		interaction := fakediscord.SlashInteraction("代幣重製")
+		interaction.Actor.UserID = userID
+		interaction.ChannelID = "channel-1"
+		if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+			t.Fatalf("dispatch %s: %v", userID, err)
+		}
+	}
+	if len(tracker.Events) != 2 {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for index, event := range tracker.Events {
+		if event.CommandName != "代幣重製" {
+			t.Fatalf("usage event %d = %#v", index, event)
+		}
+	}
+}
+
 func TestBuildRuntimeRoutesRoleSelectionOnlyWithDependencies(t *testing.T) {
 	interaction := fakediscord.SlashInteractionWithOptions("選取身分組-表情符號", "", map[string]string{
 		"訊息url": "https://discord.com/channels/guild-1/channel-1/message-1",
