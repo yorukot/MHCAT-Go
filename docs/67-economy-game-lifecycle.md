@@ -12,6 +12,8 @@ Status: transactional wagers, legacy transition UI/timing, and active-game timeo
 
 All three subcommands preserve the legacy random-color invite, component IDs, and two-player wager model. Knowledge and blackjack preserve their private acceptance feedback; higher/lower immediately replaces the invite with its public draw message and sends no extra acceptance reply. A rejected invite disables only accept/reject; the blackjack and higher/lower tutorial buttons remain available and render their full legacy private embeds.
 
+Wager guards remain branch-specific. `知識王` rejects every negative wager, while the legacy `< -1` guards in `21點` and `比大小` allow exactly `-1`. Reserving that wager adds one coin to each player; a tie returns `-1` to each and nets to zero, while a `2 * wager` winner return removes two coins, leaving the winner down one and the loser up one. Values below `-1` still receive the exact `賭注必須大於-1` error.
+
 - `比大小` removes the invite components, displays the legacy random-draw text/GIF for five seconds, and only then settles and displays both numbers.
 - `知識王` sends the legacy ephemeral acceptance embed and displays the first question after 500 milliseconds.
 - When both knowledge players answer, the game removes all components and displays both choices, both scores, the correct answer, marked answer options, and the remaining-question count for five seconds before the next question or final result.
@@ -64,6 +66,7 @@ Use a transaction-capable replica set or sharded Mongo deployment. Keep both fla
 9. Repeat with one player answering and confirm only that player receives `2 * wager`.
 10. Reject blackjack and higher/lower invites and confirm accept/reject are disabled while the tutorial button still opens the full private legacy guide.
 11. In `21點`, confirm the private acceptance response and pink-arrow action history on both turns, then let each player's turn expire separately and confirm the other player receives `2 * wager`.
+12. In disposable fixtures, submit `-1` to `21點` and `比大小`, verify the invite and signed reserve/settlement result, then verify `知識王 -1` and every game at `-2` return the wager error.
 12. Press a terminal action close to the deadline and confirm only one settlement occurs.
 13. Gracefully stop the bot during a pending transition or active game and confirm shutdown completes without a late Discord edit.
 
