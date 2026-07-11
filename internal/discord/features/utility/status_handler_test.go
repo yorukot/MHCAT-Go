@@ -3,6 +3,7 @@ package utility_test
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -115,8 +116,8 @@ func TestInfoUnsupportedSubcommandSafe(t *testing.T) {
 }
 
 func TestInfoUserHandlerReturnsLegacyEmbed(t *testing.T) {
-	createdAt := time.Unix(1_700_000_000, 0)
-	joinedAt := time.Unix(1_700_100_000, 0)
+	createdAt := time.Unix(1_700_000_000, 600_000_000)
+	joinedAt := time.Unix(1_700_100_000, 600_000_000)
 	discordInfo := &fakebotinfo.DiscordInfoProvider{User: ports.DiscordUserInfo{
 		ID:        "target-user",
 		Username:  "Yoru",
@@ -137,13 +138,16 @@ func TestInfoUserHandlerReturnsLegacyEmbed(t *testing.T) {
 		t.Fatalf("user calls = %#v", discordInfo.UserCalls)
 	}
 	embed := responder.Edits[0].Embeds[0]
-	if !strings.Contains(embed.Title, "以下是Yoru的資料") || embed.Thumbnail == nil || embed.Thumbnail.URL == "" {
+	if embed.Title != "<:info:985946738403737620> 以下是Yoru的資料" || embed.Thumbnail == nil || embed.Thumbnail.URL != "https://cdn.example/avatar.png" {
 		t.Fatalf("user embed = %#v", embed)
 	}
-	for _, want := range []string{"使用者ID", "創建時間", "加入時間"} {
-		if !embedHasFieldContaining(embed, want) {
-			t.Fatalf("user embed missing field %q: %#v", want, embed.Fields)
-		}
+	wantFields := []responses.EmbedField{
+		{Name: "<:id:1010884394791207003> **使用者ID:**", Value: "`target-user`"},
+		{Name: "<:page:992009288232996945> **創建時間:**", Value: "<t:1700000001>"},
+		{Name: "<:joins:956444030487642112> **加入時間:**", Value: "<t:1700100001>"},
+	}
+	if !reflect.DeepEqual(embed.Fields, wantFields) {
+		t.Fatalf("user fields = %#v, want %#v", embed.Fields, wantFields)
 	}
 }
 
@@ -160,7 +164,7 @@ func TestInfoUserDefaultsToActor(t *testing.T) {
 }
 
 func TestInfoGuildHandlerReturnsLegacyEmbed(t *testing.T) {
-	createdAt := time.Unix(1_650_000_000, 0)
+	createdAt := time.Unix(1_650_000_000, 600_000_000)
 	discordInfo := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{
 		ID:                       "guild-1",
 		Name:                     "MHCAT Test",
@@ -184,13 +188,21 @@ func TestInfoGuildHandlerReturnsLegacyEmbed(t *testing.T) {
 		t.Fatalf("defers=%#v edits=%#v", responder.Defers, responder.Edits)
 	}
 	embed := responder.Edits[0].Embeds[0]
-	if !strings.Contains(embed.Title, "以下是MHCAT Test的資料") || embed.Thumbnail == nil || embed.Image == nil {
+	if embed.Title != "以下是MHCAT Test的資料" || embed.Thumbnail == nil || embed.Thumbnail.URL != "https://cdn.example/icon.png" || embed.Image == nil || embed.Image.URL != "https://cdn.example/banner.png" {
 		t.Fatalf("guild embed = %#v", embed)
 	}
-	for _, want := range []string{"伺服器ID", "成員數量", "加成狀態", "創建時間", "擁有者", "Emoji數量", "伺服器語言", "伺服器驗證等級"} {
-		if !embedHasFieldContaining(embed, want) {
-			t.Fatalf("guild embed missing field %q: %#v", want, embed.Fields)
-		}
+	wantFields := []responses.EmbedField{
+		{Name: "<:id:1010884394791207003> **伺服器ID:**", Value: "`guild-1`", Inline: true},
+		{Name: "<:Discord_Members:1085959207725043812> **成員數量:**", Value: "`123`個", Inline: true},
+		{Name: "<a:BoosterBadgesRoll:1085958739313573980> **加成狀態:**", Value: "**加成數:**`2`\n**加成等級:**`1`", Inline: true},
+		{Name: "<:chronometer:986065703369080884> **創建時間:**", Value: "<t:1650000001> (<t:1650000001:R>)", Inline: true},
+		{Name: "<:Guild_owner_dark_theme:1085959589071175712> **擁有者:**", Value: "<@owner-1>", Inline: true},
+		{Name: "🤔 **Emoji數量:**", Value: "`9`個", Inline: true},
+		{Name: "<:google:986870850391277609> **伺服器語言:**", Value: "🇹🇼`(zh-TW)`", Inline: true},
+		{Name: "<:tickmark:985949769224556614> **伺服器驗證等級:**", Value: "`2`**(須通過電子郵件認證並成員dc成員5分鐘)**", Inline: true},
+	}
+	if !reflect.DeepEqual(embed.Fields, wantFields) {
+		t.Fatalf("guild fields = %#v, want %#v", embed.Fields, wantFields)
 	}
 }
 

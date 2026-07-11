@@ -15,8 +15,8 @@ func TestDiscordInfoProviderGuildInfoFromState(t *testing.T) {
 	session.session.State.GuildAdd(&dgo.Guild{
 		ID:                       createdID,
 		Name:                     "Guild",
-		Icon:                     "icon-hash",
-		Banner:                   "banner-hash",
+		Icon:                     "a_icon-hash",
+		Banner:                   "a_banner-hash",
 		OwnerID:                  "owner-1",
 		MemberCount:              42,
 		PremiumSubscriptionCount: 3,
@@ -41,8 +41,8 @@ func TestDiscordInfoProviderGuildInfoFromState(t *testing.T) {
 	if info.ID != createdID || info.Name != "Guild" || info.OwnerID != "owner-1" || info.MemberCount != 42 || info.EmojiCount != 2 || info.BotDisplayColor != 0x123456 {
 		t.Fatalf("info = %#v", info)
 	}
-	if info.IconURL == "" || info.BannerURL == "" || info.CreatedAt.IsZero() {
-		t.Fatalf("missing URLs or timestamp: %#v", info)
+	if info.IconURL != "https://cdn.discordapp.com/icons/4194304/a_icon-hash.gif" || info.BannerURL != "https://cdn.discordapp.com/banners/4194304/a_banner-hash.gif?size=1024" || info.CreatedAt.IsZero() {
+		t.Fatalf("URLs or timestamp = %#v", info)
 	}
 }
 
@@ -54,6 +54,7 @@ func TestDiscordInfoProviderUserInfoFromState(t *testing.T) {
 		Members: []*dgo.Member{{
 			GuildID:  "guild-1",
 			JoinedAt: joinedAt,
+			Avatar:   "a_member-avatar",
 			User: &dgo.User{
 				ID:            "4194304",
 				Username:      "Yoru",
@@ -69,7 +70,7 @@ func TestDiscordInfoProviderUserInfoFromState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("user info: %v", err)
 	}
-	if info.ID != "4194304" || info.Username != "Yoru" || !info.JoinedAt.Equal(joinedAt) || info.AvatarURL == "" || info.CreatedAt.IsZero() {
+	if info.ID != "4194304" || info.Username != "Yoru" || !info.JoinedAt.Equal(joinedAt) || info.AvatarURL != "https://cdn.discordapp.com/guilds/guild-1/users/4194304/avatars/a_member-avatar.gif" || info.CreatedAt.IsZero() {
 		t.Fatalf("info = %#v", info)
 	}
 	if info.Nickname != "YoruNick" || info.Discriminator != "1234" {
