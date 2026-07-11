@@ -345,7 +345,7 @@ Blocked without audit/ADR:
 - Consequences: A failed handoff write cannot charge the guild; concurrent Go requests produce one accepted charge; Node/Mongoose and the dashboard can still read every document. Enabled deployments must support Mongo transactions. The external worker must preserve the request `time` while updating the response.
 - Risks: The external worker implementation and current deployment remain manually unconfirmed. Node and Go do not share an event lease. A worker that changes `time`, takes longer than ten seconds, or uses undocumented fields may produce no reply. Duplicate legacy rows fail closed until audited.
 - Rollback: Disable the Go paid gate, allow in-flight ten-second reads to finish, then restore Node MessageCreate ownership. No data migration rollback is needed because only legacy fields are written and Mongoose accepts the deterministic `_id`.
-- Tests: pricing/eligibility/cooldown service tests, Discord warning/mention tests, BSON compatibility tests, config/preflight/app wiring tests, and replica-set Mongo integration tests for lifecycle timing, failed-write rollback, and concurrent enqueue exclusion.
+- Tests: pricing/eligibility/cooldown service tests, exact Discord warning/reply tests, full Mongoose worker scalar compatibility tests, config/preflight/app wiring tests, and replica-set Mongo integration tests for startup no-mutation, lifecycle timing, overdraw, duplicates, failed-write rollback, and concurrent enqueue exclusion. The canonical contract is [91-autochat-paid.md](91-autochat-paid.md).
 
 ## ADR-029 Economy Game Wager Atomicity
 

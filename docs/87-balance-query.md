@@ -17,7 +17,7 @@ Legacy sources:
 - Mongoose 6.4.6
 - discord.js 14.25.1
 
-`/兌換`, local auto-chat, paid ChatGPT handoff, `codes`, and `chatgpts` are separate writer/runtime contracts. They share `chatgpt_gets` but are not enabled by this command.
+`/兌換`, local auto-chat, and the paid ChatGPT handoff in [91-autochat-paid.md](91-autochat-paid.md) are separate writer/runtime contracts. They share `chatgpt_gets` but are not enabled by this command.
 
 ## Gates And Ownership
 

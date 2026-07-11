@@ -18,7 +18,7 @@ Legacy sources:
 - Mongoose 6.4.6
 - discord.js 14.25.1
 
-The local corpus MessageCreate handler and paid ChatGPT handoff are separate runtime contracts. These config commands do not enable Gateway events, Message Content, balance reads/debits, `chatgpts`, or the external worker.
+The local corpus MessageCreate handler in [90-autochat-fallback.md](90-autochat-fallback.md) and paid ChatGPT handoff in [91-autochat-paid.md](91-autochat-paid.md) are separate runtime contracts. These config commands do not enable Gateway events, Message Content, balance reads/debits, `chatgpts`, or the external worker.
 
 ## Gates And Ownership
 

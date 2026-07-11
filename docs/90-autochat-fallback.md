@@ -19,7 +19,7 @@ Legacy sources:
 - Mongoose 6.4.6;
 - Node/JavaScript and discord.js 14.25.1 behavior.
 
-The config slash commands are canonical in [89-autochat-config.md](89-autochat-config.md). Paid positive-balance ChatGPT handoff, `/查看餘額`, and `/兌換` are separate contracts. This local runtime does not call an AI provider, debit balance, or read/write `chatgpts`.
+The config slash commands are canonical in [89-autochat-config.md](89-autochat-config.md). Paid positive-balance ChatGPT handoff is canonical in [91-autochat-paid.md](91-autochat-paid.md); `/查看餘額` and `/兌換` are also separate contracts. This local runtime does not call an AI provider, debit balance, or read/write `chatgpts`.
 
 ## Gate And Ownership
 

@@ -142,7 +142,7 @@ Intentional fix: when `gift_changes.time == 0`, new Go-created coin rows use `to
 
 - Live audit has not run because no Mongo URI/database was available.
 - Dashboard is locally confirmed and shared; production deployment status and DB name still need manual confirmation.
-- ChatGPT worker is inferred but not found locally; preserve `chatgpts`/`chatgpt_gets` handoff until confirmed retired.
+- ChatGPT worker is inferred but not found locally; preserve `chatgpts`/`chatgpt_gets` under [91-autochat-paid.md](91-autochat-paid.md) until the worker is confirmed retired.
 - Dashboard backup expects singular `message_reaction`; live audit must confirm existence and shape.
 
 ## Wave 3 Compatibility Note

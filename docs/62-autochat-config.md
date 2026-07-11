@@ -1,6 +1,6 @@
 # Auto-Chat Runtime
 
-Status: config commands, local fallback, and the bot-side paid handoff are implemented behind independent disabled-by-default gates. Config command parity is canonical in [89-autochat-config.md](89-autochat-config.md), and local fallback parity is canonical in [90-autochat-fallback.md](90-autochat-fallback.md). Paid handoff still requires a separate canonical audit and the separately deployed external worker.
+Status: config commands, local fallback, and the bot-side paid handoff are implemented and parity-audited behind independent disabled-by-default gates. Config command parity is canonical in [89-autochat-config.md](89-autochat-config.md), local fallback parity in [90-autochat-fallback.md](90-autochat-fallback.md), and paid handoff parity in [91-autochat-paid.md](91-autochat-paid.md). The separately deployed external worker still requires live confirmation.
 
 ## Legacy References
 
@@ -38,7 +38,7 @@ Paid handoff:
 - preserves Mongoose Number coercion for stored handoff times, including numeric strings, booleans, null, dates, Decimal128, infinities, and fractional values
 - treats ages below 10 seconds as busy, preserves `resid_c`/`resid_p` at exactly 10 through exactly 40 seconds, and resets both only after 40 seconds
 - sends typing, waits the legacy fixed ten seconds, then reads the response for the exact request timestamp
-- coerces string, boolean, and numeric worker messages as the legacy Mongoose String path did; missing, null, or uncastable messages produce no reply
+- preserves the full legacy Mongoose String scalar matrix, including timestamp, binary, date, regex, Decimal128, and ObjectID forms; missing, null, BSON Code, or compound messages produce no reply
 - ignores the worker `reply` field as legacy did, replies to the source message, and substitutes the legacy safety warning when worker output contains `@`
 
 The external worker code was not found in the workspace. Go publishes and consumes the legacy Mongo handoff; it does not call an AI provider directly.
@@ -101,7 +101,7 @@ The local and paid gates may be enabled together to restore the full legacy bala
 
 ## Parity Contracts
 
-Focused tests lock the command definitions and embeds, warning text and delays, corpus SHA-256 and JavaScript key order, `說出` quirks, UTF-16 pricing, 10/40-second timing boundaries, worker scalar coercion, and legacy collection names. Run:
+Focused tests lock the command definitions and embeds, warning text and delays, corpus SHA-256 and JavaScript key order, `說出` quirks, UTF-16 pricing, 10/40-second timing boundaries, worker scalar coercion, transaction rollback/concurrency, startup no-mutation, and legacy collection names. The paid contract is [91-autochat-paid.md](91-autochat-paid.md). Run:
 
 ```bash
 go test ./internal/core/services/autochat ./internal/discord/features/autochat ./internal/adapters/mongo/documents ./internal/adapters/mongo/repositories

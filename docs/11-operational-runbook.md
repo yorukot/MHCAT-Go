@@ -501,7 +501,7 @@ MHCAT_DISCORD_GUILD_MESSAGES_INTENT=true
 MHCAT_DISCORD_MESSAGE_CONTENT_INTENT=true
 ```
 
-This path writes `chatgpts`, debits `chatgpt_gets.price`, and uses a Mongo transaction so request publication and charging commit together. Before setting the ownership acknowledgment, confirm a replica-set/sharded Mongo deployment, clean singleton duplicate audits, the compatible external worker, and that Node `events/Chatbot.js` is stopped for the target guilds. The bot-side handoff preserves the legacy ten-second guard/read, 40-second conversation reset, exact handoff fields, and input/output mention warnings. See `docs/62-autochat-config.md` for smoke and rollback steps.
+This path writes `chatgpts`, debits `chatgpt_gets.price`, and uses a Mongo transaction so request publication and charging commit together. Before setting the ownership acknowledgment, confirm a replica-set/sharded Mongo deployment, clean singleton duplicate audits, the compatible external worker, and that Node `events/Chatbot.js` is stopped for the target guilds. The bot-side handoff preserves legacy pricing/overdraw, the ten-second guard/read, 40-second conversation reset, exact handoff fields, and input/output mention warnings. Follow [91-autochat-paid.md](91-autochat-paid.md) for the exact worker scalar matrix, transaction failure handling, staging smoke, reconciliation, and rollback.
 
 Auto-notification setup/list/delete commands are available only when both staging command sync and runtime flags are explicitly enabled:
 
