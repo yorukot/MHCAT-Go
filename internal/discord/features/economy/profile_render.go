@@ -153,12 +153,12 @@ func insideRoundedRect(x, y, width, height, radius int) bool {
 }
 
 func drawProfileHeader(canvas *image.RGBA, view profileCanvasView) {
-	displayName := truncateRunes(view.DisplayName, 33)
+	displayName := truncateLegacyCoinRankText(view.DisplayName)
 	if displayName == "" {
 		displayName = view.Result.UserID
 	}
 	drawText(canvas, 151, 80, displayName, color.RGBA{R: 211, G: 211, B: 211, A: 255}, 4)
-	drawText(canvas, 151, 120, truncateRunes(view.GuildName, 46), color.RGBA{R: 168, G: 168, B: 168, A: 255}, 2)
+	drawText(canvas, 151, 120, view.GuildName, color.RGBA{R: 168, G: 168, B: 168, A: 255}, 2)
 	drawText(canvas, 1220, 100, legacyProfileDate(view.MemberJoinedAt), color.RGBA{R: 211, G: 211, B: 211, A: 255}, 3)
 	drawText(canvas, 960, 100, legacyProfileDate(view.UserCreatedAt), color.RGBA{R: 211, G: 211, B: 211, A: 255}, 3)
 }

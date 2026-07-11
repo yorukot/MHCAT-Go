@@ -15,6 +15,7 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	coreeconomy "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/economy"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakebotinfo"
@@ -133,6 +134,30 @@ func TestProfileSlashRendersLegacyRoundedAvatarPipeline(t *testing.T) {
 	cornerR, cornerG, cornerB, _ := rendered.At(42, 30).RGBA()
 	if cornerR>>8 > 225 && cornerG>>8 < 50 && cornerB>>8 < 60 {
 		t.Fatalf("avatar corner was not masked: rgb(%d,%d,%d)", cornerR>>8, cornerG>>8, cornerB>>8)
+	}
+}
+
+func TestProfileHeaderUsesLegacyDisplayNameWidthAndFullGuildName(t *testing.T) {
+	displayName := strings.Repeat("界", 20)
+	if got := truncateLegacyCoinRankText(displayName); got != strings.Repeat("界", 16) {
+		t.Fatalf("display name truncation = %q", got)
+	}
+	view := profileCanvasView{
+		DisplayName: displayName,
+		GuildName:   strings.Repeat("A", 46) + "X",
+		Result:      coreeconomy.ProfileResult{UserID: "user-1"},
+	}
+	first, err := renderProfilePNG(view)
+	if err != nil {
+		t.Fatalf("render full guild name: %v", err)
+	}
+	view.GuildName = strings.Repeat("A", 46) + "Y"
+	second, err := renderProfilePNG(view)
+	if err != nil {
+		t.Fatalf("render changed guild suffix: %v", err)
+	}
+	if bytes.Equal(first, second) {
+		t.Fatal("profile renderer truncated the changed guild-name suffix")
 	}
 }
 
