@@ -98,6 +98,18 @@ func TestGiftChangeDocumentLegacyBSONDecodesDefaults(t *testing.T) {
 	}
 }
 
+func TestSignListDocumentFromDomainCopiesCalendar(t *testing.T) {
+	calendar := domain.SignCalendar{
+		GuildID: "guild-1", UserID: "user-1",
+		Date: map[string]map[string][]string{"2026": {"7": {"11"}}},
+	}
+	document := SignListDocumentFromDomain(calendar)
+	document.Date["2026"]["7"][0] = "12"
+	if calendar.Date["2026"]["7"][0] != "11" || document.Guild != "guild-1" || document.Member != "user-1" {
+		t.Fatalf("calendar=%#v document=%#v", calendar, document)
+	}
+}
+
 func TestGiftChangeDocumentPreservesMongooseCoinNumberDisplay(t *testing.T) {
 	tests := []struct {
 		name  string

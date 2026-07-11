@@ -271,6 +271,14 @@ func TestLeaveMessageDocumentNullFieldsDecodeEmpty(t *testing.T) {
 	}
 }
 
+func TestVerificationWriteDocumentRoundTrip(t *testing.T) {
+	config := domain.VerificationConfig{GuildID: "guild", RoleID: "role", RenameTemplate: "member-{user}"}
+	document := VerificationDocumentFromDomain(config)
+	if got := document.ToDomain(); got != config {
+		t.Fatalf("verification round trip = %#v", got)
+	}
+}
+
 func TestLeaveMessageReadDocumentUsesMongooseScalarCoercion(t *testing.T) {
 	objectID := bson.NewObjectID()
 	encoded, err := bson.Marshal(bson.D{

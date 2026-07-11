@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func TestAnalyzeAuditEmptyCatalogDeterministic(t *testing.T) {
@@ -149,5 +151,21 @@ func TestFormatAuditReportTextIncludesDuplicateKeyRisk(t *testing.T) {
 	text := output.String()
 	if !strings.Contains(text, "duplicate_key_risk collection=sign_lists key=sign_lists_guild_member fields=guild,member groups=1") {
 		t.Fatalf("duplicate risk missing from text output: %s", text)
+	}
+}
+
+func TestSampleFromRawReportsOnlyTypesAndReference(t *testing.T) {
+	id := bson.NewObjectID()
+	raw, err := bson.Marshal(bson.D{{Key: "_id", Value: id}, {Key: "secret", Value: "hidden"}, {Key: "count", Value: int64(2)}})
+	if err != nil {
+		t.Fatalf("marshal sample: %v", err)
+	}
+	sample := sampleFromRaw(raw)
+	if sample.Ref == "" || sample.SizeBytes != len(raw) || sample.Fields["secret"] != "string" || sample.Fields["count"] != "64-bit integer" {
+		t.Fatalf("sample = %#v", sample)
+	}
+	malformed := sampleFromRaw(bson.Raw{1})
+	if malformed.SizeBytes != 1 || len(malformed.Fields) != 0 {
+		t.Fatalf("malformed sample = %#v", malformed)
 	}
 }

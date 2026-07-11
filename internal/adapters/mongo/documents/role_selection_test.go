@@ -17,9 +17,15 @@ func TestRoleSelectionWriteDocumentsPreserveLegacyStringFields(t *testing.T) {
 	if reaction.Guild != "guild-1" || reaction.Message != "message-1" || reaction.React != "emoji-1" || reaction.Role != "role-1" {
 		t.Fatalf("reaction document = %#v", reaction)
 	}
+	if got := reaction.ToDomain(); got != (domain.RoleReactionConfig{GuildID: "guild-1", MessageID: "message-1", React: "emoji-1", RoleID: "role-1"}) {
+		t.Fatalf("reaction round trip = %#v", got)
+	}
 	button := RoleButtonDocumentFromDomain(domain.RoleButtonConfig{GuildID: "guild-1", Number: "number-1", RoleID: "role-1"})
 	if button.Guild != "guild-1" || button.Number != "number-1" || button.Role != "role-1" {
 		t.Fatalf("button document = %#v", button)
+	}
+	if got := button.ToDomain(); got != (domain.RoleButtonConfig{GuildID: "guild-1", Number: "number-1", RoleID: "role-1"}) {
+		t.Fatalf("button round trip = %#v", got)
 	}
 }
 

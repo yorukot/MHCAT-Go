@@ -69,3 +69,12 @@ func TestSafeMessageDoesNotExposeRawURI(t *testing.T) {
 		t.Fatalf("safe message leaked URI: %q", mapped.SafeMessage())
 	}
 }
+
+func TestSafeErrorForLogMapsWithoutPanicking(t *testing.T) {
+	if safeErrorForLog(nil) != "" {
+		t.Fatal("nil safe error should be empty")
+	}
+	if message := safeErrorForLog(errors.New("failure")); message != "mongo operation failed" {
+		t.Fatalf("safe error = %q", message)
+	}
+}

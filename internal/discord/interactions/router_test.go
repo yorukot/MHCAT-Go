@@ -75,3 +75,31 @@ func TestRouterModalUsesParsedKey(t *testing.T) {
 		t.Fatal("modal handler was not called")
 	}
 }
+
+func TestRouterUseAndAutocomplete(t *testing.T) {
+	router := interactions.NewRouter()
+	middlewareCalled := false
+	router.Use(func(next interactions.Handler) interactions.Handler {
+		return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
+			middlewareCalled = true
+			return next(ctx, interaction, responder)
+		}
+	})
+	handlerCalled := false
+	if err := router.RegisterAutocomplete("search", func(context.Context, interactions.Interaction, responses.Responder) error {
+		handlerCalled = true
+		return nil
+	}); err != nil {
+		t.Fatalf("register autocomplete: %v", err)
+	}
+	interaction := interactions.Interaction{Type: interactions.TypeAutocomplete, CommandName: "search"}
+	if err := router.Handle(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("handle autocomplete: %v", err)
+	}
+	if !middlewareCalled || !handlerCalled {
+		t.Fatalf("middleware=%t handler=%t", middlewareCalled, handlerCalled)
+	}
+	if got := (interactions.ModalKey{Version: "v1", Feature: "ticket", Action: "open"}).String(); got != "v1:ticket:open" {
+		t.Fatalf("modal key = %q", got)
+	}
+}

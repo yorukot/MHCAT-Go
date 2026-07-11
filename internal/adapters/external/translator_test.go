@@ -6,9 +6,17 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 )
+
+func TestNewGoogleTranslateClientUsesBoundedDefaults(t *testing.T) {
+	client := NewGoogleTranslateClient()
+	if client.Client == nil || client.Client.Timeout != 10*time.Second || client.BaseURL != defaultTranslateBaseURL {
+		t.Fatalf("translate client defaults = %#v", client)
+	}
+}
 
 func TestGoogleTranslateClientParsesResponse(t *testing.T) {
 	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
