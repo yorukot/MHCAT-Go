@@ -2,8 +2,26 @@ package domain
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 )
+
+func TestLegacyDeleteDataTargetsPreserveMenuOrder(t *testing.T) {
+	want := []DeleteDataTarget{
+		DeleteDataTargetJoinMessage,
+		DeleteDataTargetLeaveMessage,
+		DeleteDataTargetLogging,
+		DeleteDataTargetStats,
+		DeleteDataTargetAutoChat,
+		DeleteDataTargetVerification,
+		DeleteDataTargetTextXP,
+		DeleteDataTargetVoiceXP,
+		DeleteDataTargetTicket,
+	}
+	if got := LegacyDeleteDataTargets(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("legacy targets = %#v, want %#v", got, want)
+	}
+}
 
 func TestParseDeleteDataTargetPreservesLegacyLabels(t *testing.T) {
 	target, ok := ParseDeleteDataTarget(" 驗證設置 ")

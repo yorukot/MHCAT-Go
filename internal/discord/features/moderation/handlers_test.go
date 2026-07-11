@@ -635,6 +635,37 @@ func TestDeleteDataSelectDeletesTargetWithLegacySuccess(t *testing.T) {
 	}
 }
 
+func TestDeleteDataSelectDispatchesEveryLegacyTargetInGuild(t *testing.T) {
+	for _, target := range domain.LegacyDeleteDataTargets() {
+		t.Run(string(target), func(t *testing.T) {
+			repo := fakemongo.NewDeleteDataRepository()
+			for _, candidate := range domain.LegacyDeleteDataTargets() {
+				repo.Put("guild-1", candidate)
+				repo.Put("guild-2", candidate)
+			}
+			module := NewDeleteDataModule(repo)
+
+			if err := module.DeleteDataSelectHandler()(context.Background(), deleteDataComponentInteraction(target), fakediscord.NewResponder()); err != nil {
+				t.Fatalf("handle target %q: %v", target, err)
+			}
+			if len(repo.Deleted) != 1 || repo.Deleted[0] != (domain.DeleteDataRequest{GuildID: "guild-1", Target: target}) {
+				t.Fatalf("deleted = %#v", repo.Deleted)
+			}
+			if repo.Existing["guild-1"][target] {
+				t.Fatalf("target %q still exists for invoking guild", target)
+			}
+			if !repo.Existing["guild-2"][target] {
+				t.Fatalf("target %q was deleted from another guild", target)
+			}
+			for _, candidate := range domain.LegacyDeleteDataTargets() {
+				if candidate != target && !repo.Existing["guild-1"][candidate] {
+					t.Fatalf("unselected target %q was deleted", candidate)
+				}
+			}
+		})
+	}
+}
+
 func TestDeleteDataSelectRejectsForeignPromptUser(t *testing.T) {
 	repo := fakemongo.NewDeleteDataRepository()
 	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
