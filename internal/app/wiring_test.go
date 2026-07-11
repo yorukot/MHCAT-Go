@@ -38,6 +38,45 @@ func TestBuildRuntimeRoutesUtilityCommands(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeTracksEachBuiltinUtilitySlashAttemptOnce(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:       validTestConfig(),
+		UsageTracker: tracker,
+		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+
+	attempts := []interactions.Interaction{
+		fakediscord.SlashInteraction("help"),
+		fakediscord.SlashInteraction("ping"),
+		fakediscord.SlashInteractionWithOptions("info", "bot", nil),
+	}
+	for _, interaction := range attempts {
+		if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+			t.Fatalf("dispatch %s: %v", interaction.CommandName, err)
+		}
+	}
+
+	component := fakediscord.ComponentInteractionFromID("helphelphelphelpmenu")
+	component.Values = []string{"實用工具"}
+	if err := dispatcher.Dispatch(context.Background(), component, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch help component: %v", err)
+	}
+
+	wantNames := []string{"help", "ping", "info"}
+	if len(tracker.Events) != len(wantNames) {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for index, wantName := range wantNames {
+		if tracker.Events[index].CommandName != wantName {
+			t.Fatalf("usage event %d = %#v, want command %q", index, tracker.Events[index], wantName)
+		}
+	}
+}
+
 func TestDefaultEventRuntimeFactoryHasNoHandlersWhenRelayDisabled(t *testing.T) {
 	dispatcher, err := defaultEventRuntimeFactory(validTestConfig(), slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil)
 	if err != nil {
