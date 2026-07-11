@@ -8,6 +8,7 @@ import (
 )
 
 type RedeemCodeDocument struct {
+	ID    any           `bson:"_id" json:"_id"`
 	Code  string        `bson:"code" json:"code"`
 	Price bson.RawValue `bson:"price" json:"price"`
 	Time  bson.RawValue `bson:"time" json:"time"`
@@ -15,6 +16,7 @@ type RedeemCodeDocument struct {
 
 func (d RedeemCodeDocument) ToDomain() domain.RedeemCode {
 	return domain.RedeemCode{
+		Identity:        d.ID,
 		Code:            d.Code,
 		Price:           legacyRedeemNumber(d.Price),
 		CreatedAtMillis: legacyRedeemNumber(d.Time),

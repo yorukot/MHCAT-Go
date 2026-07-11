@@ -13,7 +13,6 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	drivermongo "go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 const RedeemCodeCollectionName = "codes"
@@ -57,7 +56,7 @@ func (r *RedeemRepository) GetRedeemCode(ctx context.Context, code string) (doma
 	return document.ToDomain(), ctx.Err()
 }
 
-func (r *RedeemRepository) ConsumeRedeemCode(ctx context.Context, command domain.RedeemCommand, price float64) error {
+func (r *RedeemRepository) ConsumeRedeemCode(ctx context.Context, command domain.RedeemCommand, code domain.RedeemCode) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -65,66 +64,49 @@ func (r *RedeemRepository) ConsumeRedeemCode(ctx context.Context, command domain
 	if err := command.Validate(); err != nil {
 		return err
 	}
-	if math.IsNaN(price) {
+	if code.Identity == nil || code.Code != command.Code || math.IsNaN(code.Price) {
 		return domain.ErrInvalidRedeemCode
 	}
-	result, err := r.codes.DeleteOne(ctx, bson.D{{Key: "code", Value: command.Code}})
+	result, err := r.codes.DeleteOne(ctx, bson.D{{Key: "_id", Value: code.Identity}, {Key: "code", Value: command.Code}})
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("consume redeem code: %w", err))
 	}
 	if result.DeletedCount == 0 {
 		return ports.ErrRedeemCodeNotFound
 	}
-	if err := r.creditBalances(ctx, command.GuildID, price); err != nil {
+	if err := r.creditBalance(ctx, command.GuildID, code.Price); err != nil {
 		return err
 	}
 	return ctx.Err()
 }
 
-func (r *RedeemRepository) creditBalances(ctx context.Context, guildID string, price float64) error {
-	cursor, err := r.balances.Find(ctx, bson.D{{Key: "guild", Value: guildID}})
-	if err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("list redeem balances: %w", err))
-	}
-	defer cursor.Close(ctx)
+func (r *RedeemRepository) creditBalance(ctx context.Context, guildID string, price float64) error {
 	type balanceRow struct {
-		ID    bson.ObjectID `bson:"_id"`
+		ID    any           `bson:"_id"`
 		Price bson.RawValue `bson:"price"`
 	}
-	rows := []balanceRow{}
-	for cursor.Next(ctx) {
-		var row balanceRow
-		if err := cursor.Decode(&row); err != nil {
-			return mhcatmongo.MapError(fmt.Errorf("decode redeem balance: %w", err))
-		}
-		rows = append(rows, row)
+	var row balanceRow
+	err := r.balances.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&row)
+	next := price
+	if err != nil && err != drivermongo.ErrNoDocuments {
+		return mhcatmongo.MapError(fmt.Errorf("get redeem balance: %w", err))
 	}
-	if err := cursor.Err(); err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("iterate redeem balances: %w", err))
-	}
-	if len(rows) == 0 {
-		_, err := r.balances.UpdateOne(ctx,
-			bson.D{{Key: "guild", Value: guildID}},
-			bson.D{
-				{Key: "$setOnInsert", Value: bson.D{{Key: "guild", Value: guildID}}},
-				{Key: "$set", Value: bson.D{{Key: "price", Value: price}}},
-			},
-			options.UpdateOne().SetUpsert(true),
-		)
-		if err != nil {
-			return mhcatmongo.MapError(fmt.Errorf("upsert redeem balance: %w", err))
-		}
-		return ctx.Err()
-	}
-	for _, row := range rows {
+	if err == nil {
 		current := documents.LegacyBalancePriceFloat(row.Price)
 		if math.IsNaN(current) {
 			return domain.ErrInvalidRedeemCode
 		}
-		next := current + price
-		if _, err := r.balances.UpdateOne(ctx, bson.D{{Key: "_id", Value: row.ID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "price", Value: next}}}}); err != nil {
-			return mhcatmongo.MapError(fmt.Errorf("update redeem balance: %w", err))
+		next += current
+		result, err := r.balances.DeleteOne(ctx, bson.D{{Key: "_id", Value: row.ID}, {Key: "guild", Value: guildID}})
+		if err != nil {
+			return mhcatmongo.MapError(fmt.Errorf("delete redeem balance: %w", err))
 		}
+		if result.DeletedCount == 0 {
+			return mhcatmongo.MapError(errors.New("redeem balance changed before delete"))
+		}
+	}
+	if _, err := r.balances.InsertOne(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "price", Value: next}}); err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("insert redeem balance: %w", err))
 	}
 	return ctx.Err()
 }

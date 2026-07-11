@@ -9,6 +9,7 @@ import (
 var ErrInvalidRedeemCode = errors.New("invalid redeem code")
 
 type RedeemCode struct {
+	Identity        any
 	Code            string
 	Price           float64
 	CreatedAtMillis float64

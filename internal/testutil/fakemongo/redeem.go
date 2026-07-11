@@ -35,7 +35,7 @@ func (r *RedeemRepository) GetRedeemCode(ctx context.Context, code string) (doma
 	return value, nil
 }
 
-func (r *RedeemRepository) ConsumeRedeemCode(ctx context.Context, command domain.RedeemCommand, price float64) error {
+func (r *RedeemRepository) ConsumeRedeemCode(ctx context.Context, command domain.RedeemCommand, code domain.RedeemCode) error {
 	if err := r.ready(ctx); err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func (r *RedeemRepository) ConsumeRedeemCode(ctx context.Context, command domain
 		return ports.ErrRedeemCodeNotFound
 	}
 	delete(r.Codes, command.Code)
-	r.Balances[command.GuildID] += price
+	r.Balances[command.GuildID] += code.Price
 	return nil
 }
 

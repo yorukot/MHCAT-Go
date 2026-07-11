@@ -14,5 +14,5 @@ var (
 
 type RedeemRepository interface {
 	GetRedeemCode(ctx context.Context, code string) (domain.RedeemCode, error)
-	ConsumeRedeemCode(ctx context.Context, command domain.RedeemCommand, price float64) error
+	ConsumeRedeemCode(ctx context.Context, command domain.RedeemCommand, code domain.RedeemCode) error
 }
