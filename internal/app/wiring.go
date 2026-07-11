@@ -684,7 +684,7 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		}
 	}
 	if opts.JoinRoleConfigRepository != nil {
-		joinRoleModule := featureonboarding.NewModule(opts.JoinRoleConfigRepository, opts.JoinRoleInspector, opts.UsageTracker)
+		joinRoleModule := featureonboarding.NewModule(opts.JoinRoleConfigRepository, opts.JoinRoleInspector)
 		if err := joinRoleModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

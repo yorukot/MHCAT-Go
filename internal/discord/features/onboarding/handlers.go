@@ -39,10 +39,7 @@ func (m Module) SetHandler() interactions.Handler {
 		if err := m.service.Create(ctx, config); err != nil {
 			return responder.EditOriginal(ctx, joinRoleErrorFromError(err))
 		}
-		if err := responder.EditOriginal(ctx, joinRoleSetSuccessMessage(roleID)); err != nil {
-			return err
-		}
-		return m.track(ctx, interaction, JoinRoleSetCommandName)
+		return responder.EditOriginal(ctx, joinRoleSetSuccessMessage(roleID))
 	}
 }
 
@@ -58,10 +55,7 @@ func (m Module) DeleteHandler() interactions.Handler {
 		if err := m.service.Delete(ctx, interaction.Actor.GuildID, roleID); err != nil {
 			return responder.EditOriginal(ctx, joinRoleErrorFromError(err))
 		}
-		if err := responder.EditOriginal(ctx, joinRoleDeleteSuccessMessage(roleID)); err != nil {
-			return err
-		}
-		return m.track(ctx, interaction, JoinRoleDeleteCommandName)
+		return responder.EditOriginal(ctx, joinRoleDeleteSuccessMessage(roleID))
 	}
 }
 
@@ -301,10 +295,6 @@ func firstRawOption(interaction interactions.Interaction, names ...string) strin
 		}
 	}
 	return ""
-}
-
-func (m Module) track(ctx context.Context, interaction interactions.Interaction, commandName string) error {
-	return m.trackFeature(ctx, interaction, commandName, "join-role-config")
 }
 
 func (m Module) trackFeature(ctx context.Context, interaction interactions.Interaction, commandName string, feature string) error {

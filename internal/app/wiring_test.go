@@ -2336,6 +2336,49 @@ func TestBuildRuntimeRoutesJoinRoleConfigOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeTracksEachJoinRoleSlashAttemptOnce(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	repo := fakemongo.NewJoinRoleConfigRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.AssignableRoles["guild-1/role-1"] = true
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		UsageTracker:             tracker,
+		JoinRoleConfigRepository: repo,
+		JoinRoleInspector:        sideEffects,
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+
+	create := fakediscord.SlashInteractionWithOptions("加入身份組設置", "", map[string]string{"身分組": "role-1"})
+	create.Actor.PermissionBits = 8192
+	if err := dispatcher.Dispatch(context.Background(), create, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch create success: %v", err)
+	}
+	if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteractionWithOptions("加入身份組設置", "", map[string]string{"身分組": "role-2"}), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch create denial: %v", err)
+	}
+	remove := fakediscord.SlashInteractionWithOptions("加入身份組刪除", "", map[string]string{"身分組": "role-1"})
+	remove.Actor.PermissionBits = 8192
+	if err := dispatcher.Dispatch(context.Background(), remove, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch delete success: %v", err)
+	}
+	if err := dispatcher.Dispatch(context.Background(), remove, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch delete missing: %v", err)
+	}
+
+	wantCommands := []string{"加入身份組設置", "加入身份組設置", "加入身份組刪除", "加入身份組刪除"}
+	if len(tracker.Events) != len(wantCommands) {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for i, want := range wantCommands {
+		if tracker.Events[i].CommandName != want {
+			t.Fatalf("usage event %d = %#v", i, tracker.Events[i])
+		}
+	}
+}
+
 func TestBuildRuntimeRoutesVerificationConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

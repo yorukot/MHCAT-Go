@@ -18,8 +18,7 @@ func TestSetHandlerCreatesJoinRoleConfigWithLegacySuccess(t *testing.T) {
 	repo := fakemongo.NewJoinRoleConfigRepository()
 	roles := fakediscord.NewSideEffects()
 	roles.AssignableRoles["guild-1/role-1"] = true
-	usage := &fakeusage.Tracker{}
-	module := NewModule(repo, roles, usage)
+	module := NewModule(repo, roles)
 	interaction := fakediscord.SlashInteractionWithOptions(JoinRoleSetCommandName, "", map[string]string{
 		"身分組":      "role-1",
 		"給人還是給機器人": domain.JoinRoleGiveBots,
@@ -47,15 +46,12 @@ func TestSetHandlerCreatesJoinRoleConfigWithLegacySuccess(t *testing.T) {
 	if responder.Edits[0].AllowedMentions == nil || responder.Edits[0].AllowedMentions.ParseRoles {
 		t.Fatalf("mentions should be suppressed: %#v", responder.Edits[0].AllowedMentions)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != JoinRoleSetCommandName {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestSetHandlerRejectsMissingPermissionUnassignableAndDuplicate(t *testing.T) {
 	repo := fakemongo.NewJoinRoleConfigRepository()
 	roles := fakediscord.NewSideEffects()
-	module := NewModule(repo, roles, nil)
+	module := NewModule(repo, roles)
 	interaction := fakediscord.SlashInteractionWithOptions(JoinRoleSetCommandName, "", map[string]string{"身分組": "role-1"})
 	responder := fakediscord.NewResponder()
 	if err := module.SetHandler()(context.Background(), interaction, responder); err != nil {
@@ -91,8 +87,7 @@ func TestSetHandlerRejectsMissingPermissionUnassignableAndDuplicate(t *testing.T
 func TestDeleteHandlerDeletesJoinRoleConfigWithLegacySuccess(t *testing.T) {
 	repo := fakemongo.NewJoinRoleConfigRepository()
 	repo.Configs["guild-1/role-1"] = domain.JoinRoleConfig{GuildID: "guild-1", RoleID: "role-1"}
-	usage := &fakeusage.Tracker{}
-	module := NewModule(repo, nil, usage)
+	module := NewModule(repo, nil)
 	interaction := fakediscord.SlashInteractionWithOptions(JoinRoleDeleteCommandName, "", map[string]string{"身分組": "role-1"})
 	interaction.Actor.PermissionBits = permissionManageMessages
 	responder := fakediscord.NewResponder()
@@ -106,13 +101,10 @@ func TestDeleteHandlerDeletesJoinRoleConfigWithLegacySuccess(t *testing.T) {
 	if got := responder.Edits[0].Embeds[0].Description; got != "<:trashbin:986308183674990592>**成功刪除:**\n身分組: <@role-1>!" {
 		t.Fatalf("description = %q", got)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != JoinRoleDeleteCommandName {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestDeleteHandlerMissingConfig(t *testing.T) {
-	module := NewModule(fakemongo.NewJoinRoleConfigRepository(), nil, nil)
+	module := NewModule(fakemongo.NewJoinRoleConfigRepository(), nil)
 	interaction := fakediscord.SlashInteractionWithOptions(JoinRoleDeleteCommandName, "", map[string]string{"身分組": "role-1"})
 	interaction.Actor.PermissionBits = permissionManageMessages
 	responder := fakediscord.NewResponder()

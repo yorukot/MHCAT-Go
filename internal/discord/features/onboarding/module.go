@@ -30,11 +30,10 @@ type Module struct {
 	usage               ports.UsageTracker
 }
 
-func NewModule(repo ports.JoinRoleConfigRepository, roles ports.DiscordRoleInspector, usage ports.UsageTracker) Module {
+func NewModule(repo ports.JoinRoleConfigRepository, roles ports.DiscordRoleInspector) Module {
 	return Module{
 		service:            coreservice.JoinRoleService{Repository: repo, RoleInspector: roles},
 		joinRoleConfigured: true,
-		usage:              usage,
 	}
 }
 
