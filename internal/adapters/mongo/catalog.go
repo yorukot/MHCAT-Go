@@ -70,9 +70,11 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Legacy writes mix numeric/string values for shop prices and counts."),
 		catalogSpec("gifts", "gift", "models/gift.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("gifts_guild_gift_name", []string{"guild", "gift_name"}, "gacha prize lookup"),
+			nonUniqueCatalogIndex("gifts_guild_gift_name_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "gift_name", Order: 1}}, "gacha prize pool and inventory lookup without requiring duplicate cleanup"),
 		}, "Preserve misspelled legacy field `gift_chence`."),
 		catalogSpec("gift_changes", "gift_change", "models/gift_change.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("gift_changes_guild", []string{"guild"}, "economy/gacha config singleton"),
+			nonUniqueCatalogIndex("gift_changes_guild_lookup", []IndexKey{{Field: "guild", Order: 1}}, "economy and gacha config lookup without requiring duplicate cleanup"),
 			nonUniqueCatalogIndex("gift_changes_time_guild", []IndexKey{{Field: "time", Order: 1}, {Field: "guild", Order: 1}}, "daily reset exclusion scan"),
 		}, "Partial index semantics for `time != 0` need ADR before use."),
 		catalogSpec("good_webs", "good_web", "models/good_web.js", []string{"guild"}, []catalogIndex{
@@ -113,6 +115,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Normalize domains and escape regex before any schema/write changes."),
 		catalogSpec("polls", "poll", "models/poll.js", []string{"guild", "messageid"}, []catalogIndex{
 			uniqueCatalogIndex("polls_guild_messageid", []string{"guild", "messageid"}, "poll component lookup"),
+			nonUniqueCatalogIndex("polls_guild_messageid_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "messageid", Order: 1}}, "poll command and component lookup without requiring duplicate cleanup"),
 		}, "Poll vote state requires atomic update design before writes."),
 		catalogSpec("role_numbers", "role_number", "models/role.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("role_numbers_guild_role", []string{"guild", "role"}, "role stats config lookup"),

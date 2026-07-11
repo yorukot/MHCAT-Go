@@ -1216,6 +1216,13 @@ func gachaRepositoryFromMongo(mongoClient MongoClient) (*mongorepositories.Gacha
 	if err != nil {
 		return nil, fmt.Errorf("gacha feature repository: %w", err)
 	}
+	transactions, err := mongoadapter.NewTransactionRunner(concrete)
+	if err != nil {
+		return nil, fmt.Errorf("gacha feature transaction runner: %w", err)
+	}
+	if err := repo.SetGachaDrawTransactionRunner(transactions); err != nil {
+		return nil, fmt.Errorf("configure gacha draw transactions: %w", err)
+	}
 	return repo, nil
 }
 

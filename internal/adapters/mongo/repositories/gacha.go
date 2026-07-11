@@ -12,14 +12,18 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	drivermongo "go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 const GiftCollectionName = "gifts"
 
+var ErrGachaDrawTransactionsRequired = errors.New("gacha draw transaction runner is required")
+
 type GachaRepository struct {
-	gifts       *drivermongo.Collection
-	giftChanges *drivermongo.Collection
-	coins       *drivermongo.Collection
+	gifts        *drivermongo.Collection
+	giftChanges  *drivermongo.Collection
+	coins        *drivermongo.Collection
+	transactions ports.TransactionRunner
 }
 
 func NewGachaRepository(gifts *drivermongo.Collection, giftChanges *drivermongo.Collection, coins *drivermongo.Collection) (*GachaRepository, error) {
@@ -40,6 +44,14 @@ func NewGachaRepositoryFromDatabase(database *drivermongo.Database) (*GachaRepos
 		return nil, fmt.Errorf("mongo database is required")
 	}
 	return NewGachaRepository(database.Collection(GiftCollectionName), database.Collection(GiftChangeCollectionName), database.Collection(CoinCollectionName))
+}
+
+func (r *GachaRepository) SetGachaDrawTransactionRunner(transactions ports.TransactionRunner) error {
+	if r == nil || transactions == nil {
+		return ErrGachaDrawTransactionsRequired
+	}
+	r.transactions = transactions
+	return nil
 }
 
 func (r *GachaRepository) ListGachaPrizes(ctx context.Context, guildID string) ([]domain.GachaPrize, error) {
@@ -130,19 +142,17 @@ func (r *GachaRepository) CreateGachaPrize(ctx context.Context, prize domain.Gac
 		return domain.ErrInvalidGachaPrize
 	}
 	filter := bson.D{{Key: "guild", Value: prize.GuildID}, {Key: "gift_name", Value: prize.Name}}
-	err := r.gifts.FindOne(ctx, filter).Err()
-	if err == nil {
-		return ports.ErrGachaPrizeExists
-	}
-	if err != drivermongo.ErrNoDocuments {
-		return mhcatmongo.MapError(fmt.Errorf("find gacha prize before create: %w", err))
-	}
-	if _, err := r.gifts.InsertOne(ctx, documents.GiftWriteDocumentFromDomain(prize)); err != nil {
+	update := bson.D{{Key: "$setOnInsert", Value: documents.GiftWriteDocumentFromDomain(prize)}}
+	result, err := r.gifts.UpdateOne(ctx, filter, update, options.UpdateOne().SetUpsert(true))
+	if err != nil {
 		mapped := mhcatmongo.MapError(fmt.Errorf("create gacha prize: %w", err))
 		if mhcatmongo.ErrorIs(mapped, mhcatmongo.ErrorKindConflict) {
 			return ports.ErrGachaPrizeExists
 		}
 		return mapped
+	}
+	if result.UpsertedCount == 0 {
+		return ports.ErrGachaPrizeExists
 	}
 	return ctx.Err()
 }
@@ -156,23 +166,33 @@ func (r *GachaRepository) EditGachaPrize(ctx context.Context, edit domain.GachaP
 		return domain.GachaPrizeConfig{}, domain.ErrInvalidGachaPrize
 	}
 	filter := bson.D{{Key: "guild", Value: edit.GuildID}, {Key: "gift_name", Value: edit.Name}}
+	fields := bson.D{{Key: "gift_count", Value: edit.Count}}
+	if edit.Code != "" {
+		fields = append(fields, bson.E{Key: "gift_code", Value: edit.Code})
+	}
+	if edit.ChanceSet && edit.Chance != 0 {
+		fields = append(fields, bson.E{Key: "gift_chence", Value: edit.Chance})
+	}
+	if edit.AutoDelete {
+		fields = append(fields, bson.E{Key: "auto_delete", Value: true})
+	}
+	if edit.GiveCoin != 0 {
+		fields = append(fields, bson.E{Key: "give_coin", Value: edit.GiveCoin})
+	}
 	var document documents.GiftDocument
-	err := r.gifts.FindOneAndDelete(ctx, filter).Decode(&document)
+	err := r.gifts.FindOneAndUpdate(
+		ctx,
+		filter,
+		bson.D{{Key: "$set", Value: fields}},
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&document)
 	if err != nil {
 		if err == drivermongo.ErrNoDocuments {
 			return domain.GachaPrizeConfig{}, ports.ErrGachaPrizeMissing
 		}
-		return domain.GachaPrizeConfig{}, mhcatmongo.MapError(fmt.Errorf("delete gacha prize before edit: %w", err))
+		return domain.GachaPrizeConfig{}, mhcatmongo.MapError(fmt.Errorf("edit gacha prize: %w", err))
 	}
-	updated := mergeLegacyGachaPrizeEdit(document.ToConfig(), edit)
-	if _, err := r.gifts.InsertOne(ctx, documents.GiftWriteDocumentFromDomain(updated)); err != nil {
-		mapped := mhcatmongo.MapError(fmt.Errorf("insert edited gacha prize: %w", err))
-		if mhcatmongo.ErrorIs(mapped, mhcatmongo.ErrorKindConflict) {
-			return domain.GachaPrizeConfig{}, ports.ErrGachaPrizeExists
-		}
-		return domain.GachaPrizeConfig{}, mapped
-	}
-	return updated, ctx.Err()
+	return document.ToConfig(), ctx.Err()
 }
 
 func (r *GachaRepository) DrawGacha(ctx context.Context, request domain.GachaDrawRequest) (domain.GachaDrawResult, error) {
@@ -184,6 +204,19 @@ func (r *GachaRepository) DrawGacha(ctx context.Context, request domain.GachaDra
 	if request.GuildID == "" || request.UserID == "" || request.PaidDraws <= 0 || request.ActualDraws <= 0 || len(request.RandomValues) < request.ActualDraws {
 		return domain.GachaDrawResult{}, domain.ErrInvalidGachaDraw
 	}
+	if r.transactions == nil {
+		return domain.GachaDrawResult{}, ErrGachaDrawTransactionsRequired
+	}
+	var result domain.GachaDrawResult
+	err := r.transactions.WithinTransaction(ctx, func(txCtx context.Context) error {
+		var err error
+		result, err = r.drawGachaWithinTransaction(txCtx, request)
+		return err
+	})
+	return result, err
+}
+
+func (r *GachaRepository) drawGachaWithinTransaction(ctx context.Context, request domain.GachaDrawRequest) (domain.GachaDrawResult, error) {
 	balance, err := r.gachaCoinBalance(ctx, request.GuildID, request.UserID)
 	if err != nil {
 		return domain.GachaDrawResult{}, err
@@ -220,22 +253,19 @@ func (r *GachaRepository) DrawGacha(ctx context.Context, request domain.GachaDra
 	results := make([]domain.GachaDrawPrizeResult, 0, request.ActualDraws)
 	giveCoinTotal := int64(0)
 	for index := 0; index < request.ActualDraws; index++ {
-		prizes, err = r.listGachaPrizeConfigs(ctx, request.GuildID)
-		if err != nil {
-			return domain.GachaDrawResult{}, err
-		}
 		drawn := domain.ResolveGachaDraw(prizes, request.RandomValues[index])
 		results = append(results, drawn)
 		if drawn.Air {
 			continue
 		}
 		giveCoinTotal += drawn.GiveCoin
-		if err := r.applyGachaInventoryDraw(ctx, request.GuildID, drawn.Name, prizes); err != nil {
+		prizes, err = r.applyGachaInventoryDraw(ctx, request.GuildID, drawn.Name, prizes)
+		if err != nil {
 			return domain.GachaDrawResult{}, err
 		}
 	}
 	nextCoins := balance.Coins - cost + giveCoinTotal
-	updateResult, err := r.coins.UpdateMany(
+	updateResult, err := r.coins.UpdateOne(
 		ctx,
 		bson.D{{Key: "guild", Value: request.GuildID}, {Key: "member", Value: request.UserID}},
 		bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: nextCoins}}}},
@@ -293,51 +323,35 @@ func (r *GachaRepository) listGachaPrizeConfigs(ctx context.Context, guildID str
 	return prizes, ctx.Err()
 }
 
-func (r *GachaRepository) applyGachaInventoryDraw(ctx context.Context, guildID string, prizeName string, prizes []domain.GachaPrizeConfig) error {
-	var drawn domain.GachaPrizeConfig
-	found := false
-	for _, prize := range prizes {
+func (r *GachaRepository) applyGachaInventoryDraw(ctx context.Context, guildID string, prizeName string, prizes []domain.GachaPrizeConfig) ([]domain.GachaPrizeConfig, error) {
+	for index, prize := range prizes {
 		if prize.Name == prizeName {
-			drawn = prize
-			found = true
-			break
+			if !prize.AutoDelete {
+				return prizes, ctx.Err()
+			}
+			filter := bson.D{{Key: "guild", Value: guildID}, {Key: "gift_name", Value: prizeName}}
+			if prize.Count <= 1 {
+				result, err := r.gifts.DeleteOne(ctx, filter)
+				if err != nil {
+					return nil, mhcatmongo.MapError(fmt.Errorf("delete depleted gacha prize after draw: %w", err))
+				}
+				if result.DeletedCount == 0 {
+					return nil, ports.ErrGachaPrizeMissing
+				}
+				return append(prizes[:index:index], prizes[index+1:]...), ctx.Err()
+			}
+			result, err := r.gifts.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: bson.D{{Key: "gift_count", Value: prize.Count - 1}}}})
+			if err != nil {
+				return nil, mhcatmongo.MapError(fmt.Errorf("decrement gacha prize after draw: %w", err))
+			}
+			if result.MatchedCount == 0 {
+				return nil, ports.ErrGachaPrizeMissing
+			}
+			prizes[index].Count--
+			return prizes, ctx.Err()
 		}
 	}
-	if !found || !drawn.AutoDelete {
-		return ctx.Err()
-	}
-	filter := bson.D{{Key: "guild", Value: guildID}, {Key: "gift_name", Value: prizeName}}
-	if drawn.Count <= 1 {
-		if _, err := r.gifts.DeleteOne(ctx, filter); err != nil {
-			return mhcatmongo.MapError(fmt.Errorf("delete depleted gacha prize after draw: %w", err))
-		}
-		return ctx.Err()
-	}
-	update := bson.D{{Key: "$set", Value: bson.D{{Key: "gift_count", Value: drawn.Count - 1}}}}
-	if _, err := r.gifts.UpdateOne(ctx, filter, update); err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("decrement gacha prize after draw: %w", err))
-	}
-	return ctx.Err()
-}
-
-func mergeLegacyGachaPrizeEdit(existing domain.GachaPrizeConfig, edit domain.GachaPrizeEdit) domain.GachaPrizeConfig {
-	updated := existing
-	updated.GuildID = edit.GuildID
-	updated.Name = edit.Name
-	if edit.Code != "" {
-		updated.Code = edit.Code
-	}
-	if edit.ChanceSet && edit.Chance != 0 {
-		updated.Chance = edit.Chance
-	}
-	if edit.AutoDelete {
-		updated.AutoDelete = true
-	}
-	updated.Count = edit.Count
-	if edit.GiveCoin != 0 {
-		updated.GiveCoin = edit.GiveCoin
-	}
-	return updated
+	return prizes, ctx.Err()
 }
 
 var _ ports.GachaPrizePoolRepository = (*GachaRepository)(nil)
