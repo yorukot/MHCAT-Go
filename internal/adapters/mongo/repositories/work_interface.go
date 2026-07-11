@@ -146,11 +146,11 @@ func workStartUpdate(command domain.WorkStartCommand) bson.D {
 	}
 }
 
-func (r *WorkInterfaceRepository) EnsureWorkUser(ctx context.Context, guildID string, userID string, maxEnergy int64) (domain.WorkUserState, error) {
-	if strings.TrimSpace(guildID) == "" || strings.TrimSpace(userID) == "" || maxEnergy < 0 {
+func (r *WorkInterfaceRepository) EnsureWorkUser(ctx context.Context, guildID string, userID string, maxEnergy int64, maxEnergyText string) (domain.WorkUserState, error) {
+	if strings.TrimSpace(guildID) == "" || strings.TrimSpace(userID) == "" {
 		return domain.WorkUserState{}, domain.ErrInvalidWorkQuery
 	}
-	if err := r.ensureWorkUserWithMaxEnergy(ctx, guildID, userID, maxEnergy); err != nil {
+	if err := r.ensureWorkUserWithMaxEnergy(ctx, guildID, userID, workStartNumber(maxEnergyText, maxEnergy)); err != nil {
 		return domain.WorkUserState{}, err
 	}
 	return r.GetWorkUser(ctx, guildID, userID)
@@ -208,7 +208,7 @@ func (r *WorkInterfaceRepository) GrantWorkEnergy(ctx context.Context, command d
 	if err := validateWorkEnergyGrantCommand(command.GuildID, command.UserID, command.Amount, command.MaxEnergy); err != nil {
 		return domain.WorkUserState{}, err
 	}
-	if err := r.ensureWorkUserWithMaxEnergy(ctx, command.GuildID, command.UserID, command.MaxEnergy); err != nil {
+	if err := r.ensureWorkUserWithMaxEnergy(ctx, command.GuildID, command.UserID, float64(command.MaxEnergy)); err != nil {
 		return domain.WorkUserState{}, err
 	}
 	var updated documents.WorkUserDocument
@@ -247,10 +247,10 @@ func (r *WorkInterfaceRepository) GrantWorkEnergyToAll(ctx context.Context, comm
 }
 
 func (r *WorkInterfaceRepository) ensureWorkUser(ctx context.Context, command domain.WorkStartCommand) error {
-	return r.ensureWorkUserWithMaxEnergy(ctx, command.GuildID, command.UserID, command.MaxEnergy)
+	return r.ensureWorkUserWithMaxEnergy(ctx, command.GuildID, command.UserID, workStartNumber(command.MaxEnergyText, command.MaxEnergy))
 }
 
-func (r *WorkInterfaceRepository) ensureWorkUserWithMaxEnergy(ctx context.Context, guildID string, userID string, maxEnergy int64) error {
+func (r *WorkInterfaceRepository) ensureWorkUserWithMaxEnergy(ctx context.Context, guildID string, userID string, maxEnergy float64) error {
 	_, err := r.workUsers.UpdateOne(
 		ctx,
 		bson.D{{Key: "guild", Value: strings.TrimSpace(guildID)}, {Key: "user", Value: strings.TrimSpace(userID)}},
@@ -288,7 +288,6 @@ func validateWorkStartCommand(command domain.WorkStartCommand) error {
 	if strings.TrimSpace(command.GuildID) == "" ||
 		strings.TrimSpace(command.UserID) == "" ||
 		strings.TrimSpace(command.WorkName) == "" ||
-		command.MaxEnergy < 0 ||
 		command.NowUnix <= 0 {
 		return domain.ErrInvalidWorkQuery
 	}

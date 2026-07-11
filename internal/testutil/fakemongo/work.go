@@ -102,10 +102,10 @@ func (r *WorkInterfaceRepository) StartWork(_ context.Context, command domain.Wo
 	return user, nil
 }
 
-func (r *WorkInterfaceRepository) EnsureWorkUser(_ context.Context, guildID string, userID string, maxEnergy int64) (domain.WorkUserState, error) {
+func (r *WorkInterfaceRepository) EnsureWorkUser(_ context.Context, guildID string, userID string, maxEnergy int64, maxEnergyText string) (domain.WorkUserState, error) {
 	guildID = strings.TrimSpace(guildID)
 	userID = strings.TrimSpace(userID)
-	if guildID == "" || userID == "" || maxEnergy < 0 {
+	if guildID == "" || userID == "" {
 		return domain.WorkUserState{}, domain.ErrInvalidWorkQuery
 	}
 	key := workUserKey(guildID, userID)

@@ -53,7 +53,7 @@ func (r fakeRepo) StartWork(_ context.Context, command domain.WorkStartCommand) 
 	return domain.WorkUserState{GuildID: command.GuildID, UserID: command.UserID, State: command.WorkName, EndTimeUnix: command.NowUnix + command.DurationSec, Energy: command.MaxEnergy - command.EnergyCost, GetCoin: command.CoinReward, Initialized: true}, nil
 }
 
-func (r fakeRepo) EnsureWorkUser(_ context.Context, guildID string, userID string, maxEnergy int64) (domain.WorkUserState, error) {
+func (r fakeRepo) EnsureWorkUser(_ context.Context, guildID string, userID string, maxEnergy int64, _ string) (domain.WorkUserState, error) {
 	return domain.WorkUserState{GuildID: guildID, UserID: userID, State: domain.WorkIdleState, Energy: maxEnergy, Initialized: true}, nil
 }
 

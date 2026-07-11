@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -69,6 +70,7 @@ type WorkStartCommand struct {
 	CoinReward     int64
 	CoinRewardText string
 	MaxEnergy      int64
+	MaxEnergyText  string
 	NowUnix        int64
 	Override       bool
 }
@@ -104,17 +106,39 @@ type WorkEnergyGrantAllResult struct {
 }
 
 func (s WorkUserState) EffectiveState(nowUnix int64) string {
-	if s.EndTimeUnix-nowUnix > 0 && strings.TrimSpace(s.State) != "" {
+	if s.endTimeNumber()-float64(nowUnix) > 0 {
 		return "在" + s.State + "打工"
 	}
 	return WorkIdleState
 }
 
 func (s WorkUserState) RemainingTimeText(nowUnix int64) string {
-	if s.EndTimeUnix-nowUnix > 0 {
-		return "<t:" + strconv.FormatInt(s.EndTimeUnix, 10) + ":R>"
+	if s.endTimeNumber()-float64(nowUnix) > 0 {
+		return "<t:" + workDomainScalarText(s.EndTimeText, s.EndTimeUnix) + ":R>"
 	}
 	return "`沒有打工再進行`"
+}
+
+func (s WorkUserState) endTimeNumber() float64 {
+	text := strings.TrimSpace(s.EndTimeText)
+	if text == "" {
+		return float64(s.EndTimeUnix)
+	}
+	if text == "null" {
+		return 0
+	}
+	value, err := strconv.ParseFloat(text, 64)
+	if err != nil {
+		return math.NaN()
+	}
+	return value
+}
+
+func workDomainScalarText(text string, fallback int64) string {
+	if text = strings.TrimSpace(text); text != "" {
+		return text
+	}
+	return strconv.FormatInt(fallback, 10)
 }
 
 type WorkInterfaceView struct {

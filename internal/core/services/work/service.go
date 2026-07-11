@@ -83,7 +83,7 @@ func (s Service) Interface(ctx context.Context, request InterfaceRequest) (domai
 			return domain.WorkInterfaceView{}, err
 		}
 		if s.startRepo != nil {
-			user, err = s.startRepo.EnsureWorkUser(ctx, request.GuildID, request.UserID, config.MaxEnergy)
+			user, err = s.startRepo.EnsureWorkUser(ctx, request.GuildID, request.UserID, config.MaxEnergy, config.MaxEnergyText)
 			if err != nil {
 				return domain.WorkInterfaceView{}, err
 			}
@@ -94,6 +94,7 @@ func (s Service) Interface(ctx context.Context, request InterfaceRequest) (domai
 				State:       domain.WorkIdleState,
 				EndTimeUnix: 0,
 				Energy:      config.MaxEnergy,
+				EnergyText:  config.MaxEnergyText,
 				GetCoin:     0,
 				Initialized: false,
 			}
@@ -166,6 +167,7 @@ func (s Service) Start(ctx context.Context, request InterfaceRequest, itemKey st
 		CoinReward:     item.CoinReward,
 		CoinRewardText: item.CoinRewardText,
 		MaxEnergy:      view.Config.MaxEnergy,
+		MaxEnergyText:  view.Config.MaxEnergyText,
 		NowUnix:        nowUnix,
 		Override:       override,
 	})
