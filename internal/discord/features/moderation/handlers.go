@@ -428,7 +428,7 @@ func (m Module) applyWarningThreshold(ctx context.Context, interaction interacti
 	if !(float64(warningCount) >= settings.Threshold) {
 		return responses.Message{}, false
 	}
-	switch strings.TrimSpace(settings.Action) {
+	switch settings.Action {
 	case domain.WarningSettingsActionBan:
 		if m.memberActions == nil {
 			return warningErrorMessage("我沒有權限ban掉他"), true
@@ -436,15 +436,15 @@ func (m Module) applyWarningThreshold(ctx context.Context, interaction interacti
 		if err := m.memberActions.BanMember(ctx, interaction.Actor.GuildID, userID, reason, 0); err != nil {
 			return warningErrorMessage("我沒有權限ban掉他"), true
 		}
-		m.sendWarningActionMessage(ctx, interaction.ChannelID, settings.Action)
-	case domain.WarningSettingsActionKick:
+		m.sendWarningActionMessage(ctx, interaction.ChannelID, domain.WarningSettingsActionBan)
+	default:
 		if m.memberActions == nil {
 			return warningErrorMessage("我沒有權限踢出他"), true
 		}
 		if err := m.memberActions.KickMember(ctx, interaction.Actor.GuildID, userID, reason); err != nil {
 			return warningErrorMessage("我沒有權限踢出他"), true
 		}
-		m.sendWarningActionMessage(ctx, interaction.ChannelID, settings.Action)
+		m.sendWarningActionMessage(ctx, interaction.ChannelID, domain.WarningSettingsActionKick)
 	}
 	return responses.Message{}, false
 }

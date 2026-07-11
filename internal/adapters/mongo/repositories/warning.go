@@ -237,7 +237,7 @@ func (r *WarningSettingsRepository) SaveWarningSettings(ctx context.Context, set
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := settings.Validate(); err != nil {
+	if err := settings.ValidateWrite(); err != nil {
 		return err
 	}
 	document := documents.WarningSettingsDocumentFromDomain(settings)

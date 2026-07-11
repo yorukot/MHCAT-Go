@@ -63,6 +63,13 @@ func (s WarningSettings) Validate() error {
 	if strings.TrimSpace(s.GuildID) == "" {
 		return ErrInvalidWarningSettings
 	}
+	return nil
+}
+
+func (s WarningSettings) ValidateWrite() error {
+	if err := s.Validate(); err != nil {
+		return err
+	}
 	switch strings.TrimSpace(s.Action) {
 	case WarningSettingsActionBan, WarningSettingsActionKick:
 		return nil

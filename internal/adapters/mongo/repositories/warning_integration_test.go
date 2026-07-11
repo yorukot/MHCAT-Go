@@ -165,6 +165,30 @@ func TestWarningSettingsMongoIntegrationPreservesThresholdScalarsAndDuplicateWri
 	}
 }
 
+func TestWarningSettingsMongoIntegrationReadsUnknownLegacyAction(t *testing.T) {
+	database := warningIntegrationDatabase(t)
+	repository, err := NewWarningSettingsRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new warning settings repository: %v", err)
+	}
+	collection := database.Collection(WarningSettingsCollectionName)
+	if _, err := collection.InsertOne(context.Background(), bson.D{
+		{Key: "guild", Value: "guild-1"},
+		{Key: "ban_count", Value: "2"},
+		{Key: "move", Value: "mute"},
+	}); err != nil {
+		t.Fatalf("seed warning settings: %v", err)
+	}
+
+	settings, err := repository.GetWarningSettings(context.Background(), "guild-1")
+	if err != nil {
+		t.Fatalf("get warning settings: %v", err)
+	}
+	if settings.Threshold != 2 || settings.Action != "mute" {
+		t.Fatalf("settings = %#v", settings)
+	}
+}
+
 func assertWarningContentLength(t *testing.T, collection *drivermongo.Collection, id bson.ObjectID, want int) {
 	t.Helper()
 	var document struct {

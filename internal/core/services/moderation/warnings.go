@@ -46,7 +46,7 @@ func (s WarningHistoryService) History(ctx context.Context, guildID string, user
 func (s WarningSettingsService) Configure(ctx context.Context, settings domain.WarningSettings) error {
 	settings.GuildID = strings.TrimSpace(settings.GuildID)
 	settings.Action = strings.TrimSpace(settings.Action)
-	if err := settings.Validate(); err != nil {
+	if err := settings.ValidateWrite(); err != nil {
 		return err
 	}
 	if s.Repository == nil {

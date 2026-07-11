@@ -12,16 +12,18 @@ func TestWarningSettingsValidate(t *testing.T) {
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("valid settings: %v", err)
 	}
-	for _, settings := range []domain.WarningSettings{
-		{GuildID: "", Threshold: 3, Action: domain.WarningSettingsActionBan},
-		{GuildID: "guild-1", Threshold: 3, Action: "mute"},
-	} {
-		if err := settings.Validate(); !errors.Is(err, domain.ErrInvalidWarningSettings) {
-			t.Fatalf("settings %#v err = %v", settings, err)
-		}
+	if err := (domain.WarningSettings{GuildID: "", Threshold: 3, Action: domain.WarningSettingsActionBan}).Validate(); !errors.Is(err, domain.ErrInvalidWarningSettings) {
+		t.Fatalf("missing guild err = %v", err)
+	}
+	legacy := domain.WarningSettings{GuildID: "guild-1", Threshold: 3, Action: "mute"}
+	if err := legacy.Validate(); err != nil {
+		t.Fatalf("legacy read settings: %v", err)
+	}
+	if err := legacy.ValidateWrite(); !errors.Is(err, domain.ErrInvalidWarningSettings) {
+		t.Fatalf("legacy write err = %v", err)
 	}
 	for _, threshold := range []float64{0, -1, 2.5} {
-		if err := (domain.WarningSettings{GuildID: "guild-1", Threshold: threshold, Action: domain.WarningSettingsActionBan}).Validate(); err != nil {
+		if err := (domain.WarningSettings{GuildID: "guild-1", Threshold: threshold, Action: domain.WarningSettingsActionBan}).ValidateWrite(); err != nil {
 			t.Fatalf("legacy threshold %v: %v", threshold, err)
 		}
 	}

@@ -171,23 +171,35 @@ func TestWarningSettingsReadDocumentUsesMongooseStringCoercion(t *testing.T) {
 	}
 }
 
-func TestWarningSettingsReadDocumentRejectsInvalidIdentityAndAction(t *testing.T) {
-	tests := []bson.D{
-		{{Key: "guild", Value: bson.D{{Key: "bad", Value: true}}}, {Key: "ban_count", Value: "2"}, {Key: "move", Value: domain.WarningSettingsActionBan}},
-		{{Key: "guild", Value: "guild-1"}, {Key: "ban_count", Value: "2"}, {Key: "move", Value: true}},
+func TestWarningSettingsReadDocumentRejectsInvalidIdentity(t *testing.T) {
+	payload, err := bson.Marshal(bson.D{{Key: "guild", Value: bson.D{{Key: "bad", Value: true}}}, {Key: "ban_count", Value: "2"}, {Key: "move", Value: domain.WarningSettingsActionBan}})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
 	}
-	for index, input := range tests {
-		payload, err := bson.Marshal(input)
-		if err != nil {
-			t.Fatalf("case %d marshal: %v", index, err)
-		}
-		var document documents.WarningSettingsReadDocument
-		if err := bson.Unmarshal(payload, &document); err != nil {
-			t.Fatalf("case %d unmarshal: %v", index, err)
-		}
-		if _, err := document.ToDomain(); !errors.Is(err, domain.ErrInvalidWarningSettings) {
-			t.Fatalf("case %d error = %v", index, err)
-		}
+	var document documents.WarningSettingsReadDocument
+	if err := bson.Unmarshal(payload, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if _, err := document.ToDomain(); !errors.Is(err, domain.ErrInvalidWarningSettings) {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestWarningSettingsReadDocumentAcceptsUnknownCoercedAction(t *testing.T) {
+	payload, err := bson.Marshal(bson.D{{Key: "guild", Value: "guild-1"}, {Key: "ban_count", Value: "2"}, {Key: "move", Value: true}})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document documents.WarningSettingsReadDocument
+	if err := bson.Unmarshal(payload, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	settings, err := document.ToDomain()
+	if err != nil {
+		t.Fatalf("to domain: %v", err)
+	}
+	if settings.Action != "true" {
+		t.Fatalf("action = %q", settings.Action)
 	}
 }
 

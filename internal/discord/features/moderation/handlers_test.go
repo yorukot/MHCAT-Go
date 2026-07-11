@@ -356,6 +356,27 @@ func TestWarningIssueThresholdBansExistingWarning(t *testing.T) {
 	}
 }
 
+func TestWarningIssueThresholdUnknownActionFallsBackToKick(t *testing.T) {
+	repo := fakemongo.NewWarningHistoryRepository()
+	repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}}})
+	settings := fakemongo.NewWarningSettingsRepository()
+	settings.Settings["guild-1"] = domain.WarningSettings{GuildID: "guild-1", Threshold: 2, Action: "mute"}
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewIssueModule(repo, settings, sideEffects, nil, sideEffects, sideEffects, sideEffects, moderationFixedClock{}, nil)
+	interaction := warningIssueInteraction("user-2", "second")
+	interaction.ChannelID = "channel-1"
+
+	if err := module.WarningIssueHandler()(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(sideEffects.Kicked) != 1 || len(sideEffects.Banned) != 0 {
+		t.Fatalf("kicked = %#v, banned = %#v", sideEffects.Kicked, sideEffects.Banned)
+	}
+	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != "<a:greentick:980496858445135893> | 這位使用者已到達警告須執行條件，成功對他執行`踢出`!" {
+		t.Fatalf("sent = %#v", sideEffects.Sent)
+	}
+}
+
 func TestWarningIssueUsesJavaScriptNumberThresholdComparison(t *testing.T) {
 	t.Run("decimal", func(t *testing.T) {
 		repo := fakemongo.NewWarningHistoryRepository()
