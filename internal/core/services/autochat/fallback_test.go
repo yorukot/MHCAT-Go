@@ -139,6 +139,26 @@ func TestFallbackServiceIgnoresMissingConfigAndPropagatesRepositoryErrors(t *tes
 	}
 }
 
+func TestFallbackServiceChecksNonnegativeBalanceBeforeConfig(t *testing.T) {
+	configs := fakemongo.NewAutoChatConfigRepository()
+	configs.Err = errors.New("config unavailable")
+	balances := fakemongo.NewBalanceRepository()
+	balances.Balances["guild-1"] = domain.Balance{GuildID: "guild-1", Amount: "1"}
+	service, err := NewFallbackService(configs, balances)
+	if err != nil {
+		t.Fatalf("new fallback service: %v", err)
+	}
+	reply, err := service.Reply(context.Background(), "guild-1", "channel-1", "你好")
+	if err != nil || reply.Content != "" {
+		t.Fatalf("nonnegative balance reply=%#v err=%v", reply, err)
+	}
+
+	balances.Balances["guild-1"] = domain.Balance{GuildID: "guild-1", Amount: "-1"}
+	if _, err := service.Reply(context.Background(), "guild-1", "channel-1", "你好"); err == nil {
+		t.Fatal("negative balance should continue to the failing config lookup")
+	}
+}
+
 func TestDecodeLegacyResponsesUsesJavaScriptObjectKeyOrder(t *testing.T) {
 	responses, err := decodeLegacyResponses([]byte(`{"v":"version","20":"twenty","3":"three","01":"leading","text":"value"}`))
 	if err != nil {

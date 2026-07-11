@@ -53,6 +53,15 @@ func (s FallbackService) Reply(ctx context.Context, guildID string, channelID st
 	if guildID == "" || channelID == "" {
 		return domain.AutoChatFallbackReply{}, nil
 	}
+	balance, err := s.balances.GetBalance(ctx, guildID)
+	if err != nil && !errors.Is(err, ports.ErrBalanceMissing) {
+		return domain.AutoChatFallbackReply{}, err
+	}
+	if err == nil {
+		if legacyNonnegativeAutoChatBalance(balance.Amount) {
+			return domain.AutoChatFallbackReply{}, nil
+		}
+	}
 	config, err := s.configs.GetAutoChatConfig(ctx, guildID)
 	if errors.Is(err, ports.ErrAutoChatConfigMissing) {
 		return domain.AutoChatFallbackReply{}, nil
@@ -62,16 +71,6 @@ func (s FallbackService) Reply(ctx context.Context, guildID string, channelID st
 	}
 	if config.ChannelID != channelID {
 		return domain.AutoChatFallbackReply{}, nil
-	}
-
-	balance, err := s.balances.GetBalance(ctx, guildID)
-	if err != nil && !errors.Is(err, ports.ErrBalanceMissing) {
-		return domain.AutoChatFallbackReply{}, err
-	}
-	if err == nil {
-		if legacyNonnegativeAutoChatBalance(balance.Amount) {
-			return domain.AutoChatFallbackReply{}, nil
-		}
 	}
 	return s.localReply(content), ctx.Err()
 }
