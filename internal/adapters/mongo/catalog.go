@@ -35,6 +35,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, ""),
 		catalogSpec("btns", "btn", "models/btn.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("btns_guild_number", []string{"guild", "number"}, "role button lookup"),
+			nonUniqueCatalogIndex("btns_guild_number_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "number", Order: 1}}, "role button interaction lookup without requiring duplicate cleanup"),
 		}, "Go aligns duplicate role mappings during explicit setup and creates no startup index; apply uniqueness only after a full duplicate audit and exclusive Node/Go setup ownership."),
 		catalogSpec("chats", "chat", "models/chat.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("chats_guild", []string{"guild"}, "autochat config singleton"),
@@ -86,6 +87,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, ""),
 		catalogSpec("guilds", "guild", "models/guild.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("guilds_guild", []string{"guild"}, "guild config singleton"),
+			nonUniqueCatalogIndex("guilds_guild_lookup", []IndexKey{{Field: "guild", Order: 1}}, "guild announcement config lookup without requiring duplicate cleanup"),
 		}, "Dashboard-shared collection; patch writes only after compatibility review."),
 		catalogSpec("join_messages", "join_message", "models/join_message.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("join_messages_guild", []string{"guild"}, "welcome message config singleton"),

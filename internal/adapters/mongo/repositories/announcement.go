@@ -145,39 +145,32 @@ func (r *AnnouncementConfigRepository) SetAnnouncementChannel(ctx context.Contex
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
+	config.GuildID = strings.TrimSpace(config.GuildID)
+	config.ChannelID = strings.TrimSpace(config.ChannelID)
 	if err := config.Validate(); err != nil {
 		return false, err
 	}
 	document := documents.GuildAnnouncementDocumentFromDomain(config)
-	update, err := mhcatmongo.NewUpdate().Set("announcement_id", document.AnnouncementID).Build()
-	if err != nil {
-		return false, err
-	}
-	result, err := r.guilds.UpdateMany(ctx, bson.D{{Key: "guild", Value: document.Guild}}, update)
-	if err != nil {
-		return false, mhcatmongo.MapError(fmt.Errorf("update announcement channel: %w", err))
-	}
-	if result.MatchedCount > 0 {
-		return false, ctx.Err()
-	}
-	insertUpdate, err := mhcatmongo.NewUpdate().
+	update, err := mhcatmongo.NewUpdate().
 		Set("announcement_id", document.AnnouncementID).
 		SetOnInsert("guild", document.Guild).
 		Build()
 	if err != nil {
 		return false, err
 	}
-	_, err = r.guilds.UpdateOne(ctx, bson.D{{Key: "guild", Value: document.Guild}}, insertUpdate, options.UpdateOne().SetUpsert(true))
+	result, err := r.guilds.UpdateMany(ctx, bson.D{{Key: "guild", Value: document.Guild}}, update, options.UpdateMany().SetUpsert(true))
 	if err != nil {
-		return false, mhcatmongo.MapError(fmt.Errorf("upsert announcement channel: %w", err))
+		return false, mhcatmongo.MapError(fmt.Errorf("update announcement channel: %w", err))
 	}
-	return true, ctx.Err()
+	return result.UpsertedCount > 0, ctx.Err()
 }
 
 func (r *AnnouncementConfigRepository) SetBoundAnnouncement(ctx context.Context, config domain.BoundAnnouncementConfig) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
+	config.GuildID = strings.TrimSpace(config.GuildID)
+	config.ChannelID = strings.TrimSpace(config.ChannelID)
 	if err := config.Validate(); err != nil {
 		return false, err
 	}
@@ -187,34 +180,18 @@ func (r *AnnouncementConfigRepository) SetBoundAnnouncement(ctx context.Context,
 		Set("tag", document.Tag).
 		Set("color", document.Color).
 		Set("title", document.Title).
-		Build()
-	if err != nil {
-		return false, err
-	}
-	result, err := r.annAllSets.UpdateMany(ctx, filter, update)
-	if err != nil {
-		return false, mhcatmongo.MapError(fmt.Errorf("update bound announcement: %w", err))
-	}
-	if result.MatchedCount > 0 {
-		r.storeCachedBoundAnnouncement(config.GuildID, config.ChannelID, config, true)
-		return false, ctx.Err()
-	}
-	insertUpdate, err := mhcatmongo.NewUpdate().
-		Set("tag", document.Tag).
-		Set("color", document.Color).
-		Set("title", document.Title).
 		SetOnInsert("guild", document.Guild).
 		SetOnInsert("announcement_id", document.AnnouncementID).
 		Build()
 	if err != nil {
 		return false, err
 	}
-	_, err = r.annAllSets.UpdateOne(ctx, filter, insertUpdate, options.UpdateOne().SetUpsert(true))
+	result, err := r.annAllSets.UpdateMany(ctx, filter, update, options.UpdateMany().SetUpsert(true))
 	if err != nil {
-		return false, mhcatmongo.MapError(fmt.Errorf("upsert bound announcement: %w", err))
+		return false, mhcatmongo.MapError(fmt.Errorf("update bound announcement: %w", err))
 	}
 	r.storeCachedBoundAnnouncement(config.GuildID, config.ChannelID, config, true)
-	return true, ctx.Err()
+	return result.UpsertedCount > 0, ctx.Err()
 }
 
 func (r *AnnouncementConfigRepository) DeleteBoundAnnouncement(ctx context.Context, guildID string, channelID string) error {

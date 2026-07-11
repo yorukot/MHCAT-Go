@@ -52,23 +52,13 @@ func (r *RoleSelectionRepository) SaveRoleReactionConfig(ctx context.Context, co
 	}
 	document := documents.RoleReactionDocumentFromDomain(config)
 	filter := roleReactionConfigFilter(document.Guild, document.Message, document.React)
-	update, err := roleReactionConfigUpdate(document, false)
+	update, err := roleReactionConfigUpdate(document, true)
 	if err != nil {
 		return err
 	}
-	result, err := r.reactions.UpdateMany(ctx, filter, update)
+	_, err = r.reactions.UpdateMany(ctx, filter, update, options.UpdateMany().SetUpsert(true))
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("save role reaction config: %w", err))
-	}
-	if result.MatchedCount > 0 {
-		return ctx.Err()
-	}
-	insertUpdate, err := roleReactionConfigUpdate(document, true)
-	if err != nil {
-		return err
-	}
-	if _, err := r.reactions.UpdateOne(ctx, filter, insertUpdate, options.UpdateOne().SetUpsert(true)); err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("upsert role reaction config: %w", err))
 	}
 	return ctx.Err()
 }
@@ -124,6 +114,7 @@ func (r *RoleSelectionRepository) SaveRoleButtonConfigs(ctx context.Context, con
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	models := make([]drivermongo.WriteModel, 0, len(configs))
 	for _, config := range configs {
 		config = config.Normalize()
 		if err := config.Validate(); err != nil {
@@ -131,24 +122,17 @@ func (r *RoleSelectionRepository) SaveRoleButtonConfigs(ctx context.Context, con
 		}
 		document := documents.RoleButtonDocumentFromDomain(config)
 		filter := roleButtonConfigFilter(document.Guild, document.Number)
-		update, err := roleButtonConfigUpdate(document, false)
+		update, err := roleButtonConfigUpdate(document, true)
 		if err != nil {
 			return err
 		}
-		result, err := r.buttons.UpdateMany(ctx, filter, update)
-		if err != nil {
-			return mhcatmongo.MapError(fmt.Errorf("save role button config: %w", err))
-		}
-		if result.MatchedCount > 0 {
-			continue
-		}
-		insertUpdate, err := roleButtonConfigUpdate(document, true)
-		if err != nil {
-			return err
-		}
-		if _, err := r.buttons.UpdateOne(ctx, filter, insertUpdate, options.UpdateOne().SetUpsert(true)); err != nil {
-			return mhcatmongo.MapError(fmt.Errorf("upsert role button config: %w", err))
-		}
+		models = append(models, drivermongo.NewUpdateManyModel().SetFilter(filter).SetUpdate(update).SetUpsert(true))
+	}
+	if len(models) == 0 {
+		return ctx.Err()
+	}
+	if _, err := r.buttons.BulkWrite(ctx, models); err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("save role button configs: %w", err))
 	}
 	return ctx.Err()
 }
