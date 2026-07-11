@@ -58,11 +58,16 @@ func TestRuntimeInteractionUserOption(t *testing.T) {
 			},
 		},
 	})
+	data := event.ApplicationCommandData()
+	data.Resolved = &dgo.ApplicationCommandInteractionDataResolved{Users: map[string]*dgo.User{
+		"123456789012345678": {ID: "123456789012345678", Username: "Yoru"},
+	}}
+	event.Data = data
 	interaction, _, err := session.RuntimeInteraction(&dgo.InteractionCreate{Interaction: event})
 	if err != nil {
 		t.Fatalf("runtime interaction: %v", err)
 	}
-	if interaction.Subcommand != "user" || interaction.Options["user"] != "123456789012345678" {
+	if interaction.Subcommand != "user" || interaction.Options["user"] != "123456789012345678" || interaction.CommandOptions["user"].UserName != "Yoru" {
 		t.Fatalf("interaction = %#v", interaction)
 	}
 }

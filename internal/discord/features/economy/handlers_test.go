@@ -75,6 +75,23 @@ func TestCoinQuerySelectedUserUsesFetchedUsername(t *testing.T) {
 	}
 }
 
+func TestCoinQuerySelectedUserPrefersResolvedUsername(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-2", Coins: 10})
+	module := NewModule(repo, nil, nil)
+	interaction := fakediscord.SlashInteractionWithOptions("代幣查詢", "", map[string]string{"使用者": "user-2"})
+	interaction.CommandOptions = map[string]interactions.CommandOptionValue{
+		"使用者": {Type: interactions.CommandOptionUser, String: "user-2", UserName: "ResolvedUser"},
+	}
+	responder := fakediscord.NewResponder()
+	if err := module.CoinQueryHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handle coin query: %v", err)
+	}
+	if got := responder.Edits[0].Embeds[0].Title; got != "<:money:997374193026994236>ResolvedUser目前有:`10`個代幣!" {
+		t.Fatalf("title = %q", got)
+	}
+}
+
 func TestCoinQueryNoBalanceUsesLegacyErrorEmbed(t *testing.T) {
 	module := NewModule(fakemongo.NewEconomyRepository(), nil, nil)
 	responder := fakediscord.NewResponder()

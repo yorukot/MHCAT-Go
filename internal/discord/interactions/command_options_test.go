@@ -23,12 +23,12 @@ func TestParseCommandOptionsStringIntegerBoolean(t *testing.T) {
 
 func TestParseCommandOptionsUser(t *testing.T) {
 	parsed, err := interactions.ParseCommandOptions([]interactions.CommandOption{
-		{Name: "user", Type: interactions.CommandOptionUser, Value: "123456789012345678"},
+		{Name: "user", Type: interactions.CommandOptionUser, Value: "123456789012345678", UserName: "Yoru"},
 	})
 	if err != nil {
 		t.Fatalf("parse options: %v", err)
 	}
-	if parsed.Options["user"] != "123456789012345678" || parsed.Values["user"].String != "123456789012345678" {
+	if parsed.Options["user"] != "123456789012345678" || parsed.Values["user"].String != "123456789012345678" || parsed.Values["user"].UserName != "Yoru" {
 		t.Fatalf("parsed = %#v", parsed)
 	}
 }

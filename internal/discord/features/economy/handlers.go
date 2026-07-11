@@ -33,7 +33,10 @@ func (m Module) CoinQueryHandler() interactions.Handler {
 		if targetUserID == "" {
 			targetUserID = interaction.Actor.UserID
 		} else {
-			subjectName = m.lookupUsername(ctx, interaction.Actor.GuildID, targetUserID)
+			subjectName = interaction.CommandOptions["使用者"].UserName
+			if subjectName == "" {
+				subjectName = m.lookupUsername(ctx, interaction.Actor.GuildID, targetUserID)
+			}
 		}
 		result, err := m.query.Query(ctx, interaction.Actor.GuildID, targetUserID)
 		if err != nil {

@@ -32,6 +32,7 @@ type CommandOption struct {
 	ChannelName     string
 	ChannelType     int
 	ChannelParentID string
+	UserName        string
 }
 
 type CommandOptionValue struct {
@@ -43,6 +44,7 @@ type CommandOptionValue struct {
 	ChannelName     string
 	ChannelType     int
 	ChannelParentID string
+	UserName        string
 }
 
 type ParsedCommandOptions struct {
@@ -150,6 +152,9 @@ func parseLeafOption(option CommandOption, parsed ParsedCommandOptions) error {
 			value.ChannelName = option.ChannelName
 			value.ChannelType = option.ChannelType
 			value.ChannelParentID = option.ChannelParentID
+		}
+		if option.Type == CommandOptionUser {
+			value.UserName = option.UserName
 		}
 		parsed.Options[option.Name] = value.String
 	default:
