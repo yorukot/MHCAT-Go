@@ -74,6 +74,58 @@ func TestAutoNotificationScheduleDocumentUsesMongooseStringCoercion(t *testing.T
 	}
 }
 
+func TestAutoNotificationDocumentsCoerceLegacyScalarIdentityFields(t *testing.T) {
+	raw, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: "guild-1"},
+		{Key: "id", Value: int64(123)},
+		{Key: "cron", Value: bson.Binary{Data: []byte("*/30 * * * *")}},
+		{Key: "channel", Value: bson.ObjectID{0x50, 0x7f, 0x1f, 0x77, 0xbc, 0xf8, 0x6c, 0xd7, 0x99, 0x43, 0x90, 0x11}},
+		{Key: "message", Value: bson.D{{Key: "content", Value: "hello"}}},
+	})
+	if err != nil {
+		t.Fatalf("marshal fixture: %v", err)
+	}
+
+	var scheduleDocument AutoNotificationScheduleDocument
+	if err := bson.Unmarshal(raw, &scheduleDocument); err != nil {
+		t.Fatalf("decode schedule: %v", err)
+	}
+	schedule := scheduleDocument.ToDomain()
+	if schedule.ID != "123" || schedule.Cron != "*/30 * * * *" || schedule.ChannelID != "507f1f77bcf86cd799439011" || schedule.Pending {
+		t.Fatalf("schedule = %#v", schedule)
+	}
+
+	var deliveryDocument AutoNotificationDeliveryDocument
+	if err := bson.Unmarshal(raw, &deliveryDocument); err != nil {
+		t.Fatalf("decode delivery: %v", err)
+	}
+	delivery := deliveryDocument.ToDomain()
+	if delivery.ID != schedule.ID || delivery.Cron != schedule.Cron || delivery.ChannelID != schedule.ChannelID || delivery.Message.Content != "hello" {
+		t.Fatalf("delivery = %#v", delivery)
+	}
+}
+
+func TestAutoNotificationDocumentsKeepUncastableIdentityFieldsRowLocal(t *testing.T) {
+	raw, err := bson.Marshal(bson.D{
+		{Key: "guild", Value: "guild-1"},
+		{Key: "id", Value: bson.A{"invalid"}},
+		{Key: "cron", Value: bson.D{{Key: "invalid", Value: true}}},
+		{Key: "channel", Value: bson.D{{Key: "invalid", Value: true}}},
+		{Key: "message", Value: bson.D{{Key: "content", Value: "hello"}}},
+	})
+	if err != nil {
+		t.Fatalf("marshal fixture: %v", err)
+	}
+	var document AutoNotificationDeliveryDocument
+	if err := bson.Unmarshal(raw, &document); err != nil {
+		t.Fatalf("decode delivery: %v", err)
+	}
+	schedule := document.ToDomain()
+	if schedule.ID != "" || schedule.Cron != "" || schedule.ChannelID != "" || schedule.Pending {
+		t.Fatalf("schedule = %#v", schedule)
+	}
+}
+
 func TestAutoNotificationMessageBSONPreservesLegacyEmbedDataShape(t *testing.T) {
 	payload := AutoNotificationMessageBSON(domain.AutoNotificationMessage{
 		Content:          "hello",

@@ -86,7 +86,8 @@ func (r *AutoNotificationScheduleRepository) ListAutoNotificationDeliveries(ctx 
 
 func autoNotificationDeliveryFilter() bson.D {
 	return bson.D{
-		{Key: "cron", Value: bson.D{{Key: "$type", Value: "string"}}},
+		{Key: "guild", Value: bson.D{{Key: "$type", Value: "string"}}},
+		{Key: "cron", Value: bson.D{{Key: "$ne", Value: nil}}},
 		{Key: "message", Value: bson.D{{Key: "$type", Value: "object"}}},
 	}
 }

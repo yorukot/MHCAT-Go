@@ -26,12 +26,16 @@ func TestNewAutoNotificationScheduleRepositoryFromDatabaseRequiresDatabase(t *te
 
 func TestAutoNotificationDeliveryFilterRequiresActiveLegacyPayloadShape(t *testing.T) {
 	filter := autoNotificationDeliveryFilter()
-	if len(filter) != 2 {
+	if len(filter) != 3 {
 		t.Fatalf("filter = %#v", filter)
 	}
-	cronType, ok := autoNotificationFilterValue(t, filter, "cron").(bson.D)
-	if !ok || autoNotificationFilterValue(t, cronType, "$type") != "string" {
-		t.Fatalf("cron filter = %#v", cronType)
+	guildType, ok := autoNotificationFilterValue(t, filter, "guild").(bson.D)
+	if !ok || autoNotificationFilterValue(t, guildType, "$type") != "string" {
+		t.Fatalf("guild filter = %#v", guildType)
+	}
+	cronValue, ok := autoNotificationFilterValue(t, filter, "cron").(bson.D)
+	if !ok || autoNotificationFilterValue(t, cronValue, "$ne") != nil {
+		t.Fatalf("cron filter = %#v", cronValue)
 	}
 	messageType, ok := autoNotificationFilterValue(t, filter, "message").(bson.D)
 	if !ok || autoNotificationFilterValue(t, messageType, "$type") != "object" {

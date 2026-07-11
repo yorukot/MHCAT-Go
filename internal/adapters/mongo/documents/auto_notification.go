@@ -10,15 +10,15 @@ import (
 
 type AutoNotificationScheduleDocument struct {
 	Guild   string        `bson:"guild" json:"guild"`
-	Channel string        `bson:"channel" json:"channel"`
-	ID      string        `bson:"id" json:"id"`
+	Channel bson.RawValue `bson:"channel" json:"channel"`
+	ID      bson.RawValue `bson:"id" json:"id"`
 	Cron    bson.RawValue `bson:"cron" json:"cron"`
 }
 
 type AutoNotificationDeliveryDocument struct {
 	Guild   string                           `bson:"guild" json:"guild"`
-	Channel string                           `bson:"channel" json:"channel"`
-	ID      string                           `bson:"id" json:"id"`
+	Channel bson.RawValue                    `bson:"channel" json:"channel"`
+	ID      bson.RawValue                    `bson:"id" json:"id"`
 	Cron    bson.RawValue                    `bson:"cron" json:"cron"`
 	Message *AutoNotificationMessageDocument `bson:"message" json:"message"`
 }
@@ -47,17 +47,21 @@ type AutoNotificationPendingWriteDocument struct {
 }
 
 func (d AutoNotificationScheduleDocument) ToDomain() domain.AutoNotificationSchedule {
+	id, _ := legacyMongooseString(d.ID)
+	channel, _ := legacyMongooseString(d.Channel)
 	cron, pending := legacyNullableString(d.Cron)
 	return domain.AutoNotificationSchedule{
 		GuildID:   d.Guild,
-		ID:        d.ID,
+		ID:        id,
 		Cron:      cron,
-		ChannelID: d.Channel,
+		ChannelID: channel,
 		Pending:   pending,
 	}
 }
 
 func (d AutoNotificationDeliveryDocument) ToDomain() domain.AutoNotificationSchedule {
+	id, _ := legacyMongooseString(d.ID)
+	channel, _ := legacyMongooseString(d.Channel)
 	cron, pending := legacyNullableString(d.Cron)
 	message := domain.AutoNotificationMessage{}
 	if d.Message != nil {
@@ -71,9 +75,9 @@ func (d AutoNotificationDeliveryDocument) ToDomain() domain.AutoNotificationSche
 	}
 	return domain.AutoNotificationSchedule{
 		GuildID:   d.Guild,
-		ID:        d.ID,
+		ID:        id,
 		Cron:      cron,
-		ChannelID: d.Channel,
+		ChannelID: channel,
 		Message:   message,
 		Pending:   pending,
 	}
