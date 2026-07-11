@@ -1645,23 +1645,68 @@ func TestBuildRuntimeRoutesAutoChatConfigOnlyWithRepository(t *testing.T) {
 	}
 }
 
-func TestBuildRuntimeTracksFeatureSlashOnce(t *testing.T) {
-	tracker := &fakeusage.Tracker{}
-	dispatcher, err := BuildRuntime(RuntimeOptions{
-		Config:                   validTestConfig(),
-		UsageTracker:             tracker,
-		AutoChatConfigRepository: fakemongo.NewAutoChatConfigRepository(),
-	})
-	if err != nil {
-		t.Fatalf("build runtime: %v", err)
-	}
-	interaction := fakediscord.SlashInteractionWithOptions("自動聊天頻道", "", map[string]string{"頻道": "channel-1"})
-	interaction.Actor.PermissionBits = 8192
-	if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
-		t.Fatalf("dispatch autochat config: %v", err)
-	}
-	if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "自動聊天頻道" {
-		t.Fatalf("usage events = %#v", tracker.Events)
+func TestBuildRuntimeTracksAutoChatConfigAttemptsOnce(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		command    string
+		permission int64
+		setup      func(*fakemongo.AutoChatConfigRepository)
+	}{
+		{name: "set success", command: "自動聊天頻道", permission: 8192},
+		{name: "set permission denied", command: "自動聊天頻道"},
+		{
+			name:       "set backend failure",
+			command:    "自動聊天頻道",
+			permission: 8192,
+			setup: func(repo *fakemongo.AutoChatConfigRepository) {
+				repo.Err = context.DeadlineExceeded
+			},
+		},
+		{
+			name:       "delete success",
+			command:    "自動聊天頻道刪除",
+			permission: 8192,
+			setup: func(repo *fakemongo.AutoChatConfigRepository) {
+				repo.Configs["guild-1"] = domain.AutoChatConfig{GuildID: "guild-1", ChannelID: "channel-1"}
+			},
+		},
+		{name: "delete missing", command: "自動聊天頻道刪除", permission: 8192},
+		{name: "delete permission denied", command: "自動聊天頻道刪除"},
+		{
+			name:       "delete backend failure",
+			command:    "自動聊天頻道刪除",
+			permission: 8192,
+			setup: func(repo *fakemongo.AutoChatConfigRepository) {
+				repo.Err = context.DeadlineExceeded
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewAutoChatConfigRepository()
+			if test.setup != nil {
+				test.setup(repo)
+			}
+			tracker := &fakeusage.Tracker{}
+			dispatcher, err := BuildRuntime(RuntimeOptions{
+				Config:                   validTestConfig(),
+				UsageTracker:             tracker,
+				AutoChatConfigRepository: repo,
+			})
+			if err != nil {
+				t.Fatalf("build runtime: %v", err)
+			}
+			interaction := fakediscord.SlashInteraction(test.command)
+			if test.command == "自動聊天頻道" {
+				interaction = fakediscord.SlashInteractionWithOptions(test.command, "", map[string]string{"頻道": "channel-1"})
+			}
+			interaction.Actor.PermissionBits = test.permission
+			if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+				t.Fatalf("dispatch autochat config: %v", err)
+			}
+			if len(tracker.Events) != 1 || tracker.Events[0].CommandName != test.command || tracker.Events[0].UserID != "user-1" || tracker.Events[0].GuildID != "guild-1" {
+				t.Fatalf("usage events = %#v", tracker.Events)
+			}
+		})
 	}
 }
 
