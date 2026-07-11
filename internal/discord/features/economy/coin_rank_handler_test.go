@@ -152,6 +152,24 @@ func TestCoinRankComponentMissingUserUsesLegacyEphemeralError(t *testing.T) {
 	}
 }
 
+func TestCoinRankUsernamePreservesLegacyUserTag(t *testing.T) {
+	module := NewCoinRankModule(fakemongo.NewEconomyRepository(), &fakebotinfo.DiscordInfoProvider{
+		Users: map[string]ports.DiscordUserInfo{
+			"legacy":   {Username: "Legacy", Discriminator: "1234"},
+			"migrated": {Username: "Migrated", Discriminator: "0"},
+		},
+	}, nil)
+	if got := module.lookupCoinRankUsername(context.Background(), "guild-1", "legacy"); got != "Legacy#1234" {
+		t.Fatalf("legacy tag = %q", got)
+	}
+	if got := module.lookupCoinRankUsername(context.Background(), "guild-1", "migrated"); got != "Migrated" {
+		t.Fatalf("migrated tag = %q", got)
+	}
+	if got := module.lookupCoinRankUsername(context.Background(), "guild-1", "missing"); got != coinRankMissingUsername {
+		t.Fatalf("missing tag = %q", got)
+	}
+}
+
 func TestCoinRankModuleRegistersLegacyComponentRoute(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	viewerID := "123456789012345678"

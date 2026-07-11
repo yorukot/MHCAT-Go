@@ -189,7 +189,12 @@ func (m Module) lookupCoinRankUsername(ctx context.Context, guildID string, user
 	if err != nil || strings.TrimSpace(info.Username) == "" {
 		return coinRankMissingUsername
 	}
-	return info.Username
+	username := strings.TrimSpace(info.Username)
+	discriminator := strings.TrimSpace(info.Discriminator)
+	if discriminator != "" && discriminator != "0" {
+		return username + "#" + discriminator
+	}
+	return username
 }
 
 func (m Module) coinRankUserExists(ctx context.Context, guildID string, userID string) bool {
