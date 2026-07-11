@@ -144,26 +144,41 @@ func TestLeaveMessageDocumentDecodesNullableLegacyFields(t *testing.T) {
 	}
 }
 
-func TestVerificationDocumentDecodesLegacyRenameShapes(t *testing.T) {
+func TestVerificationReadDocumentUsesMongooseStringCoercion(t *testing.T) {
 	tests := []struct {
 		name       string
 		document   bson.D
+		wantGuild  string
+		wantRole   string
 		wantRename string
 	}{
 		{
 			name:       "missing name",
 			document:   bson.D{{Key: "guild", Value: "guild"}, {Key: "role", Value: "role"}},
+			wantGuild:  "guild",
+			wantRole:   "role",
 			wantRename: "",
 		},
 		{
 			name:       "null name",
 			document:   bson.D{{Key: "guild", Value: "guild"}, {Key: "role", Value: "role"}, {Key: "name", Value: nil}},
+			wantGuild:  "guild",
+			wantRole:   "role",
 			wantRename: "",
 		},
 		{
 			name:       "string name",
 			document:   bson.D{{Key: "guild", Value: "guild"}, {Key: "role", Value: "role"}, {Key: "name", Value: "  {name} | MHCAT  "}},
+			wantGuild:  "guild",
+			wantRole:   "role",
 			wantRename: "  {name} | MHCAT  ",
+		},
+		{
+			name:       "scalar fields",
+			document:   bson.D{{Key: "guild", Value: int64(123)}, {Key: "role", Value: int32(456)}, {Key: "name", Value: true}},
+			wantGuild:  "123",
+			wantRole:   "456",
+			wantRename: "true",
 		},
 	}
 
@@ -173,15 +188,57 @@ func TestVerificationDocumentDecodesLegacyRenameShapes(t *testing.T) {
 			if err != nil {
 				t.Fatalf("marshal: %v", err)
 			}
-			var document VerificationDocument
+			var document VerificationReadDocument
 			if err := bson.Unmarshal(encoded, &document); err != nil {
 				t.Fatalf("unmarshal: %v", err)
 			}
 			config := document.ToDomain()
-			if config.GuildID != "guild" || config.RoleID != "role" || config.RenameTemplate != tc.wantRename {
+			if config.GuildID != tc.wantGuild || config.RoleID != tc.wantRole || config.RenameTemplate != tc.wantRename {
 				t.Fatalf("config = %#v", config)
 			}
 		})
+	}
+}
+
+func TestVerificationReadDocumentRejectsCompoundAndNullRoleShapes(t *testing.T) {
+	for _, role := range []any{nil, bson.D{{Key: "bad", Value: true}}, bson.A{"bad"}} {
+		encoded, err := bson.Marshal(bson.D{
+			{Key: "guild", Value: "guild"},
+			{Key: "role", Value: role},
+			{Key: "name", Value: bson.D{{Key: "bad", Value: true}}},
+		})
+		if err != nil {
+			t.Fatalf("marshal %#v: %v", role, err)
+		}
+		var document VerificationReadDocument
+		if err := bson.Unmarshal(encoded, &document); err != nil {
+			t.Fatalf("unmarshal %#v: %v", role, err)
+		}
+		config := document.ToDomain()
+		if config.RoleID != "" || config.RenameTemplate != "" {
+			t.Fatalf("compound values should remain unusable: %#v", config)
+		}
+		if !errors.Is(config.Validate(), domain.ErrInvalidVerificationConfig) {
+			t.Fatalf("role %#v should produce invalid config: %#v", role, config)
+		}
+	}
+}
+
+func TestVerificationWriteDocumentRemainsTyped(t *testing.T) {
+	payload, err := bson.Marshal(VerificationDocumentFromDomain(domain.VerificationConfig{
+		GuildID: "guild", RoleID: "role", RenameTemplate: "  {name} | MHCAT  ",
+	}))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	raw := bson.Raw(payload)
+	for _, field := range []string{"guild", "role", "name"} {
+		if raw.Lookup(field).Type != bson.TypeString {
+			t.Fatalf("field %s type = %s", field, raw.Lookup(field).Type)
+		}
+	}
+	if raw.Lookup("name").StringValue() != "  {name} | MHCAT  " {
+		t.Fatalf("name = %q", raw.Lookup("name").StringValue())
 	}
 }
 

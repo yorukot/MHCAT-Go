@@ -383,7 +383,7 @@ func (r *VerificationConfigRepository) GetVerificationConfig(ctx context.Context
 	if guildID == "" {
 		return domain.VerificationConfig{}, domain.ErrInvalidVerificationConfig
 	}
-	var document documents.VerificationDocument
+	var document documents.VerificationReadDocument
 	if err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document); err != nil {
 		if errors.Is(err, drivermongo.ErrNoDocuments) {
 			return domain.VerificationConfig{}, ports.ErrVerificationConfigMissing

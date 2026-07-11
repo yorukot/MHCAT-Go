@@ -38,6 +38,12 @@ type VerificationDocument struct {
 	Name  *string `bson:"name,omitempty" json:"name,omitempty"`
 }
 
+type VerificationReadDocument struct {
+	Guild bson.RawValue `bson:"guild" json:"guild"`
+	Role  bson.RawValue `bson:"role" json:"role"`
+	Name  bson.RawValue `bson:"name" json:"name"`
+}
+
 type AccountAgeDocument struct {
 	Guild   string  `bson:"guild" json:"guild"`
 	Hours   string  `bson:"hours" json:"hours"`
@@ -118,6 +124,17 @@ func (d VerificationDocument) ToDomain() domain.VerificationConfig {
 		GuildID:        d.Guild,
 		RoleID:         d.Role,
 		RenameTemplate: stringValue(d.Name),
+	}
+}
+
+func (d VerificationReadDocument) ToDomain() domain.VerificationConfig {
+	guild, _ := legacyMongooseString(d.Guild)
+	role, _ := legacyMongooseString(d.Role)
+	name, _ := legacyMongooseString(d.Name)
+	return domain.VerificationConfig{
+		GuildID:        guild,
+		RoleID:         role,
+		RenameTemplate: name,
 	}
 }
 
