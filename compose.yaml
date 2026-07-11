@@ -1,0 +1,15 @@
+services:
+  mhcat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    stop_grace_period: 45s
+    networks:
+      - mhcat-net
+
+networks:
+  mhcat-net:
+    external: true
