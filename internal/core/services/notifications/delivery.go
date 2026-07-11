@@ -12,6 +12,7 @@ import (
 type DeliveryService struct {
 	Repository  ports.AutoNotificationDeliveryRepository
 	Messages    ports.DiscordMessagePort
+	Channels    ports.DiscordCachedChannelReader
 	RandomColor func() int
 }
 
@@ -29,7 +30,7 @@ func (s DeliveryService) Deliver(ctx context.Context, guildID string, id string)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if s.Repository == nil || s.Messages == nil {
+	if s.Repository == nil || s.Messages == nil || s.Channels == nil {
 		return domain.ErrInvalidAutoNotificationSchedule
 	}
 	guildID = strings.TrimSpace(guildID)
@@ -43,6 +44,9 @@ func (s DeliveryService) Deliver(ctx context.Context, guildID string, id string)
 	}
 	schedule = schedule.Normalized()
 	if err := domain.ValidateAutoNotificationDelivery(schedule); err != nil {
+		return err
+	}
+	if _, err := s.Channels.FindCachedChannelByID(ctx, schedule.GuildID, schedule.ChannelID); err != nil {
 		return err
 	}
 	_, err = s.Messages.SendMessage(ctx, schedule.ChannelID, s.outbound(schedule.Message))

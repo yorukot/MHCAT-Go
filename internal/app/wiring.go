@@ -1100,7 +1100,7 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 			return nil, err
 		}
 		worker, err := corenotifications.NewDeliveryWorker(
-			corenotifications.DeliveryService{Repository: repo, Messages: sideEffects},
+			corenotifications.DeliveryService{Repository: repo, Messages: sideEffects, Channels: sideEffects},
 			leases,
 			cfg.SchedulerLeaseOwner,
 			cfg.SchedulerLeaseTTL,

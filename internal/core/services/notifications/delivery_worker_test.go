@@ -11,18 +11,18 @@ import (
 
 	"github.com/robfig/cron/v3"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
 
 func TestDeliveryWorkerAcquiresLeaseReconcilesAndReloadsBeforeSend(t *testing.T) {
 	now := time.Now().UTC()
 	repo := newDeliveryRepository(deliveryFixture("*/30 * * * *"))
-	messages := fakediscord.NewSideEffects()
+	messages := newAutoNotificationDeliverySideEffects()
 	scheduler := newFakeDeliveryScheduler()
 	leases := fakemongo.NewSchedulerLeaseStore()
 	worker, err := newDeliveryWorker(
-		DeliveryService{Repository: repo, Messages: messages},
+		DeliveryService{Repository: repo, Messages: messages, Channels: messages},
 		leases,
 		scheduler,
 		"worker-a",
@@ -78,7 +78,7 @@ func TestDeliveryWorkerDoesNotScheduleWithoutLeaseOwnership(t *testing.T) {
 	}
 	scheduler := newFakeDeliveryScheduler()
 	worker, err := newDeliveryWorker(
-		DeliveryService{Repository: newDeliveryRepository(deliveryFixture("*/30 * * * *")), Messages: fakediscord.NewSideEffects()},
+		autoNotificationDeliveryService(newDeliveryRepository(deliveryFixture("*/30 * * * *"))),
 		leases,
 		scheduler,
 		"worker-b",
@@ -105,7 +105,7 @@ func TestDeliveryWorkerRemovesEntriesAfterLeaseLoss(t *testing.T) {
 	leases := fakemongo.NewSchedulerLeaseStore()
 	scheduler := newFakeDeliveryScheduler()
 	worker, err := newDeliveryWorker(
-		DeliveryService{Repository: newDeliveryRepository(deliveryFixture("*/30 * * * *")), Messages: fakediscord.NewSideEffects()},
+		autoNotificationDeliveryService(newDeliveryRepository(deliveryFixture("*/30 * * * *"))),
 		leases,
 		scheduler,
 		"worker-a",
@@ -150,7 +150,7 @@ func TestDeliveryWorkerReconcilesCronChangesAndInvalidRows(t *testing.T) {
 	)
 	scheduler := newFakeDeliveryScheduler()
 	worker, err := newDeliveryWorker(
-		DeliveryService{Repository: repo, Messages: fakediscord.NewSideEffects()},
+		autoNotificationDeliveryService(repo),
 		fakemongo.NewSchedulerLeaseStore(),
 		scheduler,
 		"worker-a",
@@ -184,7 +184,7 @@ func TestDeliveryWorkerSchedulesLegacySundaySeven(t *testing.T) {
 	repo := newDeliveryRepository(deliveryFixture("0 9 * * 5-7"))
 	scheduler := newFakeDeliveryScheduler()
 	worker, err := newDeliveryWorker(
-		DeliveryService{Repository: repo, Messages: fakediscord.NewSideEffects()},
+		autoNotificationDeliveryService(repo),
 		fakemongo.NewSchedulerLeaseStore(),
 		scheduler,
 		"worker-a",
@@ -220,6 +220,11 @@ func deliveryFixture(spec string) domain.AutoNotificationSchedule {
 		ChannelID: "channel-1",
 		Message:   domain.AutoNotificationMessage{Content: "hello"},
 	}
+}
+
+func autoNotificationDeliveryService(repo ports.AutoNotificationDeliveryRepository) DeliveryService {
+	sideEffects := newAutoNotificationDeliverySideEffects()
+	return DeliveryService{Repository: repo, Messages: sideEffects, Channels: sideEffects}
 }
 
 type fakeDeliveryScheduler struct {

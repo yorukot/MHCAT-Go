@@ -66,7 +66,7 @@ func NewDeliveryWorker(service DeliveryService, leases ports.SchedulerLeaseStore
 
 func newDeliveryWorker(service DeliveryService, leases ports.SchedulerLeaseStore, scheduler deliveryCronScheduler, owner string, leaseTTL time.Duration, operationTimeout time.Duration, interval time.Duration, now func() time.Time, logger *slog.Logger) (*DeliveryWorker, error) {
 	owner = strings.TrimSpace(owner)
-	if service.Repository == nil || service.Messages == nil || leases == nil || scheduler == nil || owner == "" || leaseTTL <= 0 || operationTimeout <= 0 || interval <= 0 || now == nil {
+	if service.Repository == nil || service.Messages == nil || service.Channels == nil || leases == nil || scheduler == nil || owner == "" || leaseTTL <= 0 || operationTimeout <= 0 || interval <= 0 || now == nil {
 		return nil, domain.ErrInvalidAutoNotificationSchedule
 	}
 	if logger == nil {

@@ -25,8 +25,8 @@ func TestDeliveryServiceReloadsAndSendsLegacyPayload(t *testing.T) {
 			EmbedColor:       "#A6FFA6",
 		},
 	})
-	messages := fakediscord.NewSideEffects()
-	service := DeliveryService{Repository: repo, Messages: messages}
+	messages := newAutoNotificationDeliverySideEffects()
+	service := DeliveryService{Repository: repo, Messages: messages, Channels: messages}
 
 	if err := service.Deliver(context.Background(), " guild-1 ", " schedule-1 "); err != nil {
 		t.Fatalf("deliver: %v", err)
@@ -59,8 +59,8 @@ func TestDeliveryServiceSupportsPersistedRandomColor(t *testing.T) {
 		ChannelID: "channel-1",
 		Message:   domain.AutoNotificationMessage{EmbedTitle: "Title", EmbedColor: "Random"},
 	})
-	messages := fakediscord.NewSideEffects()
-	service := DeliveryService{Repository: repo, Messages: messages, RandomColor: func() int { return 0x123456 }}
+	messages := newAutoNotificationDeliverySideEffects()
+	service := DeliveryService{Repository: repo, Messages: messages, Channels: messages, RandomColor: func() int { return 0x123456 }}
 	if err := service.Deliver(context.Background(), "guild-1", "schedule-1"); err != nil {
 		t.Fatalf("deliver: %v", err)
 	}
@@ -81,8 +81,8 @@ func TestDeliveryServicePreservesLegacyMessageWhitespace(t *testing.T) {
 			EmbedDescription: "  Content  ",
 		},
 	})
-	messages := fakediscord.NewSideEffects()
-	service := DeliveryService{Repository: repo, Messages: messages}
+	messages := newAutoNotificationDeliverySideEffects()
+	service := DeliveryService{Repository: repo, Messages: messages, Channels: messages}
 	if err := service.Deliver(context.Background(), "guild-1", "schedule-1"); err != nil {
 		t.Fatalf("deliver: %v", err)
 	}
@@ -93,6 +93,34 @@ func TestDeliveryServicePreservesLegacyMessageWhitespace(t *testing.T) {
 	if message.Content != "  hello  " || len(message.Embeds) != 1 || message.Embeds[0].Title != " " || message.Embeds[0].Description != "  Content  " {
 		t.Fatalf("message = %#v", message)
 	}
+}
+
+func TestDeliveryServiceRejectsChannelOutsideScheduleGuild(t *testing.T) {
+	repo := newDeliveryRepository(domain.AutoNotificationSchedule{
+		GuildID:   "guild-1",
+		ID:        "schedule-1",
+		Cron:      "0 9 * * 1",
+		ChannelID: "channel-2",
+		Message:   domain.AutoNotificationMessage{Content: "must not cross guilds"},
+	})
+	messages := newAutoNotificationDeliverySideEffects()
+	service := DeliveryService{Repository: repo, Messages: messages, Channels: messages}
+
+	if err := service.Deliver(context.Background(), "guild-1", "schedule-1"); !errors.Is(err, ports.ErrChannelNotFound) {
+		t.Fatalf("deliver error = %v", err)
+	}
+	if len(messages.Sent) != 0 {
+		t.Fatalf("sent = %#v", messages.Sent)
+	}
+}
+
+func newAutoNotificationDeliverySideEffects() *fakediscord.SideEffects {
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.Channels = []ports.ChannelRef{
+		{GuildID: "guild-1", ChannelID: "channel-1"},
+		{GuildID: "guild-2", ChannelID: "channel-2"},
+	}
+	return sideEffects
 }
 
 type deliveryRepository struct {
