@@ -59,6 +59,9 @@ func TestSignInHandlerUsesLegacyLoadingThenSignPNG(t *testing.T) {
 	if embed.Footer == nil || embed.Footer.Text != signLoadingFooter {
 		t.Fatalf("unexpected loading footer: %#v", embed.Footer)
 	}
+	if embed.Footer.IconURL != "https://cdn.discordapp.com/avatars/test/a_hash.png" {
+		t.Fatalf("loading avatar = %q", embed.Footer.IconURL)
+	}
 	assertSignCalendarEdit(t, responder.Edits)
 	if len(repo.SignInCommands) != 1 || repo.SignInCommands[0].Day != "4" || repo.SignInCommands[0].Month != "07" {
 		t.Fatalf("unexpected sign-in command: %#v", repo.SignInCommands)
@@ -132,12 +135,20 @@ func TestSignPageHandlerSupportsLegacyButtonID(t *testing.T) {
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.ComponentInteractionFromID("/" + signTestUserID + "_sing{2026}-[7]")
 	interaction.Actor.GuildID = signTestGuildID
+	interaction.Actor.AvatarURL = "https://cdn.discordapp.com/avatars/clicker/a_hash.gif"
 
 	if err := router.Handle(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("route legacy sign button: %v", err)
 	}
 	if len(responder.Updates) != 1 {
 		t.Fatalf("expected loading update, got %#v", responder.Updates)
+	}
+	loading := responder.Updates[0]
+	if !loading.ClearAttachments || len(loading.Files) != 0 || len(loading.Components) != 0 || len(loading.Embeds) != 1 {
+		t.Fatalf("loading update = %#v", loading)
+	}
+	if loading.Embeds[0].Footer == nil || loading.Embeds[0].Footer.IconURL != "https://cdn.discordapp.com/avatars/clicker/a_hash.png" {
+		t.Fatalf("loading footer = %#v", loading.Embeds[0].Footer)
 	}
 	assertSignCalendarEdit(t, responder.Edits)
 }
@@ -174,7 +185,7 @@ func signSlashInteraction() interactions.Interaction {
 	interaction.Actor.GuildID = signTestGuildID
 	interaction.Actor.UserID = signTestUserID
 	interaction.Actor.UserTag = "Tester#0001"
-	interaction.Actor.AvatarURL = "https://cdn.example/avatar.png"
+	interaction.Actor.AvatarURL = "https://cdn.discordapp.com/avatars/test/a_hash.gif"
 	return interaction
 }
 

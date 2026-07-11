@@ -48,7 +48,7 @@ func (m Module) SignInHandler() interactions.Handler {
 		if m.signIn.Repository == nil {
 			return domain.ErrInvalidSignIn
 		}
-		if err := responder.Reply(ctx, signLoadingMessage(interaction.Actor.AvatarURL)); err != nil {
+		if err := responder.Reply(ctx, signLoadingMessage(legacyCoinRankPNGURL(interaction.Actor.AvatarURL))); err != nil {
 			return err
 		}
 		now := m.now()
@@ -91,7 +91,9 @@ func (m Module) SignPageHandler() interactions.Handler {
 		if err != nil {
 			return err
 		}
-		if err := responder.UpdateMessage(ctx, signLoadingMessage(interaction.Actor.AvatarURL)); err != nil {
+		loading := signLoadingMessage(legacyCoinRankPNGURL(interaction.Actor.AvatarURL))
+		loading.ClearAttachments = true
+		if err := responder.UpdateMessage(ctx, loading); err != nil {
 			return err
 		}
 		calendar, err := m.signIn.Calendar(ctx, interaction.Actor.GuildID, request.UserID, fmt.Sprintf("%04d", request.Year), fmt.Sprintf("%02d", int(request.Month)))
