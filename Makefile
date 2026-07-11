@@ -15,6 +15,7 @@ build:
 	go build ./cmd/mhcat-command-sync
 	go build ./cmd/mhcat-mongo-audit
 	go build ./cmd/mhcat-mongo-index
+	go build ./cmd/mhcat-production-preflight
 	go build ./cmd/mhcat-staging-preflight
 	go build ./cmd/mhcat-economy-reset
 	go build ./cmd/mhcat-scheduler-lease

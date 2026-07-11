@@ -10,7 +10,7 @@ ARG COMMIT=unknown
 RUN set -eux; \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" -o /out/mhcat-bot ./cmd/mhcat-bot; \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/mhcat-shard-supervisor ./cmd/mhcat-shard-supervisor; \
-    for command in mhcat-command-sync mhcat-mongo-audit mhcat-mongo-index mhcat-staging-preflight mhcat-economy-reset mhcat-work-payout mhcat-scheduler-lease; do \
+    for command in mhcat-command-sync mhcat-mongo-audit mhcat-mongo-index mhcat-staging-preflight mhcat-production-preflight mhcat-economy-reset mhcat-work-payout mhcat-scheduler-lease; do \
       CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "/out/${command}" "./cmd/${command}"; \
     done
 
