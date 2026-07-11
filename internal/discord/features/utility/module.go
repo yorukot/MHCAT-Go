@@ -7,6 +7,7 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreutility "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/utility"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commandcatalog"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 )
@@ -21,6 +22,7 @@ type Module struct {
 	discord          ports.DiscordInfoProvider
 	usage            ports.UsageTracker
 	defs             []commands.Definition
+	helpDefinitions  []commands.Definition
 	feature          string
 }
 
@@ -39,6 +41,7 @@ func NewModuleWithDiscordInfo(registry commands.Registry, botInfo ports.BotInfoP
 		discord:          discordInfo,
 		usage:            usage,
 		defs:             commands.BuiltinDefinitions(),
+		helpDefinitions:  commandcatalog.AllDefinitions(),
 		feature:          "utility",
 		translateColor:   legacyTranslateRandomColor,
 		translateTimeout: TranslateProviderTimeout,

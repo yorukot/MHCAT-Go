@@ -176,7 +176,9 @@ func TestHelpComponentRoutesByParsedLegacyID(t *testing.T) {
 		t.Fatalf("register routes: %v", err)
 	}
 	responder := fakediscord.NewResponder()
-	if err := router.Handle(context.Background(), fakeinteractions.ComponentWithValues("helphelphelphelpmenu", "實用工具"), responder); err != nil {
+	interaction := fakeinteractions.ComponentWithValues("helphelphelphelpmenu", "實用工具")
+	interaction.GuildLocale = "zh-TW"
+	if err := router.Handle(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handle: %v", err)
 	}
 	if len(responder.Edits) != 1 {
@@ -188,11 +190,40 @@ func TestHelpComponentRoutesByParsedLegacyID(t *testing.T) {
 	}
 	foundPing := false
 	for _, field := range msg.Embeds[0].Fields {
-		if strings.Contains(field.Name, "ping") && strings.Contains(field.Value, "查看我的ping") {
+		if field.Name == "<:icons_goodping:1084881470075703367> </ping:964185876559196181>" && field.Value == "```fix\n查看我的ping```" {
 			foundPing = true
 		}
 	}
 	if !foundPing {
 		t.Fatalf("legacy category fields = %#v", msg.Embeds[0].Fields)
+	}
+}
+
+func TestHelpLegacyCategoryLocalizesCommandsAndExpandsSubcommands(t *testing.T) {
+	module := featureutility.NewModule(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), nil, nil, nil)
+	router := interactions.NewRouter()
+	router.SetCustomIDParser(interactions.DefaultCustomIDParser{})
+	if err := module.RegisterRoutes(router); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+	interaction := fakeinteractions.ComponentWithValues("helphelphelphelpmenu", "代幣系統")
+	interaction.GuildLocale = "zh-TW"
+	responder := fakediscord.NewResponder()
+	if err := router.Handle(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handle: %v", err)
+	}
+	fields := responder.Edits[0].Embeds[0].Fields
+	foundLocalized := false
+	foundSubcommand := false
+	for _, field := range fields {
+		if field.Name == "<:coins:997374177944281190> </代幣相關設定:964185876559196181>" && strings.Contains(field.Value, "有關代幣的各項設定") {
+			foundLocalized = true
+		}
+		if field.Name == "<:store:1001118704651743372> </代幣商店 商品增加:964185876559196181>" && strings.HasPrefix(field.Value, "[前往文檔](https://docsmhcat.yorukot.me/allcommands/") {
+			foundSubcommand = true
+		}
+	}
+	if !foundLocalized || !foundSubcommand {
+		t.Fatalf("localized=%t subcommand=%t fields=%#v", foundLocalized, foundSubcommand, fields)
 	}
 }

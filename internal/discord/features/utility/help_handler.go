@@ -43,7 +43,7 @@ func (m Module) HelpComponentHandler() interactions.Handler {
 		msg := legacyHelpOverview(interaction)
 		msg.Ephemeral = true
 		if selected != "" {
-			if category, ok := legacyHelpCategoryMessage(interaction, selected); ok {
+			if category, ok := legacyHelpCategoryMessage(interaction, selected, m.helpDefinitions); ok {
 				msg = category
 			} else if detail, ok := legacyHelpCommandDetail(interaction, selected); ok {
 				msg = detail

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 )
@@ -26,6 +27,7 @@ type legacyHelpCommand struct {
 	Emoji       string
 	DocsURL     string
 	UserPerms   string
+	Docs        []string
 }
 
 var legacyHelpCategories = []legacyHelpCategory{
@@ -36,7 +38,7 @@ var legacyHelpCategories = []legacyHelpCategory{
 		{Name: "代幣排行榜", Description: "查詢代幣的排行榜", Emoji: "<:levelup:990254382845157406>"},
 		{Name: "代幣重製", Description: "重製所有人的代幣，或者是進行代幣改變幣值", Emoji: "<:money:997374193026994236>", DocsURL: "https://docs.mhcat.xyz/docs/coin"},
 		{Name: "代幣遊戲", Description: "遊玩有關代幣的小遊戲", Emoji: "<:blackjack1:1005469910689923142>"},
-		{Name: "代幣商店", Description: "使用你所賺到的代幣買一些特別的東西吧!", Emoji: "<:store:1001118704651743372>"},
+		{Name: "代幣商店", Description: "使用你所賺到的代幣買一些特別的東西吧!", Emoji: "<:store:1001118704651743372>", Docs: []string{"allcommands/%E4%BB%A3%E5%B9%A3%E7%B3%BB%E7%B5%B1/ghp_shop#%E5%A2%9E%E5%8A%A0%E5%95%86%E5%93%81", "allcommands/%E4%BB%A3%E5%B9%A3%E7%B3%BB%E7%B5%B1/ghp_shop#%E5%88%AA%E9%99%A4%E5%95%86%E5%93%81", "allcommands/%E4%BB%A3%E5%B9%A3%E7%B3%BB%E7%B5%B1/ghp_shop#%E8%B3%BC%E8%B2%B7%E5%95%86%E5%93%81"}},
 		{Name: "剪刀石頭布", Description: "跟電腦剪刀時候布來獲得代幣(有賺有賠)", Emoji: "<:coins:997374177944281190>", DocsURL: "https://docsmhcat.yorukot.me/docs/required_coins"},
 		{Name: "簽到", Description: "簽到來獲得代幣", Emoji: "<:sign:997374180632825896>", DocsURL: "https://docsmhcat.yorukot.me/docs/snig"},
 		{Name: "簽到列表", Description: "查看今天有誰簽到了", Emoji: "<:sign:997374180632825896>", DocsURL: "https://docsmhcat.yorukot.me/docs/snig"},
@@ -63,7 +65,7 @@ var legacyHelpCategories = []legacyHelpCategory{
 		{Name: "翻譯", Description: "翻譯成各種語言", Emoji: "<:help:985948179709186058>", DocsURL: "https://docsmhcat.yorukot.me/docs/translate"},
 	}},
 	{Name: "打工系統", Description: "可以在閒暇之餘做些工作賺些代幣", Emoji: "<:working:1048617967799242772>", Commands: []legacyHelpCommand{
-		{Name: "打工系統", Description: "用自己的心血來獲得一些獎勵吧!", Emoji: "<:working:1048617967799242772>"},
+		{Name: "打工系統", Description: "用自己的心血來獲得一些獎勵吧!", Emoji: "<:working:1048617967799242772>", Docs: []string{"allcommands/%E6%89%93%E5%B7%A5%E7%B3%BB%E7%B5%B1/work_set", "allcommands/%E6%89%93%E5%B7%A5%E7%B3%BB%E7%B5%B1/new_work", "allcommands/%E6%89%93%E5%B7%A5%E7%B3%BB%E7%B5%B1/delete_work", "allcommands/%E6%89%93%E5%B7%A5%E7%B3%BB%E7%B5%B1/user_work", "allcommands/%E6%89%93%E5%B7%A5%E7%B3%BB%E7%B5%B1/add_energy", "allcommands/%E6%89%93%E5%B7%A5%E7%B3%BB%E7%B5%B1/add_energy"}},
 	}},
 	{Name: "扭蛋系統", Description: "使用簽到以及聊天獲得的代幣進行扭蛋", Emoji: "<:vendingmachine:997374191651274823>", Commands: []legacyHelpCommand{
 		{Name: "扭蛋", Description: "進行扭蛋，有機會抽中各種大獎喔!!!!", Emoji: "<:gashapon:997374176526610472>"},
@@ -73,10 +75,10 @@ var legacyHelpCategories = []legacyHelpCategory{
 		{Name: "扭蛋獎池查詢", Description: "增加扭蛋的獎池", Emoji: "<:list:992002476360343602>", DocsURL: "https://docsmhcat.yorukot.me/docs/prize_search"},
 	}},
 	{Name: "抽獎系統", Description: "一起來進行抽獎，來獲得非常棒的獎品吧", Emoji: "<:lottery:985946439253381200>", Commands: []legacyHelpCommand{
-		{Name: "抽獎設置", Description: "設置抽獎訊息", Emoji: "<:lottery:985946439253381200>"},
+		{Name: "抽獎設置", Description: "設置抽獎訊息", Emoji: "<:lottery:985946439253381200>", Docs: []string{"allcommands/%E6%8A%BD%E7%8D%8E%E7%B3%BB%E7%B5%B1/lotter"}},
 	}},
 	{Name: "生日系統", Description: "當有人生日的時候給他一些祝福吧", Emoji: "<:cake:1065654305983570041>", Commands: []legacyHelpCommand{
-		{Name: "生日系統", Description: "讓你的伺服器可以為生日的人慶生!", Emoji: "<:working:1048617967799242772>"},
+		{Name: "生日系統", Description: "讓你的伺服器可以為生日的人慶生!", Emoji: "<:working:1048617967799242772>", Docs: []string{"allcommands/生日系統/birthday_message_set", "allcommands/%E7%94%9F%E6%97%A5%E7%B3%BB%E7%B5%B1/birthday_date_add", "allcommands/%E7%94%9F%E6%97%A5%E7%B3%BB%E7%B5%B1/birthday_date_add", "allcommands/%E7%94%9F%E6%97%A5%E7%B3%BB%E7%B5%B1/allow_admin_set_birthday"}},
 	}},
 	{Name: "私人頻道", Description: "一個簡單的客服頻道系統", Emoji: "<:ticket:985945491093205073>", Commands: []legacyHelpCommand{
 		{Name: "私人頻道設置", Description: "設置私人頻道", Emoji: "<:ticket:985945491093205073>"},
@@ -175,22 +177,54 @@ func legacyHelpOverview(interaction interactions.Interaction) responses.Message 
 	}
 }
 
-func legacyHelpCategoryMessage(interaction interactions.Interaction, selected string) (responses.Message, bool) {
+func legacyHelpCategoryMessage(interaction interactions.Interaction, selected string, definitions []commands.Definition) (responses.Message, bool) {
 	selected = strings.ToLower(strings.TrimSpace(selected))
+	definitionsByName := make(map[string]commands.Definition, len(definitions))
+	for _, definition := range definitions {
+		definitionsByName[definition.Name] = definition
+	}
 	for _, category := range legacyHelpCategories {
 		if strings.ToLower(category.Name) != selected {
 			continue
 		}
 		fields := make([]responses.EmbedField, 0, len(category.Commands))
 		for _, command := range category.Commands {
-			name := fmt.Sprintf("%s`%s`", command.Emoji, command.Name)
-			value := command.Description
-			if value == "" {
-				value = "沒有說明"
+			definition, found := definitionsByName[command.Name]
+			if found && definition.Hidden {
+				continue
+			}
+			if !found {
+				definition = commands.Definition{Name: command.Name, Description: command.Description}
+			}
+			name := legacyLocalizedDefinitionValue(definition.Name, definition.NameLocalizations, interaction.GuildLocale)
+			description := legacyLocalizedDefinitionValue(definition.Description, definition.DescriptionLocalizations, interaction.GuildLocale)
+			prefix := command.Emoji
+			if prefix != "" {
+				prefix += " "
+			}
+			if len(definition.Options) > 0 && definition.Options[0].Type == commands.OptionTypeSubCommand {
+				for index, option := range definition.Options {
+					optionName := legacyLocalizedOptionValue(option.Name, option.NameLocalizations, interaction.GuildLocale)
+					optionDescription := legacyLocalizedOptionValue(option.Description, option.DescriptionLocalizations, interaction.GuildLocale)
+					value := fmt.Sprintf("```fix\n%s```", optionDescription)
+					if index < len(command.Docs) && command.Docs[index] != "" {
+						value = fmt.Sprintf("[前往文檔](https://docsmhcat.yorukot.me/%s)%s", command.Docs[index], value)
+					}
+					fields = append(fields, responses.EmbedField{
+						Name:   fmt.Sprintf("%s</%s %s:964185876559196181>", prefix, name, optionName),
+						Value:  value,
+						Inline: true,
+					})
+				}
+				continue
+			}
+			value := "`沒有說明`"
+			if description != "" {
+				value = fmt.Sprintf("```fix\n%s```", description)
 			}
 			fields = append(fields, responses.EmbedField{
-				Name:   name,
-				Value:  fmt.Sprintf("```fix\n%s```", value),
+				Name:   fmt.Sprintf("%s</%s:964185876559196181>", prefix, name),
+				Value:  value,
 				Inline: true,
 			})
 		}
@@ -206,6 +240,23 @@ func legacyHelpCategoryMessage(interaction interactions.Interaction, selected st
 		}, true
 	}
 	return responses.Message{}, false
+}
+
+func legacyLocalizedDefinitionValue(fallback string, localizations map[string]string, locale string) string {
+	if localizations == nil {
+		return fallback
+	}
+	if localized, ok := localizations[locale]; ok {
+		return localized
+	}
+	return "undefined"
+}
+
+func legacyLocalizedOptionValue(fallback string, localizations map[string]string, locale string) string {
+	if localized := localizations[locale]; localized != "" {
+		return localized
+	}
+	return fallback
 }
 
 func legacyHelpSlashCategoryMessage(interaction interactions.Interaction, selected string) (responses.Message, bool) {
