@@ -887,7 +887,7 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 		}
 	}
 	nextBalance := currentCoins - float64(totalCost)
-	result, err := r.coins.UpdateMany(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "member", Value: command.UserID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: nextBalance}}}})
+	result, err := r.coins.UpdateOne(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "member", Value: command.UserID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: nextBalance}}}})
 	if err != nil {
 		return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("subtract shop purchase coins: %w", err))
 	}
