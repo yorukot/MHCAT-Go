@@ -62,6 +62,98 @@ func TestAutoNotificationMongoIntegrationKeepsMalformedRowsIsolated(t *testing.T
 	}
 }
 
+func TestAutoNotificationMongoIntegrationStartupDoesNotMutateDatabase(t *testing.T) {
+	database := autoNotificationIntegrationDatabase(t)
+	if _, err := NewAutoNotificationScheduleRepositoryFromDatabase(database); err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	names, err := database.ListCollectionNames(context.Background(), bson.D{})
+	if err != nil {
+		t.Fatalf("list collections: %v", err)
+	}
+	if len(names) != 0 {
+		t.Fatalf("startup collections = %#v", names)
+	}
+}
+
+func TestAutoNotificationMongoIntegrationConfigLifecycle(t *testing.T) {
+	database := autoNotificationIntegrationDatabase(t)
+	repository, err := NewAutoNotificationScheduleRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	service := corenotifications.NewScheduleService(repository)
+	collection := database.Collection(AutoNotificationScheduleCollectionName)
+	if _, err := collection.InsertMany(context.Background(), []any{
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "active"}, {Key: "cron", Value: "*/30 * * * *"}, {Key: "channel", Value: "channel-1"}, {Key: "message", Value: bson.D{{Key: "content", Value: "active"}}}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "null-draft"}, {Key: "cron", Value: nil}, {Key: "channel", Value: "channel-1"}, {Key: "message", Value: nil}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "missing-draft"}, {Key: "channel", Value: "channel-1"}, {Key: "message", Value: nil}},
+		bson.D{{Key: "guild", Value: "guild-2"}, {Key: "id", Value: "other"}, {Key: "cron", Value: nil}, {Key: "channel", Value: "channel-2"}, {Key: "message", Value: nil}},
+	}); err != nil {
+		t.Fatalf("seed schedules: %v", err)
+	}
+
+	schedules, err := service.List(context.Background(), "guild-1")
+	if err != nil {
+		t.Fatalf("list schedules: %v", err)
+	}
+	if len(schedules) != 1 || schedules[0].ID != "active" {
+		t.Fatalf("active schedules = %#v", schedules)
+	}
+	if count, err := collection.CountDocuments(context.Background(), bson.D{{Key: "guild", Value: "guild-1"}}); err != nil || count != 1 {
+		t.Fatalf("guild-1 rows after cleanup=%d err=%v", count, err)
+	}
+	if count, err := collection.CountDocuments(context.Background(), bson.D{{Key: "guild", Value: "guild-2"}}); err != nil || count != 1 {
+		t.Fatalf("other guild rows=%d err=%v", count, err)
+	}
+
+	draft := domain.AutoNotificationSetupDraft{GuildID: "guild-1", ID: "new", ChannelID: "channel-new"}
+	if err := service.StartSetup(context.Background(), draft); err != nil {
+		t.Fatalf("start setup: %v", err)
+	}
+	if _, err := collection.UpdateOne(context.Background(), bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "new"}}, bson.D{{Key: "$set", Value: bson.D{{Key: "marker", Value: "preserved"}}}}); err != nil {
+		t.Fatalf("add marker: %v", err)
+	}
+	if err := service.CompleteSetup(context.Background(), domain.AutoNotificationSetup{
+		GuildID: "guild-1",
+		ID:      "new",
+		Cron:    "0 9 * * 1",
+		Message: domain.AutoNotificationMessage{Content: "hello", EmbedTitle: "Title", EmbedColor: "#123456"},
+	}); err != nil {
+		t.Fatalf("complete setup: %v", err)
+	}
+	var completed bson.M
+	if err := collection.FindOne(context.Background(), bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "new"}}).Decode(&completed); err != nil {
+		t.Fatalf("find completed schedule: %v", err)
+	}
+	if completed["cron"] != "0 9 * * 1" || completed["channel"] != "channel-new" || completed["marker"] != "preserved" {
+		t.Fatalf("completed schedule = %#v", completed)
+	}
+	message, ok := completed["message"].(bson.D)
+	if !ok || autoNotificationFilterValue(t, message, "content") != "hello" {
+		t.Fatalf("completed message = %#v", completed["message"])
+	}
+
+	if err := service.Delete(context.Background(), "guild-1", "new"); err != nil {
+		t.Fatalf("delete schedule: %v", err)
+	}
+	if err := service.Delete(context.Background(), "guild-1", "new"); !errors.Is(err, ports.ErrAutoNotificationScheduleMissing) {
+		t.Fatalf("missing delete error = %v", err)
+	}
+	indexes, err := collection.Indexes().List(context.Background())
+	if err != nil {
+		t.Fatalf("list indexes: %v", err)
+	}
+	defer indexes.Close(context.Background())
+	var indexRows []bson.M
+	if err := indexes.All(context.Background(), &indexRows); err != nil {
+		t.Fatalf("decode indexes: %v", err)
+	}
+	if len(indexRows) != 1 || indexRows[0]["name"] != "_id_" {
+		t.Fatalf("indexes = %#v", indexRows)
+	}
+}
+
 func TestAutoNotificationMongoIntegrationSetupUsesExactStringID(t *testing.T) {
 	database := autoNotificationIntegrationDatabase(t)
 	repository, err := NewAutoNotificationScheduleRepositoryFromDatabase(database)
