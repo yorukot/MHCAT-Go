@@ -1,8 +1,13 @@
 package economy
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -113,6 +118,7 @@ func (m Module) coinRankMessage(ctx context.Context, interaction interactions.In
 	image, err := renderCoinRankPNG(coinRankCanvasView{
 		GuildName:      guild.Name,
 		GuildCreatedAt: guild.CreatedAt,
+		GuildIconData:  fetchCoinRankGuildIcon(ctx, guild.IconURL),
 		ViewerRankText: viewerRankText,
 		Entries:        canvasEntries,
 	})
@@ -128,6 +134,37 @@ func (m Module) coinRankMessage(ctx context.Context, interaction interactions.In
 		Components:      coinRankComponents(result),
 		AllowedMentions: &responses.AllowedMentions{},
 	}, nil
+}
+
+func fetchCoinRankGuildIcon(ctx context.Context, iconURL string) []byte {
+	parsed, err := url.Parse(strings.TrimSpace(iconURL))
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return nil
+	}
+	if strings.EqualFold(path.Ext(parsed.Path), ".gif") {
+		parsed.Path = strings.TrimSuffix(parsed.Path, path.Ext(parsed.Path)) + ".png"
+		parsed.RawPath = ""
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	request, err := http.NewRequestWithContext(reqCtx, http.MethodGet, parsed.String(), nil)
+	if err != nil {
+		return nil
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil
+	}
+	defer response.Body.Close()
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return nil
+	}
+	const maxIconBytes = 2 << 20
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, io.LimitReader(response.Body, maxIconBytes+1)); err != nil || buf.Len() > maxIconBytes {
+		return nil
+	}
+	return buf.Bytes()
 }
 
 func (m Module) lookupCoinRankGuild(ctx context.Context, guildID string) ports.DiscordGuildInfo {

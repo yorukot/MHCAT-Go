@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"image"
+	"image/color"
 	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -61,6 +65,46 @@ func TestCoinRankSlashRepliesLoadingThenRendersPNGAndLegacyButtons(t *testing.T)
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != CoinRankCommandName || usage.Events[0].Feature != "economy-coin-rank" {
 		t.Fatalf("usage = %#v", usage.Events)
+	}
+}
+
+func TestCoinRankSlashRendersLegacyGuildIcon(t *testing.T) {
+	icon := image.NewRGBA(image.Rect(0, 0, 16, 16))
+	for y := 0; y < 16; y++ {
+		for x := 0; x < 16; x++ {
+			icon.Set(x, y, color.RGBA{R: 240, G: 20, B: 30, A: 255})
+		}
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "image/png")
+		if err := png.Encode(writer, icon); err != nil {
+			t.Errorf("encode icon: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	repo := fakemongo.NewEconomyRepository()
+	viewerID := "123456789012345678"
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: viewerID, Coins: 1})
+	info := &fakebotinfo.DiscordInfoProvider{
+		Users: map[string]ports.DiscordUserInfo{viewerID: {Username: "Viewer"}},
+		Guild: ports.DiscordGuildInfo{Name: "Guild", IconURL: server.URL + "/icon.png"},
+	}
+	module := NewCoinRankModule(repo, info, nil)
+	responder := fakediscord.NewResponder()
+	interaction := fakediscord.SlashInteraction(CoinRankCommandName)
+	interaction.Actor.UserID = viewerID
+
+	if err := module.CoinRankHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	rendered, err := png.Decode(bytes.NewReader(responder.Edits[0].Files[0].Data))
+	if err != nil {
+		t.Fatalf("decode rank image: %v", err)
+	}
+	r, g, b, _ := rendered.At(68, 45).RGBA()
+	if r>>8 < 220 || g>>8 > 40 || b>>8 > 50 {
+		t.Fatalf("guild icon center = rgb(%d,%d,%d)", r>>8, g>>8, b>>8)
 	}
 }
 

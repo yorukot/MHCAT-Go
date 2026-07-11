@@ -12,6 +12,7 @@ import (
 	"time"
 
 	coreeconomy "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/economy"
+	xdraw "golang.org/x/image/draw"
 )
 
 type coinRankCanvasEntry struct {
@@ -23,6 +24,7 @@ type coinRankCanvasEntry struct {
 type coinRankCanvasView struct {
 	GuildName      string
 	GuildCreatedAt time.Time
+	GuildIconData  []byte
 	ViewerRankText string
 	Entries        []coinRankCanvasEntry
 }
@@ -71,8 +73,7 @@ func drawGeneratedCoinRankBackground(canvas *image.RGBA) {
 }
 
 func drawCoinRankHeader(canvas *image.RGBA, view coinRankCanvasView) {
-	fillRect(canvas, image.Rect(33, 10, 103, 80), color.RGBA{R: 88, G: 101, B: 242, A: 255})
-	drawText(canvas, 45, 55, "M", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 3)
+	drawCoinRankGuildIcon(canvas, view.GuildIconData)
 	guildName := truncateRunes(view.GuildName, 33)
 	if guildName == "" {
 		guildName = "MHCAT"
@@ -85,6 +86,35 @@ func drawCoinRankHeader(canvas *image.RGBA, view coinRankCanvasView) {
 	drawText(canvas, 118, 74, "代幣排行榜", color.RGBA{R: 168, G: 168, B: 168, A: 255}, 2)
 	drawText(canvas, 680, 70, view.ViewerRankText, color.RGBA{R: 230, G: 235, B: 255, A: 255}, 3)
 	drawText(canvas, 790, 70, createdAt.Format("2006/01/02"), color.RGBA{R: 230, G: 235, B: 255, A: 255}, 2)
+}
+
+func drawCoinRankGuildIcon(canvas *image.RGBA, data []byte) {
+	icon := decodeProfileImage(data)
+	if icon == nil {
+		icon = legacyCoinRankFallbackIcon()
+	}
+	if icon == nil {
+		fillRect(canvas, image.Rect(33, 10, 103, 80), color.RGBA{R: 88, G: 101, B: 242, A: 255})
+		return
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, 70, 70))
+	xdraw.CatmullRom.Scale(dst, dst.Bounds(), icon, icon.Bounds(), draw.Over, nil)
+	drawRoundedImage(canvas, dst, image.Pt(33, 10), 22)
+}
+
+func legacyCoinRankFallbackIcon() image.Image {
+	for _, path := range legacyAssetCandidates("asset/blue_discord.png") {
+		file, err := os.Open(path)
+		if err != nil {
+			continue
+		}
+		img, _, err := image.Decode(file)
+		_ = file.Close()
+		if err == nil {
+			return img
+		}
+	}
+	return nil
 }
 
 func drawCoinRankRows(canvas *image.RGBA, view coinRankCanvasView) {
