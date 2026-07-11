@@ -44,10 +44,10 @@ func (m Module) CoinRankHandler() interactions.Handler {
 		if m.coinRank.Repository == nil {
 			return domain.ErrInvalidCoinRankQuery
 		}
-		if err := responder.Reply(ctx, signLoadingMessage(interaction.Actor.AvatarURL)); err != nil {
+		if err := responder.Reply(ctx, signLoadingMessage(legacyCoinRankPNGURL(interaction.Actor.AvatarURL))); err != nil {
 			return err
 		}
-		message, err := m.coinRankMessage(ctx, interaction, interaction.Actor.UserID, 0)
+		message, err := m.coinRankMessage(ctx, interaction, interaction.Actor.UserID, 0, false)
 		if err != nil {
 			return err
 		}
@@ -70,7 +70,7 @@ func (m Module) CoinRankPageHandler() interactions.Handler {
 		if !m.coinRankUserExists(ctx, interaction.Actor.GuildID, viewerID) {
 			return responder.Reply(ctx, coinRankMissingUserMessage())
 		}
-		message, err := m.coinRankMessage(ctx, interaction, viewerID, page)
+		message, err := m.coinRankMessage(ctx, interaction, viewerID, page, true)
 		if err != nil {
 			return err
 		}
@@ -93,7 +93,7 @@ func parseLegacyCoinRankPageRequest(raw string) (string, int, error) {
 	return matches[1], page, nil
 }
 
-func (m Module) coinRankMessage(ctx context.Context, interaction interactions.Interaction, viewerID string, page int) (responses.Message, error) {
+func (m Module) coinRankMessage(ctx context.Context, interaction interactions.Interaction, viewerID string, page int, pageUpdate bool) (responses.Message, error) {
 	result, err := m.coinRank.Query(ctx, coreeconomy.CoinRankQuery{
 		GuildID:  interaction.Actor.GuildID,
 		ViewerID: viewerID,
@@ -120,6 +120,7 @@ func (m Module) coinRankMessage(ctx context.Context, interaction interactions.In
 		GuildCreatedAt: guild.CreatedAt,
 		GuildIconData:  fetchCoinRankGuildIcon(ctx, guild.IconURL),
 		ViewerRankText: viewerRankText,
+		SubtitleY:      legacyCoinRankSubtitleY(pageUpdate),
 		Entries:        canvasEntries,
 	})
 	if err != nil {
@@ -136,6 +137,29 @@ func (m Module) coinRankMessage(ctx context.Context, interaction interactions.In
 	}, nil
 }
 
+func legacyCoinRankPNGURL(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return raw
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host != "cdn.discordapp.com" && host != "media.discordapp.net" {
+		return raw
+	}
+	if strings.EqualFold(path.Ext(parsed.Path), ".gif") {
+		parsed.Path = strings.TrimSuffix(parsed.Path, path.Ext(parsed.Path)) + ".png"
+		parsed.RawPath = ""
+	}
+	return parsed.String()
+}
+
+func legacyCoinRankSubtitleY(pageUpdate bool) int {
+	if pageUpdate {
+		return 70
+	}
+	return 74
+}
+
 func coinRankBalanceText(balance domain.CoinBalance) string {
 	if balance.CoinsText != "" {
 		return balance.CoinsText
@@ -144,13 +168,9 @@ func coinRankBalanceText(balance domain.CoinBalance) string {
 }
 
 func fetchCoinRankGuildIcon(ctx context.Context, iconURL string) []byte {
-	parsed, err := url.Parse(strings.TrimSpace(iconURL))
+	parsed, err := url.Parse(legacyCoinRankPNGURL(iconURL))
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
 		return nil
-	}
-	if strings.EqualFold(path.Ext(parsed.Path), ".gif") {
-		parsed.Path = strings.TrimSuffix(parsed.Path, path.Ext(parsed.Path)) + ".png"
-		parsed.RawPath = ""
 	}
 	reqCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()

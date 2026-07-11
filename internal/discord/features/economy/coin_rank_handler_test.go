@@ -170,6 +170,23 @@ func TestCoinRankUsernamePreservesLegacyUserTag(t *testing.T) {
 	}
 }
 
+func TestCoinRankPreservesLegacyRenderLifecycleDifferences(t *testing.T) {
+	animated := "https://cdn.discordapp.com/avatars/user/a_hash.gif?size=1024"
+	if got := legacyCoinRankPNGURL(animated); got != "https://cdn.discordapp.com/avatars/user/a_hash.png?size=1024" {
+		t.Fatalf("static avatar URL = %q", got)
+	}
+	custom := "https://example.test/avatar.gif"
+	if got := legacyCoinRankPNGURL(custom); got != custom {
+		t.Fatalf("custom avatar URL = %q", got)
+	}
+	if got := legacyCoinRankSubtitleY(false); got != 74 {
+		t.Fatalf("initial subtitle y = %d", got)
+	}
+	if got := legacyCoinRankSubtitleY(true); got != 70 {
+		t.Fatalf("updated subtitle y = %d", got)
+	}
+}
+
 func TestCoinRankModuleRegistersLegacyComponentRoute(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	viewerID := "123456789012345678"

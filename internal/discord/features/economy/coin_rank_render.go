@@ -26,6 +26,7 @@ type coinRankCanvasView struct {
 	GuildCreatedAt time.Time
 	GuildIconData  []byte
 	ViewerRankText string
+	SubtitleY      int
 	Entries        []coinRankCanvasEntry
 }
 
@@ -83,7 +84,11 @@ func drawCoinRankHeader(canvas *image.RGBA, view coinRankCanvasView) {
 		createdAt = time.Unix(0, 0).UTC()
 	}
 	drawText(canvas, 115, 50, guildName, color.RGBA{R: 211, G: 211, B: 211, A: 255}, 3)
-	drawText(canvas, 118, 74, "代幣排行榜", color.RGBA{R: 168, G: 168, B: 168, A: 255}, 2)
+	subtitleY := view.SubtitleY
+	if subtitleY == 0 {
+		subtitleY = 74
+	}
+	drawText(canvas, 118, subtitleY, "代幣排行榜", color.RGBA{R: 168, G: 168, B: 168, A: 255}, 2)
 	drawText(canvas, 680, 70, view.ViewerRankText, color.RGBA{R: 230, G: 235, B: 255, A: 255}, 3)
 	drawText(canvas, 790, 70, createdAt.Format("2006/01/02"), color.RGBA{R: 230, G: 235, B: 255, A: 255}, 2)
 }
