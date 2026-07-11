@@ -45,9 +45,6 @@ func legacyMongooseString(value bson.RawValue) (string, bool) {
 	if text, ok := value.SymbolOK(); ok {
 		return text, true
 	}
-	if text, ok := value.JavaScriptOK(); ok {
-		return text, true
-	}
 	if parsed, ok := value.BooleanOK(); ok {
 		return strconv.FormatBool(parsed), true
 	}
@@ -62,6 +59,9 @@ func legacyMongooseString(value bson.RawValue) (string, bool) {
 	}
 	if parsed, ok := value.Decimal128OK(); ok {
 		return parsed.String(), true
+	}
+	if timestamp, increment, ok := value.TimestampOK(); ok {
+		return strconv.FormatUint(uint64(timestamp)<<32|uint64(increment), 10), true
 	}
 	if parsed, ok := value.ObjectIDOK(); ok {
 		return parsed.Hex(), true

@@ -79,6 +79,10 @@ func TestLegacyExactInt64UsesMongooseNumberCoercion(t *testing.T) {
 }
 
 func TestAutoChatPaidDocumentCoercesLegacyScalarWorkerResponses(t *testing.T) {
+	decimal, err := bson.ParseDecimal128("12.50")
+	if err != nil {
+		t.Fatalf("parse decimal: %v", err)
+	}
 	for _, test := range []struct {
 		name    string
 		message any
@@ -90,7 +94,15 @@ func TestAutoChatPaidDocumentCoercesLegacyScalarWorkerResponses(t *testing.T) {
 		{name: "small decimal", message: 0.000001, want: "0.000001"},
 		{name: "scientific decimal", message: 0.0000001, want: "1e-7"},
 		{name: "large decimal", message: 1e21, want: "1e+21"},
+		{name: "not a number", message: math.NaN(), want: "NaN"},
+		{name: "positive infinity", message: math.Inf(1), want: "Infinity"},
+		{name: "negative zero", message: math.Copysign(0, -1), want: "0"},
+		{name: "decimal128", message: decimal, want: "12.50"},
+		{name: "object id", message: bson.ObjectID{0x50, 0x7f, 0x1f, 0x77, 0xbc, 0xf8, 0x6c, 0xd7, 0x99, 0x43, 0x90, 0x11}, want: "507f1f77bcf86cd799439011"},
+		{name: "symbol", message: bson.Symbol("symbol answer"), want: "symbol answer"},
+		{name: "timestamp", message: bson.Timestamp{T: 1, I: 2}, want: "4294967298"},
 		{name: "binary", message: bson.Binary{Data: []byte("buffer answer")}, want: "buffer answer"},
+		{name: "invalid utf8 binary", message: bson.Binary{Data: []byte{0xff, 'a'}}, want: "\uFFFDa"},
 		{name: "date", message: time.UnixMilli(0), want: "Thu Jan 01 1970 00:00:00 GMT+0000 (Coordinated Universal Time)"},
 		{name: "regex", message: bson.Regex{Pattern: "abc", Options: "i"}, want: "/abc/i"},
 	} {
@@ -117,7 +129,13 @@ func TestAutoChatPaidDocumentCoercesLegacyScalarWorkerResponses(t *testing.T) {
 }
 
 func TestAutoChatPaidDocumentRejectsMissingOrNullWorkerMessage(t *testing.T) {
-	for _, message := range []bson.RawValue{{}, {Type: bson.TypeNull}} {
+	for _, message := range []bson.RawValue{
+		{},
+		{Type: bson.TypeNull},
+		rawBSONValue(t, bson.JavaScript("return 1")),
+		rawBSONValue(t, bson.D{{Key: "compound", Value: true}}),
+		rawBSONValue(t, bson.A{"compound"}),
+	} {
 		document := AutoChatPaidDocument{
 			Guild:   "guild-1",
 			Message: message,
