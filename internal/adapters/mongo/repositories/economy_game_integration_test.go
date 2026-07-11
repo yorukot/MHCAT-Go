@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"slices"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -79,6 +81,54 @@ func TestEconomyCoinGameMongoTransactionIntegrationPreservesScalars(t *testing.T
 			t.Fatalf("balance %s = %#v, err=%v, want %s", member, balance, err, want)
 		}
 	}
+}
+
+func TestEconomyCoinGameMongoTransactionIntegrationUpdatesOneDuplicate(t *testing.T) {
+	repository, database := economyGameIntegrationRepository(t)
+	_, err := database.Collection(CoinCollectionName).InsertMany(context.Background(), []any{
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "member", Value: "user-1"}, {Key: "coin", Value: 50}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "member", Value: "user-1"}, {Key: "coin", Value: 80}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "member", Value: "user-2"}, {Key: "coin", Value: 50}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "member", Value: "user-2"}, {Key: "coin", Value: 80}},
+	})
+	if err != nil {
+		t.Fatalf("insert duplicate balances: %v", err)
+	}
+
+	if _, err := repository.ReserveCoinGameWager(context.Background(), economyGameIntegrationCommand(10)); err != nil {
+		t.Fatalf("reserve duplicate wager: %v", err)
+	}
+	validOutcomes := [][]float64{{40, 50}, {40, 80}, {50, 70}, {70, 80}}
+	for _, member := range []string{"user-1", "user-2"} {
+		got := economyGameRawBalances(t, database, member)
+		if !slices.ContainsFunc(validOutcomes, func(want []float64) bool { return slices.Equal(got, want) }) {
+			t.Fatalf("balances for %s = %v, want one arbitrary row updated from one arbitrary read", member, got)
+		}
+	}
+}
+
+func economyGameRawBalances(t *testing.T, database *drivermongo.Database, member string) []float64 {
+	t.Helper()
+	cursor, err := database.Collection(CoinCollectionName).Find(context.Background(), bson.D{{Key: "guild", Value: "guild-1"}, {Key: "member", Value: member}})
+	if err != nil {
+		t.Fatalf("find balances for %s: %v", member, err)
+	}
+	defer cursor.Close(context.Background())
+	values := []float64{}
+	for cursor.Next(context.Background()) {
+		var row struct {
+			Coin float64 `bson:"coin"`
+		}
+		if err := cursor.Decode(&row); err != nil {
+			t.Fatalf("decode balance for %s: %v", member, err)
+		}
+		values = append(values, row.Coin)
+	}
+	if err := cursor.Err(); err != nil {
+		t.Fatalf("iterate balances for %s: %v", member, err)
+	}
+	sort.Float64s(values)
+	return values
 }
 
 func TestEconomyCoinGameMongoTransactionIntegrationRollsBackReserve(t *testing.T) {

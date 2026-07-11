@@ -513,7 +513,7 @@ func (r *EconomyRepository) setCoinGameBalance(ctx context.Context, balance doma
 	if !ok {
 		return domain.ErrInvalidCoinGameCommand
 	}
-	result, err := r.coins.UpdateMany(
+	result, err := r.coins.UpdateOne(
 		ctx,
 		bson.D{{Key: "guild", Value: balance.GuildID}, {Key: "member", Value: balance.UserID}},
 		bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: coins}}}},
