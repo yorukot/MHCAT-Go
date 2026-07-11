@@ -750,13 +750,14 @@ func TestDeleteDataSelectMissingUsesLegacyContent(t *testing.T) {
 	}
 }
 
-func TestDeleteDataSelectRequiresManageMessages(t *testing.T) {
+func TestDeleteDataSelectMetadataLessPanelRequiresManageMessages(t *testing.T) {
 	repo := fakemongo.NewDeleteDataRepository()
 	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
 	module := NewDeleteDataModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := deleteDataComponentInteraction(domain.DeleteDataTargetAutoChat)
 	interaction.Actor.PermissionBits = 0
+	interaction.OriginalInteractionUserID = ""
 
 	if err := module.DeleteDataSelectHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
@@ -765,6 +766,25 @@ func TestDeleteDataSelectRequiresManageMessages(t *testing.T) {
 		t.Fatalf("delete should not run without permission: %#v", repo.Deleted)
 	}
 	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Content, "訊息管理") {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
+func TestDeleteDataSelectPromptOwnerDoesNotRecheckManageMessages(t *testing.T) {
+	repo := fakemongo.NewDeleteDataRepository()
+	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
+	module := NewDeleteDataModule(repo)
+	interaction := deleteDataComponentInteraction(domain.DeleteDataTargetAutoChat)
+	interaction.Actor.PermissionBits = 0
+	responder := fakediscord.NewResponder()
+
+	if err := module.DeleteDataSelectHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(repo.Deleted) != 1 || repo.Deleted[0].Target != domain.DeleteDataTargetAutoChat {
+		t.Fatalf("prompt owner delete = %#v", repo.Deleted)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Content, "成功刪除該設定") {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 }
