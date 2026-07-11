@@ -64,7 +64,7 @@ func TestWarningHistoryRendersLegacyEmbed(t *testing.T) {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
 	embed := responder.Edits[0].Embeds[0]
-	if embed.Title != "以下是target的警告紀錄" || embed.Color != warningHistoryColor {
+	if embed.Title != "以下是target的警告紀錄" || embed.Color < 0 || embed.Color >= 0x1000000 {
 		t.Fatalf("embed = %#v", embed)
 	}
 	if !strings.Contains(embed.Description, "- 警告者: admin#0001") || !strings.Contains(embed.Description, "- 原因: 洗版") || !strings.Contains(embed.Description, "- 時間: 2026-07-04") {

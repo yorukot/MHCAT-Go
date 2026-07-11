@@ -19,7 +19,6 @@ import (
 const (
 	warningManageMessagesPermission = int64(8192)
 	warningErrorColor               = 0xEA0000
-	warningHistoryColor             = 0x5865F2
 	warningSettingsSuccessColor     = 0x57F287
 	warningRemovalSuccessColor      = 0x57F287
 	warningRemovalDMColor           = 0x00DB00
@@ -332,7 +331,7 @@ func warningHistoryMessage(history domain.WarningHistory, targetName string, mod
 		Embeds: []responses.Embed{{
 			Title:       fmt.Sprintf("以下是%s的警告紀錄", targetName),
 			Description: strings.Join(lines, " "),
-			Color:       warningHistoryColor,
+			Color:       discordRandomColor(),
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
 	}
@@ -490,7 +489,7 @@ func deleteDataPromptMessage() responses.Message {
 		Embeds: []responses.Embed{{
 			Title:       "<:trashbin:995991389043163257> 刪除資料",
 			Description: "<a:NukeExplosion:986558305885368321>這邊刪除的都是全刪!!!\n<:warning:985590881698590730> 一但刪除將__**無法復原**__，請三思!\n<:warning:985590881698590730> 一但刪除將__**無法復原**__，請三思!",
-			Color:       deleteDataRandomColor(),
+			Color:       discordRandomColor(),
 			Footer: &responses.EmbedFooter{
 				Text:    "請三思!!!",
 				IconURL: "https://media.discordapp.net/attachments/991337796960784424/996749656161779853/6lnjr0.gif",
@@ -549,7 +548,7 @@ func selectedDeleteDataTarget(interaction interactions.Interaction) (domain.Dele
 	return domain.ParseDeleteDataTarget(interaction.Values[0])
 }
 
-func deleteDataRandomColor() int {
+func discordRandomColor() int {
 	max := big.NewInt(0x1000000)
 	value, err := cryptorand.Int(cryptorand.Reader, max)
 	if err != nil {
