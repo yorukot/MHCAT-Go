@@ -43,16 +43,13 @@ func (s SignInListService) List(ctx context.Context, guildID string, actorUserID
 		ActorUserID: actorUserID,
 		Entries:     []domain.SignInListEntry{},
 	}
-	if configFound && config.ResetMarker != 0 {
+	rollingWindow, cooldown := legacySignListWindow(config, configFound)
+	if rollingWindow {
 		result.RollingWindow = true
-		cooldown := config.ResetMarker
-		if cooldown < 0 {
-			cooldown = DefaultSignCooldownSec
-		}
 		nowUnix := now.Unix()
 		for _, balance := range balances {
 			delta := nowUnix - balance.Today
-			if delta < cooldown && delta > 0 {
+			if float64(delta) < cooldown && delta > 0 {
 				result.Entries = append(result.Entries, domain.SignInListEntry{
 					UserID:       balance.UserID,
 					SignedAtUnix: balance.Today,
@@ -68,4 +65,28 @@ func (s SignInListService) List(ctx context.Context, guildID string, actorUserID
 		}
 	}
 	return result, ctx.Err()
+}
+
+func legacySignListWindow(config domain.EconomyConfig, configFound bool) (bool, float64) {
+	if !configFound {
+		return false, 0
+	}
+	markerText := strings.TrimSpace(config.ResetMarkerText)
+	if markerText == "" {
+		if config.ResetMarker == 0 {
+			return false, 0
+		}
+		return true, float64(config.ResetMarker)
+	}
+	if markerText == "undefined" || markerText == "null" || markerText == "NaN" {
+		return true, float64(DefaultSignCooldownSec)
+	}
+	marker, numeric := legacyDisplayedNumber(markerText)
+	if !numeric {
+		return true, float64(DefaultSignCooldownSec)
+	}
+	if marker == 0 {
+		return false, 0
+	}
+	return true, marker
 }
