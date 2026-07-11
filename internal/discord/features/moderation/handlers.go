@@ -224,7 +224,7 @@ func (m Module) DeleteDataPromptHandler() interactions.Handler {
 		if err := responder.FollowUp(ctx, deleteDataPromptMessage()); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, DeleteDataCommandName, "delete-data")
+		return nil
 	}
 }
 
@@ -249,7 +249,7 @@ func (m Module) DeleteDataSelectHandler() interactions.Handler {
 		if err := responder.EditOriginal(ctx, deleteDataContentMessage("<a:green_tick:994529015652163614> **| 成功刪除該設定!**")); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, DeleteDataCommandName, "delete-data")
+		return nil
 	}
 }
 

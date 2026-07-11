@@ -929,6 +929,46 @@ func TestBuildRuntimeRoutesDeleteDataOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeTracksEachDeleteDataSlashAttemptOnce(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	repo := fakemongo.NewDeleteDataRepository()
+	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		UsageTracker:             tracker,
+		DeleteDataFeatureEnabled: true,
+		DeleteDataRepository:     repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+
+	denied := fakediscord.SlashInteraction("刪除資料")
+	if err := dispatcher.Dispatch(context.Background(), denied, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch denial: %v", err)
+	}
+	allowed := fakediscord.SlashInteraction("刪除資料")
+	allowed.Actor.PermissionBits = 8192
+	if err := dispatcher.Dispatch(context.Background(), allowed, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch prompt: %v", err)
+	}
+	component := fakediscord.ComponentInteractionFromID("delete-data")
+	component.Actor.PermissionBits = 8192
+	component.Values = []string{string(domain.DeleteDataTargetAutoChat)}
+	if err := dispatcher.Dispatch(context.Background(), component, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch select: %v", err)
+	}
+
+	if len(tracker.Events) != 2 {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for index, event := range tracker.Events {
+		if event.CommandName != "刪除資料" {
+			t.Fatalf("usage event %d = %#v", index, event)
+		}
+	}
+}
+
 func TestBuildRuntimeRoutesLoggingConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

@@ -70,10 +70,9 @@ func NewCleanupModule(cleaner ports.DiscordMessageCleaner, usage ports.UsageTrac
 	}
 }
 
-func NewDeleteDataModule(repo ports.DeleteDataRepository, usage ports.UsageTracker) Module {
+func NewDeleteDataModule(repo ports.DeleteDataRepository) Module {
 	return Module{
 		deleteData: coremoderation.DeleteDataService{Repository: repo},
-		usage:      usage,
 	}
 }
 

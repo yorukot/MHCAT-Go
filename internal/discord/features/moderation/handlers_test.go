@@ -565,7 +565,7 @@ func TestCleanupRequestsMessagesAndRendersLegacyCompletion(t *testing.T) {
 
 func TestDeleteDataPromptRequiresManageMessages(t *testing.T) {
 	repo := fakemongo.NewDeleteDataRepository()
-	module := NewDeleteDataModule(repo, nil)
+	module := NewDeleteDataModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := deleteDataSlashInteraction()
 	interaction.Actor.PermissionBits = 0
@@ -586,8 +586,7 @@ func TestDeleteDataPromptRequiresManageMessages(t *testing.T) {
 
 func TestDeleteDataPromptRendersLegacyMenu(t *testing.T) {
 	repo := fakemongo.NewDeleteDataRepository()
-	usage := &fakeusage.Tracker{}
-	module := NewDeleteDataModule(repo, usage)
+	module := NewDeleteDataModule(repo)
 	responder := fakediscord.NewResponder()
 
 	if err := module.DeleteDataPromptHandler()(context.Background(), deleteDataSlashInteraction(), responder); err != nil {
@@ -613,16 +612,12 @@ func TestDeleteDataPromptRendersLegacyMenu(t *testing.T) {
 			t.Fatalf("option %d = %#v", index, option)
 		}
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != DeleteDataCommandName || usage.Events[0].Feature != "delete-data" {
-		t.Fatalf("usage events = %#v", usage.Events)
-	}
 }
 
 func TestDeleteDataSelectDeletesTargetWithLegacySuccess(t *testing.T) {
 	repo := fakemongo.NewDeleteDataRepository()
 	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
-	usage := &fakeusage.Tracker{}
-	module := NewDeleteDataModule(repo, usage)
+	module := NewDeleteDataModule(repo)
 	responder := fakediscord.NewResponder()
 
 	if err := module.DeleteDataSelectHandler()(context.Background(), deleteDataComponentInteraction(domain.DeleteDataTargetAutoChat), responder); err != nil {
@@ -637,14 +632,11 @@ func TestDeleteDataSelectDeletesTargetWithLegacySuccess(t *testing.T) {
 	if len(responder.Edits) != 1 || responder.Edits[0].Content != "<a:green_tick:994529015652163614> **| 成功刪除該設定!**" || !responder.Edits[0].Ephemeral {
 		t.Fatalf("edits = %#v", responder.Edits)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != DeleteDataCommandName || usage.Events[0].Feature != "delete-data" {
-		t.Fatalf("usage events = %#v", usage.Events)
-	}
 }
 
 func TestDeleteDataSelectMissingUsesLegacyContent(t *testing.T) {
 	repo := fakemongo.NewDeleteDataRepository()
-	module := NewDeleteDataModule(repo, nil)
+	module := NewDeleteDataModule(repo)
 	responder := fakediscord.NewResponder()
 
 	if err := module.DeleteDataSelectHandler()(context.Background(), deleteDataComponentInteraction(domain.DeleteDataTargetTicket), responder); err != nil {
@@ -658,7 +650,7 @@ func TestDeleteDataSelectMissingUsesLegacyContent(t *testing.T) {
 func TestDeleteDataSelectRequiresManageMessages(t *testing.T) {
 	repo := fakemongo.NewDeleteDataRepository()
 	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
-	module := NewDeleteDataModule(repo, nil)
+	module := NewDeleteDataModule(repo)
 	responder := fakediscord.NewResponder()
 	interaction := deleteDataComponentInteraction(domain.DeleteDataTargetAutoChat)
 	interaction.Actor.PermissionBits = 0
