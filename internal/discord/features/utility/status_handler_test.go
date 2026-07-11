@@ -92,8 +92,8 @@ func TestInfoShardHandlerReturnsLegacyEmbed(t *testing.T) {
 	if len(msg.Embeds) != 1 || !strings.Contains(msg.Embeds[0].Title, "以下是每個分片的資訊") {
 		t.Fatalf("shard embed = %#v", msg.Embeds)
 	}
-	if len(msg.Embeds[0].Fields) != 1 || !strings.Contains(msg.Embeds[0].Fields[0].Name, "分片ID: 1") {
-		t.Fatalf("shard fields = %#v", msg.Embeds[0].Fields)
+	if len(msg.Embeds[0].Fields) != 0 {
+		t.Fatalf("legacy initial shard embed must remain empty: %#v", msg.Embeds[0].Fields)
 	}
 	if len(msg.Components) != 1 || len(msg.Components[0].Components) != 1 {
 		t.Fatalf("shard components = %#v", msg.Components)

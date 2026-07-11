@@ -50,8 +50,8 @@ func (m Module) handleInfoShard(ctx context.Context, interaction interactions.In
 	if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
 		return err
 	}
-	info, degraded := m.status.Info(ctx)
-	msg := legacyInfoShardRefreshMessage(info)
+	_, degraded := m.status.Info(ctx)
+	msg := legacyInfoShardMessage()
 	if degraded {
 		msg = legacyInfoErrorMessage()
 	}

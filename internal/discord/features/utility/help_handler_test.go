@@ -33,6 +33,9 @@ func TestHelpHandlerOverviewMatchesLegacyMenu(t *testing.T) {
 	if embed.Author == nil || embed.Author.Name != "MHCAT" {
 		t.Fatalf("legacy help author = %#v", embed.Author)
 	}
+	if len(embed.Fields) != 0 {
+		t.Fatalf("legacy overview did not attach category fields: %#v", embed.Fields)
+	}
 	if !strings.Contains(embed.Description, "嗨嗨，你發現了酷東西") || !strings.Contains(embed.Description, "/help 指令名稱") {
 		t.Fatalf("unexpected legacy help description:\n%s", embed.Description)
 	}

@@ -138,14 +138,8 @@ var legacyHelpCategories = []legacyHelpCategory{
 }
 
 func legacyHelpOverview(interaction interactions.Interaction) responses.Message {
-	fields := make([]responses.EmbedField, 0, len(legacyHelpCategories))
 	options := make([]responses.SelectOption, 0, len(legacyHelpCategories))
 	for _, category := range legacyHelpCategories {
-		fields = append(fields, responses.EmbedField{
-			Name:   fmt.Sprintf("%s - %s", category.Emoji, category.Name),
-			Value:  fmt.Sprintf("`%s`", category.Description),
-			Inline: true,
-		})
 		options = append(options, responses.SelectOption{
 			Label:       strings.ToUpper(category.Name),
 			Value:       strings.ToLower(category.Name),
@@ -163,7 +157,6 @@ func legacyHelpOverview(interaction interactions.Interaction) responses.Message 
 			Description: "**<a:cool:984263702897360897> 嗨嗨，你發現了酷東西\n使用我來讓你的discord更棒!!\n想要了解某個類別請使用下方的選單\n如要查看特定的指令請使用`/help 指令名稱`\n\n<:9605discordslashcommand:982559784429563925> 指令一律使用斜線命令，只需打`/指令名稱`即可使用**\n\n<a:buycoffeeforme:986560638304256051> [幫我買杯咖啡!](https://www.buymeacoffee.com/mhcat)\n\n[隱私權聲明](https://docsmhcat.yorukot.me/terms/privacy_policy) [服務條款](https://docsmhcat.yorukot.me/terms/Terms_of_Service)",
 			Color:       legacyHelpColor,
 			Footer:      legacyFooter(interaction),
-			Fields:      fields,
 		}},
 		Components: []responses.ComponentRow{
 			{Components: []responses.Component{{
