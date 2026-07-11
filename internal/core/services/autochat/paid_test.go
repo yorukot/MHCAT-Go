@@ -97,6 +97,21 @@ func TestPaidHandoffSubmitPreservesEligibilityAndSafetyBranches(t *testing.T) {
 	}
 }
 
+func TestPaidHandoffSubmitPreservesStoredChannelWhitespace(t *testing.T) {
+	configs := fakemongo.NewAutoChatConfigRepository()
+	configs.Configs["guild-1"] = domain.AutoChatConfig{GuildID: "guild-1", ChannelID: " channel-1 "}
+	balances := fakemongo.NewBalanceRepository()
+	balances.Balances["guild-1"] = domain.Balance{GuildID: "guild-1", Amount: "5"}
+	service, err := NewPaidHandoffService(configs, balances, &fakemongo.AutoChatPaidRepository{})
+	if err != nil {
+		t.Fatalf("new paid service: %v", err)
+	}
+	submission, err := service.Submit(context.Background(), "guild-1", "channel-1", "hello", time.UnixMilli(1_700_000_000_000))
+	if err != nil || submission.State != domain.AutoChatPaidIgnored {
+		t.Fatalf("submission=%#v err=%v", submission, err)
+	}
+}
+
 func TestPaidHandoffSubmitMapsQueueOutcomes(t *testing.T) {
 	for _, test := range []struct {
 		name      string

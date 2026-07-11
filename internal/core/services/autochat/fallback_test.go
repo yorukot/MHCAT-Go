@@ -84,6 +84,19 @@ func TestFallbackServicePreservesBalanceAndChannelGates(t *testing.T) {
 	}
 }
 
+func TestFallbackServicePreservesStoredChannelWhitespace(t *testing.T) {
+	configs := fakemongo.NewAutoChatConfigRepository()
+	configs.Configs["guild-1"] = domain.AutoChatConfig{GuildID: "guild-1", ChannelID: " channel-1 "}
+	service, err := NewFallbackService(configs, fakemongo.NewBalanceRepository())
+	if err != nil {
+		t.Fatalf("new fallback service: %v", err)
+	}
+	reply, err := service.Reply(context.Background(), "guild-1", "channel-1", "你好")
+	if err != nil || reply.Content != "" {
+		t.Fatalf("reply=%#v err=%v", reply, err)
+	}
+}
+
 func TestFallbackServiceUsesLocalRepliesForNegativeOrMalformedBalance(t *testing.T) {
 	for _, amount := range []string{"-0.01", "not-a-number", "NaN", "undefined"} {
 		t.Run(amount, func(t *testing.T) {

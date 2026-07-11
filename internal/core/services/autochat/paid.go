@@ -44,7 +44,7 @@ func (s PaidHandoffService) Submit(ctx context.Context, guildID string, channelI
 	if err != nil {
 		return domain.AutoChatPaidSubmission{}, err
 	}
-	if strings.TrimSpace(config.ChannelID) != channelID {
+	if config.ChannelID != channelID {
 		return domain.AutoChatPaidSubmission{State: domain.AutoChatPaidIgnored}, nil
 	}
 	balance, err := s.balances.GetBalance(ctx, guildID)

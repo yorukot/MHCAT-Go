@@ -60,7 +60,7 @@ func (s FallbackService) Reply(ctx context.Context, guildID string, channelID st
 	if err != nil {
 		return domain.AutoChatFallbackReply{}, err
 	}
-	if strings.TrimSpace(config.ChannelID) != channelID {
+	if config.ChannelID != channelID {
 		return domain.AutoChatFallbackReply{}, nil
 	}
 
