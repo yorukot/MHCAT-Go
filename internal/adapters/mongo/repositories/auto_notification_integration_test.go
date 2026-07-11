@@ -23,6 +23,8 @@ func TestAutoNotificationMongoIntegrationKeepsMalformedRowsIsolated(t *testing.T
 		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "valid"}, {Key: "cron", Value: "*/30 * * * *"}, {Key: "channel", Value: "channel-1"}, {Key: "message", Value: bson.D{{Key: "content", Value: "valid"}}}},
 		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "scalar"}, {Key: "cron", Value: bson.Binary{Data: []byte("15 * * * *")}}, {Key: "channel", Value: bson.Binary{Data: []byte("channel-2")}}, {Key: "message", Value: bson.D{{Key: "content", Value: "scalar"}}}},
 		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: bson.A{"invalid"}}, {Key: "cron", Value: bson.D{{Key: "invalid", Value: true}}}, {Key: "channel", Value: bson.D{{Key: "invalid", Value: true}}}, {Key: "message", Value: bson.D{{Key: "content", Value: "malformed"}}}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "bad-embeds"}, {Key: "cron", Value: "*/30 * * * *"}, {Key: "channel", Value: "channel-1"}, {Key: "message", Value: bson.D{{Key: "content", Value: "plain survives"}, {Key: "embeds", Value: bson.D{{Key: "not", Value: "array"}}}}}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "numeric-content"}, {Key: "cron", Value: "*/30 * * * *"}, {Key: "channel", Value: "channel-1"}, {Key: "message", Value: bson.D{{Key: "content", Value: int32(123)}}}},
 		bson.D{{Key: "guild", Value: int64(1)}, {Key: "id", Value: "numeric-guild"}, {Key: "cron", Value: "*/30 * * * *"}, {Key: "channel", Value: "channel-1"}, {Key: "message", Value: bson.D{{Key: "content", Value: "excluded"}}}},
 		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "pending"}, {Key: "cron", Value: nil}, {Key: "channel", Value: "channel-1"}, {Key: "message", Value: bson.D{{Key: "content", Value: "excluded"}}}},
 		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "scalar-message"}, {Key: "cron", Value: "*/30 * * * *"}, {Key: "channel", Value: "channel-1"}, {Key: "message", Value: "excluded"}},
@@ -34,15 +36,20 @@ func TestAutoNotificationMongoIntegrationKeepsMalformedRowsIsolated(t *testing.T
 	if err != nil {
 		t.Fatalf("list deliveries: %v", err)
 	}
-	if len(schedules) != 3 {
+	if len(schedules) != 5 {
 		t.Fatalf("deliveries = %#v", schedules)
 	}
 	byID := make(map[string]string, len(schedules))
+	messagesByID := make(map[string]string, len(schedules))
 	for _, schedule := range schedules {
 		byID[schedule.ID] = schedule.Cron + "|" + schedule.ChannelID
+		messagesByID[schedule.ID] = schedule.Message.Content
 	}
 	if byID["valid"] != "*/30 * * * *|channel-1" || byID["scalar"] != "15 * * * *|channel-2" || byID[""] != "|" {
 		t.Fatalf("deliveries by id = %#v", byID)
+	}
+	if messagesByID["bad-embeds"] != "plain survives" || messagesByID["numeric-content"] != "" {
+		t.Fatalf("delivery messages = %#v", messagesByID)
 	}
 
 	scalar, err := repository.GetAutoNotificationDelivery(context.Background(), "guild-1", "scalar")

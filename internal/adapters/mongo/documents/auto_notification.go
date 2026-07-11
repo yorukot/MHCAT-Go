@@ -16,11 +16,11 @@ type AutoNotificationScheduleDocument struct {
 }
 
 type AutoNotificationDeliveryDocument struct {
-	Guild   string                           `bson:"guild" json:"guild"`
-	Channel bson.RawValue                    `bson:"channel" json:"channel"`
-	ID      bson.RawValue                    `bson:"id" json:"id"`
-	Cron    bson.RawValue                    `bson:"cron" json:"cron"`
-	Message *AutoNotificationMessageDocument `bson:"message" json:"message"`
+	Guild   string        `bson:"guild" json:"guild"`
+	Channel bson.RawValue `bson:"channel" json:"channel"`
+	ID      bson.RawValue `bson:"id" json:"id"`
+	Cron    bson.RawValue `bson:"cron" json:"cron"`
+	Message bson.RawValue `bson:"message" json:"message"`
 }
 
 type AutoNotificationMessageDocument struct {
@@ -63,16 +63,7 @@ func (d AutoNotificationDeliveryDocument) ToDomain() domain.AutoNotificationSche
 	id, _ := legacyMongooseString(d.ID)
 	channel, _ := legacyMongooseString(d.Channel)
 	cron, pending := legacyNullableString(d.Cron)
-	message := domain.AutoNotificationMessage{}
-	if d.Message != nil {
-		message.Content, _ = legacyNullableString(d.Message.Content)
-		if len(d.Message.Embeds) > 0 {
-			embed := d.Message.Embeds[0].Data
-			message.EmbedTitle, _ = legacyNullableString(embed.Title)
-			message.EmbedDescription, _ = legacyNullableString(embed.Description)
-			message.EmbedColor = legacyAutoNotificationColor(embed.Color)
-		}
-	}
+	message := legacyAutoNotificationMessage(d.Message)
 	return domain.AutoNotificationSchedule{
 		GuildID:   d.Guild,
 		ID:        id,
@@ -81,6 +72,44 @@ func (d AutoNotificationDeliveryDocument) ToDomain() domain.AutoNotificationSche
 		Message:   message,
 		Pending:   pending,
 	}
+}
+
+func legacyAutoNotificationMessage(value bson.RawValue) domain.AutoNotificationMessage {
+	document, ok := value.DocumentOK()
+	if !ok {
+		return domain.AutoNotificationMessage{}
+	}
+	message := domain.AutoNotificationMessage{Content: legacyAutoNotificationMixedString(document.Lookup("content"))}
+	embeds, ok := document.Lookup("embeds").ArrayOK()
+	if !ok {
+		return message
+	}
+	values, err := embeds.Values()
+	if err != nil || len(values) == 0 {
+		return message
+	}
+	envelope, ok := values[0].DocumentOK()
+	if !ok {
+		return message
+	}
+	data, ok := envelope.Lookup("data").DocumentOK()
+	if !ok {
+		return message
+	}
+	message.EmbedTitle = legacyAutoNotificationMixedString(data.Lookup("title"))
+	message.EmbedDescription = legacyAutoNotificationMixedString(data.Lookup("description"))
+	message.EmbedColor = legacyAutoNotificationColor(data.Lookup("color"))
+	return message
+}
+
+func legacyAutoNotificationMixedString(value bson.RawValue) string {
+	if text, ok := value.StringValueOK(); ok {
+		return text
+	}
+	if text, ok := value.SymbolOK(); ok {
+		return text
+	}
+	return ""
 }
 
 func AutoNotificationPendingWriteDocumentFromDomain(draft domain.AutoNotificationSetupDraft) AutoNotificationPendingWriteDocument {

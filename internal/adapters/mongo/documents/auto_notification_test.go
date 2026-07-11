@@ -207,3 +207,43 @@ func TestAutoNotificationDeliveryDocumentDecodesLegacyNumericEmbedColor(t *testi
 		t.Fatalf("message = %#v", message)
 	}
 }
+
+func TestAutoNotificationDeliveryDocumentKeepsMixedMessageTypesRowLocal(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		message     any
+		wantContent string
+	}{
+		{
+			name: "malformed embeds retain content",
+			message: bson.D{
+				{Key: "content", Value: "hello"},
+				{Key: "embeds", Value: bson.D{{Key: "not", Value: "an array"}}},
+			},
+			wantContent: "hello",
+		},
+		{name: "numeric nested content is not mongoose cast", message: bson.D{{Key: "content", Value: int32(123)}}},
+		{name: "scalar message is unusable", message: "hello"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			raw, err := bson.Marshal(bson.D{
+				{Key: "guild", Value: "guild-1"},
+				{Key: "id", Value: "schedule-1"},
+				{Key: "cron", Value: "0 9 * * 1"},
+				{Key: "channel", Value: "channel-1"},
+				{Key: "message", Value: test.message},
+			})
+			if err != nil {
+				t.Fatalf("marshal fixture: %v", err)
+			}
+			var document AutoNotificationDeliveryDocument
+			if err := bson.Unmarshal(raw, &document); err != nil {
+				t.Fatalf("decode document: %v", err)
+			}
+			message := document.ToDomain().Message
+			if message.Content != test.wantContent || message.HasEmbed() {
+				t.Fatalf("message = %#v", message)
+			}
+		})
+	}
+}
