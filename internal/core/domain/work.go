@@ -59,15 +59,18 @@ type WorkUserState struct {
 }
 
 type WorkStartCommand struct {
-	GuildID     string
-	UserID      string
-	WorkName    string
-	DurationSec int64
-	EnergyCost  int64
-	CoinReward  int64
-	MaxEnergy   int64
-	NowUnix     int64
-	Override    bool
+	GuildID        string
+	UserID         string
+	WorkName       string
+	DurationSec    int64
+	DurationText   string
+	EnergyCost     int64
+	EnergyCostText string
+	CoinReward     int64
+	CoinRewardText string
+	MaxEnergy      int64
+	NowUnix        int64
+	Override       bool
 }
 
 type WorkConfigCommand struct {

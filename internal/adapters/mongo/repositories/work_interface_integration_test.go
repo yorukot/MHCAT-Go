@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -31,5 +32,47 @@ func TestWorkInterfaceMongoIntegrationEnsuresUserOnce(t *testing.T) {
 	count, err := database.Collection(WorkUserCollectionName).CountDocuments(ctx, bson.D{{Key: "guild", Value: "guild-1"}, {Key: "user", Value: "user-1"}})
 	if err != nil || count != 1 {
 		t.Fatalf("row count = %d, err=%v", count, err)
+	}
+}
+
+func TestWorkInterfaceMongoIntegrationPreservesLegacyStartArithmetic(t *testing.T) {
+	database := economyQueryIntegrationDatabase(t)
+	repository, err := NewWorkInterfaceRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	ctx := context.Background()
+	tests := []struct {
+		name       string
+		raw        string
+		wantEnergy string
+		wantEnd    string
+		wantReward string
+	}{
+		{name: "decimal", raw: "2.5", wantEnergy: "7.5", wantEnd: "102.5", wantReward: "2.5"},
+		{name: "negative", raw: "-2", wantEnergy: "12", wantEnd: "98", wantReward: "-2"},
+		{name: "null", raw: "null", wantEnergy: "10", wantEnd: "100", wantReward: "0"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			userID := "start-" + test.name
+			if _, err := database.Collection(WorkUserCollectionName).InsertOne(ctx, bson.D{
+				{Key: "guild", Value: "guild-1"}, {Key: "user", Value: userID},
+				{Key: "state", Value: LegacyIdleWorkState}, {Key: "end_time", Value: 0},
+				{Key: "energi", Value: 10}, {Key: "get_coin", Value: 0},
+			}); err != nil {
+				t.Fatalf("insert user: %v", err)
+			}
+			updated, err := repository.StartWork(ctx, domain.WorkStartCommand{
+				GuildID: "guild-1", UserID: userID, WorkName: "work", MaxEnergy: 10, NowUnix: 100,
+				DurationText: test.raw, EnergyCostText: test.raw, CoinRewardText: test.raw,
+			})
+			if err != nil {
+				t.Fatalf("start work: %v", err)
+			}
+			if updated.EnergyText != test.wantEnergy || updated.EndTimeText != test.wantEnd || updated.GetCoinText != test.wantReward {
+				t.Fatalf("updated = %#v", updated)
+			}
+		})
 	}
 }

@@ -533,9 +533,9 @@ func workStartSuccessMessage(item domain.WorkItem, updated domain.WorkUserState)
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title: "<:working:1048617967799242772> 成功取得該工作!",
-			Description: fmt.Sprintf("<a:green_tick:994529015652163614>**你已經成功取得**`%s`**的工作**\n<:tickmark:985949769224556614> **預計於:<t:%d:R>打工完成**",
+			Description: fmt.Sprintf("<a:green_tick:994529015652163614>**你已經成功取得**`%s`**的工作**\n<:tickmark:985949769224556614> **預計於:<t:%s:R>打工完成**",
 				item.Name,
-				updated.EndTimeUnix,
+				workScalarText(updated.EndTimeText, updated.EndTimeUnix),
 			),
 			Color: workSuccessColor,
 		}},

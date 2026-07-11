@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 
 	mhcatmongo "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo"
@@ -117,14 +119,7 @@ func (r *WorkInterfaceRepository) StartWork(ctx context.Context, command domain.
 		return domain.WorkUserState{}, err
 	}
 	filter := workStartFilter(command)
-	update := bson.D{
-		{Key: "$inc", Value: bson.D{{Key: "energi", Value: -command.EnergyCost}}},
-		{Key: "$set", Value: bson.D{
-			{Key: "state", Value: command.WorkName},
-			{Key: "end_time", Value: command.NowUnix + command.DurationSec},
-			{Key: "get_coin", Value: command.CoinReward},
-		}},
-	}
+	update := workStartUpdate(command)
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 	var updated documents.WorkUserDocument
 	err := r.workUsers.FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated)
@@ -135,6 +130,20 @@ func (r *WorkInterfaceRepository) StartWork(ctx context.Context, command domain.
 		return domain.WorkUserState{}, mhcatmongo.MapError(fmt.Errorf("start work: %w", err))
 	}
 	return updated.ToDomain(), ctx.Err()
+}
+
+func workStartUpdate(command domain.WorkStartCommand) bson.D {
+	duration := workStartNumber(command.DurationText, command.DurationSec)
+	energy := workStartNumber(command.EnergyCostText, command.EnergyCost)
+	reward := workStartNumber(command.CoinRewardText, command.CoinReward)
+	return bson.D{
+		{Key: "$inc", Value: bson.D{{Key: "energi", Value: -energy}}},
+		{Key: "$set", Value: bson.D{
+			{Key: "state", Value: command.WorkName},
+			{Key: "end_time", Value: float64(command.NowUnix) + duration},
+			{Key: "get_coin", Value: reward},
+		}},
+	}
 }
 
 func (r *WorkInterfaceRepository) EnsureWorkUser(ctx context.Context, guildID string, userID string, maxEnergy int64) (domain.WorkUserState, error) {
@@ -263,7 +272,7 @@ func (r *WorkInterfaceRepository) workStartMissReason(ctx context.Context, comma
 	if err != nil {
 		return err
 	}
-	if current.Energy < command.EnergyCost {
+	if workStartNumber(current.EnergyText, current.Energy) < workStartNumber(command.EnergyCostText, command.EnergyCost) {
 		return domain.ErrWorkEnergyInsufficient
 	}
 	if !command.Override && current.State != LegacyIdleWorkState {
@@ -276,9 +285,6 @@ func validateWorkStartCommand(command domain.WorkStartCommand) error {
 	if strings.TrimSpace(command.GuildID) == "" ||
 		strings.TrimSpace(command.UserID) == "" ||
 		strings.TrimSpace(command.WorkName) == "" ||
-		command.DurationSec <= 0 ||
-		command.EnergyCost < 0 ||
-		command.CoinReward < 0 ||
 		command.MaxEnergy < 0 ||
 		command.NowUnix <= 0 {
 		return domain.ErrInvalidWorkQuery
@@ -311,12 +317,30 @@ func workStartFilter(command domain.WorkStartCommand) bson.D {
 	filter := bson.D{
 		{Key: "guild", Value: command.GuildID},
 		{Key: "user", Value: command.UserID},
-		{Key: "energi", Value: bson.D{{Key: "$gte", Value: command.EnergyCost}}},
+	}
+	energy := workStartNumber(command.EnergyCostText, command.EnergyCost)
+	if !math.IsNaN(energy) {
+		filter = append(filter, bson.E{Key: "energi", Value: bson.D{{Key: "$gte", Value: energy}}})
 	}
 	if !command.Override {
 		filter = append(filter, bson.E{Key: "state", Value: LegacyIdleWorkState})
 	}
 	return filter
+}
+
+func workStartNumber(text string, fallback int64) float64 {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return float64(fallback)
+	}
+	if text == "null" {
+		return 0
+	}
+	value, err := strconv.ParseFloat(text, 64)
+	if err != nil {
+		return math.NaN()
+	}
+	return value
 }
 
 func workEnergyGrantPipeline(amount int64, maxEnergy int64) drivermongo.Pipeline {

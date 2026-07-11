@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"math"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -47,8 +48,51 @@ func TestValidateWorkStartCommand(t *testing.T) {
 	}
 	invalid := testWorkStartCommand()
 	invalid.EnergyCost = -1
-	if err := validateWorkStartCommand(invalid); err == nil {
-		t.Fatal("expected invalid negative energy")
+	invalid.DurationSec = -1
+	invalid.CoinReward = -1
+	if err := validateWorkStartCommand(invalid); err != nil {
+		t.Fatalf("legacy signed work values must be accepted: %v", err)
+	}
+}
+
+func TestWorkStartUsesLegacyScalarArithmetic(t *testing.T) {
+	tests := []struct {
+		name       string
+		text       string
+		want       float64
+		wantEnergy bool
+	}{
+		{name: "decimal", text: "2.5", want: 2.5, wantEnergy: true},
+		{name: "negative", text: "-2", want: -2, wantEnergy: true},
+		{name: "null", text: "null", want: 0, wantEnergy: true},
+		{name: "infinity", text: "Infinity", want: math.Inf(1), wantEnergy: true},
+		{name: "malformed", text: "undefined", want: math.NaN(), wantEnergy: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			command := testWorkStartCommand()
+			command.DurationText = test.text
+			command.EnergyCostText = test.text
+			command.CoinRewardText = test.text
+			filter := workStartFilter(command)
+			if containsKey(filter, "energi") != test.wantEnergy {
+				t.Fatalf("energy filter = %#v", filter)
+			}
+			update := workStartUpdate(command)
+			inc := lookupD(update, "$inc").(bson.D)
+			set := lookupD(update, "$set").(bson.D)
+			assertWorkFloat(t, lookupD(inc, "energi"), -test.want)
+			assertWorkFloat(t, lookupD(set, "end_time"), 100+test.want)
+			assertWorkFloat(t, lookupD(set, "get_coin"), test.want)
+		})
+	}
+}
+
+func assertWorkFloat(t *testing.T, got any, want float64) {
+	t.Helper()
+	value, ok := got.(float64)
+	if !ok || !(value == want || math.IsNaN(value) && math.IsNaN(want)) {
+		t.Fatalf("value = %#v, want %v", got, want)
 	}
 }
 

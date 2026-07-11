@@ -156,15 +156,18 @@ func (s Service) Start(ctx context.Context, request InterfaceRequest, itemKey st
 		nowUnix = s.clock.Now().Unix()
 	}
 	updated, err := s.startRepo.StartWork(ctx, domain.WorkStartCommand{
-		GuildID:     request.GuildID,
-		UserID:      request.UserID,
-		WorkName:    item.Name,
-		DurationSec: item.DurationSec,
-		EnergyCost:  item.EnergyCost,
-		CoinReward:  item.CoinReward,
-		MaxEnergy:   view.Config.MaxEnergy,
-		NowUnix:     nowUnix,
-		Override:    override,
+		GuildID:        request.GuildID,
+		UserID:         request.UserID,
+		WorkName:       item.Name,
+		DurationSec:    item.DurationSec,
+		DurationText:   item.DurationText,
+		EnergyCost:     item.EnergyCost,
+		EnergyCostText: item.EnergyCostText,
+		CoinReward:     item.CoinReward,
+		CoinRewardText: item.CoinRewardText,
+		MaxEnergy:      view.Config.MaxEnergy,
+		NowUnix:        nowUnix,
+		Override:       override,
 	})
 	if err != nil {
 		return view, item, domain.WorkUserState{}, err

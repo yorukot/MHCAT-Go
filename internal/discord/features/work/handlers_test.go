@@ -158,6 +158,16 @@ func TestWorkListRendersLegacyDurationCoercion(t *testing.T) {
 	}
 }
 
+func TestWorkStartSuccessPreservesEndTimeScalar(t *testing.T) {
+	item := domain.WorkItem{Name: "礦坑"}
+	for _, raw := range []string{"102.5", "NaN", "Infinity"} {
+		message := workStartSuccessMessage(item, domain.WorkUserState{EndTimeText: raw})
+		if got := message.Embeds[0].Description; !strings.Contains(got, "<t:"+raw+":R>") {
+			t.Fatalf("success description = %q", got)
+		}
+	}
+}
+
 func TestWorkInterfaceShowsCaptchaModalWhenEnabled(t *testing.T) {
 	repo := fakemongo.NewWorkInterfaceRepository()
 	repo.PutConfig(domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 20, Captcha: true})
