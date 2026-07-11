@@ -17,7 +17,7 @@ func (s PingService) Response(createdAt time.Time) string {
 		now = s.Clock.Now()
 	}
 	latency := time.Duration(0)
-	if !createdAt.IsZero() && now.After(createdAt) {
+	if !createdAt.IsZero() {
 		latency = now.Sub(createdAt)
 	}
 	ms := latency.Milliseconds()
