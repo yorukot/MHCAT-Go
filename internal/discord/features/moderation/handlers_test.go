@@ -765,6 +765,24 @@ func TestDeleteDataSelectMissingUsesLegacyContent(t *testing.T) {
 	}
 }
 
+func TestDeleteDataSelectBackendFailureUsesLegacyMissingContent(t *testing.T) {
+	repo := fakemongo.NewDeleteDataRepository()
+	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
+	repo.Err = errors.New("mongo unavailable")
+	module := NewDeleteDataModule(repo)
+	responder := fakediscord.NewResponder()
+
+	if err := module.DeleteDataSelectHandler()(context.Background(), deleteDataComponentInteraction(domain.DeleteDataTargetAutoChat), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(repo.Deleted) != 0 {
+		t.Fatalf("backend failure recorded deletion: %#v", repo.Deleted)
+	}
+	if len(responder.Edits) != 1 || responder.Edits[0].Content != "<a:Discord_AnimatedNo:1015989839809757295> **| 你沒有設定過這個選項!**" || responder.Edits[0].Ephemeral {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+}
+
 func TestDeleteDataSelectMetadataLessPanelRequiresManageMessages(t *testing.T) {
 	repo := fakemongo.NewDeleteDataRepository()
 	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
