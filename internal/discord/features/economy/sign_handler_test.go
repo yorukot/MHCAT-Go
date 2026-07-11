@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/color"
+	"image/draw"
 	"image/png"
 	"strings"
 	"testing"
@@ -120,6 +123,47 @@ func TestSignNavigationButtonsUseVersionedIDs(t *testing.T) {
 		if parsed.Feature != "economy" || parsed.Action != "sign_page" || parsed.Payload.Values["u"] != signTestUserID {
 			t.Fatalf("unexpected parsed id: %#v", parsed)
 		}
+	}
+}
+
+func TestSignCanvasUsesLegacyBlurredBackgroundLogoAndVerificationIcon(t *testing.T) {
+	encoded, err := renderSignPNG(signCalendarView{
+		Year: 2026, Month: time.July, Username: "Tester", Calendar: signTestCalendar(),
+	})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	rendered, err := png.Decode(bytes.NewReader(encoded))
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	expectedBackground := image.NewRGBA(image.Rect(0, 0, 1000, 707))
+	drawSignBackground(expectedBackground)
+	draw.Draw(expectedBackground, expectedBackground.Bounds(), &image.Uniform{C: color.RGBA{A: 128}}, image.Point{}, draw.Over)
+	rgba := func(value color.Color) color.RGBA { return color.RGBAModel.Convert(value).(color.RGBA) }
+	if got, want := rgba(rendered.At(10, 10)), rgba(expectedBackground.At(10, 10)); got != want {
+		t.Fatalf("background pixel = %#v want %#v", got, want)
+	}
+	logo := loadSignAsset("asset/mhcat_white.png")
+	drawSignAsset(expectedBackground, "asset/mhcat_white.png", image.Pt(20, 35))
+	if logo == nil || rgba(rendered.At(50, 65)) != rgba(expectedBackground.At(50, 65)) {
+		t.Fatalf("legacy logo was not rendered")
+	}
+	verification := loadSignAsset("asset/verify_icon.png")
+	if verification == nil {
+		t.Fatal("legacy verification asset was not loaded")
+	}
+	opaque := image.Point{-1, -1}
+	for y := verification.Bounds().Min.Y; y < verification.Bounds().Max.Y && opaque.X < 0; y++ {
+		for x := verification.Bounds().Min.X; x < verification.Bounds().Max.X; x++ {
+			if _, _, _, alpha := verification.At(x, y).RGBA(); alpha == 0xffff {
+				opaque = image.Pt(x, y)
+				break
+			}
+		}
+	}
+	if opaque.X < 0 || rgba(rendered.At(883+opaque.X, 202+opaque.Y)) != rgba(verification.At(opaque.X, opaque.Y)) {
+		t.Fatalf("legacy verification icon was not rendered")
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
+	"math"
 	"os"
 	"strconv"
 	"sync"
@@ -26,16 +27,21 @@ type signCalendarView struct {
 	Calendar   domain.SignCalendar
 }
 
+var signBackgroundCache struct {
+	once  sync.Once
+	image image.Image
+}
+
 func renderSignPNG(view signCalendarView) ([]byte, error) {
 	if view.Year < 1 || view.Month < time.January || view.Month > time.December {
 		return nil, domain.ErrInvalidSignIn
 	}
 	canvas := image.NewRGBA(image.Rect(0, 0, 1000, 707))
-	draw.Draw(canvas, canvas.Bounds(), &image.Uniform{C: color.RGBA{R: 22, G: 27, B: 42, A: 255}}, image.Point{}, draw.Src)
-	fillRect(canvas, image.Rect(30, 28, 970, 675), color.RGBA{R: 38, G: 44, B: 64, A: 255})
-	fillRect(canvas, image.Rect(49, 147, 951, 649), color.RGBA{R: 18, G: 22, B: 34, A: 255})
-	drawText(canvas, 100, 89, fmt.Sprintf("%04d/%02d", view.Year, int(view.Month)), color.RGBA{R: 0, G: 255, B: 255, A: 255}, 4)
-	drawText(canvas, 680, 89, view.Username, color.RGBA{R: 235, G: 239, B: 255, A: 255}, 3)
+	drawSignBackground(canvas)
+	draw.Draw(canvas, canvas.Bounds(), &image.Uniform{C: color.RGBA{A: 128}}, image.Point{}, draw.Over)
+	drawSignAsset(canvas, "asset/mhcat_white.png", image.Pt(20, 35))
+	drawCoinRankNumericText(canvas, 100, 89, fmt.Sprintf("%04d/%02d", view.Year, int(view.Month)), color.RGBA{R: 0, G: 255, B: 255, A: 255}, 40)
+	drawSignRightAlignedText(canvas, 880, 89, view.Username, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 45)
 	for _, line := range []struct {
 		x1, y1, x2, y2 int
 	}{
@@ -45,7 +51,7 @@ func renderSignPNG(view signCalendarView) ([]byte, error) {
 		drawLine(canvas, line.x1, line.y1, line.x2, line.y2, color.White)
 	}
 	for i, label := range []string{"Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "Sat."} {
-		drawText(canvas, 69+i*128, 185, label, color.RGBA{R: 255, G: 211, B: 6, A: 255}, 2)
+		drawCoinRankNumericText(canvas, 69+i*128, 185, label, color.RGBA{R: 255, G: 211, B: 6, A: 255}, 40)
 	}
 	yearKey := fmt.Sprintf("%04d", view.Year)
 	monthKey := fmt.Sprintf("%02d", int(view.Month))
@@ -61,18 +67,124 @@ func renderSignPNG(view signCalendarView) ([]byte, error) {
 			}
 			x := 55 + column*128
 			y := 252 + row*75
-			drawText(canvas, x, y, strconv.Itoa(day), textColor, 3)
+			drawCoinRankNumericText(canvas, x, y, strconv.Itoa(day), textColor, 45)
 			if view.Calendar.HasDay(yearKey, monthKey, strconv.Itoa(day)) {
-				drawCheck(canvas, x+60, y-45)
+				drawSignAsset(canvas, "asset/verify_icon.png", image.Pt(115+column*128, 202+row*75))
 			}
 		}
 	}
-	drawText(canvas, 120, 690, view.StatusText, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 2)
+	drawCoinRankAlignedText(canvas, 500, 690, view.StatusText, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 30, true, coinRankLanguageFont)
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, canvas); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func drawSignBackground(canvas *image.RGBA) {
+	signBackgroundCache.once.Do(func() {
+		background := loadSignAsset("asset/background.png")
+		if background == nil {
+			return
+		}
+		rgba := image.NewRGBA(image.Rect(0, 0, 1000, 707))
+		draw.Draw(rgba, rgba.Bounds(), background, background.Bounds().Min, draw.Src)
+		signBackgroundCache.image = gaussianBlurSignBackground(rgba)
+	})
+	if signBackgroundCache.image != nil {
+		draw.Draw(canvas, canvas.Bounds(), signBackgroundCache.image, image.Point{}, draw.Src)
+		return
+	}
+	draw.Draw(canvas, canvas.Bounds(), &image.Uniform{C: color.RGBA{R: 22, G: 27, B: 42, A: 255}}, image.Point{}, draw.Src)
+}
+
+func gaussianBlurSignBackground(source *image.RGBA) *image.RGBA {
+	const radius = 5
+	const sigma = 5.0
+	weights := make([]float64, radius*2+1)
+	total := 0.0
+	for offset := -radius; offset <= radius; offset++ {
+		weight := 1 / (math.Sqrt(2*math.Pi) * sigma) * math.Exp(-float64(offset*offset)/(2*sigma*sigma))
+		weights[offset+radius] = weight
+		total += weight
+	}
+	for index := range weights {
+		weights[index] /= total
+	}
+	bounds := source.Bounds()
+	result := image.NewRGBA(bounds)
+	draw.Draw(result, bounds, source, bounds.Min, draw.Src)
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			var red, green, blue, sum float64
+			for offset := -radius; offset <= radius; offset++ {
+				sampleX := x + offset
+				if sampleX < bounds.Min.X || sampleX >= bounds.Max.X {
+					continue
+				}
+				pixel := result.RGBAAt(sampleX, y)
+				weight := weights[offset+radius]
+				red += float64(pixel.R) * weight
+				green += float64(pixel.G) * weight
+				blue += float64(pixel.B) * weight
+				sum += weight
+			}
+			result.SetRGBA(x, y, color.RGBA{R: uint8(red / sum), G: uint8(green / sum), B: uint8(blue / sum), A: result.RGBAAt(x, y).A})
+		}
+	}
+	for x := bounds.Min.X; x < bounds.Max.X; x++ {
+		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+			var red, green, blue, sum float64
+			for offset := -radius; offset <= radius; offset++ {
+				sampleY := y + offset
+				if sampleY < bounds.Min.Y || sampleY >= bounds.Max.Y {
+					continue
+				}
+				pixel := result.RGBAAt(x, sampleY)
+				weight := weights[offset+radius]
+				red += float64(pixel.R) * weight
+				green += float64(pixel.G) * weight
+				blue += float64(pixel.B) * weight
+				sum += weight
+			}
+			result.SetRGBA(x, y, color.RGBA{R: uint8(red / sum), G: uint8(green / sum), B: uint8(blue / sum), A: result.RGBAAt(x, y).A})
+		}
+	}
+	return result
+}
+
+func loadSignAsset(relative string) image.Image {
+	for _, candidate := range legacyAssetCandidates(relative) {
+		file, err := os.Open(candidate)
+		if err != nil {
+			continue
+		}
+		asset, _, err := image.Decode(file)
+		_ = file.Close()
+		if err == nil {
+			return asset
+		}
+	}
+	return nil
+}
+
+func drawSignAsset(canvas *image.RGBA, relative string, point image.Point) {
+	asset := loadSignAsset(relative)
+	if asset == nil {
+		return
+	}
+	destination := image.Rectangle{Min: point, Max: point.Add(asset.Bounds().Size())}
+	draw.Draw(canvas, destination, asset, asset.Bounds().Min, draw.Over)
+}
+
+func drawSignRightAlignedText(canvas *image.RGBA, x int, y int, text string, c color.RGBA, size int) {
+	face := coinRankFontFace(coinRankLanguageFont, float64(size))
+	if face == nil {
+		drawCoinRankText(canvas, x-coinRankFallbackTextWidth(text, max(1, (size+5)/10)), y, text, c, size)
+		return
+	}
+	defer face.Close()
+	drawCoinRankText(canvas, x-font.MeasureString(face, text).Ceil(), y, text, c, size)
 }
 
 func monthGrid(year int, month time.Month) [][7]int {
