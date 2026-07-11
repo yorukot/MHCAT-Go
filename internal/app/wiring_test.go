@@ -524,6 +524,42 @@ func TestBuildRuntimeRoutesEconomyCoinAdminWithoutPublishingQueryOrSignIn(t *tes
 	}
 }
 
+func TestBuildRuntimeTracksEveryCoinAdminAttemptOnce(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                     validTestConfig(),
+		EconomyCoinAdminRepository: repo,
+		UsageTracker:               tracker,
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	valid := fakediscord.SlashInteractionWithOptions("代幣增加", "", map[string]string{"使用者": "target", "增加或減少": "add", "數量": "10"})
+	valid.Actor.PermissionBits = 8192
+	permissionDenied := valid
+	permissionDenied.Actor.PermissionBits = 0
+	missingReduce := fakediscord.SlashInteractionWithOptions("代幣增加", "", map[string]string{"使用者": "missing", "增加或減少": "reduce", "數量": "1"})
+	missingReduce.Actor.PermissionBits = 8192
+	for _, interaction := range []interactions.Interaction{valid, permissionDenied, missingReduce} {
+		if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+			t.Fatalf("dispatch coin admin: %v", err)
+		}
+	}
+	if len(tracker.Events) != 3 {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for index, event := range tracker.Events {
+		if event.CommandName != "代幣增加" {
+			t.Fatalf("usage event %d = %#v", index, event)
+		}
+	}
+	balance, err := repo.GetCoinBalance(context.Background(), "guild-1", "target")
+	if err != nil || balance.Coins != 10 {
+		t.Fatalf("balance = %#v, err=%v", balance, err)
+	}
+}
+
 func TestBuildRuntimeRoutesEconomyCoinRankWithoutPublishingOtherEconomyCommands(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	viewerID := "123456789012345678"
