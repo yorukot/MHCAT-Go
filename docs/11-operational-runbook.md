@@ -843,6 +843,8 @@ MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 
 The delivery path reads `join_messages`, sends the legacy welcome embed on `guildMemberAdd`, allows only the joining user mention for `(TAG)`/`{TAG}` placeholders, and performs no Mongo writes. The legacy MHCAT-server special welcome embed is available without hardcoded IDs by setting `MHCAT_LEGACY_WELCOME_SPECIAL_GUILD_ID`, `MHCAT_LEGACY_WELCOME_SPECIAL_BOT_ID`, `MHCAT_LEGACY_WELCOME_SPECIAL_CHANNEL_ID`, `MHCAT_LEGACY_WELCOME_SPECIAL_CHAT_CHANNEL_ID`, `MHCAT_LEGACY_WELCOME_SPECIAL_HELP_CHANNEL_ID`, `MHCAT_LEGACY_WELCOME_SPECIAL_BUG_CHANNEL_ID`, and `MHCAT_LEGACY_WELCOME_SPECIAL_SUPPORT_CHANNEL_ID` together.
 
+Generic, special, and leave sends require cached guild channels and never REST-bypass a missing cache entry. Exact UI/data behavior, ownership, migration, staging, and rollback are in [82-welcome-leave.md](82-welcome-leave.md).
+
 ## Economy Daily Reset
 
 Go provides a dry-run/apply command and a separately gated recurring worker for the legacy `00:00 Asia/Taipei` economy reset. Both Go write paths coordinate through lease name `daily-reset`.

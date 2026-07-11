@@ -627,6 +627,8 @@ export MHCAT_COMMAND_SYNC_INCLUDE_WELCOME_MESSAGE_CONFIG=true
 
 Set both together only in an isolated staging guild/database when testing `/加入訊息設置` and `/退出訊息設置`. `/加入訊息設置` is a dashboard redirect only. `/退出訊息設置` writes `leave_messages`; it does not enable Guild Members intent, welcome/leave event sending, join-message modal writes, verification, or account-age kick behavior.
 
+Run the complete config/data portion of [82-welcome-leave.md](82-welcome-leave.md), including exact UI, scalar rows, duplicate alignment, usage, and rollback.
+
 Optional welcome-message delivery smoke flags:
 
 ```bash
@@ -638,6 +640,8 @@ export MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 Set these only after the staging dashboard or legacy data has a safe `join_messages` row for the staging guild. This event-only path registers no slash commands, has no command-sync include flag, reads `join_messages`, sends a legacy-style welcome embed on `guildMemberAdd`, and performs no Mongo writes.
 
 If testing the legacy MHCAT-server special welcome embed, set all empty-by-default `MHCAT_LEGACY_WELCOME_SPECIAL_*` values together for the staging target. They include the special guild ID, bot ID, send channel ID, and the four visible channel mentions in the legacy description. Do not commit private guild/channel IDs.
+
+Run the complete generic/special welcome portion of [82-welcome-leave.md](82-welcome-leave.md), including cached/missing channels, placeholders, colors, identities, account-age ordering, and rollback.
 
 Optional verification config smoke flags:
 
@@ -696,6 +700,8 @@ export MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 ```
 
 Set these only after `/退出訊息設置` has configured a staging `leave_messages` row. This path registers no slash commands and performs no Mongo writes while handling member-remove events.
+
+Run the complete leave delivery portion of [82-welcome-leave.md](82-welcome-leave.md), including cached/missing channels, placeholders, colors, raw title, identities, and rollback.
 
 Do not paste real values into committed docs.
 
@@ -1555,6 +1561,7 @@ If join-role assignment was explicitly enabled:
 
 If welcome-message delivery was explicitly enabled:
 
+- run every generic/special welcome case in [82-welcome-leave.md](82-welcome-leave.md), not only the happy path;
 - create or confirm a staging `join_messages` row with safe `channel`, `message_content`, `color`, and optional `img`;
 - join the staging guild with a disposable test member;
 - verify one legacy-style welcome embed appears in the configured channel;
@@ -1565,6 +1572,7 @@ If welcome-message delivery was explicitly enabled:
 
 If leave-message delivery was explicitly enabled:
 
+- run every leave setup/delivery/data/rollback case in [82-welcome-leave.md](82-welcome-leave.md), not only the happy path;
 - configure `/退出訊息設置` in a staging-only channel;
 - remove a test member from the staging guild;
 - verify one legacy-style leave embed appears in the configured channel;

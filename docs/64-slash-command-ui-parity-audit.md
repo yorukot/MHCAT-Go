@@ -2,7 +2,7 @@
 
 Generated from the current local legacy `MHCAT/slashCommands` tree and the current Go command definitions.
 This is a static slash-command metadata audit for names, descriptions, options, and option flags; handler behavior remains covered by feature-specific tests and docs.
-Default permission discoverability and runtime permission responses are outside this generic audit; announcement and anti-scam permission behavior is locked in their [announcement](76-announcement.md) and [anti-scam](77-anti-scam.md) contracts.
+Default permission discoverability and runtime permission responses are outside this generic audit; feature-specific behavior is locked in canonical contracts including [announcement](76-announcement.md), [anti-scam](77-anti-scam.md), and [welcome/leave](82-welcome-leave.md).
 Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown`.
 
 ## Summary
@@ -40,7 +40,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `刪除訊息` | `slashCommands/管理系統/clear.js` | matching-definition | none |
 | `刪除資料` | `slashCommands/管理系統/delete_data.js` | matching-definition | none |
 | `剪刀石頭布` | `slashCommands/代幣系統/rock_paper_scissors.js` | matching-definition | none |
-| `加入訊息設置` | `slashCommands/加入設置/join_messag.js` | matching-definition | none |
+| `加入訊息設置` | `slashCommands/加入設置/join_messag.js` | parity-audited | public unrestricted dashboard redirect; exact contract in [82-welcome-leave.md](82-welcome-leave.md) |
 | `加入身份組刪除` | `slashCommands/加入設置/join_role_delete.js` | parity-audited | public definition/runtime permission; see [81-join-role.md](81-join-role.md) |
 | `加入身份組設置` | `slashCommands/加入設置/join_role.js` | parity-audited | public definition/runtime permission; see [81-join-role.md](81-join-role.md) |
 | `帳號需創建時數` | `slashCommands/群組防護/create_hours.js` | parity-audited | See [account-age parity contract](79-account-age.md) |
@@ -87,7 +87,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `警告清除` | `slashCommands/警告系統/remove-warn.js` | matching-definition | none |
 | `警告紀錄` | `slashCommands/警告系統/warnings.js` | matching-definition | none |
 | `警告設定` | `slashCommands/警告系統/erros_set.js` | matching-definition | none |
-| `退出訊息設置` | `slashCommands/加入設置/leave_message.js` | matching-definition | none |
+| `退出訊息設置` | `slashCommands/加入設置/leave_message.js` | parity-audited | public definition plus runtime Manage Messages; exact contract in [82-welcome-leave.md](82-welcome-leave.md) |
 | `選取身分組-按鈕` | `slashCommands/管理系統/releadd.js` | matching-definition | none |
 | `選取身分組-表情符號` | `slashCommands/管理系統/role.js` | matching-definition | none |
 | `選取身分組刪除-表情符號` | `slashCommands/管理系統/role_delete.js` | matching-definition | none |

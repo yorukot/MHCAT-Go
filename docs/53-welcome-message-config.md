@@ -1,5 +1,7 @@
 # Welcome Message Config Slice
 
+Superseded by the canonical [welcome and leave message parity contract](82-welcome-leave.md). Retained as implementation history only.
+
 Status: implemented behind explicit flags.
 
 ## Scope
