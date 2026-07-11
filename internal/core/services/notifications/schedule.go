@@ -82,11 +82,6 @@ func (s ScheduleService) StartSetup(ctx context.Context, draft domain.AutoNotifi
 	if len(schedules) >= 10 {
 		return ports.ErrAutoNotificationScheduleLimit
 	}
-	for _, schedule := range schedules {
-		if strings.TrimSpace(schedule.ID) == draft.ID {
-			return ports.ErrAutoNotificationScheduleExists
-		}
-	}
 	return s.Repository.CreatePendingAutoNotificationSchedule(ctx, draft)
 }
 

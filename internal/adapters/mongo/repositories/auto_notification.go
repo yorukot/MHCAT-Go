@@ -138,6 +138,13 @@ func (r *AutoNotificationScheduleRepository) CreatePendingAutoNotificationSchedu
 	if err := domain.ValidateAutoNotificationSetupDraft(draft); err != nil {
 		return err
 	}
+	lookupErr := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: draft.GuildID}, {Key: "id", Value: draft.ID}}).Err()
+	if lookupErr == nil {
+		return ports.ErrAutoNotificationScheduleExists
+	}
+	if lookupErr != drivermongo.ErrNoDocuments {
+		return mhcatmongo.MapError(fmt.Errorf("check pending auto-notification schedule: %w", lookupErr))
+	}
 	_, err := r.collection.InsertOne(ctx, documents.AutoNotificationPendingWriteDocumentFromDomain(draft))
 	if err != nil {
 		mapped := mhcatmongo.MapError(fmt.Errorf("create pending auto-notification schedule: %w", err))

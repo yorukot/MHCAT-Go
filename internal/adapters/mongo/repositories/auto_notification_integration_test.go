@@ -2,12 +2,16 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 
 	mhcatmongo "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	corenotifications "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/notifications"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	drivermongo "go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -55,6 +59,38 @@ func TestAutoNotificationMongoIntegrationKeepsMalformedRowsIsolated(t *testing.T
 	scalar, err := repository.GetAutoNotificationDelivery(context.Background(), "guild-1", "scalar")
 	if err != nil || scalar.Cron != "15 * * * *" || scalar.ChannelID != "channel-2" {
 		t.Fatalf("scalar delivery = %#v, err=%v", scalar, err)
+	}
+}
+
+func TestAutoNotificationMongoIntegrationSetupUsesExactStringID(t *testing.T) {
+	database := autoNotificationIntegrationDatabase(t)
+	repository, err := NewAutoNotificationScheduleRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	collection := database.Collection(AutoNotificationScheduleCollectionName)
+	if _, err := collection.InsertOne(context.Background(), bson.D{
+		{Key: "guild", Value: "guild-1"},
+		{Key: "id", Value: int64(123)},
+		{Key: "cron", Value: "*/30 * * * *"},
+		{Key: "channel", Value: "channel-old"},
+		{Key: "message", Value: bson.D{{Key: "content", Value: "old"}}},
+	}); err != nil {
+		t.Fatalf("seed numeric id: %v", err)
+	}
+	service := corenotifications.NewScheduleService(repository)
+	draft := domain.AutoNotificationSetupDraft{GuildID: "guild-1", ID: "123", ChannelID: "channel-new"}
+	if err := service.StartSetup(context.Background(), draft); err != nil {
+		t.Fatalf("start setup: %v", err)
+	}
+	if count, err := collection.CountDocuments(context.Background(), bson.D{{Key: "guild", Value: "guild-1"}}); err != nil || count != 2 {
+		t.Fatalf("guild rows=%d err=%v", count, err)
+	}
+	if count, err := collection.CountDocuments(context.Background(), bson.D{{Key: "guild", Value: "guild-1"}, {Key: "id", Value: "123"}}); err != nil || count != 1 {
+		t.Fatalf("string-id rows=%d err=%v", count, err)
+	}
+	if err := service.StartSetup(context.Background(), draft); !errors.Is(err, ports.ErrAutoNotificationScheduleExists) {
+		t.Fatalf("second setup error = %v", err)
 	}
 }
 
