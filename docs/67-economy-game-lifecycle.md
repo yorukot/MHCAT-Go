@@ -10,7 +10,7 @@ Status: transactional wagers, legacy transition UI/timing, and active-game timeo
 
 ## Implemented Behavior
 
-All three subcommands preserve the legacy random-color invite, component IDs, acceptance feedback, and two-player wager model. A rejected invite disables only accept/reject; the blackjack and higher/lower tutorial buttons remain available and render their full legacy private embeds.
+All three subcommands preserve the legacy random-color invite, component IDs, and two-player wager model. Knowledge and blackjack preserve their private acceptance feedback; higher/lower immediately replaces the invite with its public draw message and sends no extra acceptance reply. A rejected invite disables only accept/reject; the blackjack and higher/lower tutorial buttons remain available and render their full legacy private embeds.
 
 - `比大小` removes the invite components, displays the legacy random-draw text/GIF for five seconds, and only then settles and displays both numbers.
 - `知識王` sends the legacy ephemeral acceptance embed and displays the first question after 500 milliseconds.
