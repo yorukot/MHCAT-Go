@@ -19,12 +19,23 @@ func (m Module) Handler() interactions.Handler {
 		}
 		balance, err := m.service.Get(ctx, interaction.Actor.GuildID)
 		if err != nil {
-			return err
+			return responder.EditOriginal(ctx, errorMessage())
 		}
 		if err := responder.EditOriginal(ctx, message(balance.Amount)); err != nil {
 			return err
 		}
 		return m.track(ctx, interaction)
+	}
+}
+
+func errorMessage() responses.Message {
+	return responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<a:Discord_AnimatedNo:1015989839809757295> | 很抱歉，出現了未知的錯誤，請重試!",
+			Color: 0xED4245,
+		}},
+		Ephemeral:       true,
+		AllowedMentions: &responses.AllowedMentions{},
 	}
 }
 
