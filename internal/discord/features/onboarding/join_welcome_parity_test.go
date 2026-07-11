@@ -1,13 +1,17 @@
 package onboarding
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
 
 func TestJoinRoleMessagesPreserveLegacyPayloads(t *testing.T) {
@@ -81,6 +85,31 @@ func TestJoinRoleMessagesPreserveLegacyPayloads(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if !reflect.DeepEqual(tc.got, tc.want) {
 				t.Fatalf("message = %#v, want %#v", tc.got, tc.want)
+			}
+		})
+	}
+}
+
+func TestJoinRoleHandlersPreserveLegacyPublicVisibility(t *testing.T) {
+	module := NewModule(fakemongo.NewJoinRoleConfigRepository(), fakediscord.NewSideEffects())
+	for _, test := range []struct {
+		name    string
+		handler func() interactions.Handler
+		command string
+	}{
+		{name: "set", handler: module.SetHandler, command: JoinRoleSetCommandName},
+		{name: "delete", handler: module.DeleteHandler, command: JoinRoleDeleteCommandName},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			responder := fakediscord.NewResponder()
+			if err := test.handler()(context.Background(), fakediscord.SlashInteraction(test.command), responder); err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+			if len(responder.Defers) != 1 || responder.Defers[0].Ephemeral {
+				t.Fatalf("defer should be public: %#v", responder.Defers)
+			}
+			if len(responder.Edits) != 1 || responder.Edits[0].Ephemeral {
+				t.Fatalf("edit should retain public visibility: %#v", responder.Edits)
 			}
 		})
 	}

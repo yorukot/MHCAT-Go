@@ -21,6 +21,21 @@ func TestLeaveMessagePrepareInsertUpdate(t *testing.T) {
 	}
 }
 
+func TestJoinRoleInsertUpdateRemainsTyped(t *testing.T) {
+	document := documents.JoinRoleDocumentFromDomain(domain.JoinRoleConfig{
+		GuildID: "guild", RoleID: "role", GiveTo: domain.JoinRoleGiveMembers,
+	})
+	update, err := joinRoleInsertUpdate(document)
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if !bsonDHas(update, "$setOnInsert", "guild", "guild") ||
+		!bsonDHas(update, "$setOnInsert", "role", "role") ||
+		!bsonDHas(update, "$setOnInsert", "give_to_who", domain.JoinRoleGiveMembers) {
+		t.Fatalf("join-role insert = %#v", update)
+	}
+}
+
 func TestLeaveMessageContentUpdate(t *testing.T) {
 	document := documents.LeaveMessageDocumentFromDomain(domain.LeaveMessageConfig{
 		GuildID:        "guild",
