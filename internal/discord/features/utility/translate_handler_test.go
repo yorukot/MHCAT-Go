@@ -3,6 +3,7 @@ package utility
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -10,21 +11,42 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/faketranslate"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestTranslateDefinitionMatchesLegacyShape(t *testing.T) {
-	definition := commands.TranslateDefinition()
-	if definition.Name != "翻譯" || definition.Description != "翻譯成各種語言" {
-		t.Fatalf("definition = %#v", definition)
+	want := commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        "翻譯",
+		Description: "翻譯成各種語言",
+		DocsURL:     "https://docsmhcat.yorukot.me/docs/translate",
+		Ownership:   commands.ManagedOwnership("translate", commands.ScopeGuild),
+		Options: []commands.Option{
+			{Type: commands.OptionTypeString, Name: "要的翻譯", Description: "你要翻譯的句子或是單詞!", Required: true},
+			{
+				Type:        commands.OptionTypeString,
+				Name:        "目標語言",
+				Description: "你要翻譯成的語言!",
+				Required:    true,
+				Choices: []commands.Choice{
+					{Name: "🇹🇼中文(traditional Chinese)", Value: "zh-TW"},
+					{Name: "🇺🇸英文(English)", Value: "en"},
+					{Name: "🇯🇵日文(Japanese)", Value: "ja"},
+					{Name: "🇰🇷韓語(Korean)", Value: "ko"},
+					{Name: "🇩🇪德語(German)", Value: "de"},
+					{Name: "🇫🇷法語(French)", Value: "fr"},
+					{Name: "🇷🇺俄語(Russian)", Value: "ru"},
+					{Name: "🇪🇸西班牙語(Spanish)", Value: "es"},
+					{Name: "🇨🇳簡體中文(Simplified Chinese)", Value: "zh-CN"},
+				},
+			},
+		},
 	}
-	if len(definition.Options) != 2 || definition.Options[0].Name != "要的翻譯" || definition.Options[1].Name != "目標語言" {
-		t.Fatalf("options = %#v", definition.Options)
-	}
-	if len(definition.Options[1].Choices) != 9 {
-		t.Fatalf("choices = %#v", definition.Options[1].Choices)
+	if got := commands.TranslateDefinition(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("definition = %#v, want %#v", got, want)
 	}
 }
 
@@ -43,30 +65,43 @@ func TestTranslateHandlerRendersLegacyLoadingAndResultEmbeds(t *testing.T) {
 	if err := module.TranslateHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("translate handler: %v", err)
 	}
-	if len(responder.Defers) != 1 {
+	if !reflect.DeepEqual(responder.Defers, []responses.DeferOptions{{}}) {
 		t.Fatalf("defers = %#v", responder.Defers)
 	}
 	if len(responder.Follow) != 1 || len(responder.FollowEdits) != 1 || len(responder.Edits) != 0 {
 		t.Fatalf("follow=%#v follow edits=%#v original edits=%#v", responder.Follow, responder.FollowEdits, responder.Edits)
 	}
-	if responder.Follow[0].Embeds[0].Title != "<a:load:986319593444352071> | 我正在玩命幫你翻譯!" {
-		t.Fatalf("loading embed = %#v", responder.Follow[0].Embeds[0])
+	wantLoading := responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<a:load:986319593444352071> | 我正在玩命幫你翻譯!",
+			Color: 0x57F287,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
+	if !reflect.DeepEqual(responder.Follow[0], wantLoading) {
+		t.Fatalf("loading = %#v, want %#v", responder.Follow[0], wantLoading)
 	}
 	if responder.FollowEdits[0].MessageID != responder.FollowIDs[0] {
 		t.Fatalf("follow-up edit = %#v ids=%#v", responder.FollowEdits, responder.FollowIDs)
 	}
-	final := responder.FollowEdits[0].Message.Embeds[0]
-	if final.Title != "<:translate:986870996147507231> 翻譯系統" || final.Color != 0x123456 || len(final.Fields) != 3 {
-		t.Fatalf("final embed = %#v", final)
+	wantFinal := responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<:translate:986870996147507231> 翻譯系統",
+			Color: 0x123456,
+			Fields: []responses.EmbedField{
+				{Name: "**<:edittext:986873966884962304> 原文**:", Value: "` 你好 `", Inline: false},
+				{Name: "**<:answer:986873630178832414> 目標語言:**", Value: "`en`", Inline: false},
+				{Name: "**<:translate1:986873633483939901> 譯文:**", Value: "`hello`", Inline: false},
+			},
+			Footer: &responses.EmbedFooter{Text: "Tester#0001的查詢", IconURL: "https://example.invalid/avatar.png"},
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
 	}
-	if final.Fields[0].Value != "` 你好 `" || final.Fields[2].Value != "`hello`" {
-		t.Fatalf("fields = %#v", final.Fields)
+	if got := responder.FollowEdits[0].Message; !reflect.DeepEqual(got, wantFinal) {
+		t.Fatalf("final = %#v, want %#v", got, wantFinal)
 	}
 	if len(provider.Requests) != 1 || provider.Requests[0].Text != " 你好 " {
 		t.Fatalf("provider requests = %#v", provider.Requests)
-	}
-	if final.Footer == nil || final.Footer.Text != "Tester#0001的查詢" {
-		t.Fatalf("footer = %#v", final.Footer)
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != "翻譯" {
 		t.Fatalf("usage = %#v", usage.Events)
@@ -107,9 +142,16 @@ func TestTranslateHandlerReturnsSafeProviderError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("translate handler: %v", err)
 	}
+	want := responses.Message{
+		Embeds: []responses.Embed{{
+			Title: "<a:Discord_AnimatedNo:1015989839809757295> | 很抱歉，翻譯失敗，請稍後再試!",
+			Color: 0xEA0000,
+		}},
+		AllowedMentions: &responses.AllowedMentions{},
+	}
 	last := responder.FollowEdits[len(responder.FollowEdits)-1].Message
-	if strings.Contains(last.Embeds[0].Title, "provider internal") || !strings.Contains(last.Embeds[0].Title, "翻譯失敗") {
-		t.Fatalf("error embed leaked provider detail: %#v", last.Embeds[0])
+	if !reflect.DeepEqual(last, want) || strings.Contains(last.Embeds[0].Title, "provider internal") {
+		t.Fatalf("error = %#v, want %#v", last, want)
 	}
 }
 
