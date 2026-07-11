@@ -13,6 +13,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	discordevents "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakebotinfo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
@@ -847,6 +848,68 @@ func TestBuildRuntimeRoutesWarningIssueOnlyWithRepository(t *testing.T) {
 	history := repo.Histories["guild-1\x00user-2"]
 	if len(history.Entries) != 1 || history.Entries[0].Reason != "洗版" || history.Entries[0].Time != "2026年07月04日 18點30分" {
 		t.Fatalf("saved warning history = %#v", history)
+	}
+}
+
+func TestBuildRuntimeTracksEachWarningSlashAttemptOnce(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	history := fakemongo.NewWarningHistoryRepository()
+	history.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "existing"}}})
+	settings := fakemongo.NewWarningSettingsRepository()
+	removal := fakemongo.NewWarningRemovalRepository()
+	removal.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}, {Reason: "second"}}})
+	sideEffects := fakediscord.NewSideEffects()
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                        validTestConfig(),
+		UsageTracker:                  tracker,
+		WarningsFeatureEnabled:        true,
+		WarningHistoryRepository:      history,
+		WarningSettingsFeatureEnabled: true,
+		WarningSettingsRepository:     settings,
+		WarningRemovalFeatureEnabled:  true,
+		WarningRemovalRepository:      removal,
+		WarningRemovalDirectMessage:   sideEffects,
+		WarningIssueFeatureEnabled:    true,
+		WarningIssueRepository:        history,
+		WarningIssueDirectMessage:     sideEffects,
+		WarningIssueHierarchy:         sideEffects,
+		WarningIssueMemberPort:        sideEffects,
+		WarningIssueMessagePort:       sideEffects,
+		Clock:                         appFixedClock{now: time.Date(2026, 7, 4, 10, 30, 0, 0, time.UTC)},
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+
+	attempts := []interactions.Interaction{
+		fakediscord.SlashInteractionWithOptions("警告紀錄", "", map[string]string{"使用者": "missing"}),
+		fakediscord.SlashInteractionWithOptions("警告紀錄", "", map[string]string{"使用者": "user-2"}),
+		fakediscord.SlashInteractionWithOptions("警告設定", "", map[string]string{"執行的動作": "停權", "幾次警告後執行動作": "3"}),
+		fakediscord.SlashInteractionWithOptions("警告設定", "", map[string]string{"執行的動作": "踢出", "幾次警告後執行動作": "4"}),
+		fakediscord.SlashInteractionWithOptions("警告清除", "", map[string]string{"使用者": "user-2", "第幾項": "1"}),
+		fakediscord.SlashInteractionWithOptions("警告清除", "", map[string]string{"使用者": "user-2", "第幾項": "1"}),
+		fakediscord.SlashInteractionWithOptions("警告全部清除", "", map[string]string{"使用者": "user-2"}),
+		fakediscord.SlashInteractionWithOptions("警告全部清除", "", map[string]string{"使用者": "user-2"}),
+		fakediscord.SlashInteractionWithOptions("警告", "", map[string]string{"使用者": "user-3", "原因": "denied"}),
+		fakediscord.SlashInteractionWithOptions("警告", "", map[string]string{"使用者": "user-3", "原因": "allowed"}),
+	}
+	for index := range attempts {
+		if index%2 == 1 || index < 2 {
+			attempts[index].Actor.PermissionBits = 8192
+		}
+		if err := dispatcher.Dispatch(context.Background(), attempts[index], fakediscord.NewResponder()); err != nil {
+			t.Fatalf("dispatch attempt %d: %v", index, err)
+		}
+	}
+
+	wantNames := []string{"警告紀錄", "警告紀錄", "警告設定", "警告設定", "警告清除", "警告清除", "警告全部清除", "警告全部清除", "警告", "警告"}
+	if len(tracker.Events) != len(wantNames) {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for index, wantName := range wantNames {
+		if tracker.Events[index].CommandName != wantName {
+			t.Fatalf("usage event %d = %#v", index, tracker.Events[index])
+		}
 	}
 }
 

@@ -53,8 +53,7 @@ func TestWarningHistoryRendersLegacyEmbed(t *testing.T) {
 	members := fakediscord.NewSideEffects()
 	members.MemberTagValues["mod-1"] = "admin#0001"
 	discordInfo := &fakebotinfo.DiscordInfoProvider{User: ports.DiscordUserInfo{ID: "user-2", Username: "target"}}
-	usage := &fakeusage.Tracker{}
-	module := NewModule(repo, members, discordInfo, usage)
+	module := NewModule(repo, members, discordInfo, nil)
 	responder := fakediscord.NewResponder()
 	interaction := warningHistoryInteraction("user-2")
 
@@ -70,9 +69,6 @@ func TestWarningHistoryRendersLegacyEmbed(t *testing.T) {
 	}
 	if !strings.Contains(embed.Description, "- 警告者: admin#0001") || !strings.Contains(embed.Description, "- 原因: 洗版") || !strings.Contains(embed.Description, "- 時間: 2026-07-04") {
 		t.Fatalf("description = %q", embed.Description)
-	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != WarningHistoryCommandName || usage.Events[0].Feature != "warnings" {
-		t.Fatalf("usage events = %#v", usage.Events)
 	}
 }
 
@@ -122,8 +118,7 @@ func TestWarningSettingsRequiresManageMessages(t *testing.T) {
 
 func TestWarningSettingsSavesAndRendersLegacyEmbed(t *testing.T) {
 	repo := fakemongo.NewWarningSettingsRepository()
-	usage := &fakeusage.Tracker{}
-	module := NewSettingsModule(repo, usage)
+	module := NewSettingsModule(repo, nil)
 	responder := fakediscord.NewResponder()
 	interaction := warningSettingsInteraction(domain.WarningSettingsActionKick, "4")
 
@@ -140,9 +135,6 @@ func TestWarningSettingsSavesAndRendersLegacyEmbed(t *testing.T) {
 	got := repo.Settings["guild-1"]
 	if got.Threshold != 4 || got.Action != domain.WarningSettingsActionKick {
 		t.Fatalf("saved settings = %#v", got)
-	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != WarningSettingsCommandName || usage.Events[0].Feature != "warning-settings" {
-		t.Fatalf("usage events = %#v", usage.Events)
 	}
 }
 
@@ -220,8 +212,7 @@ func TestWarningIssueSavesRendersLegacyEmbedAndDMs(t *testing.T) {
 	settings := fakemongo.NewWarningSettingsRepository()
 	sideEffects := fakediscord.NewSideEffects()
 	discordInfo := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{Name: "測試伺服器"}}
-	usage := &fakeusage.Tracker{}
-	module := NewIssueModule(repo, settings, sideEffects, discordInfo, sideEffects, sideEffects, sideEffects, moderationFixedClock{now: time.Date(2026, 7, 4, 10, 30, 0, 0, time.UTC)}, usage)
+	module := NewIssueModule(repo, settings, sideEffects, discordInfo, sideEffects, sideEffects, sideEffects, moderationFixedClock{now: time.Date(2026, 7, 4, 10, 30, 0, 0, time.UTC)}, nil)
 	responder := fakediscord.NewResponder()
 
 	if err := module.WarningIssueHandler()(context.Background(), warningIssueInteraction("user-2", "洗版"), responder); err != nil {
@@ -239,9 +230,6 @@ func TestWarningIssueSavesRendersLegacyEmbedAndDMs(t *testing.T) {
 	}
 	if description := sideEffects.DirectMessages[0].Message.Embeds[0].Description; !strings.Contains(description, "你在測試伺服器被__警告__了") || !strings.Contains(description, "**原因:**洗版") || !strings.Contains(description, "User(id:user-1)") {
 		t.Fatalf("dm description = %q", description)
-	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != WarningIssueCommandName || usage.Events[0].Feature != "warning-issue" {
-		t.Fatalf("usage events = %#v", usage.Events)
 	}
 }
 
@@ -333,8 +321,7 @@ func TestWarningRemoveSavesRendersLegacyEmbedAndDMs(t *testing.T) {
 	})
 	sideEffects := fakediscord.NewSideEffects()
 	discordInfo := &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{Name: "測試伺服器"}}
-	usage := &fakeusage.Tracker{}
-	module := NewRemovalModule(repo, sideEffects, discordInfo, usage)
+	module := NewRemovalModule(repo, sideEffects, discordInfo, nil)
 	responder := fakediscord.NewResponder()
 	interaction := warningRemoveInteraction("user-2", "1")
 
@@ -353,9 +340,6 @@ func TestWarningRemoveSavesRendersLegacyEmbedAndDMs(t *testing.T) {
 	}
 	if description := sideEffects.DirectMessages[0].Message.Embeds[0].Description; !strings.Contains(description, "你在測試伺服器的一個__警告__被刪除了") || !strings.Contains(description, "User(id:user-1)") {
 		t.Fatalf("dm description = %q", description)
-	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != WarningRemoveCommandName || usage.Events[0].Feature != "warning-removal" {
-		t.Fatalf("usage events = %#v", usage.Events)
 	}
 }
 

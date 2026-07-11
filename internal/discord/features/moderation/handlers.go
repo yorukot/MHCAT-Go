@@ -53,7 +53,7 @@ func (m Module) WarningHistoryHandler() interactions.Handler {
 		if err := responder.EditOriginal(ctx, warningHistoryMessage(history, targetName, moderatorTags)); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, WarningHistoryCommandName, "warnings")
+		return nil
 	}
 }
 
@@ -81,7 +81,7 @@ func (m Module) WarningSettingsHandler() interactions.Handler {
 		if err := responder.EditOriginal(ctx, warningSettingsMessage(settings)); err != nil {
 			return err
 		}
-		return m.track(ctx, interaction, WarningSettingsCommandName, "warning-settings")
+		return nil
 	}
 }
 
@@ -106,7 +106,7 @@ func (m Module) WarningRemoveHandler() interactions.Handler {
 			return err
 		}
 		m.sendWarningRemovalDM(ctx, interaction, userID, false)
-		return m.track(ctx, interaction, WarningRemoveCommandName, "warning-removal")
+		return nil
 	}
 }
 
@@ -127,7 +127,7 @@ func (m Module) WarningRemoveAllHandler() interactions.Handler {
 			return err
 		}
 		m.sendWarningRemovalDM(ctx, interaction, userID, true)
-		return m.track(ctx, interaction, WarningRemoveAllCommandName, "warning-removal")
+		return nil
 	}
 }
 
@@ -169,7 +169,7 @@ func (m Module) WarningIssueHandler() interactions.Handler {
 			return err
 		}
 		m.sendWarningIssueDM(ctx, interaction, userID, reason)
-		return m.track(ctx, interaction, WarningIssueCommandName, "warning-issue")
+		return nil
 	}
 }
 
