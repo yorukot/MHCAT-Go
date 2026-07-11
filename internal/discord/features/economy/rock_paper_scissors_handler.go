@@ -38,7 +38,11 @@ func (m Module) RockPaperScissorsHandler() interactions.Handler {
 		if err != nil {
 			return responder.EditOriginal(ctx, rockPaperScissorsErrorFromError(err))
 		}
-		if err := responder.EditOriginal(ctx, rockPaperScissorsSuccessMessage(result, interaction.Actor.AvatarURL, m.color())); err != nil {
+		avatarURL := strings.TrimSpace(interaction.Actor.GuildAvatarURL)
+		if avatarURL == "" {
+			avatarURL = interaction.Actor.AvatarURL
+		}
+		if err := responder.EditOriginal(ctx, rockPaperScissorsSuccessMessage(result, avatarURL, m.color())); err != nil {
 			return err
 		}
 		return m.trackCommand(ctx, interaction, RockPaperScissorsCommandName)

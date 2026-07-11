@@ -40,6 +40,7 @@ func TestRockPaperScissorsWinUpdatesBalanceAndRendersLegacyEmbed(t *testing.T) {
 	responder := fakediscord.NewResponder()
 	interaction := rockPaperScissorsInteraction(25, domain.RockPaperScissorsChoiceScissors)
 	interaction.Actor.AvatarURL = "https://example.test/avatar.png"
+	interaction.Actor.GuildAvatarURL = "https://example.test/guild-avatar.gif"
 	if err := module.RockPaperScissorsHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
@@ -61,7 +62,7 @@ func TestRockPaperScissorsWinUpdatesBalanceAndRendersLegacyEmbed(t *testing.T) {
 	if embed.Description != wantDescription {
 		t.Fatalf("description = %q", embed.Description)
 	}
-	if embed.Footer == nil || embed.Footer.Text != "剪刀石頭布! | MHCAT" || embed.Footer.IconURL != "https://example.test/avatar.png" {
+	if embed.Footer == nil || embed.Footer.Text != "剪刀石頭布! | MHCAT" || embed.Footer.IconURL != "https://example.test/guild-avatar.gif" {
 		t.Fatalf("footer = %#v", embed.Footer)
 	}
 	if embed.Color != 0x123456 {
