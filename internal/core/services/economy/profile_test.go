@@ -177,3 +177,25 @@ func TestLegacyProfileRawAmountPreservesConfigScalars(t *testing.T) {
 		t.Fatalf("typed fallback = %q", got)
 	}
 }
+
+func TestLegacyProfileWorkStatePreservesEndTimeScalars(t *testing.T) {
+	tests := []struct {
+		text string
+		want string
+	}{
+		{text: "undefined", want: "待業中"},
+		{text: "null", want: "待業中"},
+		{text: "999.5", want: "待業中"},
+		{text: "1000.5", want: "打工中"},
+		{text: "Infinity", want: "打工中"},
+		{text: "-Infinity", want: "待業中"},
+	}
+	for _, test := range tests {
+		if got := LegacyProfileWorkState(test.text, 0, 1000); got != test.want {
+			t.Fatalf("LegacyProfileWorkState(%q) = %q want %q", test.text, got, test.want)
+		}
+	}
+	if got := LegacyProfileWorkState("", 1001, 1000); got != "打工中" {
+		t.Fatalf("typed fallback = %q", got)
+	}
+}

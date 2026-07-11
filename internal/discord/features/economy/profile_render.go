@@ -183,8 +183,8 @@ func drawProfileStats(canvas *image.RGBA, result coreeconomy.ProfileResult) {
 	drawProfileTextCentered(canvas, 639, 587, profileWorkStateText(result), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
 	drawProfileTextCentered(canvas, 1045, 525, profileConfigRawText(result.Config.GachaCostText, float64(result.Config.GachaCost), result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
 	drawProfileTextCentered(canvas, 1045, 587, profileConfigRawText(result.Config.SignCoinsText, float64(result.Config.SignCoins), result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
-	drawProfileTextCentered(canvas, 1385, 525, profileConfigIntText(result.WorkConfig.DailyEnergy, result.WorkConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
-	drawProfileTextCentered(canvas, 1385, 587, profileConfigIntText(result.WorkConfig.MaxEnergy, result.WorkConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 1385, 525, profileConfigRawText(result.WorkConfig.DailyEnergyText, float64(result.WorkConfig.DailyEnergy), result.WorkConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 1385, 587, profileConfigRawText(result.WorkConfig.MaxEnergyText, float64(result.WorkConfig.MaxEnergy), result.WorkConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
 	drawProfileTextCentered(canvas, 1237, 652, profileConfigRawText(result.Config.XPMultipleText, result.Config.XPMultiple, result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
 }
 
@@ -254,14 +254,14 @@ func profileWorkEnergyText(result coreeconomy.ProfileResult) string {
 	if !result.WorkUserFound {
 		return "0"
 	}
-	return coreeconomy.LegacyProfileAmount(float64(result.WorkUser.Energy))
+	return coreeconomy.LegacyProfileRawAmount(result.WorkUser.EnergyText, float64(result.WorkUser.Energy))
 }
 
 func profileWorkStateText(result coreeconomy.ProfileResult) string {
-	if result.WorkUserFound && result.WorkUser.EndTimeUnix-result.NowUnix > 0 {
-		return "打工中"
+	if !result.WorkUserFound {
+		return "待業中"
 	}
-	return "待業中"
+	return coreeconomy.LegacyProfileWorkState(result.WorkUser.EndTimeText, result.WorkUser.EndTimeUnix, result.NowUnix)
 }
 
 func profileConfigIntText(value int64, found bool) string {

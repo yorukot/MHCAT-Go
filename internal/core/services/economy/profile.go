@@ -276,6 +276,17 @@ func LegacyProfileRawAmount(text string, fallback float64) string {
 	return LegacyProfileAmount(value)
 }
 
+func LegacyProfileWorkState(endTimeText string, fallback int64, nowUnix int64) string {
+	if endTimeText == "" {
+		endTimeText = strconv.FormatInt(fallback, 10)
+	}
+	endTime, numeric := legacyDisplayedNumber(endTimeText)
+	if numeric && endTime-float64(nowUnix) > 0 {
+		return "打工中"
+	}
+	return "待業中"
+}
+
 func legacyProfileScaled(value float64, divisor float64, suffix string) string {
 	if math.IsInf(value, 1) {
 		return "Infinity" + suffix

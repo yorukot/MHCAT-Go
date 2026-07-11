@@ -35,10 +35,12 @@ type WorkUserDocument struct {
 
 func (d WorkConfigDocument) ToDomain() domain.WorkConfig {
 	return domain.WorkConfig{
-		GuildID:     d.Guild,
-		DailyEnergy: workLegacyInt64(d.GetEnergy),
-		MaxEnergy:   workLegacyInt64(d.MaxEnergy),
-		Captcha:     workLegacyBool(d.CaptchaRaw),
+		GuildID:         d.Guild,
+		DailyEnergy:     workLegacyInt64(d.GetEnergy),
+		DailyEnergyText: legacyPriceString(d.GetEnergy),
+		MaxEnergy:       workLegacyInt64(d.MaxEnergy),
+		MaxEnergyText:   legacyPriceString(d.MaxEnergy),
+		Captcha:         workLegacyBool(d.CaptchaRaw),
 	}
 }
 
@@ -63,7 +65,9 @@ func (d WorkUserDocument) ToDomain() domain.WorkUserState {
 		UserID:      d.User,
 		State:       state,
 		EndTimeUnix: workLegacyInt64(d.EndTime),
+		EndTimeText: legacyPriceString(d.EndTime),
 		Energy:      workLegacyInt64(d.Energi),
+		EnergyText:  legacyPriceString(d.Energi),
 		GetCoin:     workLegacyInt64(d.GetCoin),
 		Initialized: true,
 	}

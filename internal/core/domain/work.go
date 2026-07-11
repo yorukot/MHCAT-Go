@@ -20,10 +20,12 @@ var (
 const WorkIdleState = "待業中"
 
 type WorkConfig struct {
-	GuildID     string
-	DailyEnergy int64
-	MaxEnergy   int64
-	Captcha     bool
+	GuildID         string
+	DailyEnergy     int64
+	DailyEnergyText string
+	MaxEnergy       int64
+	MaxEnergyText   string
+	Captcha         bool
 }
 
 type WorkItem struct {
@@ -45,7 +47,9 @@ type WorkUserState struct {
 	UserID      string
 	State       string
 	EndTimeUnix int64
+	EndTimeText string
 	Energy      int64
+	EnergyText  string
 	GetCoin     int64
 	Initialized bool
 }
