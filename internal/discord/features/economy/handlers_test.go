@@ -19,6 +19,7 @@ func TestCoinQuerySelfUsesLegacyDefaultConfigFooter(t *testing.T) {
 	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 125})
 	usage := &fakeusage.Tracker{}
 	module := NewModule(repo, nil, usage)
+	module.color = func() int { return 0x123456 }
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteraction("代幣查詢")
 	interaction.Actor.AvatarURL = "https://cdn.example/avatar.png"
@@ -35,6 +36,9 @@ func TestCoinQuerySelfUsesLegacyDefaultConfigFooter(t *testing.T) {
 	embed := responder.Edits[0].Embeds[0]
 	if embed.Title != "<:money:997374193026994236>你目前有:`125`個代幣!" {
 		t.Fatalf("unexpected title: %q", embed.Title)
+	}
+	if embed.Color != 0x123456 {
+		t.Fatalf("success color = %#x", embed.Color)
 	}
 	if !strings.Contains(embed.Description, "代幣數到了500可以進行扭蛋喔") {
 		t.Fatalf("description did not include default gacha cost: %q", embed.Description)

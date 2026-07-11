@@ -45,7 +45,7 @@ func (m Module) CoinQueryHandler() interactions.Handler {
 			}
 			return err
 		}
-		if err := responder.EditOriginal(ctx, legacyCoinQueryMessage(result, subjectName, interaction.Actor.AvatarURL)); err != nil {
+		if err := responder.EditOriginal(ctx, legacyCoinQueryMessage(result, subjectName, interaction.Actor.AvatarURL, m.randomColor())); err != nil {
 			return err
 		}
 		return m.track(ctx, interaction)
@@ -73,7 +73,7 @@ func legacyCoinNoBalanceMessage() responses.Message {
 	}
 }
 
-func legacyCoinQueryMessage(result coreeconomy.CoinQueryResult, subjectName string, actorAvatarURL string) responses.Message {
+func legacyCoinQueryMessage(result coreeconomy.CoinQueryResult, subjectName string, actorAvatarURL string, color int) responses.Message {
 	if strings.TrimSpace(subjectName) == "" {
 		subjectName = legacyCoinFallbackUsername
 	}
@@ -82,7 +82,7 @@ func legacyCoinQueryMessage(result coreeconomy.CoinQueryResult, subjectName stri
 		Embeds: []responses.Embed{{
 			Title:       fmt.Sprintf("%s%s目前有:`%d`個代幣!", legacyCoinMoneyEmoji, subjectName, result.Balance.Coins),
 			Description: legacyCoinDescription(result.GachaCost),
-			Color:       coinQuerySuccessColor,
+			Color:       color,
 			Footer: &responses.EmbedFooter{
 				Text:    legacyCoinFooterText(result, subjectName),
 				IconURL: actorAvatarURL,
