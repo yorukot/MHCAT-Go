@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
@@ -72,8 +73,69 @@ func TestMessageServicePreservesRawCatalogAndMessageWhitespace(t *testing.T) {
 	if result.Delete {
 		t.Fatalf("stored whitespace was normalized: %#v", result)
 	}
-	if len(catalog.Checked) != 1 || catalog.Checked[0] != "visit https://bad.example!" {
-		t.Fatalf("checked content = %#v", catalog.Checked)
+	if catalog.ListCalls != 1 || len(catalog.Checked) != 0 {
+		t.Fatalf("list calls=%d checked=%#v", catalog.ListCalls, catalog.Checked)
+	}
+}
+
+func TestMessageServiceCachesHotPathMongoReads(t *testing.T) {
+	configs := fakemongo.NewAntiScamConfigRepository()
+	configs.Configs["guild-1"] = domain.AntiScamConfig{GuildID: "guild-1", Open: true}
+	catalog := fakemongo.NewScamURLCatalogRepository()
+	catalog.Known = []string{"https://bad.example"}
+	service := NewMessageService(configs, catalog)
+
+	for _, content := range []string{"first clean message", "second clean message"} {
+		if _, err := service.Scan(context.Background(), "guild-1", content); err != nil {
+			t.Fatalf("scan %q: %v", content, err)
+		}
+	}
+	if configs.FindCalls != 1 || catalog.ListCalls != 1 {
+		t.Fatalf("config reads=%d catalog reads=%d", configs.FindCalls, catalog.ListCalls)
+	}
+}
+
+func TestMessageServiceRefreshesExpiredCaches(t *testing.T) {
+	configs := fakemongo.NewAntiScamConfigRepository()
+	configs.Configs["guild-1"] = domain.AntiScamConfig{GuildID: "guild-1", Open: true}
+	catalog := fakemongo.NewScamURLCatalogRepository()
+	catalog.Known = []string{"https://bad.example"}
+	now := time.Date(2026, 7, 11, 0, 0, 0, 0, time.UTC)
+	service := newMessageService(configs, catalog, func() time.Time { return now })
+
+	if _, err := service.Scan(context.Background(), "guild-1", "clean"); err != nil {
+		t.Fatalf("initial scan: %v", err)
+	}
+	now = now.Add(scamURLCatalogCacheTTL + time.Second)
+	if _, err := service.Scan(context.Background(), "guild-1", "still clean"); err != nil {
+		t.Fatalf("refresh scan: %v", err)
+	}
+	if configs.FindCalls != 2 || catalog.ListCalls != 2 {
+		t.Fatalf("config reads=%d catalog reads=%d", configs.FindCalls, catalog.ListCalls)
+	}
+}
+
+func TestMessageServiceBacksOffFailedCatalogRefresh(t *testing.T) {
+	configs := fakemongo.NewAntiScamConfigRepository()
+	configs.Configs["guild-1"] = domain.AntiScamConfig{GuildID: "guild-1", Open: true}
+	catalog := fakemongo.NewScamURLCatalogRepository()
+	catalog.Known = []string{"https://bad.example"}
+	now := time.Date(2026, 7, 11, 0, 0, 0, 0, time.UTC)
+	service := newMessageService(configs, catalog, func() time.Time { return now })
+
+	if _, err := service.Scan(context.Background(), "guild-1", "clean"); err != nil {
+		t.Fatalf("initial scan: %v", err)
+	}
+	now = now.Add(scamURLCatalogCacheTTL + time.Second)
+	catalog.Err = errors.New("catalog unavailable")
+	for range 2 {
+		result, err := service.Scan(context.Background(), "guild-1", "https://bad.example")
+		if err != nil || !result.Delete {
+			t.Fatalf("stale scan result=%#v err=%v", result, err)
+		}
+	}
+	if configs.FindCalls != 2 || catalog.ListCalls != 2 {
+		t.Fatalf("config reads=%d catalog reads=%d", configs.FindCalls, catalog.ListCalls)
 	}
 }
 

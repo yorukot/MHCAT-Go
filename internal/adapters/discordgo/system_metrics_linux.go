@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
+	runtimemetrics "runtime/metrics"
 	"strconv"
 	"strings"
 	"time"
@@ -140,8 +140,20 @@ func linuxHostMemory() (usedMB int64, totalMB int64, err error) {
 }
 
 func linuxProcessMemory() (heapMB int64, rssMB int64, err error) {
-	var stats runtime.MemStats
-	runtime.ReadMemStats(&stats)
+	samples := [...]runtimemetrics.Sample{
+		{Name: "/memory/classes/heap/objects:bytes"},
+		{Name: "/memory/classes/heap/unused:bytes"},
+		{Name: "/memory/classes/heap/free:bytes"},
+		{Name: "/memory/classes/heap/released:bytes"},
+	}
+	runtimemetrics.Read(samples[:])
+	var heapBytes uint64
+	for _, sample := range samples {
+		if sample.Value.Kind() != runtimemetrics.KindUint64 {
+			return 0, 0, fmt.Errorf("unexpected runtime metric kind for %s", sample.Name)
+		}
+		heapBytes += sample.Value.Uint64()
+	}
 	payload, err := os.ReadFile("/proc/self/statm")
 	if err != nil {
 		return 0, 0, fmt.Errorf("read process memory: %w", err)
@@ -154,7 +166,7 @@ func linuxProcessMemory() (heapMB int64, rssMB int64, err error) {
 	if err != nil {
 		return 0, 0, fmt.Errorf("parse resident pages: %w", err)
 	}
-	return roundedMiB(stats.HeapSys), roundedMiB(residentPages * uint64(os.Getpagesize())), nil
+	return roundedMiB(heapBytes), roundedMiB(residentPages * uint64(os.Getpagesize())), nil
 }
 
 func roundedMiB(bytes uint64) int64 {

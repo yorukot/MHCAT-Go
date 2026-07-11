@@ -10,10 +10,11 @@ import (
 )
 
 type AntiScamConfigRepository struct {
-	mu      sync.Mutex
-	Configs map[string]domain.AntiScamConfig
-	Err     error
-	Saved   []domain.AntiScamConfig
+	mu        sync.Mutex
+	Configs   map[string]domain.AntiScamConfig
+	Err       error
+	Saved     []domain.AntiScamConfig
+	FindCalls int
 }
 
 func NewAntiScamConfigRepository() *AntiScamConfigRepository {
@@ -26,6 +27,7 @@ func (r *AntiScamConfigRepository) FindAntiScamConfig(ctx context.Context, guild
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.FindCalls++
 	config, ok := r.Configs[strings.TrimSpace(guildID)]
 	if !ok {
 		return domain.AntiScamConfig{}, ports.ErrAntiScamConfigMissing
@@ -70,10 +72,11 @@ func (r *AntiScamConfigRepository) ready(ctx context.Context) error {
 var _ ports.AntiScamConfigRepository = (*AntiScamConfigRepository)(nil)
 
 type ScamURLCatalogRepository struct {
-	mu      sync.Mutex
-	Known   []string
-	Checked []string
-	Err     error
+	mu        sync.Mutex
+	Known     []string
+	Checked   []string
+	Err       error
+	ListCalls int
 }
 
 func NewScamURLCatalogRepository() *ScamURLCatalogRepository {
@@ -116,4 +119,18 @@ func (r *ScamURLCatalogRepository) FindScamURLInContent(ctx context.Context, con
 	return "", false, nil
 }
 
+func (r *ScamURLCatalogRepository) ListScamURLs(ctx context.Context) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.ListCalls++
+	if r.Err != nil {
+		return nil, r.Err
+	}
+	return append([]string(nil), r.Known...), nil
+}
+
 var _ ports.ScamURLCatalog = (*ScamURLCatalogRepository)(nil)
+var _ ports.ScamURLLister = (*ScamURLCatalogRepository)(nil)

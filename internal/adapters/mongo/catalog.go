@@ -35,6 +35,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Go aligns duplicate role mappings during explicit setup and creates no startup index; apply uniqueness only after a full duplicate audit and exclusive Node/Go setup ownership."),
 		catalogSpec("chats", "chat", "models/chat.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("chats_guild", []string{"guild"}, "autochat config singleton"),
+			nonUniqueCatalogIndex("chats_guild_lookup", []IndexKey{{Field: "guild", Order: 1}}, "autochat message hot-path config lookup without requiring duplicate cleanup"),
 		}, "Message Content intent and chat feature rollout remain gated."),
 		catalogSpec("chat_roles", "chat_role", "models/chat_role.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("chat_roles_guild_leavel_role", []string{"guild", "leavel", "role"}, "text XP level role lookup"),
@@ -50,7 +51,9 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, ""),
 		catalogSpec("coins", "coin", "models/coin.js", []string{"guild", "member"}, []catalogIndex{
 			uniqueCatalogIndex("coins_guild_member", []string{"guild", "member"}, "balance lookup and atomic coin updates"),
+			nonUniqueCatalogIndex("coins_guild_member_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "member", Order: 1}}, "economy hot-path lookup without requiring duplicate cleanup"),
 			nonUniqueCatalogIndex("coins_guild_coin_rank", []IndexKey{{Field: "guild", Order: 1}, {Field: "coin", Order: -1}}, "coin ranking"),
+			nonUniqueCatalogIndex("coins_today_guild", []IndexKey{{Field: "today", Order: 1}, {Field: "guild", Order: 1}}, "daily reset candidate scan"),
 		}, "Economy writes require atomic repository methods; audit `today` mixed types before strict decode. Work payout adds rollback-compatible `mhcat_work_payouts` markers."),
 		catalogSpec("create_hours", "create_hours", "models/create_hours.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("create_hours_guild", []string{"guild"}, "account-age join policy singleton"),
@@ -73,6 +76,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Partial index semantics for `time != 0` need ADR before use."),
 		catalogSpec("good_webs", "good_web", "models/good_web.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("good_webs_guild", []string{"guild"}, "anti-scam toggle singleton"),
+			nonUniqueCatalogIndex("good_webs_guild_lookup", []IndexKey{{Field: "guild", Order: 1}}, "message hot-path config lookup without requiring duplicate cleanup"),
 		}, ""),
 		catalogSpec("guilds", "guild", "models/guild.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("guilds_guild", []string{"guild"}, "guild config singleton"),
@@ -117,6 +121,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		catalogSpec("systems", "system", "models/system.js", nil, nil, "Active usage unclear; no planned indexes until behavior is confirmed."),
 		catalogSpec("text_xps", "text_xp", "models/text_xp.js", []string{"guild", "member"}, []catalogIndex{
 			uniqueCatalogIndex("text_xps_guild_member", []string{"guild", "member"}, "text XP lookup and atomic XP increments"),
+			nonUniqueCatalogIndex("text_xps_guild_member_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "member", Order: 1}}, "per-message XP update without requiring duplicate cleanup"),
 			nonUniqueCatalogIndex("text_xps_guild_rank", []IndexKey{{Field: "guild", Order: 1}, {Field: "leavel", Order: -1}, {Field: "xp", Order: -1}}, "text XP ranking after type audit"),
 		}, "XP/level fields may be strings; audit before strict numeric sorting."),
 		catalogSpec("text_xp_channels", "text_xp_channel", "models/text_xp_channel.js", []string{"guild"}, []catalogIndex{
@@ -139,6 +144,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Preserve misspelled legacy field `leavel`."),
 		catalogSpec("voice_xps", "voice_xp", "models/voice_xp.js", []string{"guild", "member"}, []catalogIndex{
 			uniqueCatalogIndex("voice_xps_guild_member", []string{"guild", "member"}, "voice XP lookup and atomic XP increments"),
+			nonUniqueCatalogIndex("voice_xps_guild_member_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "member", Order: 1}}, "voice XP scheduler update without requiring duplicate cleanup"),
 			nonUniqueCatalogIndex("voice_xps_guild_rank", []IndexKey{{Field: "guild", Order: 1}, {Field: "leavel", Order: -1}, {Field: "xp", Order: -1}}, "voice XP ranking after type audit"),
 		}, "Voice session reconciliation is required before feature writes."),
 		catalogSpec("voice_xp_channels", "voice_xp_channel", "models/voice_xp_channel.js", []string{"guild"}, []catalogIndex{
@@ -159,6 +165,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Dashboard-shared collection; do not copy dashboard-only `guild` unique declaration."),
 		catalogSpec("work_users", "work_user", "models/work_user.js", []string{"guild", "user"}, []catalogIndex{
 			uniqueCatalogIndex("work_users_guild_user", []string{"guild", "user"}, "work user state lookup"),
+			nonUniqueCatalogIndex("work_users_guild", []IndexKey{{Field: "guild", Order: 1}}, "daily energy refill without requiring duplicate cleanup"),
 			nonUniqueCatalogIndex("work_users_state_end_time", []IndexKey{{Field: "state", Order: 1}, {Field: "end_time", Order: 1}}, "due work-job scan"),
 		}, "Preserve misspelled legacy field `energi`; work payout uses `work_users._id` for per-row idempotency."),
 	}

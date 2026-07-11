@@ -3,6 +3,7 @@ package discordgo
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -72,6 +73,62 @@ func TestClusterBotInfoProviderIgnoresStaleAndWrongClusterFiles(t *testing.T) {
 	if len(infos) != 1 || infos[0].ShardID != 0 {
 		t.Fatalf("shards = %#v", infos)
 	}
+}
+
+func TestClusterBotInfoProviderUsesLowFrequencyDefaults(t *testing.T) {
+	provider := &ClusterBotInfoProvider{}
+	if provider.interval() != 30*time.Second {
+		t.Fatalf("interval = %v", provider.interval())
+	}
+	if provider.maxAge() < 3*provider.interval() {
+		t.Fatalf("max age %v is too close to interval %v", provider.maxAge(), provider.interval())
+	}
+}
+
+func TestClusterBotInfoProviderStartStopLifecycle(t *testing.T) {
+	directory := t.TempDir()
+	samples := make(chan struct{}, 4)
+	provider := &ClusterBotInfoProvider{
+		Local: BotInfoProvider{
+			ShardID: 0, ShardCount: 2,
+			Metrics: &countingProcessMetricsSampler{samples: samples},
+		},
+		Directory: directory,
+		Interval:  5 * time.Millisecond,
+		MaxAge:    time.Minute,
+	}
+	if !provider.Start(context.Background()) || provider.Start(context.Background()) {
+		t.Fatal("unexpected start result")
+	}
+	for range 2 {
+		select {
+		case <-samples:
+		case <-time.After(time.Second):
+			t.Fatal("status publisher did not run")
+		}
+	}
+	if err := provider.Stop(context.Background()); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	if err := provider.Stop(context.Background()); err != nil {
+		t.Fatalf("second stop: %v", err)
+	}
+	if _, err := os.Stat(provider.statusPath(0)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("status file remains: %v", err)
+	}
+}
+
+type countingProcessMetricsSampler struct {
+	samples chan struct{}
+}
+
+func (s *countingProcessMetricsSampler) Sample(context.Context) (SystemMetrics, error) {
+	return SystemMetrics{}, nil
+}
+
+func (s *countingProcessMetricsSampler) SampleProcess(context.Context) (int64, int64, error) {
+	s.samples <- struct{}{}
+	return 1, 2, nil
 }
 
 func writeShardStatusForTest(t *testing.T, directory string, status shardStatusFile) {

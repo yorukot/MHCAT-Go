@@ -19,6 +19,10 @@ type ScamURLCatalog interface {
 	FindScamURLInContent(ctx context.Context, content string) (string, bool, error)
 }
 
+type ScamURLLister interface {
+	ListScamURLs(ctx context.Context) ([]string, error)
+}
+
 type ScamReportSender interface {
 	SendScamURLReport(ctx context.Context, report domain.ScamURLReport) error
 }

@@ -79,3 +79,45 @@ func TestVoiceAccrualServiceReturnsMissingProfile(t *testing.T) {
 		t.Fatalf("expected missing profile, got %v", err)
 	}
 }
+
+func TestVoiceAccrualServiceUsesAtomicRepositoryHotPath(t *testing.T) {
+	repo := &atomicVoiceXPRepository{
+		profile: domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 15, LeaveJoin: domain.VoiceXPSessionJoined},
+		active:  true,
+	}
+	result, err := (VoiceAccrualService{Repository: repo}).Tick(context.Background(), "guild-1", "user-1")
+	if err != nil {
+		t.Fatalf("tick: %v", err)
+	}
+	if repo.atomicCalls != 1 || repo.getCalls != 0 || repo.saveCalls != 0 {
+		t.Fatalf("atomic=%d get=%d save=%d", repo.atomicCalls, repo.getCalls, repo.saveCalls)
+	}
+	if !result.Active || result.Gained != LegacyVoiceXPTickAmount || result.Profile.XP != 15 {
+		t.Fatalf("result = %#v", result)
+	}
+}
+
+type atomicVoiceXPRepository struct {
+	profile     domain.XPProfile
+	active      bool
+	leveled     bool
+	err         error
+	atomicCalls int
+	getCalls    int
+	saveCalls   int
+}
+
+func (r *atomicVoiceXPRepository) AccrueVoiceXP(context.Context, string, string, int64) (domain.XPProfile, bool, bool, error) {
+	r.atomicCalls++
+	return r.profile, r.active, r.leveled, r.err
+}
+
+func (r *atomicVoiceXPRepository) GetVoiceXPProfile(context.Context, string, string) (domain.XPProfile, error) {
+	r.getCalls++
+	return domain.XPProfile{}, errors.New("legacy get should not run")
+}
+
+func (r *atomicVoiceXPRepository) SaveVoiceXPProfile(context.Context, domain.XPProfile) error {
+	r.saveCalls++
+	return errors.New("legacy save should not run")
+}

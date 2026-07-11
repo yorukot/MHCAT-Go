@@ -65,6 +65,10 @@ type TextXPAccrualRepository interface {
 	SaveTextXPProfile(ctx context.Context, profile domain.XPProfile) error
 }
 
+type AtomicTextXPAccrualRepository interface {
+	AccrueTextXP(ctx context.Context, guildID string, userID string, gained int64) (domain.XPProfile, bool, error)
+}
+
 type VoiceXPSessionRepository interface {
 	MarkVoiceXPJoined(ctx context.Context, guildID string, userID string) error
 	MarkVoiceXPLeft(ctx context.Context, guildID string, userID string) error
@@ -74,6 +78,10 @@ type VoiceXPSessionRepository interface {
 type VoiceXPAccrualRepository interface {
 	GetVoiceXPProfile(ctx context.Context, guildID string, userID string) (domain.XPProfile, error)
 	SaveVoiceXPProfile(ctx context.Context, profile domain.XPProfile) error
+}
+
+type AtomicVoiceXPAccrualRepository interface {
+	AccrueVoiceXP(ctx context.Context, guildID string, userID string, gained int64) (domain.XPProfile, bool, bool, error)
 }
 
 type XPResetRepository interface {

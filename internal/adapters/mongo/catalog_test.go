@@ -119,6 +119,34 @@ func TestDefaultIndexPlanUsesCorrectedCollections(t *testing.T) {
 	}
 }
 
+func TestPerformanceIndexesDoNotRequireDuplicateCleanup(t *testing.T) {
+	byName := CollectionCatalogByName(DefaultCollectionCatalog())
+	for _, test := range []struct {
+		collection string
+		index      string
+	}{
+		{collection: "chats", index: "chats_guild_lookup"},
+		{collection: "coins", index: "coins_guild_member_lookup"},
+		{collection: "coins", index: "coins_today_guild"},
+		{collection: "text_xps", index: "text_xps_guild_member_lookup"},
+		{collection: "voice_xps", index: "voice_xps_guild_member_lookup"},
+		{collection: "work_users", index: "work_users_guild"},
+		{collection: "good_webs", index: "good_webs_guild_lookup"},
+	} {
+		var found *IndexSpec
+		for i := range byName[test.collection].PlannedIndexes {
+			candidate := &byName[test.collection].PlannedIndexes[i]
+			if candidate.Name == test.index {
+				found = candidate
+				break
+			}
+		}
+		if found == nil || found.Unique || found.RequiresDuplicateAudit {
+			t.Fatalf("%s index = %#v", test.index, found)
+		}
+	}
+}
+
 func legacyModelFiles(t *testing.T) []string {
 	t.Helper()
 	dir := filepath.Join("..", "..", "..", "..", "MHCAT", "models")

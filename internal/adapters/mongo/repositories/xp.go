@@ -272,12 +272,76 @@ func (r *XPAdminRepository) SaveTextXPProfile(ctx context.Context, profile domai
 	return saveAdminXPProfile(ctx, r.textProfiles, profile, "text", false)
 }
 
+func (r *XPAdminRepository) AccrueTextXP(ctx context.Context, guildID string, userID string, gained int64) (domain.XPProfile, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.XPProfile{}, false, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	userID = strings.TrimSpace(userID)
+	if guildID == "" || userID == "" {
+		return domain.XPProfile{}, false, domain.ErrInvalidXPAdjustment
+	}
+	if gained < 0 {
+		gained = 0
+	}
+	var previous documents.XPProfileDocument
+	err := r.textProfiles.FindOneAndUpdate(
+		ctx,
+		xpProfileFilter(guildID, userID),
+		textXPAccrualPipeline(guildID, userID, gained),
+		options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.Before),
+	).Decode(&previous)
+	profile := domain.XPProfile{GuildID: guildID, UserID: userID}
+	if err == nil {
+		profile = previous.ToDomain().Normalize()
+	} else if !errors.Is(err, drivermongo.ErrNoDocuments) {
+		return domain.XPProfile{}, false, mhcatmongo.MapError(fmt.Errorf("accrue text xp: %w", err))
+	}
+	profile, leveled := domain.ApplyTextXPMessage(profile, gained)
+	return profile, leveled, ctx.Err()
+}
+
 func (r *XPAdminRepository) GetVoiceXPProfile(ctx context.Context, guildID string, userID string) (domain.XPProfile, error) {
 	return getAdminXPProfile(ctx, r.voiceProfiles, guildID, userID, ports.ErrVoiceXPProfileMissing, "voice")
 }
 
 func (r *XPAdminRepository) SaveVoiceXPProfile(ctx context.Context, profile domain.XPProfile) error {
 	return saveAdminXPProfile(ctx, r.voiceProfiles, profile, "voice", true)
+}
+
+func (r *XPAdminRepository) AccrueVoiceXP(ctx context.Context, guildID string, userID string, gained int64) (domain.XPProfile, bool, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.XPProfile{}, false, false, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	userID = strings.TrimSpace(userID)
+	if guildID == "" || userID == "" {
+		return domain.XPProfile{}, false, false, domain.ErrInvalidXPAdjustment
+	}
+	if gained < 0 {
+		gained = 0
+	}
+	filter := append(xpProfileFilter(guildID, userID), bson.E{Key: "leavejoin", Value: domain.VoiceXPSessionJoined})
+	var previous documents.XPProfileDocument
+	err := r.voiceProfiles.FindOneAndUpdate(
+		ctx,
+		filter,
+		voiceXPAccrualPipeline(guildID, userID, gained),
+		options.FindOneAndUpdate().SetReturnDocument(options.Before),
+	).Decode(&previous)
+	if errors.Is(err, drivermongo.ErrNoDocuments) {
+		profile, getErr := r.GetVoiceXPProfile(ctx, guildID, userID)
+		if getErr != nil {
+			return domain.XPProfile{}, false, false, getErr
+		}
+		return profile, false, false, ctx.Err()
+	}
+	if err != nil {
+		return domain.XPProfile{}, false, false, mhcatmongo.MapError(fmt.Errorf("accrue voice xp: %w", err))
+	}
+	profile := previous.ToDomain().Normalize()
+	profile, leveled := domain.ApplyVoiceXPTick(profile, gained)
+	return profile, true, leveled, ctx.Err()
 }
 
 func (r *XPAdminRepository) MarkVoiceXPJoined(ctx context.Context, guildID string, userID string) error {
@@ -608,6 +672,92 @@ func xpProfileUpdate(profile domain.XPProfile, voice bool) bson.D {
 	}
 }
 
+func textXPAccrualPipeline(guildID string, userID string, gained int64) drivermongo.Pipeline {
+	level := legacyXPInt64Expression("$leavel")
+	xp := legacyXPInt64Expression("$xp")
+	total := bson.D{{Key: "$add", Value: bson.A{xp, gained}}}
+	levelDouble := bson.D{{Key: "$toDouble", Value: level}}
+	requiredFloat := bson.D{{Key: "$add", Value: bson.A{
+		bson.D{{Key: "$multiply", Value: bson.A{
+			levelDouble,
+			bson.D{{Key: "$divide", Value: bson.A{levelDouble, 3}}},
+			100,
+		}}},
+		100,
+	}}}
+	required := bson.D{{Key: "$toLong", Value: requiredFloat}}
+	leveled := bson.D{{Key: "$gt", Value: bson.A{total, required}}}
+	nextXP := bson.D{{Key: "$cond", Value: bson.A{leveled, int64(0), total}}}
+	nextLevel := bson.D{{Key: "$cond", Value: bson.A{
+		leveled,
+		bson.D{{Key: "$add", Value: bson.A{level, int64(1)}}},
+		level,
+	}}}
+	set := bson.D{
+		{Key: "guild", Value: guildID},
+		{Key: "member", Value: userID},
+		{Key: "xp", Value: bson.D{{Key: "$toString", Value: nextXP}}},
+		{Key: "leavel", Value: bson.D{{Key: "$toString", Value: nextLevel}}},
+	}
+	return drivermongo.Pipeline{bson.D{{Key: "$set", Value: set}}}
+}
+
+func voiceXPAccrualPipeline(guildID string, userID string, gained int64) drivermongo.Pipeline {
+	level := legacyXPInt64Expression("$leavel")
+	xp := legacyXPInt64Expression("$xp")
+	total := bson.D{{Key: "$add", Value: bson.A{xp, gained}}}
+	levelDouble := bson.D{{Key: "$toDouble", Value: level}}
+	requiredFloat := bson.D{{Key: "$add", Value: bson.A{
+		bson.D{{Key: "$multiply", Value: bson.A{
+			levelDouble,
+			levelDouble,
+			0.5,
+			100,
+		}}},
+		100,
+	}}}
+	required := bson.D{{Key: "$toLong", Value: requiredFloat}}
+	leveled := bson.D{{Key: "$gt", Value: bson.A{total, required}}}
+	nextXP := bson.D{{Key: "$cond", Value: bson.A{leveled, gained, total}}}
+	nextLevel := bson.D{{Key: "$cond", Value: bson.A{
+		leveled,
+		bson.D{{Key: "$add", Value: bson.A{level, int64(1)}}},
+		level,
+	}}}
+	set := bson.D{
+		{Key: "guild", Value: guildID},
+		{Key: "member", Value: userID},
+		{Key: "xp", Value: bson.D{{Key: "$toString", Value: nextXP}}},
+		{Key: "leavel", Value: bson.D{{Key: "$toString", Value: nextLevel}}},
+	}
+	return drivermongo.Pipeline{bson.D{{Key: "$set", Value: set}}}
+}
+
+func legacyXPInt64Expression(field string) bson.D {
+	fieldType := bson.D{{Key: "$type", Value: field}}
+	convert := func(input any) bson.D {
+		return bson.D{{Key: "$convert", Value: bson.D{
+			{Key: "input", Value: input},
+			{Key: "to", Value: "long"},
+			{Key: "onError", Value: int64(0)},
+			{Key: "onNull", Value: int64(0)},
+		}}}
+	}
+	return bson.D{{Key: "$switch", Value: bson.D{
+		{Key: "branches", Value: bson.A{
+			bson.D{
+				{Key: "case", Value: bson.D{{Key: "$eq", Value: bson.A{fieldType, "string"}}}},
+				{Key: "then", Value: convert(bson.D{{Key: "$trim", Value: bson.D{{Key: "input", Value: field}}}})},
+			},
+			bson.D{
+				{Key: "case", Value: bson.D{{Key: "$in", Value: bson.A{fieldType, bson.A{"int", "long", "double", "decimal"}}}}},
+				{Key: "then", Value: convert(field)},
+			},
+		}},
+		{Key: "default", Value: int64(0)},
+	}}}
+}
+
 func voiceXPSessionUpdate(guildID string, userID string, state string) bson.D {
 	return bson.D{
 		{Key: "$set", Value: bson.D{
@@ -629,7 +779,9 @@ var _ ports.TextXPRewardRoleRepository = (*TextXPRewardRoleRepository)(nil)
 var _ ports.VoiceXPRewardRoleRepository = (*VoiceXPRewardRoleRepository)(nil)
 var _ ports.XPAdminRepository = (*XPAdminRepository)(nil)
 var _ ports.TextXPAccrualRepository = (*XPAdminRepository)(nil)
+var _ ports.AtomicTextXPAccrualRepository = (*XPAdminRepository)(nil)
 var _ ports.VoiceXPSessionRepository = (*XPAdminRepository)(nil)
 var _ ports.VoiceXPAccrualRepository = (*XPAdminRepository)(nil)
+var _ ports.AtomicVoiceXPAccrualRepository = (*XPAdminRepository)(nil)
 var _ ports.XPResetRepository = (*XPAdminRepository)(nil)
 var _ ports.XPRankRepository = (*XPAdminRepository)(nil)

@@ -23,13 +23,22 @@ type VoiceXPWorker struct {
 	logger   *slog.Logger
 
 	mu      sync.Mutex
-	active  map[string]voiceXPWorkerEntry
+	active  map[string]*voiceXPWorkerEntry
 	stopped bool
+	running bool
+	rootCtx context.Context
+	cancel  context.CancelFunc
+	done    chan struct{}
+	wake    chan struct{}
 }
 
 type voiceXPWorkerEntry struct {
-	cancel context.CancelFunc
-	done   chan struct{}
+	ctx            context.Context
+	cancel         context.CancelFunc
+	guildID        string
+	userID         string
+	currentRoleIDs []string
+	nextTick       time.Time
 }
 
 func NewVoiceXPWorker(interval time.Duration, tick VoiceXPTickFunc, logger *slog.Logger) *VoiceXPWorker {
@@ -43,7 +52,8 @@ func NewVoiceXPWorker(interval time.Duration, tick VoiceXPTickFunc, logger *slog
 		interval: interval,
 		tick:     tick,
 		logger:   logger,
-		active:   map[string]voiceXPWorkerEntry{},
+		active:   map[string]*voiceXPWorkerEntry{},
+		wake:     make(chan struct{}, 1),
 	}
 }
 
@@ -58,24 +68,29 @@ func (w *VoiceXPWorker) Start(guildID string, userID string, currentRoleIDs []st
 	}
 	key := voiceXPWorkerKey(guildID, userID)
 	roles := trimmedRoleIDs(currentRoleIDs)
-	ctx, cancel := context.WithCancel(context.Background())
-	entry := voiceXPWorkerEntry{cancel: cancel, done: make(chan struct{})}
 
 	w.mu.Lock()
 	if w.stopped {
 		w.mu.Unlock()
-		cancel()
 		return false
 	}
 	if _, ok := w.active[key]; ok {
 		w.mu.Unlock()
-		cancel()
 		return false
 	}
-	w.active[key] = entry
+	if !w.running {
+		w.rootCtx, w.cancel = context.WithCancel(context.Background())
+		w.done = make(chan struct{})
+		w.running = true
+		go w.run(w.rootCtx, w.done)
+	}
+	ctx, cancel := context.WithCancel(w.rootCtx)
+	w.active[key] = &voiceXPWorkerEntry{
+		ctx: ctx, cancel: cancel, guildID: guildID, userID: userID,
+		currentRoleIDs: roles, nextTick: time.Now().Add(w.interval),
+	}
 	w.mu.Unlock()
-
-	go w.run(ctx, entry.done, key, guildID, userID, roles)
+	w.notify()
 	return true
 }
 
@@ -94,6 +109,7 @@ func (w *VoiceXPWorker) Stop(guildID string, userID string) bool {
 		return false
 	}
 	entry.cancel()
+	w.notify()
 	return true
 }
 
@@ -105,26 +121,27 @@ func (w *VoiceXPWorker) StopAll(ctx context.Context) error {
 		ctx = context.Background()
 	}
 	w.mu.Lock()
-	entries := make([]voiceXPWorkerEntry, 0, len(w.active))
 	for key, entry := range w.active {
-		entries = append(entries, entry)
+		entry.cancel()
 		delete(w.active, key)
 	}
 	w.stopped = true
+	cancel := w.cancel
+	done := w.done
 	w.mu.Unlock()
 
-	for _, entry := range entries {
-		entry.cancel()
+	if cancel != nil {
+		cancel()
 	}
-	var errs []error
-	for _, entry := range entries {
-		select {
-		case <-entry.done:
-		case <-ctx.Done():
-			errs = append(errs, ctx.Err())
-		}
+	if done == nil {
+		return ctx.Err()
 	}
-	return errors.Join(errs...)
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (w *VoiceXPWorker) ActiveCount() int {
@@ -136,42 +153,141 @@ func (w *VoiceXPWorker) ActiveCount() int {
 	return len(w.active)
 }
 
-func (w *VoiceXPWorker) run(ctx context.Context, done chan struct{}, key string, guildID string, userID string, currentRoleIDs []string) {
-	defer close(done)
-	ticker := time.NewTicker(w.interval)
-	defer ticker.Stop()
+func (w *VoiceXPWorker) run(ctx context.Context, done chan struct{}) {
+	defer func() {
+		w.mu.Lock()
+		if w.done == done {
+			w.running = false
+			w.rootCtx = nil
+			w.cancel = nil
+		}
+		w.mu.Unlock()
+		close(done)
+	}()
+	timer := time.NewTimer(time.Hour)
+	stopVoiceXPTimer(timer)
+	defer timer.Stop()
 	for {
+		deadline, ok := w.nextDeadline()
+		if !ok {
+			select {
+			case <-ctx.Done():
+				return
+			case <-w.wake:
+				continue
+			}
+		}
+		resetVoiceXPTimer(timer, time.Until(deadline))
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			result, err := w.tick(ctx, guildID, userID, currentRoleIDs)
-			if err != nil {
-				if ctx.Err() != nil {
-					return
-				}
-				if errors.Is(err, ports.ErrVoiceXPProfileMissing) {
-					w.finish(key, done)
-					return
-				}
-				w.logger.WarnContext(ctx, "voice xp tick failed", "guild_id", guildID, "user_id", userID, "error", err.Error())
-				continue
-			}
-			if !result.Active {
-				w.finish(key, done)
-				return
-			}
+		case <-w.wake:
+			stopVoiceXPTimer(timer)
+		case now := <-timer.C:
+			w.runDue(now)
 		}
 	}
 }
 
-func (w *VoiceXPWorker) finish(key string, done chan struct{}) {
+func (w *VoiceXPWorker) runDue(cutoff time.Time) {
+	for _, due := range w.collectDue(cutoff) {
+		key, entry := due.key, due.entry
+		result, err := w.tick(entry.ctx, entry.guildID, entry.userID, entry.currentRoleIDs)
+		if err != nil {
+			if entry.ctx.Err() != nil {
+				continue
+			}
+			if errors.Is(err, ports.ErrVoiceXPProfileMissing) {
+				w.finish(key, entry)
+				continue
+			}
+			w.logger.WarnContext(entry.ctx, "voice xp tick failed", "guild_id", entry.guildID, "user_id", entry.userID, "error", err.Error())
+			w.scheduleNext(key, entry)
+			continue
+		}
+		if !result.Active {
+			w.finish(key, entry)
+			continue
+		}
+		w.scheduleNext(key, entry)
+	}
+}
+
+type dueVoiceXPWorkerEntry struct {
+	key   string
+	entry *voiceXPWorkerEntry
+}
+
+func (w *VoiceXPWorker) collectDue(cutoff time.Time) []dueVoiceXPWorkerEntry {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	due := make([]dueVoiceXPWorkerEntry, 0)
+	for key, entry := range w.active {
+		if entry.nextTick.After(cutoff) {
+			continue
+		}
+		// Keep in-flight entries out of the next deadline calculation. Their real
+		// next tick is scheduled from completion so slow Mongo calls never cause
+		// catch-up bursts.
+		entry.nextTick = cutoff.Add(w.interval)
+		due = append(due, dueVoiceXPWorkerEntry{key: key, entry: entry})
+	}
+	return due
+}
+
+func (w *VoiceXPWorker) nextDeadline() (time.Time, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var earliest time.Time
+	for _, entry := range w.active {
+		if earliest.IsZero() || entry.nextTick.Before(earliest) {
+			earliest = entry.nextTick
+		}
+	}
+	return earliest, !earliest.IsZero()
+}
+
+func (w *VoiceXPWorker) finish(key string, expected *voiceXPWorkerEntry) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	entry, ok := w.active[key]
-	if ok && entry.done == done {
+	if ok && entry == expected {
 		delete(w.active, key)
+		entry.cancel()
 	}
+}
+
+func (w *VoiceXPWorker) scheduleNext(key string, expected *voiceXPWorkerEntry) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	entry, ok := w.active[key]
+	if ok && entry == expected {
+		entry.nextTick = time.Now().Add(w.interval)
+	}
+}
+
+func (w *VoiceXPWorker) notify() {
+	select {
+	case w.wake <- struct{}{}:
+	default:
+	}
+}
+
+func stopVoiceXPTimer(timer *time.Timer) {
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+}
+
+func resetVoiceXPTimer(timer *time.Timer, delay time.Duration) {
+	stopVoiceXPTimer(timer)
+	if delay < 0 {
+		delay = 0
+	}
+	timer.Reset(delay)
 }
 
 func (m VoiceEventModule) WithRuntimeWorker(interval time.Duration, logger *slog.Logger) VoiceEventModule {

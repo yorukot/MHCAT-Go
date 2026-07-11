@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -193,6 +194,69 @@ func TestVoiceXPWorkerStopAllPreventsNewStarts(t *testing.T) {
 	}
 	if worker.Start("guild-1", "user-2", nil) {
 		t.Fatal("worker should not start after StopAll")
+	}
+}
+
+func TestVoiceXPWorkerProcessesManySessionsWithOneScheduler(t *testing.T) {
+	var calls atomic.Int64
+	var inFlight atomic.Int64
+	var maxInFlight atomic.Int64
+	worker := NewVoiceXPWorker(time.Millisecond, func(context.Context, string, string, []string) (coreservice.VoiceAccrualResult, error) {
+		current := inFlight.Add(1)
+		for {
+			previous := maxInFlight.Load()
+			if current <= previous || maxInFlight.CompareAndSwap(previous, current) {
+				break
+			}
+		}
+		time.Sleep(2 * time.Millisecond)
+		inFlight.Add(-1)
+		calls.Add(1)
+		return coreservice.VoiceAccrualResult{}, nil
+	}, nil)
+	t.Cleanup(func() { _ = worker.StopAll(context.Background()) })
+	for i := range 16 {
+		if !worker.Start("guild-1", fmt.Sprintf("user-%d", i), nil) {
+			t.Fatalf("start user %d", i)
+		}
+	}
+	waitUntil(t, 250*time.Millisecond, func() bool { return worker.ActiveCount() == 0 })
+	if calls.Load() != 16 || maxInFlight.Load() != 1 {
+		t.Fatalf("calls=%d max_in_flight=%d", calls.Load(), maxInFlight.Load())
+	}
+}
+
+func TestVoiceXPWorkerDoesNotCatchUpAfterSlowTick(t *testing.T) {
+	started := make(chan struct{}, 2)
+	release := make(chan struct{})
+	worker := NewVoiceXPWorker(5*time.Millisecond, func(context.Context, string, string, []string) (coreservice.VoiceAccrualResult, error) {
+		started <- struct{}{}
+		<-release
+		return coreservice.VoiceAccrualResult{Active: true}, nil
+	}, nil)
+	t.Cleanup(func() {
+		close(release)
+		_ = worker.StopAll(context.Background())
+	})
+	if !worker.Start("guild-1", "user-1", nil) {
+		t.Fatal("expected worker to start")
+	}
+	select {
+	case <-started:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timed out waiting for first voice XP tick")
+	}
+	time.Sleep(15 * time.Millisecond)
+	release <- struct{}{}
+	select {
+	case <-started:
+		t.Fatal("slow tick was followed by an immediate catch-up tick")
+	case <-time.After(3 * time.Millisecond):
+	}
+	select {
+	case <-started:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timed out waiting for the normally scheduled next tick")
 	}
 }
 

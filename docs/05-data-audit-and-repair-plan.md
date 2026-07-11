@@ -185,6 +185,22 @@ go run ./cmd/mhcat-mongo-index --dry-run --format json
 - changed/dangerous indexes;
 - unknown remote indexes.
 
+### Performance Index Rollout
+
+The default plan includes non-unique indexes only for confirmed query paths. It does not automatically mirror every audit-gated unique candidate, because unused indexes increase write amplification and cache pressure.
+
+For staging or production, use this sequence:
+
+```bash
+go run ./cmd/mhcat-mongo-index --dry-run --format json
+go run ./cmd/mhcat-mongo-index --apply --format json
+go run ./cmd/mhcat-mongo-index --dry-run --format json
+```
+
+Review the first output before apply. The apply command creates only missing low/medium-risk indexes; it never creates audit-gated unique or TTL indexes without their additional flags, and it never drops an existing index. The final dry-run must report the approved performance indexes as `exists` and no unexpected `changed` operation.
+
+Schedule production apply outside the midnight reset window. During and after creation, monitor Mongo CPU, disk I/O, replication lag, cache eviction, query latency, and application error rate. Stop the rollout if replication lag or write latency exceeds the deployment threshold; index deletion remains a separate reviewed operator action.
+
 Still not implemented in Wave 3:
 
 - data repair writes;

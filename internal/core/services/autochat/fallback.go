@@ -23,8 +23,10 @@ import (
 var legacyChatJSON []byte
 
 type legacyResponse struct {
-	key   string
-	value string
+	key       string
+	value     string
+	keyLength int
+	keyUnits  []uint16
 }
 
 type FallbackService struct {
@@ -53,15 +55,6 @@ func (s FallbackService) Reply(ctx context.Context, guildID string, channelID st
 	if guildID == "" || channelID == "" {
 		return domain.AutoChatFallbackReply{}, nil
 	}
-	balance, err := s.balances.GetBalance(ctx, guildID)
-	if err != nil && !errors.Is(err, ports.ErrBalanceMissing) {
-		return domain.AutoChatFallbackReply{}, err
-	}
-	if err == nil {
-		if legacyNonnegativeAutoChatBalance(balance.Amount) {
-			return domain.AutoChatFallbackReply{}, nil
-		}
-	}
 	config, err := s.configs.GetAutoChatConfig(ctx, guildID)
 	if errors.Is(err, ports.ErrAutoChatConfigMissing) {
 		return domain.AutoChatFallbackReply{}, nil
@@ -70,6 +63,13 @@ func (s FallbackService) Reply(ctx context.Context, guildID string, channelID st
 		return domain.AutoChatFallbackReply{}, err
 	}
 	if config.ChannelID != channelID {
+		return domain.AutoChatFallbackReply{}, nil
+	}
+	balance, err := s.balances.GetBalance(ctx, guildID)
+	if err != nil && !errors.Is(err, ports.ErrBalanceMissing) {
+		return domain.AutoChatFallbackReply{}, err
+	}
+	if err == nil && legacyNonnegativeAutoChatBalance(balance.Amount) {
 		return domain.AutoChatFallbackReply{}, nil
 	}
 	return s.localReply(content), ctx.Err()
@@ -101,8 +101,12 @@ func (s FallbackService) localReply(content string) domain.AutoChatFallbackReply
 
 	best := ""
 	highest := 0.0
+	contentLength := legacyUTF16Length(content)
+	lower := cases.Lower(language.Und)
+	contentUnits := utf16.Encode([]rune(lower.String(content)))
+	costs := make([]int, len(contentUnits)+1)
 	for _, response := range s.responses {
-		probability := legacySimilarity(response.key, content)
+		probability := legacyPreparedSimilarity(response.keyLength, response.keyUnits, contentLength, contentUnits, costs)
 		if probability > highest {
 			highest = probability
 			best = response.value
@@ -128,6 +132,7 @@ func decodeLegacyResponses(data []byte) ([]legacyResponse, error) {
 		response legacyResponse
 	}
 	responses := make([]legacyResponse, 0, 384)
+	lower := cases.Lower(language.Und)
 	for decoder.More() {
 		keyToken, err := decoder.Token()
 		if err != nil {
@@ -141,7 +146,12 @@ func decodeLegacyResponses(data []byte) ([]legacyResponse, error) {
 		if err := decoder.Decode(&value); err != nil {
 			return nil, err
 		}
-		response := legacyResponse{key: key, value: value}
+		response := legacyResponse{
+			key:       key,
+			value:     value,
+			keyLength: legacyUTF16Length(key),
+			keyUnits:  utf16.Encode([]rune(lower.String(key))),
+		}
 		if index, ok := javascriptArrayIndex(key); ok {
 			indexed = append(indexed, struct {
 				index    uint64
@@ -174,21 +184,32 @@ func javascriptArrayIndex(value string) (uint64, bool) {
 }
 
 func legacySimilarity(left string, right string) float64 {
-	leftLength := len(utf16.Encode([]rune(left)))
-	rightLength := len(utf16.Encode([]rune(right)))
+	leftLength := legacyUTF16Length(left)
+	rightLength := legacyUTF16Length(right)
+	lower := cases.Lower(language.Und)
+	leftUnits := utf16.Encode([]rune(lower.String(left)))
+	rightUnits := utf16.Encode([]rune(lower.String(right)))
+	return legacyPreparedSimilarity(leftLength, leftUnits, rightLength, rightUnits, make([]int, len(rightUnits)+1))
+}
+
+func legacyPreparedSimilarity(leftLength int, leftUnits []uint16, rightLength int, rightUnits []uint16, costs []int) float64 {
 	longerLength := max(leftLength, rightLength)
 	if longerLength == 0 {
 		return 1
 	}
-
-	lower := cases.Lower(language.Und)
-	leftUnits := utf16.Encode([]rune(lower.String(left)))
-	rightUnits := utf16.Encode([]rune(lower.String(right)))
-	return float64(longerLength-legacyEditDistance(leftUnits, rightUnits)) / float64(longerLength)
+	return float64(longerLength-legacyEditDistanceInto(leftUnits, rightUnits, costs)) / float64(longerLength)
 }
 
 func legacyEditDistance(left []uint16, right []uint16) int {
 	costs := make([]int, len(right)+1)
+	return legacyEditDistanceInto(left, right, costs)
+}
+
+func legacyEditDistanceInto(left []uint16, right []uint16, costs []int) int {
+	if len(costs) < len(right)+1 {
+		costs = make([]int, len(right)+1)
+	}
+	costs = costs[:len(right)+1]
 	for j := range costs {
 		costs[j] = j
 	}
@@ -206,4 +227,15 @@ func legacyEditDistance(left []uint16, right []uint16) int {
 		}
 	}
 	return costs[len(right)]
+}
+
+func legacyUTF16Length(value string) int {
+	length := 0
+	for _, r := range value {
+		length++
+		if r > 0xffff {
+			length++
+		}
+	}
+	return length
 }

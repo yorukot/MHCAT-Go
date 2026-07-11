@@ -602,7 +602,7 @@ func TestGatewayWaitsForContext(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.DiscordEnableGateway = true
 	mongo := &fakeMongo{}
-	discord := &fakeDiscord{}
+	discord := &fakeDiscord{opened: make(chan struct{})}
 	application, err := New(
 		cfg,
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -616,7 +616,11 @@ func TestGatewayWaitsForContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- application.Run(ctx) }()
-	time.Sleep(10 * time.Millisecond)
+	select {
+	case <-discord.opened:
+	case <-time.After(time.Second):
+		t.Fatal("gateway did not start")
+	}
 	cancel()
 
 	if err := <-done; err != nil {
@@ -859,10 +863,14 @@ type fakeDiscord struct {
 	lastEventOptions    discordadapter.GatewayEventOptions
 	lastEventDispatcher *discordevents.Dispatcher
 	ready               chan struct{}
+	opened              chan struct{}
 }
 
 func (f *fakeDiscord) Open() error {
 	f.opens++
+	if f.opened != nil {
+		close(f.opened)
+	}
 	return nil
 }
 

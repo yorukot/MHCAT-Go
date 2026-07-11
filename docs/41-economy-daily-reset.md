@@ -23,6 +23,8 @@ The Go paths share `internal/adapters/mongo/repositories.DailyResetRepository` a
 - `internal/core/ports.DailyResetRepository`;
 - `internal/core/domain.DailyResetResult`.
 
+To avoid a midnight MongoDB spike, the Go repository filters out canonical `today=0` rows before the coin update and paces work-energy updates in batches of 25 guild configs with a 100 ms context-aware pause between batches. The safe non-unique `coins_today_guild` and `work_users_guild` indexes are part of the explicit index plan; startup still never creates them automatically.
+
 The scheduler uses five-field cron `0 0 * * *` in fixed UTC+8 named `Asia/Taipei`. Each Go replica has the cron entry, but a replica acquires `daily-reset` only when the tick fires. Exactly one lease holder runs the writes; contenders skip. The lease is released after success, repository failure, or canceled shutdown.
 
 There is no catch-up run after downtime. This matches the legacy cron process: a bot that is down at midnight waits until the next scheduled midnight.

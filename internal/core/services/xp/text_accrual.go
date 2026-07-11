@@ -34,6 +34,13 @@ func (s TextAccrualService) AccrueMessage(ctx context.Context, guildID string, u
 		return TextAccrualResult{}, domain.ErrInvalidXPAdjustment
 	}
 	gained := LegacyTextXPForMessage(content, s.multiplier())
+	if repository, ok := s.Repository.(ports.AtomicTextXPAccrualRepository); ok {
+		profile, leveled, err := repository.AccrueTextXP(ctx, guildID, userID, gained)
+		if err != nil {
+			return TextAccrualResult{}, err
+		}
+		return TextAccrualResult{Profile: profile, Gained: gained, Leveled: leveled}, ctx.Err()
+	}
 	profile, err := s.Repository.GetTextXPProfile(ctx, guildID, userID)
 	if err != nil {
 		if !errors.Is(err, ports.ErrTextXPProfileMissing) {

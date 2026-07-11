@@ -139,7 +139,7 @@ func TestFallbackServiceIgnoresMissingConfigAndPropagatesRepositoryErrors(t *tes
 	}
 }
 
-func TestFallbackServiceChecksNonnegativeBalanceBeforeConfig(t *testing.T) {
+func TestFallbackServiceChecksConfigBeforeBalance(t *testing.T) {
 	configs := fakemongo.NewAutoChatConfigRepository()
 	configs.Err = errors.New("config unavailable")
 	balances := fakemongo.NewBalanceRepository()
@@ -148,14 +148,13 @@ func TestFallbackServiceChecksNonnegativeBalanceBeforeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new fallback service: %v", err)
 	}
-	reply, err := service.Reply(context.Background(), "guild-1", "channel-1", "你好")
-	if err != nil || reply.Content != "" {
-		t.Fatalf("nonnegative balance reply=%#v err=%v", reply, err)
+	if _, err := service.Reply(context.Background(), "guild-1", "channel-1", "你好"); err == nil {
+		t.Fatal("config lookup must fail before an irrelevant balance lookup")
 	}
 
-	balances.Balances["guild-1"] = domain.Balance{GuildID: "guild-1", Amount: "-1"}
-	if _, err := service.Reply(context.Background(), "guild-1", "channel-1", "你好"); err == nil {
-		t.Fatal("negative balance should continue to the failing config lookup")
+	configs.Err = nil
+	if reply, err := service.Reply(context.Background(), "guild-1", "channel-1", "你好"); err != nil || reply.Content != "" {
+		t.Fatalf("missing config reply=%#v err=%v", reply, err)
 	}
 }
 
@@ -200,5 +199,29 @@ func TestLegacySimilarityUsesJavaScriptUnicodeLowercase(t *testing.T) {
 				t.Fatalf("legacySimilarity(%q, %q) = %v, want %v", test.left, test.right, got, test.want)
 			}
 		})
+	}
+}
+
+func TestFallbackLocalReplyKeepsAllocationsBounded(t *testing.T) {
+	service, err := NewFallbackService(fakemongo.NewAutoChatConfigRepository(), fakemongo.NewBalanceRepository())
+	if err != nil {
+		t.Fatalf("new fallback service: %v", err)
+	}
+	allocations := testing.AllocsPerRun(20, func() {
+		_ = service.localReply("今天心情很好，想找人聊天")
+	})
+	if allocations > 20 {
+		t.Fatalf("allocations per reply = %.1f", allocations)
+	}
+}
+
+func BenchmarkFallbackLocalReply(b *testing.B) {
+	service, err := NewFallbackService(fakemongo.NewAutoChatConfigRepository(), fakemongo.NewBalanceRepository())
+	if err != nil {
+		b.Fatalf("new fallback service: %v", err)
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = service.localReply("今天心情很好，想找人聊天")
 	}
 }

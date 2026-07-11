@@ -14,6 +14,27 @@ func TestDiffIndexesMissingIndexPlannedCreate(t *testing.T) {
 	assertIndexOperation(t, diff, IndexOperationCreate, "coin", "guild_member_idx")
 }
 
+func TestDiffIndexesExistingUniqueIndexCoversSafeLookupFallback(t *testing.T) {
+	spec := plainIndex("coins", "coins_guild_member_lookup")
+	spec.Keys = []IndexKey{{Field: "guild", Order: 1}, {Field: "member", Order: 1}}
+	plan, err := DiffIndexes(IndexPlan{Indexes: []IndexSpec{spec}}, map[string][]IndexInfo{
+		"coins": {{
+			Collection: "coins",
+			Name:       "coins_guild_member",
+			Keys:       append([]IndexKey(nil), spec.Keys...),
+			Unique:     true,
+		}},
+	}, IndexDiffOptions{})
+	if err != nil {
+		t.Fatalf("diff indexes: %v", err)
+	}
+	for _, operation := range plan.Operations {
+		if operation.IndexName == spec.Name && operation.Operation != IndexOperationExists {
+			t.Fatalf("fallback operation = %#v", operation)
+		}
+	}
+}
+
 func TestDiffIndexesExistingIdenticalMarkedExists(t *testing.T) {
 	spec := plainIndex("coin", "guild_member_idx")
 	diff, err := DiffIndexes(IndexPlan{Indexes: []IndexSpec{spec}}, map[string][]IndexInfo{

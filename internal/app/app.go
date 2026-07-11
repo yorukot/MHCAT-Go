@@ -109,6 +109,9 @@ func New(cfg config.Config, logger *slog.Logger, opts ...Option) (*App, error) {
 
 func (a *App) Run(ctx context.Context) error {
 	if err := a.Start(ctx); err != nil {
+		if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
+			return nil
+		}
 		return err
 	}
 	if !a.cfg.DiscordEnableGateway {
@@ -282,9 +285,12 @@ func openWithTimeout(ctx context.Context, session DiscordSession, timeout time.D
 	}()
 	select {
 	case err := <-done:
+		if err != nil {
+			return errors.Join(err, session.Close())
+		}
 		return err
 	case <-openCtx.Done():
-		return openCtx.Err()
+		return errors.Join(openCtx.Err(), session.Close())
 	}
 }
 

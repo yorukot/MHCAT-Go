@@ -37,16 +37,6 @@ func (s PaidHandoffService) Submit(ctx context.Context, guildID string, channelI
 	if guildID == "" || channelID == "" || now.IsZero() {
 		return domain.AutoChatPaidSubmission{State: domain.AutoChatPaidIgnored}, nil
 	}
-	balance, err := s.balances.GetBalance(ctx, guildID)
-	if errors.Is(err, ports.ErrBalanceMissing) {
-		return domain.AutoChatPaidSubmission{State: domain.AutoChatPaidIgnored}, nil
-	}
-	if err != nil {
-		return domain.AutoChatPaidSubmission{}, err
-	}
-	if !legacyPositiveAutoChatBalance(balance.Amount) {
-		return domain.AutoChatPaidSubmission{State: domain.AutoChatPaidIgnored}, nil
-	}
 	config, err := s.configs.GetAutoChatConfig(ctx, guildID)
 	if errors.Is(err, ports.ErrAutoChatConfigMissing) {
 		return domain.AutoChatPaidSubmission{State: domain.AutoChatPaidIgnored}, nil
@@ -55,6 +45,16 @@ func (s PaidHandoffService) Submit(ctx context.Context, guildID string, channelI
 		return domain.AutoChatPaidSubmission{}, err
 	}
 	if config.ChannelID != channelID {
+		return domain.AutoChatPaidSubmission{State: domain.AutoChatPaidIgnored}, nil
+	}
+	balance, err := s.balances.GetBalance(ctx, guildID)
+	if errors.Is(err, ports.ErrBalanceMissing) {
+		return domain.AutoChatPaidSubmission{State: domain.AutoChatPaidIgnored}, nil
+	}
+	if err != nil {
+		return domain.AutoChatPaidSubmission{}, err
+	}
+	if !legacyPositiveAutoChatBalance(balance.Amount) {
 		return domain.AutoChatPaidSubmission{State: domain.AutoChatPaidIgnored}, nil
 	}
 	if strings.Contains(content, "@") {

@@ -30,6 +30,17 @@ func (s VoiceAccrualService) Tick(ctx context.Context, guildID string, userID st
 	if guildID == "" || userID == "" {
 		return VoiceAccrualResult{}, domain.ErrInvalidXPAdjustment
 	}
+	if repository, ok := s.Repository.(ports.AtomicVoiceXPAccrualRepository); ok {
+		profile, active, leveled, err := repository.AccrueVoiceXP(ctx, guildID, userID, LegacyVoiceXPTickAmount)
+		if err != nil {
+			return VoiceAccrualResult{}, err
+		}
+		gained := int64(0)
+		if active {
+			gained = LegacyVoiceXPTickAmount
+		}
+		return VoiceAccrualResult{Profile: profile, Gained: gained, Leveled: leveled, Active: active}, ctx.Err()
+	}
 	profile, err := s.Repository.GetVoiceXPProfile(ctx, guildID, userID)
 	if err != nil {
 		return VoiceAccrualResult{}, err

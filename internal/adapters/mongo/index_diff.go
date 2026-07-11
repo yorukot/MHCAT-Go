@@ -74,6 +74,10 @@ func DiffIndexes(desired IndexPlan, live map[string][]IndexInfo, opts IndexDiffO
 	for _, spec := range desired.Indexes {
 		liveIndex, ok := liveByKey[indexKey(spec.Collection, spec.Name)]
 		if !ok {
+			if covering, covered := coveringLiveIndex(spec, live[spec.Collection]); covered {
+				operations = append(operations, indexOperation(IndexOperationExists, spec, "lookup is covered by existing index "+covering.Name, IndexRiskLow))
+				continue
+			}
 			operations = append(operations, missingIndexOperation(spec, opts))
 			continue
 		}
@@ -109,6 +113,28 @@ func DiffIndexes(desired IndexPlan, live map[string][]IndexInfo, opts IndexDiffO
 	}
 	sortIndexOperations(operations)
 	return IndexDiffPlan{Operations: operations}, nil
+}
+
+func coveringLiveIndex(spec IndexSpec, indexes []IndexInfo) (IndexInfo, bool) {
+	if spec.Unique || spec.Sparse || spec.PartialFilter != "" || spec.TTLSeconds != nil {
+		return IndexInfo{}, false
+	}
+	for _, index := range indexes {
+		if index.Sparse || index.PartialFilter != "" || index.TTLSeconds != nil || len(index.Keys) != len(spec.Keys) {
+			continue
+		}
+		matched := true
+		for i := range spec.Keys {
+			if index.Keys[i] != spec.Keys[i] {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return index, true
+		}
+	}
+	return IndexInfo{}, false
 }
 
 func FormatIndexDiffPlan(w io.Writer, plan IndexDiffPlan, format string) error {

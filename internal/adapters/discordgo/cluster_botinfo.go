@@ -16,8 +16,8 @@ import (
 
 const (
 	DefaultShardStatusDirectory = "/tmp/mhcat-shards"
-	DefaultShardStatusInterval  = 5 * time.Second
-	DefaultShardStatusMaxAge    = 20 * time.Second
+	DefaultShardStatusInterval  = 30 * time.Second
+	DefaultShardStatusMaxAge    = 2 * time.Minute
 )
 
 type shardStatusFile struct {

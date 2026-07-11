@@ -1,7 +1,10 @@
 package repositories
 
 import (
+	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -29,17 +32,21 @@ func TestNewDailyResetRepositoryFromDatabaseRequiresDatabase(t *testing.T) {
 
 func TestDailyCoinResetFilterWithNoExcludedGuilds(t *testing.T) {
 	filter := dailyCoinResetFilter(nil)
-	if len(filter) != 0 {
-		t.Fatalf("expected empty filter, got %#v", filter)
+	if len(filter) != 1 || filter[0].Key != "today" {
+		t.Fatalf("unexpected filter: %#v", filter)
+	}
+	today, ok := filter[0].Value.(bson.D)
+	if !ok || len(today) != 1 || today[0].Key != "$ne" || today[0].Value != int64(0) {
+		t.Fatalf("unexpected today filter: %#v", filter[0].Value)
 	}
 }
 
 func TestDailyCoinResetFilterExcludesRollingGuilds(t *testing.T) {
 	filter := dailyCoinResetFilter([]string{"guild-a", "guild-b"})
-	if len(filter) != 1 || filter[0].Key != "guild" {
+	if len(filter) != 2 || filter[1].Key != "guild" {
 		t.Fatalf("unexpected filter: %#v", filter)
 	}
-	raw, err := bson.Marshal(filter[0].Value)
+	raw, err := bson.Marshal(filter[1].Value)
 	if err != nil {
 		t.Fatalf("marshal filter value: %v", err)
 	}
@@ -49,6 +56,36 @@ func TestDailyCoinResetFilterExcludesRollingGuilds(t *testing.T) {
 	}
 	if len(decoded) != 1 || decoded[0].Key != "$nin" {
 		t.Fatalf("expected $nin filter, got %#v", decoded)
+	}
+}
+
+func TestWaitForDailyResetBatchHonorsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := waitForDailyResetBatch(ctx, time.Hour); !errors.Is(err, context.Canceled) {
+		t.Fatalf("wait error = %v", err)
+	}
+}
+
+func TestWaitForDailyResetBatchAllowsDisabledPause(t *testing.T) {
+	if err := waitForDailyResetBatch(context.Background(), 0); err != nil {
+		t.Fatalf("wait error = %v", err)
+	}
+}
+
+func TestShouldPauseDailyResetWorkAtBatchBoundaries(t *testing.T) {
+	for _, test := range []struct {
+		processed int
+		want      bool
+	}{
+		{processed: 0, want: false},
+		{processed: dailyResetWorkBatchSize - 1, want: false},
+		{processed: dailyResetWorkBatchSize, want: true},
+		{processed: dailyResetWorkBatchSize * 2, want: true},
+	} {
+		if got := shouldPauseDailyResetWork(test.processed); got != test.want {
+			t.Fatalf("processed=%d pause=%v, want %v", test.processed, got, test.want)
+		}
 	}
 }
 

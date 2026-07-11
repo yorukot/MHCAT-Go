@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	mhcatmongo "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo/documents"
@@ -14,8 +15,10 @@ import (
 )
 
 const (
-	WorkSetCollectionName  = "work_sets"
-	WorkUserCollectionName = "work_users"
+	WorkSetCollectionName       = "work_sets"
+	WorkUserCollectionName      = "work_users"
+	dailyResetWorkBatchSize     = 25
+	dailyResetWorkBatchInterval = 100 * time.Millisecond
 )
 
 type DailyResetRepository struct {
@@ -167,6 +170,11 @@ func (r *DailyResetRepository) refillWorkEnergy(ctx context.Context) (domain.Dai
 		if guild == "" {
 			continue
 		}
+		if shouldPauseDailyResetWork(result.WorkGuilds) {
+			if err := waitForDailyResetBatch(ctx, dailyResetWorkBatchInterval); err != nil {
+				return domain.DailyResetResult{}, err
+			}
+		}
 		result.WorkGuilds++
 		getEnergy := rawInt64(config.GetEnergy)
 		maxEnergy := rawInt64(config.MaxEnergy)
@@ -229,10 +237,29 @@ func (r *DailyResetRepository) previewWorkEnergy(ctx context.Context) (domain.Da
 }
 
 func dailyCoinResetFilter(excludedGuilds []string) bson.D {
+	filter := bson.D{{Key: "today", Value: bson.D{{Key: "$ne", Value: int64(0)}}}}
 	if len(excludedGuilds) == 0 {
-		return bson.D{}
+		return filter
 	}
-	return bson.D{{Key: "guild", Value: bson.D{{Key: "$nin", Value: excludedGuilds}}}}
+	return append(filter, bson.E{Key: "guild", Value: bson.D{{Key: "$nin", Value: excludedGuilds}}})
+}
+
+func waitForDailyResetBatch(ctx context.Context, pause time.Duration) error {
+	if pause <= 0 {
+		return ctx.Err()
+	}
+	timer := time.NewTimer(pause)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func shouldPauseDailyResetWork(processed int) bool {
+	return processed > 0 && processed%dailyResetWorkBatchSize == 0
 }
 
 func rawInt64(value bson.RawValue) int64 {

@@ -72,6 +72,23 @@ func TestTextAccrualServiceReturnsRepositoryErrors(t *testing.T) {
 	}
 }
 
+func TestTextAccrualServiceUsesAtomicRepositoryHotPath(t *testing.T) {
+	repo := &atomicTextXPRepository{
+		profile: domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 5},
+	}
+	service := TextAccrualService{Repository: repo, RandomMultiplier: fixedMultiplier(500)}
+	result, err := service.AccrueMessage(context.Background(), "guild-1", "user-1", "hello")
+	if err != nil {
+		t.Fatalf("accrue: %v", err)
+	}
+	if repo.atomicCalls != 1 || repo.getCalls != 0 || repo.saveCalls != 0 {
+		t.Fatalf("atomic=%d get=%d save=%d", repo.atomicCalls, repo.getCalls, repo.saveCalls)
+	}
+	if result.Gained != 5 || result.Profile.XP != 5 {
+		t.Fatalf("result = %#v", result)
+	}
+}
+
 func TestLegacyTextXPForMessageMatchesLegacyLengthAndMultiplier(t *testing.T) {
 	if got := LegacyTextXPContentLength("ab你🙂"); got != 8 {
 		t.Fatalf("legacy length = %d", got)
@@ -97,4 +114,27 @@ func TestLegacyTextXPLevelUpAnnouncementUsesDefaultAndFirstReplacements(t *testi
 
 func fixedMultiplier(value int64) func() int64 {
 	return func() int64 { return value }
+}
+
+type atomicTextXPRepository struct {
+	profile     domain.XPProfile
+	err         error
+	atomicCalls int
+	getCalls    int
+	saveCalls   int
+}
+
+func (r *atomicTextXPRepository) AccrueTextXP(context.Context, string, string, int64) (domain.XPProfile, bool, error) {
+	r.atomicCalls++
+	return r.profile, false, r.err
+}
+
+func (r *atomicTextXPRepository) GetTextXPProfile(context.Context, string, string) (domain.XPProfile, error) {
+	r.getCalls++
+	return domain.XPProfile{}, errors.New("legacy get should not run")
+}
+
+func (r *atomicTextXPRepository) SaveTextXPProfile(context.Context, domain.XPProfile) error {
+	r.saveCalls++
+	return errors.New("legacy save should not run")
 }
