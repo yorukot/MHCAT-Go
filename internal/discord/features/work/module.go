@@ -13,10 +13,11 @@ type Module struct {
 	work    *workservice.Service
 	discord ports.DiscordInfoProvider
 	captcha captchaGenerator
+	color   func() int
 }
 
 func NewModule(usage ports.UsageTracker) Module {
-	return Module{usage: usage, captcha: randomCaptcha}
+	return Module{usage: usage, captcha: randomCaptcha, color: randomWorkColor}
 }
 
 func NewModuleWithRepository(repo ports.WorkInterfaceRepository, usage ports.UsageTracker, clock ports.Clock) Module {
@@ -25,7 +26,7 @@ func NewModuleWithRepository(repo ports.WorkInterfaceRepository, usage ports.Usa
 
 func NewModuleWithRepositoryAndDiscordInfo(repo ports.WorkInterfaceRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker, clock ports.Clock) Module {
 	service := workservice.NewService(repo, clock)
-	return Module{usage: usage, work: &service, discord: discordInfo, captcha: randomCaptcha}
+	return Module{usage: usage, work: &service, discord: discordInfo, captcha: randomCaptcha, color: randomWorkColor}
 }
 
 func NewModuleWithStartRepository(repo ports.WorkStartRepository, usage ports.UsageTracker, clock ports.Clock) Module {
@@ -34,7 +35,7 @@ func NewModuleWithStartRepository(repo ports.WorkStartRepository, usage ports.Us
 
 func NewModuleWithStartRepositoryAndDiscordInfo(repo ports.WorkStartRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker, clock ports.Clock) Module {
 	service := workservice.NewServiceWithStartRepository(repo, repo, clock)
-	return Module{usage: usage, work: &service, discord: discordInfo, captcha: randomCaptcha}
+	return Module{usage: usage, work: &service, discord: discordInfo, captcha: randomCaptcha, color: randomWorkColor}
 }
 
 func NewModuleWithAdminRepository(repo ports.WorkAdminRepository, usage ports.UsageTracker, clock ports.Clock) Module {
@@ -43,7 +44,14 @@ func NewModuleWithAdminRepository(repo ports.WorkAdminRepository, usage ports.Us
 
 func NewModuleWithAdminRepositoryAndDiscordInfo(repo ports.WorkAdminRepository, discordInfo ports.DiscordInfoProvider, usage ports.UsageTracker, clock ports.Clock) Module {
 	service := workservice.NewServiceWithAdminRepository(repo, clock)
-	return Module{usage: usage, work: &service, discord: discordInfo, captcha: randomCaptcha}
+	return Module{usage: usage, work: &service, discord: discordInfo, captcha: randomCaptcha, color: randomWorkColor}
+}
+
+func (m Module) randomColor() int {
+	if m.color == nil {
+		return randomWorkColor()
+	}
+	return m.color()
 }
 
 func (m Module) Name() string {

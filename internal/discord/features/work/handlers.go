@@ -28,7 +28,6 @@ const (
 	permissionManageMessages = 8192
 	workErrorColor           = 0xEA0000
 	workSuccessColor         = 0x53FF53
-	workListColor            = 0x5865F2
 	dashboardColor           = 0xDF1F2F
 	dashboardTitle           = "<a:announcement:1005035747197337650> | 該指令已經移往控制面板，請前往控制面板進行設定"
 	dashboardLabel           = "點我前往儀錶板設定!"
@@ -83,7 +82,7 @@ func (m Module) DetailHandler() interactions.Handler {
 		if err != nil {
 			return responder.UpdateMessage(ctx, workErrorMessageFromError(err))
 		}
-		return responder.UpdateMessage(ctx, workDetailMessage(view, item, m.work.CanStart()))
+		return responder.UpdateMessage(ctx, workDetailMessage(view, item, m.work.CanStart(), m.randomColor()))
 	}
 }
 
@@ -156,7 +155,7 @@ func (m Module) CaptchaHandler() interactions.Handler {
 		if err != nil {
 			return responder.EditOriginal(ctx, workErrorMessageFromError(err))
 		}
-		if err := responder.EditOriginal(ctx, workInterfaceMessage(view)); err != nil {
+		if err := responder.EditOriginal(ctx, workInterfaceMessage(view, m.randomColor())); err != nil {
 			return err
 		}
 		return m.track(ctx, interaction)
@@ -203,7 +202,7 @@ func (m Module) handleWorkInterface(ctx context.Context, interaction interaction
 	if err != nil {
 		return responder.EditOriginal(ctx, workErrorMessageFromError(err))
 	}
-	if err := responder.EditOriginal(ctx, workInterfaceMessage(view)); err != nil {
+	if err := responder.EditOriginal(ctx, workInterfaceMessage(view, m.randomColor())); err != nil {
 		return err
 	}
 	return m.track(ctx, interaction)
@@ -377,7 +376,7 @@ func workCaptchaModal(left int, right int) responses.Modal {
 	}
 }
 
-func workInterfaceMessage(view domain.WorkInterfaceView) responses.Message {
+func workInterfaceMessage(view domain.WorkInterfaceView, colors ...int) responses.Message {
 	guildName := strings.TrimSpace(view.GuildName)
 	if guildName == "" {
 		guildName = view.Config.GuildID
@@ -386,11 +385,15 @@ func workInterfaceMessage(view domain.WorkInterfaceView) responses.Message {
 	if userTag == "" {
 		userTag = view.User.UserID
 	}
+	color := randomWorkColor()
+	if len(colors) > 0 {
+		color = colors[0]
+	}
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title:       fmt.Sprintf("<:list:992002476360343602> 以下是%s的打工簡章", guildName),
 			Description: workInterfaceDescription(view),
-			Color:       workListColor,
+			Color:       color,
 			Fields:      workItemFields(view.VisibleItems),
 			Footer: &responses.EmbedFooter{
 				Text:    userTag + "的查詢",
@@ -462,7 +465,11 @@ func workItemButtons(items []domain.WorkItem, userID string) []responses.Compone
 	return rows
 }
 
-func workDetailMessage(view domain.WorkInterfaceView, item domain.WorkItem, startEnabled bool) responses.Message {
+func workDetailMessage(view domain.WorkInterfaceView, item domain.WorkItem, startEnabled bool, colors ...int) responses.Message {
+	color := randomWorkColor()
+	if len(colors) > 0 {
+		color = colors[0]
+	}
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title: fmt.Sprintf("<:creativeteaching:986060052949524600> 以下是%s打工的詳細資料", item.Name),
@@ -471,7 +478,7 @@ func workDetailMessage(view domain.WorkInterfaceView, item domain.WorkItem, star
 				item.CoinReward,
 				item.EnergyCost,
 			),
-			Color: workListColor,
+			Color: color,
 		}},
 		Components: []responses.ComponentRow{{
 			Components: []responses.Component{{
@@ -811,6 +818,14 @@ func buttonLabel(value string) string {
 
 func randomCaptcha() (int, int) {
 	return secureDigit(), secureDigit()
+}
+
+func randomWorkColor() int {
+	value, err := rand.Int(rand.Reader, big.NewInt(1<<24))
+	if err != nil {
+		return 0
+	}
+	return int(value.Int64())
 }
 
 func secureDigit() int {

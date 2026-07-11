@@ -65,6 +65,7 @@ func TestWorkInterfaceRendersLegacyListReadOnly(t *testing.T) {
 	repo.PutItems("guild-1", item)
 	repo.PutUser(domain.WorkUserState{GuildID: "guild-1", UserID: "user-1", State: domain.WorkIdleState, Energy: 9, Initialized: true})
 	module := NewModuleWithRepository(repo, nil, nil)
+	module.color = func() int { return 0x123456 }
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteractionWithOptions(CommandName, subcommandWorkInterface, nil)
 	interaction.ChannelName = "測試伺服器"
@@ -77,6 +78,9 @@ func TestWorkInterfaceRendersLegacyListReadOnly(t *testing.T) {
 		t.Fatalf("expected defer/edit, defers=%#v edits=%#v replies=%#v", responder.Defers, responder.Edits, responder.Replies)
 	}
 	edit := responder.Edits[0]
+	if edit.Embeds[0].Color != 0x123456 {
+		t.Fatalf("list color = %#x", edit.Embeds[0].Color)
+	}
 	if len(edit.Embeds) != 1 || edit.Embeds[0].Title != "<:list:992002476360343602> 以下是測試伺服器的打工簡章" {
 		t.Fatalf("unexpected embed title: %#v", edit.Embeds)
 	}
@@ -295,6 +299,7 @@ func TestWorkDetailRendersLegacyDetailWithDisabledConfirmWhenReadOnly(t *testing
 	repo.PutItems("guild-1", item)
 	repo.PutUser(domain.WorkUserState{GuildID: "guild-1", UserID: "user-1", State: domain.WorkIdleState, Energy: 9, Initialized: true})
 	module := NewModuleWithRepository(repo, nil, nil)
+	module.color = func() int { return 0x654321 }
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.ComponentInteractionFromID(workDetailCustomID(item))
 
@@ -305,6 +310,9 @@ func TestWorkDetailRendersLegacyDetailWithDisabledConfirmWhenReadOnly(t *testing
 		t.Fatalf("updates = %#v", responder.Updates)
 	}
 	update := responder.Updates[0]
+	if update.Embeds[0].Color != 0x654321 {
+		t.Fatalf("detail color = %#x", update.Embeds[0].Color)
+	}
 	if update.Embeds[0].Title != "<:creativeteaching:986060052949524600> 以下是礦坑打工的詳細資料" {
 		t.Fatalf("detail embed = %#v", update.Embeds[0])
 	}
