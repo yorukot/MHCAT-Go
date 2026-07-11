@@ -44,7 +44,11 @@ func (m Module) SettingsHandler() interactions.Handler {
 			}
 			return err
 		}
-		if err := responder.EditOriginal(ctx, economySettingsSuccessMessage(config, command.SignCooldownHours, interaction.Actor.AvatarURL, m.randomColor())); err != nil {
+		avatarURL := strings.TrimSpace(interaction.Actor.GuildAvatarURL)
+		if avatarURL == "" {
+			avatarURL = interaction.Actor.AvatarURL
+		}
+		if err := responder.EditOriginal(ctx, economySettingsSuccessMessage(config, command.SignCooldownHours, avatarURL, m.randomColor())); err != nil {
 			return err
 		}
 		return m.trackCommand(ctx, interaction, EconomySettingsCommandName)

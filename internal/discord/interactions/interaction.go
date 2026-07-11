@@ -42,6 +42,7 @@ type Actor struct {
 	GuildID        string
 	UserTag        string
 	AvatarURL      string
+	GuildAvatarURL string
 	VoiceChannelID string
 	RoleIDs        []string
 	PermissionBits int64

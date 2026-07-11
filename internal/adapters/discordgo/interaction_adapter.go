@@ -185,6 +185,11 @@ func actorFromDiscord(interaction *dgo.Interaction) interactions.Actor {
 		actor.Username = interaction.Member.User.Username
 		actor.UserTag = userTag(interaction.Member.User)
 		actor.AvatarURL = interaction.Member.User.AvatarURL("")
+		member := *interaction.Member
+		if member.GuildID == "" {
+			member.GuildID = interaction.GuildID
+		}
+		actor.GuildAvatarURL = member.AvatarURL("")
 		actor.RoleIDs = append([]string(nil), interaction.Member.Roles...)
 		actor.PermissionBits = interaction.Member.Permissions
 		return actor

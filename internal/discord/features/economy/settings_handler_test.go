@@ -36,6 +36,7 @@ func TestSettingsSavesLegacyConfigShape(t *testing.T) {
 	interaction := settingsInteraction()
 	interaction.Actor.PermissionBits = economySettingsManageMessagesPermission
 	interaction.Actor.AvatarURL = "https://cdn.example/avatar.png"
+	interaction.Actor.GuildAvatarURL = "https://cdn.example/guild-avatar.gif"
 
 	if err := module.SettingsHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handle settings: %v", err)
@@ -57,7 +58,7 @@ func TestSettingsSavesLegacyConfigShape(t *testing.T) {
 	if !strings.Contains(embed.Title, "扭蛋所需代幣:`700`") || !strings.Contains(embed.Title, "等級提升給予倍數:`2.5`") || embed.Description != "通知頻道:<#222222222222222222>" {
 		t.Fatalf("success embed = %#v", embed)
 	}
-	if embed.Footer == nil || embed.Footer.Text != "MHCAT" || embed.Footer.IconURL != "https://cdn.example/avatar.png" {
+	if embed.Footer == nil || embed.Footer.Text != "MHCAT" || embed.Footer.IconURL != "https://cdn.example/guild-avatar.gif" {
 		t.Fatalf("footer = %#v", embed.Footer)
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != EconomySettingsCommandName || usage.Events[0].Feature != "economy-settings" {

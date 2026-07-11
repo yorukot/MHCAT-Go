@@ -33,6 +33,23 @@ func TestRuntimeInteractionSlashCommand(t *testing.T) {
 	}
 }
 
+func TestRuntimeInteractionPreservesUserAndGuildDisplayAvatars(t *testing.T) {
+	session := testSession()
+	event := slashEvent("coin-related-settings", nil)
+	event.Member.User.Avatar = "user-avatar"
+	event.Member.Avatar = "guild-avatar"
+	interaction, _, err := session.RuntimeInteraction(&dgo.InteractionCreate{Interaction: event})
+	if err != nil {
+		t.Fatalf("runtime interaction: %v", err)
+	}
+	if !strings.Contains(interaction.Actor.AvatarURL, "/avatars/user-1/user-avatar") {
+		t.Fatalf("user avatar = %q", interaction.Actor.AvatarURL)
+	}
+	if !strings.Contains(interaction.Actor.GuildAvatarURL, "/guilds/guild-1/users/user-1/avatars/guild-avatar") {
+		t.Fatalf("guild avatar = %q", interaction.Actor.GuildAvatarURL)
+	}
+}
+
 func TestRuntimeInteractionSubcommand(t *testing.T) {
 	session := testSession()
 	event := slashEvent("info", []*dgo.ApplicationCommandInteractionDataOption{
