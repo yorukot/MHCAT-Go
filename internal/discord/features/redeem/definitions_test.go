@@ -1,25 +1,27 @@
 package redeem
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/commands"
 )
 
 func TestDefinitionMatchesLegacyMetadata(t *testing.T) {
-	definition := Definition()
-	if definition.Name != CommandName || definition.Description != "兌換代碼" {
-		t.Fatalf("definition = %#v", definition)
+	want := commands.Definition{
+		Type:        commands.CommandTypeChatInput,
+		Name:        "兌換",
+		Description: "兌換代碼",
+		Ownership:   commands.ManagedOwnership("redeem", commands.ScopeGuild),
+		Options: []commands.Option{{
+			Type:        commands.OptionTypeString,
+			Name:        "代碼",
+			Description: "輸入您的代碼",
+			Required:    true,
+		}},
 	}
-	if len(definition.Options) != 1 {
-		t.Fatalf("options = %#v", definition.Options)
-	}
-	option := definition.Options[0]
-	if option.Name != optionCode || option.Description != "輸入您的代碼" || option.Type != commands.OptionTypeString || !option.Required {
-		t.Fatalf("option = %#v", option)
-	}
-	if definition.DefaultMemberPermissions != nil {
-		t.Fatalf("permissions = %#v", definition.DefaultMemberPermissions)
+	if got := Definition(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("definition = %#v, want %#v", got, want)
 	}
 }
 

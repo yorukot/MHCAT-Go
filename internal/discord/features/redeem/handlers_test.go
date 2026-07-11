@@ -3,6 +3,7 @@ package redeem
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/redeem"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
@@ -35,21 +37,26 @@ func TestHandlerRedeemsCodeAndRendersLegacySuccess(t *testing.T) {
 	if err := module.Handler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
-	if len(responder.Defers) != 1 || !responder.Defers[0].Ephemeral {
+	if !reflect.DeepEqual(responder.Defers, []responses.DeferOptions{{Ephemeral: true}}) {
 		t.Fatalf("defers = %#v", responder.Defers)
 	}
 	if repo.Balances["guild-1"] != 5 {
 		t.Fatalf("balances = %#v", repo.Balances)
 	}
-	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
-		t.Fatalf("edits = %#v", responder.Edits)
+	want := responses.Message{
+		Embeds: []responses.Embed{{
+			Author: &responses.EmbedAuthor{
+				Name:    "成功兌換代碼!",
+				IconURL: "https://media.discordapp.net/attachments/991337796960784424/1078883215462383697/success.gif",
+			},
+			Footer: &responses.EmbedFooter{Text: "你可以使用/查看餘額進行查詢剩餘餘額"},
+			Color:  0x57F287,
+		}},
+		Ephemeral:       true,
+		AllowedMentions: &responses.AllowedMentions{},
 	}
-	embed := responder.Edits[0].Embeds[0]
-	if embed.Author == nil || embed.Author.Name != "成功兌換代碼!" || embed.Author.IconURL != successIconURL {
-		t.Fatalf("embed author = %#v", embed.Author)
-	}
-	if embed.Footer == nil || embed.Footer.Text != "你可以使用/查看餘額進行查詢剩餘餘額" || embed.Color != redeemSuccessColor {
-		t.Fatalf("embed = %#v", embed)
+	if len(responder.Edits) != 1 || !reflect.DeepEqual(responder.Edits[0], want) {
+		t.Fatalf("edits = %#v, want %#v", responder.Edits, want)
 	}
 	if len(usage.Events) != 1 || usage.Events[0].CommandName != CommandName || usage.Events[0].Feature != "redeem" {
 		t.Fatalf("usage = %#v", usage.Events)
@@ -61,12 +68,12 @@ func TestHandlerUsesLegacyErrors(t *testing.T) {
 	tests := []struct {
 		name string
 		repo *fakemongo.RedeemRepository
-		want string
+		want responses.Message
 	}{
 		{
 			name: "missing",
 			repo: fakemongo.NewRedeemRepository(),
-			want: "找不到這個代碼!",
+			want: redeemErrorMessage("找不到這個代碼!"),
 		},
 		{
 			name: "expired",
@@ -75,7 +82,16 @@ func TestHandlerUsesLegacyErrors(t *testing.T) {
 				repo.Codes["abc"] = domain.RedeemCode{Code: "abc", Price: 1, CreatedAtMillis: float64(now.Add(-coreservice.LegacyCodeTTL - time.Millisecond).UnixMilli())}
 				return repo
 			}(),
-			want: "這個代碼為防止遭人惡意使用",
+			want: redeemErrorMessage("這個代碼為防止遭人惡意使用，已過期，如果你是代碼擁有者，請前往支援伺服器開啟客服頻道!"),
+		},
+		{
+			name: "backend failure",
+			repo: func() *fakemongo.RedeemRepository {
+				repo := fakemongo.NewRedeemRepository()
+				repo.Err = errors.New("mongo credential secret")
+				return repo
+			}(),
+			want: redeemErrorMessage("很抱歉，出現了未知的錯誤，請重試!"),
 		},
 	}
 	for _, tc := range tests {
@@ -86,11 +102,11 @@ func TestHandlerUsesLegacyErrors(t *testing.T) {
 			if err := module.Handler()(context.Background(), interaction, responder); err != nil {
 				t.Fatalf("handler: %v", err)
 			}
-			if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 {
-				t.Fatalf("edits = %#v", responder.Edits)
+			if !reflect.DeepEqual(responder.Defers, []responses.DeferOptions{{Ephemeral: true}}) {
+				t.Fatalf("defers = %#v", responder.Defers)
 			}
-			if !strings.Contains(responder.Edits[0].Embeds[0].Title, tc.want) {
-				t.Fatalf("title = %q", responder.Edits[0].Embeds[0].Title)
+			if len(responder.Edits) != 1 || !reflect.DeepEqual(responder.Edits[0], tc.want) {
+				t.Fatalf("edits = %#v, want %#v", responder.Edits, tc.want)
 			}
 			if len(tc.repo.Balances) != 0 {
 				t.Fatalf("unexpected balance update = %#v", tc.repo.Balances)
