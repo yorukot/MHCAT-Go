@@ -104,7 +104,7 @@ Implemented utility commands:
 - parity-audited `/代幣排行榜` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`; see [docs/96-economy-coin-rank.md](docs/96-economy-coin-rank.md)
 - `/代幣重製` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, gateway enabled, Guild Messages intent enabled, and Message Content intent enabled
 - `/剪刀石頭布` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`
-- `/my-profile` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true`
+- parity-audited `/my-profile` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true`; see [docs/97-economy-profile.md](docs/97-economy-profile.md)
 - `/打工系統 新增打工事項` dashboard redirect, `/打工系統 打工介面` list/detail/start flow, and work admin setup/delete/energy flows when explicitly enabled with `MHCAT_FEATURE_WORK_ENABLED=true`
 - `/警告紀錄` when explicitly enabled with `MHCAT_FEATURE_WARNINGS_ENABLED=true`
 - `/警告設定` when explicitly enabled with `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true`
