@@ -37,7 +37,7 @@ func TestWorkStartFilterRequiresIdleUnlessOverride(t *testing.T) {
 	if containsKey(filter, "state") {
 		t.Fatalf("did not expect state filter for override start: %#v", filter)
 	}
-	if !containsKey(filter, "energi") {
+	if !containsKey(filter, "$expr") {
 		t.Fatalf("expected energy filter: %#v", filter)
 	}
 }
@@ -75,13 +75,18 @@ func TestWorkStartUsesLegacyScalarArithmetic(t *testing.T) {
 			command.EnergyCostText = test.text
 			command.CoinRewardText = test.text
 			filter := workStartFilter(command)
-			if containsKey(filter, "energi") != test.wantEnergy {
+			if containsKey(filter, "$expr") != test.wantEnergy {
 				t.Fatalf("energy filter = %#v", filter)
 			}
 			update := workStartUpdate(command)
-			inc := lookupD(update, "$inc").(bson.D)
-			set := lookupD(update, "$set").(bson.D)
-			assertWorkFloat(t, lookupD(inc, "energi"), -test.want)
+			set := lookupD(update[0], "$set").(bson.D)
+			energyExpression := lookupD(set, "energi").(bson.D)
+			subtract := lookupD(energyExpression, "$subtract").(bson.A)
+			assertWorkFloat(t, subtract[1], test.want)
+			conversion := subtract[0].(bson.D)
+			if !containsKey(conversion, "$convert") {
+				t.Fatalf("energy conversion = %#v", conversion)
+			}
 			assertWorkFloat(t, lookupD(set, "end_time"), 100+test.want)
 			assertWorkFloat(t, lookupD(set, "get_coin"), test.want)
 		})

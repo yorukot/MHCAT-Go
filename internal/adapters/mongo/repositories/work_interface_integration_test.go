@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"math"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -83,6 +84,49 @@ func TestWorkInterfaceMongoIntegrationPreservesLegacyStartArithmetic(t *testing.
 				t.Fatalf("start work: %v", err)
 			}
 			if updated.EnergyText != test.wantEnergy || updated.EndTimeText != test.wantEnd || updated.GetCoinText != test.wantReward {
+				t.Fatalf("updated = %#v", updated)
+			}
+		})
+	}
+}
+
+func TestWorkInterfaceMongoIntegrationCoercesExistingEnergyOnStart(t *testing.T) {
+	database := economyQueryIntegrationDatabase(t)
+	repository, err := NewWorkInterfaceRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	ctx := context.Background()
+	tests := []struct {
+		name       string
+		energy     any
+		cost       string
+		wantEnergy string
+	}{
+		{name: "decimal", energy: 5.5, cost: "2", wantEnergy: "3.5"},
+		{name: "numeric-string", energy: "5.5", cost: "2", wantEnergy: "3.5"},
+		{name: "null", energy: nil, cost: "-2", wantEnergy: "2"},
+		{name: "boolean", energy: true, cost: "1", wantEnergy: "0"},
+		{name: "infinity", energy: math.Inf(1), cost: "2", wantEnergy: "Infinity"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			userID := "energy-" + test.name
+			if _, err := database.Collection(WorkUserCollectionName).InsertOne(ctx, bson.D{
+				{Key: "guild", Value: "energy-guild"}, {Key: "user", Value: userID},
+				{Key: "state", Value: LegacyIdleWorkState}, {Key: "end_time", Value: 0},
+				{Key: "energi", Value: test.energy}, {Key: "get_coin", Value: 0},
+			}); err != nil {
+				t.Fatalf("insert user: %v", err)
+			}
+			updated, err := repository.StartWork(ctx, domain.WorkStartCommand{
+				GuildID: "energy-guild", UserID: userID, WorkName: "work", NowUnix: 100,
+				DurationText: "1", EnergyCostText: test.cost, CoinRewardText: "1",
+			})
+			if err != nil {
+				t.Fatalf("start work: %v", err)
+			}
+			if updated.EnergyText != test.wantEnergy {
 				t.Fatalf("updated = %#v", updated)
 			}
 		})

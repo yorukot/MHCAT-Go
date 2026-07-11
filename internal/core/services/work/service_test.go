@@ -198,6 +198,29 @@ func TestStartWorkUsesRepository(t *testing.T) {
 	}
 }
 
+func TestStartWorkPreservesMixedScalarArithmetic(t *testing.T) {
+	repo := fakemongo.NewWorkInterfaceRepository()
+	item := domain.WorkItem{
+		GuildID: "guild-1", Name: "礦坑", DurationText: "0.5",
+		EnergyCostText: "2.25", CoinRewardText: "3.75",
+	}
+	repo.PutConfig(domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 10})
+	repo.PutItems("guild-1", item)
+	repo.PutUser(domain.WorkUserState{
+		GuildID: "guild-1", UserID: "user-1", State: domain.WorkIdleState,
+		Energy: 5, EnergyText: "5.5", Initialized: true,
+	})
+	service := NewServiceWithStartRepository(repo, repo, fakeClock{now: time.Unix(100, 0)})
+
+	_, _, updated, err := service.Start(context.Background(), InterfaceRequest{GuildID: "guild-1", UserID: "user-1"}, item.Key(), false)
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if updated.EndTimeText != "100.5" || updated.EnergyText != "3.25" || updated.GetCoinText != "3.75" {
+		t.Fatalf("updated = %#v", updated)
+	}
+}
+
 func TestStartWorkTreatsEmptyLegacyStateAsBusy(t *testing.T) {
 	repo := fakemongo.NewWorkInterfaceRepository()
 	item := domain.WorkItem{GuildID: "guild-1", Name: "礦坑", DurationSec: 60, EnergyCost: 2, CoinReward: 5}

@@ -2,6 +2,8 @@ package fakemongo
 
 import (
 	"context"
+	"math"
+	"strconv"
 	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -65,9 +67,6 @@ func (r *WorkInterfaceRepository) StartWork(_ context.Context, command domain.Wo
 	if command.GuildID == "" ||
 		command.UserID == "" ||
 		command.WorkName == "" ||
-		command.DurationSec <= 0 ||
-		command.EnergyCost < 0 ||
-		command.CoinReward < 0 ||
 		command.NowUnix <= 0 {
 		return domain.WorkUserState{}, domain.ErrInvalidWorkQuery
 	}
@@ -84,7 +83,9 @@ func (r *WorkInterfaceRepository) StartWork(_ context.Context, command domain.Wo
 			Initialized: false,
 		}
 	}
-	if user.Energy < command.EnergyCost {
+	energy := fakeWorkNumber(user.EnergyText, user.Energy)
+	cost := fakeWorkNumber(command.EnergyCostText, command.EnergyCost)
+	if energy < cost {
 		return domain.WorkUserState{}, domain.ErrWorkEnergyInsufficient
 	}
 	if !command.Override && user.State != domain.WorkIdleState {
@@ -93,9 +94,15 @@ func (r *WorkInterfaceRepository) StartWork(_ context.Context, command domain.Wo
 	user.GuildID = command.GuildID
 	user.UserID = command.UserID
 	user.State = command.WorkName
-	user.EndTimeUnix = command.NowUnix + command.DurationSec
-	user.Energy -= command.EnergyCost
-	user.GetCoin = command.CoinReward
+	endTime := float64(command.NowUnix) + fakeWorkNumber(command.DurationText, command.DurationSec)
+	reward := fakeWorkNumber(command.CoinRewardText, command.CoinReward)
+	nextEnergy := energy - cost
+	user.EndTimeUnix = int64(endTime)
+	user.EndTimeText = fakeWorkNumberText(endTime)
+	user.Energy = int64(nextEnergy)
+	user.EnergyText = fakeWorkNumberText(nextEnergy)
+	user.GetCoin = int64(reward)
+	user.GetCoinText = fakeWorkNumberText(reward)
 	user.Initialized = true
 	r.Users[key] = user
 	return user, nil
@@ -205,6 +212,34 @@ func clampWorkEnergy(value int64, maxEnergy int64) int64 {
 		return maxEnergy
 	}
 	return value
+}
+
+func fakeWorkNumber(text string, fallback int64) float64 {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return float64(fallback)
+	}
+	if text == "null" {
+		return 0
+	}
+	value, err := strconv.ParseFloat(text, 64)
+	if err != nil {
+		return math.NaN()
+	}
+	return value
+}
+
+func fakeWorkNumberText(value float64) string {
+	switch {
+	case math.IsInf(value, 1):
+		return "Infinity"
+	case math.IsInf(value, -1):
+		return "-Infinity"
+	case math.IsNaN(value):
+		return "NaN"
+	default:
+		return strconv.FormatFloat(value, 'f', -1, 64)
+	}
 }
 
 var _ ports.WorkInterfaceRepository = (*WorkInterfaceRepository)(nil)

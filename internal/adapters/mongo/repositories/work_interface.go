@@ -132,17 +132,17 @@ func (r *WorkInterfaceRepository) StartWork(ctx context.Context, command domain.
 	return updated.ToDomain(), ctx.Err()
 }
 
-func workStartUpdate(command domain.WorkStartCommand) bson.D {
+func workStartUpdate(command domain.WorkStartCommand) drivermongo.Pipeline {
 	duration := workStartNumber(command.DurationText, command.DurationSec)
 	energy := workStartNumber(command.EnergyCostText, command.EnergyCost)
 	reward := workStartNumber(command.CoinRewardText, command.CoinReward)
-	return bson.D{
-		{Key: "$inc", Value: bson.D{{Key: "energi", Value: -energy}}},
-		{Key: "$set", Value: bson.D{
+	return drivermongo.Pipeline{
+		bson.D{{Key: "$set", Value: bson.D{
 			{Key: "state", Value: command.WorkName},
 			{Key: "end_time", Value: float64(command.NowUnix) + duration},
 			{Key: "get_coin", Value: reward},
-		}},
+			{Key: "energi", Value: bson.D{{Key: "$subtract", Value: bson.A{workMongoNumber("$energi"), energy}}}},
+		}}},
 	}
 }
 
@@ -322,12 +322,21 @@ func workStartFilter(command domain.WorkStartCommand) bson.D {
 	}
 	energy := workStartNumber(command.EnergyCostText, command.EnergyCost)
 	if !math.IsNaN(energy) {
-		filter = append(filter, bson.E{Key: "energi", Value: bson.D{{Key: "$gte", Value: energy}}})
+		filter = append(filter, bson.E{Key: "$expr", Value: bson.D{{Key: "$gte", Value: bson.A{workMongoNumber("$energi"), energy}}}})
 	}
 	if !command.Override {
 		filter = append(filter, bson.E{Key: "state", Value: LegacyIdleWorkState})
 	}
 	return filter
+}
+
+func workMongoNumber(input any) bson.D {
+	return bson.D{{Key: "$convert", Value: bson.D{
+		{Key: "input", Value: input},
+		{Key: "to", Value: "double"},
+		{Key: "onError", Value: math.NaN()},
+		{Key: "onNull", Value: float64(0)},
+	}}}
 }
 
 func workStartNumber(text string, fallback int64) float64 {
