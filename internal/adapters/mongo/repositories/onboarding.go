@@ -427,7 +427,7 @@ func (r *AccountAgeConfigRepository) SaveAccountAgeRequirement(ctx context.Conte
 			return domain.AccountAgeConfig{}, mhcatmongo.MapError(fmt.Errorf("load existing account age config before save: %w", err))
 		}
 	} else {
-		config.ChannelID = strings.TrimSpace(existing.ChannelID())
+		config.ChannelID = existing.ChannelID()
 	}
 	document := documents.AccountAgeDocumentFromDomain(config)
 	update, err := mhcatmongo.NewUpdate().

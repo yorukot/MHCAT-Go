@@ -265,6 +265,7 @@ func TestAccountAgeReadDocumentUsesMongooseStringAndNumberCoercion(t *testing.T)
 		{name: "numeric scalar", hours: int32(3600), channel: int64(123), wantSeconds: 3600, wantChannel: "123"},
 		{name: "exponent string", hours: "3.6e3", channel: true, wantSeconds: 3600, wantChannel: "true"},
 		{name: "fractional string", hours: "3600.5", channel: nil, wantSeconds: 3600.5},
+		{name: "raw channel whitespace", hours: "3600", channel: " channel ", wantSeconds: 3600, wantChannel: " channel "},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
