@@ -141,6 +141,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, ""),
 		catalogSpec("voice_channels", "voice_channel", "models/voice_channel.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("voice_channels_guild_ticket_channel", []string{"guild", "ticket_channel"}, "dynamic voice trigger config"),
+			nonUniqueCatalogIndex("voice_channels_guild_parent_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "parent", Order: 1}}, "dynamic voice category cleanup without requiring duplicate cleanup"),
 		}, "Voice-state feature requires ownership/reconciliation before writes."),
 		catalogSpec("voice_channel_ids", "voice_channel_id", "models/voice_channel_id.js", []string{"guild", "channel_id"}, []catalogIndex{
 			uniqueCatalogIndex("voice_channel_ids_guild_channel_id", []string{"guild", "channel_id"}, "dynamic voice channel state lookup"),
