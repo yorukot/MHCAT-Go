@@ -632,6 +632,37 @@ func TestBuildRuntimeRoutesEconomyProfileWithoutPublishingOtherEconomyCommands(t
 	}
 }
 
+func TestBuildRuntimeTracksProfileSlashOnceAndNotRefresh(t *testing.T) {
+	repo := fakemongo.NewEconomyProfileRepository()
+	viewerID := "123456789012345678"
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: viewerID, Coins: 42})
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		EconomyProfileRepository: repo,
+		UsageTracker:             tracker,
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteraction("my-profile")
+	interaction.Actor.UserID = viewerID
+	if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch profile slash: %v", err)
+	}
+	if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "my-profile" {
+		t.Fatalf("slash usage = %#v", tracker.Events)
+	}
+	component := fakediscord.ComponentInteractionFromID(viewerID + "my-profile")
+	component.Actor.UserID = viewerID
+	if err := dispatcher.Dispatch(context.Background(), component, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch profile refresh: %v", err)
+	}
+	if len(tracker.Events) != 1 {
+		t.Fatalf("refresh changed usage = %#v", tracker.Events)
+	}
+}
+
 func TestBuildRuntimeRoutesWorkOnlyWhenEnabled(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
