@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/color"
 	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -44,13 +48,16 @@ func TestProfileSlashRepliesLoadingThenRendersLegacyPNGAndRefreshButton(t *testi
 	responder := fakediscord.NewResponder()
 	interaction := fakediscord.SlashInteraction(ProfileCommandName)
 	interaction.Actor.UserID = userID
-	interaction.Actor.AvatarURL = "https://example.test/avatar.png"
+	interaction.Actor.AvatarURL = "https://cdn.discordapp.com/avatars/user/a_hash.gif?size=1024"
 
 	if err := module.ProfileHandler()(context.Background(), interaction, responder); err != nil {
 		t.Fatalf("handler: %v", err)
 	}
 	if len(responder.Replies) != 1 || len(responder.Replies[0].Embeds) != 1 || responder.Replies[0].Embeds[0].Author.Name != signLoadingAuthor {
 		t.Fatalf("loading reply = %#v", responder.Replies)
+	}
+	if got := responder.Replies[0].Embeds[0].Footer.IconURL; got != "https://cdn.discordapp.com/avatars/user/a_hash.png?size=1024" {
+		t.Fatalf("loading avatar = %q", got)
 	}
 	if len(responder.Edits) != 1 {
 		t.Fatalf("edits = %#v", responder.Edits)
@@ -86,6 +93,46 @@ func TestProfileSlashSelectedUserUsesUserOption(t *testing.T) {
 	button := responder.Edits[0].Components[0].Components[0]
 	if button.CustomID != targetID+"my-profile" {
 		t.Fatalf("button = %#v", button)
+	}
+}
+
+func TestProfileSlashRendersLegacyRoundedAvatarPipeline(t *testing.T) {
+	avatar := image.NewRGBA(image.Rect(0, 0, 16, 16))
+	for y := 0; y < 16; y++ {
+		for x := 0; x < 16; x++ {
+			avatar.Set(x, y, color.RGBA{R: 245, G: 30, B: 40, A: 255})
+		}
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if err := png.Encode(writer, avatar); err != nil {
+			t.Errorf("encode avatar: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	repo := fakemongo.NewEconomyProfileRepository()
+	userID := "123456789012345678"
+	info := &fakebotinfo.DiscordInfoProvider{Users: map[string]ports.DiscordUserInfo{userID: {
+		ID: userID, Username: "User", AvatarURL: server.URL + "/avatar.png",
+	}}}
+	module := NewProfileModule(repo, info, fixedClock{now: time.Unix(1_000, 0)}, nil)
+	interaction := fakediscord.SlashInteraction(ProfileCommandName)
+	interaction.Actor.UserID = userID
+	responder := fakediscord.NewResponder()
+	if err := module.ProfileHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	rendered, err := png.Decode(bytes.NewReader(responder.Edits[0].Files[0].Data))
+	if err != nil {
+		t.Fatalf("decode profile: %v", err)
+	}
+	r, g, b, _ := rendered.At(91, 79).RGBA()
+	if r>>8 < 225 || g>>8 > 50 || b>>8 > 60 {
+		t.Fatalf("avatar center = rgb(%d,%d,%d)", r>>8, g>>8, b>>8)
+	}
+	cornerR, cornerG, cornerB, _ := rendered.At(42, 30).RGBA()
+	if cornerR>>8 > 225 && cornerG>>8 < 50 && cornerB>>8 < 60 {
+		t.Fatalf("avatar corner was not masked: rgb(%d,%d,%d)", cornerR>>8, cornerG>>8, cornerB>>8)
 	}
 }
 

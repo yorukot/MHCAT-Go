@@ -79,9 +79,19 @@ func drawProfileAvatar(canvas *image.RGBA, data []byte) {
 		drawText(canvas, 70, 92, "M", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 4)
 		return
 	}
+	large := image.NewRGBA(image.Rect(0, 0, 128, 128))
+	xdraw.CatmullRom.Scale(large, large.Bounds(), img, img.Bounds(), draw.Over, nil)
+	rounded := image.NewRGBA(large.Bounds())
+	for y := 0; y < large.Bounds().Dy(); y++ {
+		for x := 0; x < large.Bounds().Dx(); x++ {
+			if insideRoundedRect(x, y, 128, 128, 40) {
+				rounded.Set(x, y, large.At(x, y))
+			}
+		}
+	}
 	dst := image.NewRGBA(image.Rect(0, 0, 98, 98))
-	xdraw.CatmullRom.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
-	drawRoundedImage(canvas, dst, image.Pt(42, 30), 30)
+	xdraw.CatmullRom.Scale(dst, dst.Bounds(), rounded, rounded.Bounds(), draw.Over, nil)
+	draw.Draw(canvas, image.Rect(42, 30, 140, 128), dst, image.Point{}, draw.Over)
 }
 
 func decodeProfileImage(data []byte) image.Image {

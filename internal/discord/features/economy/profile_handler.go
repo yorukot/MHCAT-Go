@@ -32,7 +32,7 @@ func (m Module) ProfileHandler() interactions.Handler {
 		if m.profile.Repository == nil {
 			return domain.ErrInvalidEconomyProfileQuery
 		}
-		if err := responder.Reply(ctx, signLoadingMessage(interaction.Actor.AvatarURL)); err != nil {
+		if err := responder.Reply(ctx, signLoadingMessage(legacyCoinRankPNGURL(interaction.Actor.AvatarURL))); err != nil {
 			return err
 		}
 		targetUserID := profileTargetUserID(interaction)
@@ -172,7 +172,7 @@ func profileGuildName(info ports.DiscordGuildInfo, fallbackID string) string {
 }
 
 func fetchProfileAvatar(ctx context.Context, avatarURL string) []byte {
-	avatarURL = strings.TrimSpace(avatarURL)
+	avatarURL = legacyCoinRankPNGURL(avatarURL)
 	if avatarURL == "" || !(strings.HasPrefix(avatarURL, "http://") || strings.HasPrefix(avatarURL, "https://")) {
 		return nil
 	}
