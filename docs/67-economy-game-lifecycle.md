@@ -1,6 +1,6 @@
 # Economy Game Lifecycle
 
-Status: transactional wagers, legacy transition UI/timing, and active-game timeout settlement are implemented behind the existing disabled-by-default economy game gates. Production ownership, duplicate cleanup, and restart recovery remain open.
+Status: transactional wagers, legacy transition UI/timing, and active-game timeout settlement are implemented behind the existing disabled-by-default economy game gates. The canonical parity and rollout contract is [103-economy-game.md](103-economy-game.md); this file remains the detailed lifecycle checklist.
 
 ## Legacy Reference
 
@@ -43,7 +43,7 @@ The interaction dispatcher owns timer shutdown. Graceful app shutdown cancels pe
 - Sessions and timer generations are process-local and do not survive restart.
 - A restart after wager reserve but before terminal settlement still requires operator reconciliation.
 - Multiple unresolved invites between the same two users in one channel retain ambiguous legacy button IDs until the first component binds a message.
-- Duplicate `{guild,member}` rows remain audit debt even though matching duplicates are updated together.
+- Duplicate `{guild,member}` rows remain audit debt. One arbitrary row is read and one independently arbitrary matching row is updated, preserving legacy ambiguity.
 - Node and Go do not share game ownership; they must not handle the same command rollout concurrently.
 
 ## Gates
@@ -70,8 +70,8 @@ Use a transaction-capable replica set or sharded Mongo deployment. Keep both fla
 11. In `21點`, confirm the private acceptance response and pink-arrow action history on both turns, then let each player's turn expire separately and confirm the other player receives `2 * wager`.
 12. In disposable fixtures, submit `-1` to `21點` and `比大小`, verify the invite and signed reserve/settlement result, then verify `知識王 -1` and every game at `-2` return the wager error.
 13. Invite the challenger themselves, verify the normal public invite, then verify their accept click is denied without mutating the balance.
-12. Press a terminal action close to the deadline and confirm only one settlement occurs.
-13. Gracefully stop the bot during a pending transition or active game and confirm shutdown completes without a late Discord edit.
+14. Press a terminal action close to the deadline and confirm only one settlement occurs.
+15. Gracefully stop the bot during a pending transition or active game and confirm shutdown completes without a late Discord edit.
 
 ## Rollback
 

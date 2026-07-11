@@ -102,6 +102,7 @@ Implemented utility commands:
 - parity-audited `/coin-related-settings` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`; see [docs/99-economy-settings.md](docs/99-economy-settings.md)
 - parity-audited `/代幣增加` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`; see [docs/100-economy-coin-admin.md](docs/100-economy-coin-admin.md)
 - parity-audited `/代幣排行榜` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`; see [docs/96-economy-coin-rank.md](docs/96-economy-coin-rank.md)
+- parity-audited `/代幣遊戲` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true`; see [docs/103-economy-game.md](docs/103-economy-game.md)
 - parity-audited `/代幣重製` when explicitly enabled with its runtime, sync, gateway, Guild Messages, and Message Content gates; see [docs/102-economy-coin-reset.md](docs/102-economy-coin-reset.md)
 - parity-audited `/剪刀石頭布` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`; see [docs/101-economy-rps.md](docs/101-economy-rps.md)
 - parity-audited `/my-profile` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true`; see [docs/97-economy-profile.md](docs/97-economy-profile.md)
@@ -171,6 +172,8 @@ Known external, intentionally inactive, or rollout gaps include lottery creation
 `/代幣增加` is a disabled-by-default staging admin write slice. It requires Manage Messages, writes one legacy-compatible `coins` row, and preserves signed amounts, Mongoose-visible number scalars, uncapped creation, and add-only upper/reduce-only lower guards. Pair both feature/sync flags only against disposable staging data and follow [docs/100-economy-coin-admin.md](docs/100-economy-coin-admin.md).
 
 `/剪刀石頭布` is a disabled-by-default staging game write slice. It writes one existing `coins` row, preserves Mongoose-visible number scalars and legacy tie/win/loss wager behavior, and requires both RPS flags only against disposable staging data; follow [docs/101-economy-rps.md](docs/101-economy-rps.md).
+
+`/代幣遊戲` is a disabled-by-default transactional two-player write slice. It preserves exact game UI/timing, signed wagers, Mongoose-visible scalars, and one-row duplicate ambiguity. Use only disposable replica-set/sharded staging data and follow [docs/103-economy-game.md](docs/103-economy-game.md).
 
 `/代幣重製` is a disabled-by-default owner-only destructive slice. It deletes all guild balances or sequentially divides cursor rows with legacy scalar/duplicate behavior after one same-channel confirmation. Enable all required flags only against disposable staging data and follow [docs/102-economy-coin-reset.md](docs/102-economy-coin-reset.md).
 
@@ -582,6 +585,8 @@ The `/簽到` command is available only when `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABL
 The `/coin-related-settings` command is available only when `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_SETTINGS=true`; staging preflight and scripts reject unpaired sync/runtime flags. This command replaces one `gift_changes` row with legacy fields and duplicate behavior. It requires Manage Messages at the command definition and runtime levels; follow [docs/99-economy-settings.md](docs/99-economy-settings.md).
 
 The `/剪刀石頭布` command is available only when `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`. To include it in staging command-sync dry-run/apply, also set `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true`; staging preflight and scripts reject unpaired sync/runtime flags. It writes one existing balance and preserves no-cap wins, scalar arithmetic, and duplicate ambiguity; use only disposable staging data and follow [docs/101-economy-rps.md](docs/101-economy-rps.md).
+
+The `/代幣遊戲` command requires `MHCAT_FEATURE_ECONOMY_GAME_ENABLED=true` and transaction-capable Mongo. Staging guild sync additionally requires `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_GAME=true`; follow [docs/103-economy-game.md](docs/103-economy-game.md).
 
 The `/代幣重製` command requires its runtime, gateway, Guild Messages, Message Content, and staging sync gates. It requires the guild owner and one same-channel `^確認^` within 60 seconds before destructive delete/divide behavior; follow [docs/102-economy-coin-reset.md](docs/102-economy-coin-reset.md).
 
