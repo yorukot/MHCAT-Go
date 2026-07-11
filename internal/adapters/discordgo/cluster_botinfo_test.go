@@ -45,6 +45,10 @@ func TestClusterBotInfoProviderAggregatesFreshShardFiles(t *testing.T) {
 	if info.ShardCount != 2 || info.Uptime < 2*time.Minute || !info.GatewayConnected {
 		t.Fatalf("aggregate runtime = %#v", info)
 	}
+	shard, err := provider.ShardInfo(context.Background())
+	if err != nil || shard.ShardID != 0 || shard.ShardCount != 2 || shard.GuildCount != 1 {
+		t.Fatalf("local shard info = %#v err=%v", shard, err)
+	}
 	infos, err := provider.ShardInfos(context.Background())
 	if err != nil {
 		t.Fatalf("shard infos: %v", err)

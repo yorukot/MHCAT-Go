@@ -9,6 +9,25 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 )
 
+func TestRegisterGatewayEventHandlersSupportsAllOptionsAndRemoval(t *testing.T) {
+	session, err := NewSession("token", dgo.IntentsAllWithoutPrivileged, 0, 1)
+	if err != nil {
+		t.Fatalf("new session: %v", err)
+	}
+	dispatcher := events.NewDispatcher(nil)
+	remove := session.RegisterGatewayEventHandlers(dispatcher, GatewayEventOptions{
+		Messages: true, GuildChannels: true, MessageReactions: true, GuildMembers: true, VoiceStates: true,
+	})
+	if remove == nil {
+		t.Fatal("expected gateway handler remover")
+	}
+	remove()
+	remove()
+	var nilSession *Session
+	nilSession.RegisterGatewayEventHandlers(dispatcher, GatewayEventOptions{})()
+	session.RegisterGatewayEventHandlers(nil, GatewayEventOptions{})()
+}
+
 func TestEventFromMessage(t *testing.T) {
 	timestamp := time.Unix(1_700_000_000, 0)
 	event := eventFromMessage(events.TypeMessageCreate, &dgo.Message{

@@ -25,6 +25,13 @@ func TestLinuxSystemMetricsSamplerReadsHostAndProcessMetrics(t *testing.T) {
 	}
 }
 
+func TestDefaultSystemMetricsSamplerUsesOneSecondCPUWindow(t *testing.T) {
+	sampler, ok := defaultSystemMetricsSampler().(linuxSystemMetricsSampler)
+	if !ok || sampler.CPUInterval != time.Second {
+		t.Fatalf("default sampler = %#v", sampler)
+	}
+}
+
 func TestLinuxSystemMetricsSamplerHonorsCancellationDuringCPUSample(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
