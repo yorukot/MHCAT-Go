@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -139,6 +140,90 @@ func TestAutoChatPaidMongoTransactionIntegrationRollsBackDebit(t *testing.T) {
 	}
 }
 
+func TestAutoChatPaidMongoTransactionIntegrationAllowsLegacyOverdraw(t *testing.T) {
+	repository, database := autoChatPaidIntegrationRepository(t)
+	ctx := context.Background()
+	if _, err := database.Collection(BalanceCollectionName).InsertOne(ctx, bson.D{
+		{Key: "guild", Value: "guild-overdraw"},
+		{Key: "price", Value: 0.001},
+	}); err != nil {
+		t.Fatalf("insert balance: %v", err)
+	}
+
+	dispatch, err := repository.QueuePaidAutoChat(ctx, domain.AutoChatPaidRequest{
+		GuildID:          "guild-overdraw",
+		Content:          "expensive prompt",
+		Cost:             1,
+		RequestedAtMilli: 1_700_000_000_000,
+	})
+	if err != nil {
+		t.Fatalf("queue overdraw request: %v", err)
+	}
+	if dispatch.ConversationReset {
+		t.Fatalf("dispatch = %#v", dispatch)
+	}
+	assertAutoChatPaidBalance(t, database, "guild-overdraw", -0.999)
+	assertAutoChatPaidHandoff(t, database, "guild-overdraw", "expensive prompt", 1_700_000_000_000, nil, nil, false)
+}
+
+func TestAutoChatPaidMongoTransactionIntegrationRejectsDuplicatesWithoutWrites(t *testing.T) {
+	t.Run("balance rows", func(t *testing.T) {
+		repository, database := autoChatPaidIntegrationRepository(t)
+		ctx := context.Background()
+		if _, err := database.Collection(BalanceCollectionName).InsertMany(ctx, []any{
+			bson.D{{Key: "guild", Value: "guild-duplicate-balance"}, {Key: "price", Value: 5.0}},
+			bson.D{{Key: "guild", Value: "guild-duplicate-balance"}, {Key: "price", Value: 7.0}},
+		}); err != nil {
+			t.Fatalf("insert duplicate balances: %v", err)
+		}
+
+		_, err := repository.QueuePaidAutoChat(ctx, domain.AutoChatPaidRequest{
+			GuildID:          "guild-duplicate-balance",
+			Content:          "prompt",
+			Cost:             1,
+			RequestedAtMilli: 1_700_000_000_000,
+		})
+		if !errors.Is(err, ports.ErrAutoChatPaidStateConflict) {
+			t.Fatalf("queue error = %v", err)
+		}
+		assertAutoChatPaidPrices(t, database, "guild-duplicate-balance", []float64{5, 7})
+		if count, countErr := database.Collection(AutoChatPaidCollectionName).CountDocuments(ctx, bson.D{}); countErr != nil || count != 0 {
+			t.Fatalf("handoff count=%d err=%v", count, countErr)
+		}
+	})
+
+	t.Run("handoff rows", func(t *testing.T) {
+		repository, database := autoChatPaidIntegrationRepository(t)
+		ctx := context.Background()
+		if _, err := database.Collection(BalanceCollectionName).InsertOne(ctx, bson.D{
+			{Key: "guild", Value: "guild-duplicate-handoff"},
+			{Key: "price", Value: 5.0},
+		}); err != nil {
+			t.Fatalf("insert balance: %v", err)
+		}
+		if _, err := database.Collection(AutoChatPaidCollectionName).InsertMany(ctx, []any{
+			bson.D{{Key: "guild", Value: "guild-duplicate-handoff"}, {Key: "message", Value: "first"}, {Key: "time", Value: int64(1)}},
+			bson.D{{Key: "guild", Value: "guild-duplicate-handoff"}, {Key: "message", Value: "second"}, {Key: "time", Value: int64(2)}},
+		}); err != nil {
+			t.Fatalf("insert duplicate handoffs: %v", err)
+		}
+
+		_, err := repository.QueuePaidAutoChat(ctx, domain.AutoChatPaidRequest{
+			GuildID:          "guild-duplicate-handoff",
+			Content:          "prompt",
+			Cost:             1,
+			RequestedAtMilli: 1_700_000_000_000,
+		})
+		if !errors.Is(err, ports.ErrAutoChatPaidStateConflict) {
+			t.Fatalf("queue error = %v", err)
+		}
+		assertAutoChatPaidBalance(t, database, "guild-duplicate-handoff", 5)
+		if count, countErr := database.Collection(AutoChatPaidCollectionName).CountDocuments(ctx, bson.D{{Key: "guild", Value: "guild-duplicate-handoff"}}); countErr != nil || count != 2 {
+			t.Fatalf("handoff count=%d err=%v", count, countErr)
+		}
+	})
+}
+
 func TestAutoChatPaidMongoTransactionIntegrationConcurrentQueue(t *testing.T) {
 	repository, database := autoChatPaidIntegrationRepository(t)
 	ctx := context.Background()
@@ -243,6 +328,34 @@ func assertAutoChatPaidBalance(t *testing.T, database *drivermongo.Database, gui
 	}
 	if math.Abs(row.Price-want) > 1e-9 {
 		t.Fatalf("balance = %.12f, want %.12f", row.Price, want)
+	}
+}
+
+func assertAutoChatPaidPrices(t *testing.T, database *drivermongo.Database, guildID string, want []float64) {
+	t.Helper()
+	cursor, err := database.Collection(BalanceCollectionName).Find(context.Background(), bson.D{{Key: "guild", Value: guildID}})
+	if err != nil {
+		t.Fatalf("find balances: %v", err)
+	}
+	defer cursor.Close(context.Background())
+	var rows []struct {
+		Price float64 `bson:"price"`
+	}
+	if err := cursor.All(context.Background(), &rows); err != nil {
+		t.Fatalf("decode balances: %v", err)
+	}
+	if len(rows) != len(want) {
+		t.Fatalf("balance rows = %#v, want %#v", rows, want)
+	}
+	prices := make([]float64, len(rows))
+	for index := range rows {
+		prices[index] = rows[index].Price
+	}
+	sort.Float64s(prices)
+	for index := range want {
+		if math.Abs(prices[index]-want[index]) > 1e-9 {
+			t.Fatalf("balance rows = %#v, want %#v", rows, want)
+		}
 	}
 }
 
