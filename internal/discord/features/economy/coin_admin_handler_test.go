@@ -109,6 +109,21 @@ func TestCoinAdminSuccessUsesSelectedOperationAndRawSignedAmount(t *testing.T) {
 	}
 }
 
+func TestCoinAdminSuccessUsesResolvedUserOptionName(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	module := NewCoinAdminModule(repo, nil, nil)
+	interaction := coinAdminInteraction("target", "add", 5)
+	interaction.Actor.PermissionBits = coinAdminManageMessagesPermission
+	interaction.CommandOptions[coinAdminOptionUser] = interactions.CommandOptionValue{String: "target", UserName: "ResolvedUser"}
+	responder := fakediscord.NewResponder()
+	if err := module.CoinAdminHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if got := responder.Edits[0].Embeds[0].Title; got != "<:money:997374193026994236>已為ResolvedUser`增加`:`5`個代幣!" {
+		t.Fatalf("title = %q", got)
+	}
+}
+
 func coinAdminInteraction(userID string, operation string, amount int64) interactions.Interaction {
 	interaction := fakediscord.SlashInteractionWithOptions(CoinAdminCommandName, "", map[string]string{
 		coinAdminOptionUser:      userID,

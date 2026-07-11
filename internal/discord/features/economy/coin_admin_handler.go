@@ -36,7 +36,13 @@ func (m Module) CoinAdminHandler() interactions.Handler {
 		if err != nil {
 			return responder.EditOriginal(ctx, coinAdminErrorFromError(err))
 		}
-		targetName := m.lookupUsername(ctx, interaction.Actor.GuildID, command.UserID)
+		targetName := ""
+		if option, ok := interaction.CommandOptions[coinAdminOptionUser]; ok {
+			targetName = strings.TrimSpace(option.UserName)
+		}
+		if targetName == "" {
+			targetName = m.lookupUsername(ctx, interaction.Actor.GuildID, command.UserID)
+		}
 		avatarURL := strings.TrimSpace(interaction.Actor.GuildAvatarURL)
 		if avatarURL == "" {
 			avatarURL = interaction.Actor.AvatarURL
