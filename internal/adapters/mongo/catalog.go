@@ -69,6 +69,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, ""),
 		catalogSpec("ghps", "ghp", "models/ghp.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("ghps_guild_commodity_id", []string{"guild", "commodity_id"}, "shop item lookup"),
+			nonUniqueCatalogIndex("ghps_guild_commodity_id_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "commodity_id", Order: 1}}, "shop item lookup and guild list without requiring duplicate cleanup"),
 		}, "Legacy writes mix numeric/string values for shop prices and counts."),
 		catalogSpec("gifts", "gift", "models/gift.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("gifts_guild_gift_name", []string{"guild", "gift_name"}, "gacha prize lookup"),

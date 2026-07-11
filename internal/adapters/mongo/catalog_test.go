@@ -137,6 +137,7 @@ func TestPerformanceIndexesDoNotRequireDuplicateCleanup(t *testing.T) {
 		{collection: "coins", index: "coins_today_guild"},
 		{collection: "gifts", index: "gifts_guild_gift_name_lookup"},
 		{collection: "gift_changes", index: "gift_changes_guild_lookup"},
+		{collection: "ghps", index: "ghps_guild_commodity_id_lookup"},
 		{collection: "join_messages", index: "join_messages_guild_lookup"},
 		{collection: "join_roles", index: "join_roles_guild_lookup"},
 		{collection: "leave_messages", index: "leave_messages_guild_lookup"},

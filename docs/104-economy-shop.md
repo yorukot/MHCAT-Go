@@ -1,6 +1,6 @@
 # Economy Shop Parity Contract
 
-Status: parity-audited against `slashCommands/代幣系統/ghp_shop.js`, `models/ghp.js`, `models/coin.js`, and current Go definition, handlers, session store, scalar adapters, repository, role/DM ports, app wiring, staging guards, guarded Mongo harness, and race coverage. Live Discord and operator-gated real-Mongo smoke remain required before production rollout.
+Status: parity-audited against `slashCommands/代幣系統/ghp_shop.js`, `models/ghp.js`, `models/coin.js`, and current Go definition, handlers, session store, scalar adapters, repository, role/DM ports, app wiring, staging guards, guarded replica-set transaction harness, and race coverage. Live Discord and operator-gated real-Mongo smoke remain required before production rollout.
 
 ## Scope And Ownership
 
@@ -30,13 +30,13 @@ Slash-created prices/counts remain positive integers. Existing null or negative 
 
 Generated commodity IDs are positive integer milliseconds. An anomalous non-integer ID remains visible exactly in list fields/buttons but its click fails closed rather than truncating into a different item. This is an intentional safety difference; audit/repair such rows before rollout.
 
-Balance lookup reads one arbitrary duplicate and debit uses one independently arbitrary `UpdateOne`; other duplicates remain unchanged. Item lookup is also arbitrary. For auto-delete stock exactly `1`, the selected `_id` is deleted and the legacy logical `UpdateOne` still runs, potentially decrementing another duplicate. Other auto-delete stock performs one logical update. `auto_delete=false` leaves stock unchanged.
+Balance and item lookup each select one arbitrary duplicate, but debit and inventory mutation now target those exact `_id` rows; other duplicates remain unchanged. Auto-delete inventory is removed whenever the requested quantity exhausts the selected row, including stock greater than `1`; otherwise only the selected row is decremented. `auto_delete=false` leaves stock unchanged.
 
 ## Failure And Ordering Differences
 
-Legacy launched role, DM, inventory, and coin operations without awaiting them. Go checks inventory and coin writes sequentially, then performs role/DM best-effort. The write pair remains nontransactional: inventory can change before a coin failure, and no automatic retry or compensation occurs. This preserves the operational risk without exposing success before checked database writes.
+Legacy launched role, DM, inventory, and coin operations without awaiting them. Go commits the selected inventory mutation and coin debit in one Mongo transaction, then performs role/DM best-effort. A coin validation/write failure rolls back inventory, and transient transaction conflicts are retried by the driver. Shop runtime therefore requires a replica set or sharded Mongo deployment and fails closed when no transaction runner is configured.
 
-Sessions are process-local and isolated per requester/message, matching the effective ownership of each legacy command-local collector. No distributed purchase lock exists; concurrent purchases can still race stale stock/balance reads.
+Sessions are process-local and isolated per requester/message, matching the effective ownership of each legacy command-local collector. Mongo transaction conflicts serialize competing writes to the selected item/balance rows; integration tests verify that concurrent purchases of the final item charge exactly once.
 
 ## Verification
 
@@ -54,9 +54,10 @@ Operator-gated scalar and duplicate evidence uses a generated disposable databas
 
 ```bash
 MHCAT_RUN_MONGO_INTEGRATION_TESTS=true \
-MHCAT_MONGODB_URI='<disposable-uri>' \
+MHCAT_RUN_MONGO_TRANSACTION_INTEGRATION_TESTS=true \
+MHCAT_MONGODB_URI='<disposable-replica-set-uri>' \
 go test ./internal/adapters/mongo/repositories \
-  -run '^TestEconomyShopMongoIntegration'
+  -run '^TestEconomyShopMongo(Integration|TransactionIntegration)'
 ```
 
 The harness drops its database. Never use production.
@@ -66,7 +67,7 @@ The harness drops its database. Never use production.
 1. Stop Node shop ownership. Back up/audit every `ghps` and affected `coins` row by `_id`, including duplicates, scalar types, role IDs, and code sensitivity.
 2. Enable paired staging flags only, run preflight/sync dry-run, and use disposable channels, roles, codes, inventory, and balances.
 3. Verify exact add/delete/list/detail/keypad/error/success UI, requester isolation, expiry/restart, role hierarchy/missing-role behavior, code DM, and one usage per slash.
-4. Exercise decimal/null/infinity/malformed prices, stock, balances, duplicate item/balance rows, concurrent purchase, inventory-success/coin-failure, and side-effect failures.
+4. Exercise decimal/null/infinity/malformed prices, stock, balances, duplicate item/balance rows, concurrent final-item purchase, validator-forced transaction rollback, and side-effect failures.
 
 Rollback by disabling sync/runtime before restoring Node. Restore `ghps` and `coins` together from reviewed `_id` backups; inspect role assignments and code DMs separately. Never infer stock from coin debit, merge duplicates, reissue codes automatically, or create an index during rollback.
 

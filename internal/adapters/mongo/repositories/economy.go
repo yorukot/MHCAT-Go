@@ -24,7 +24,10 @@ const (
 	ShopItemCollectionName   = "ghps"
 )
 
-var ErrCoinGameTransactionsRequired = errors.New("coin game transaction runner is required")
+var (
+	ErrCoinGameTransactionsRequired = errors.New("coin game transaction runner is required")
+	ErrShopTransactionsRequired     = errors.New("shop transaction runner is required")
+)
 
 type EconomyRepository struct {
 	coins                *drivermongo.Collection
@@ -32,6 +35,7 @@ type EconomyRepository struct {
 	signLists            *drivermongo.Collection
 	shopItems            *drivermongo.Collection
 	coinGameTransactions ports.TransactionRunner
+	shopTransactions     ports.TransactionRunner
 }
 
 func NewEconomyRepository(coins *drivermongo.Collection, giftChanges *drivermongo.Collection, signLists *drivermongo.Collection, shopItems ...*drivermongo.Collection) (*EconomyRepository, error) {
@@ -63,6 +67,14 @@ func (r *EconomyRepository) SetCoinGameTransactionRunner(transactions ports.Tran
 		return ErrCoinGameTransactionsRequired
 	}
 	r.coinGameTransactions = transactions
+	return nil
+}
+
+func (r *EconomyRepository) SetShopTransactionRunner(transactions ports.TransactionRunner) error {
+	if r == nil || transactions == nil {
+		return ErrShopTransactionsRequired
+	}
+	r.shopTransactions = transactions
 	return nil
 }
 
@@ -172,35 +184,33 @@ func (r *EconomyRepository) applyXPCoinReward(ctx context.Context, guildID strin
 		config = domain.EconomyConfig{GuildID: guildID}
 	}
 	reward := rewardForLevel(level, config.XPMultiple)
-	current, err := r.GetCoinBalance(ctx, guildID, userID)
-	if err != nil {
-		if !errors.Is(err, ports.ErrCoinBalanceNotFound) {
-			return domain.CoinBalance{}, err
-		}
-		balance := domain.CoinBalance{GuildID: guildID, UserID: userID, Coins: reward, Today: 0}
-		if _, err := r.coins.InsertOne(ctx, bson.D{
-			{Key: "guild", Value: balance.GuildID},
-			{Key: "member", Value: balance.UserID},
-			{Key: "coin", Value: balance.Coins},
-			{Key: "today", Value: balance.Today},
-		}); err != nil {
-			return domain.CoinBalance{}, mhcatmongo.MapError(fmt.Errorf("create %s xp coin reward balance: %w", label, err))
-		}
-		return balance, ctx.Err()
-	}
-	current.Coins += reward
-	result, err := r.coins.UpdateMany(
+	var document documents.CoinDocument
+	err = r.coins.FindOneAndUpdate(
 		ctx,
 		bson.D{{Key: "guild", Value: guildID}, {Key: "member", Value: userID}},
-		bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: current.Coins}}}},
-	)
+		xpCoinRewardPipeline(guildID, userID, reward),
+		options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After),
+	).Decode(&document)
 	if err != nil {
 		return domain.CoinBalance{}, mhcatmongo.MapError(fmt.Errorf("apply %s xp coin reward: %w", label, err))
 	}
-	if result.MatchedCount == 0 {
-		return domain.CoinBalance{}, ports.ErrCoinBalanceNotFound
-	}
-	return current, ctx.Err()
+	return document.ToDomain(), ctx.Err()
+}
+
+func xpCoinRewardPipeline(guildID string, userID string, reward int64) drivermongo.Pipeline {
+	coin := bson.D{{Key: "$convert", Value: bson.D{
+		{Key: "input", Value: "$coin"},
+		{Key: "to", Value: "long"},
+		{Key: "onError", Value: int64(0)},
+		{Key: "onNull", Value: int64(0)},
+	}}}
+	todayMissing := bson.D{{Key: "$eq", Value: bson.A{bson.D{{Key: "$type", Value: "$today"}}, "missing"}}}
+	return drivermongo.Pipeline{bson.D{{Key: "$set", Value: bson.D{
+		{Key: "guild", Value: guildID},
+		{Key: "member", Value: userID},
+		{Key: "coin", Value: bson.D{{Key: "$add", Value: bson.A{coin, reward}}}},
+		{Key: "today", Value: bson.D{{Key: "$cond", Value: bson.A{todayMissing, int64(0), "$today"}}}},
+	}}}}
 }
 
 func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domain.CoinAdminCommand) (domain.CoinAdminResult, error) {
@@ -805,19 +815,17 @@ func (r *EconomyRepository) CreateShopItem(ctx context.Context, item domain.Shop
 		return domain.ShopItem{}, err
 	}
 	filter := bson.D{{Key: "guild", Value: item.GuildID}, {Key: "commodity_id", Value: item.CommodityID}}
-	err := r.shopItems.FindOne(ctx, filter).Err()
-	if err == nil {
-		return domain.ShopItem{}, ports.ErrShopItemExists
-	}
-	if err != drivermongo.ErrNoDocuments {
-		return domain.ShopItem{}, mhcatmongo.MapError(fmt.Errorf("find shop item before create: %w", err))
-	}
-	if _, err := r.shopItems.InsertOne(ctx, documents.ShopItemWriteDocumentFromDomain(item)); err != nil {
+	update := bson.D{{Key: "$setOnInsert", Value: documents.ShopItemWriteDocumentFromDomain(item)}}
+	result, err := r.shopItems.UpdateOne(ctx, filter, update, options.UpdateOne().SetUpsert(true))
+	if err != nil {
 		mapped := mhcatmongo.MapError(fmt.Errorf("create shop item: %w", err))
 		if mhcatmongo.ErrorIs(mapped, mhcatmongo.ErrorKindConflict) {
 			return domain.ShopItem{}, ports.ErrShopItemExists
 		}
 		return domain.ShopItem{}, mapped
+	}
+	if result.UpsertedCount == 0 {
+		return domain.ShopItem{}, ports.ErrShopItemExists
 	}
 	return item, ctx.Err()
 }
@@ -849,6 +857,19 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	if err := command.Validate(); err != nil {
 		return domain.ShopPurchaseResult{}, err
 	}
+	if r.shopTransactions == nil {
+		return domain.ShopPurchaseResult{}, ErrShopTransactionsRequired
+	}
+	var result domain.ShopPurchaseResult
+	err := r.shopTransactions.WithinTransaction(ctx, func(txCtx context.Context) error {
+		var err error
+		result, err = r.purchaseShopItemWithinTransaction(txCtx, command)
+		return err
+	})
+	return result, err
+}
+
+func (r *EconomyRepository) purchaseShopItemWithinTransaction(ctx context.Context, command domain.ShopPurchaseCommand) (domain.ShopPurchaseResult, error) {
 	item, err := r.GetShopItem(ctx, command.GuildID, command.CommodityID)
 	if err != nil {
 		return domain.ShopPurchaseResult{}, err
@@ -860,7 +881,7 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	if float64(command.Quantity) > stock {
 		return domain.ShopPurchaseResult{}, ports.ErrShopQuantityInvalid
 	}
-	balance, err := r.GetCoinBalance(ctx, command.GuildID, command.UserID)
+	balance, balanceID, err := r.shopCoinBalance(ctx, command.GuildID, command.UserID)
 	if err != nil {
 		if errors.Is(err, ports.ErrCoinBalanceNotFound) {
 			return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
@@ -878,23 +899,28 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	if currentCoins < totalCost {
 		return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
 	}
+	itemFilter := bson.D{{Key: "guild", Value: command.GuildID}, {Key: "commodity_id", Value: command.CommodityID}}
+	if recordID, err := bson.ObjectIDFromHex(item.RecordID); err == nil {
+		itemFilter = bson.D{{Key: "_id", Value: recordID}}
+	}
 	if item.AutoDelete {
-		if stock == 1 {
-			deleteFilter := bson.D{{Key: "guild", Value: command.GuildID}, {Key: "commodity_id", Value: command.CommodityID}}
-			if recordID, err := bson.ObjectIDFromHex(item.RecordID); err == nil {
-				deleteFilter = bson.D{{Key: "_id", Value: recordID}}
-			}
-			if _, err := r.shopItems.DeleteOne(ctx, deleteFilter); err != nil {
+		nextCount := stock - float64(command.Quantity)
+		if nextCount <= 0 {
+			deleteResult, err := r.shopItems.DeleteOne(ctx, itemFilter)
+			if err != nil {
 				return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("delete purchased shop item: %w", err))
 			}
-		}
-		nextCount := stock - float64(command.Quantity)
-		if _, err := r.shopItems.UpdateOne(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "commodity_id", Value: command.CommodityID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "commodity_count", Value: nextCount}}}}); err != nil {
+			if deleteResult.DeletedCount == 0 {
+				return domain.ShopPurchaseResult{}, ports.ErrShopItemMissing
+			}
+		} else if updateResult, err := r.shopItems.UpdateOne(ctx, itemFilter, bson.D{{Key: "$set", Value: bson.D{{Key: "commodity_count", Value: nextCount}}}}); err != nil {
 			return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("decrement shop item count: %w", err))
+		} else if updateResult.MatchedCount == 0 {
+			return domain.ShopPurchaseResult{}, ports.ErrShopItemMissing
 		}
 	}
 	nextBalance := currentCoins - totalCost
-	result, err := r.coins.UpdateOne(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "member", Value: command.UserID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: nextBalance}}}})
+	result, err := r.coins.UpdateOne(ctx, bson.D{{Key: "_id", Value: balanceID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: nextBalance}}}})
 	if err != nil {
 		return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("subtract shop purchase coins: %w", err))
 	}
@@ -911,6 +937,18 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 		PreviousBalance: previous,
 		Balance:         balance,
 	}, ctx.Err()
+}
+
+func (r *EconomyRepository) shopCoinBalance(ctx context.Context, guildID string, userID string) (domain.CoinBalance, bson.ObjectID, error) {
+	var document documents.CoinDocument
+	err := r.coins.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}, {Key: "member", Value: userID}}).Decode(&document)
+	if err != nil {
+		if err == drivermongo.ErrNoDocuments {
+			return domain.CoinBalance{}, bson.NilObjectID, ports.ErrCoinBalanceNotFound
+		}
+		return domain.CoinBalance{}, bson.NilObjectID, mhcatmongo.MapError(fmt.Errorf("get shop coin balance: %w", err))
+	}
+	return document.ToDomain(), document.ID, ctx.Err()
 }
 
 func (r *EconomyRepository) shopReady(ctx context.Context) error {

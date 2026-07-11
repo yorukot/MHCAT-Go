@@ -233,6 +233,9 @@ func economyGameIntegrationRepository(t *testing.T) (*EconomyRepository, *driver
 	if err := repository.SetCoinGameTransactionRunner(transactions); err != nil {
 		t.Fatalf("set coin game transaction runner: %v", err)
 	}
+	if err := repository.SetShopTransactionRunner(transactions); err != nil {
+		t.Fatalf("set shop transaction runner: %v", err)
+	}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()

@@ -375,18 +375,27 @@ func defaultRuntimeFactory(cfg config.Config, logger *slog.Logger, session Disco
 		if cfg.FeatureEconomyRPSEnabled {
 			opts.EconomyRPSRepository = economyRepo
 		}
-		if cfg.FeatureEconomyGameEnabled {
+		if cfg.FeatureEconomyGameEnabled || cfg.FeatureEconomyShopEnabled {
 			concreteMongo, ok := mongoClient.(*mongoadapter.Client)
 			if !ok {
-				return nil, fmt.Errorf("economy game feature requires default mongo client")
+				return nil, fmt.Errorf("economy transactional features require default mongo client")
 			}
 			transactions, err := mongoadapter.NewTransactionRunner(concreteMongo)
 			if err != nil {
-				return nil, fmt.Errorf("economy game transaction runner: %w", err)
+				return nil, fmt.Errorf("economy transaction runner: %w", err)
 			}
-			if err := economyRepo.SetCoinGameTransactionRunner(transactions); err != nil {
-				return nil, fmt.Errorf("configure economy game transactions: %w", err)
+			if cfg.FeatureEconomyGameEnabled {
+				if err := economyRepo.SetCoinGameTransactionRunner(transactions); err != nil {
+					return nil, fmt.Errorf("configure economy game transactions: %w", err)
+				}
 			}
+			if cfg.FeatureEconomyShopEnabled {
+				if err := economyRepo.SetShopTransactionRunner(transactions); err != nil {
+					return nil, fmt.Errorf("configure economy shop transactions: %w", err)
+				}
+			}
+		}
+		if cfg.FeatureEconomyGameEnabled {
 			sideEffects, err := messageSideEffectsFromSession(session, "economy game feature")
 			if err != nil {
 				return nil, err

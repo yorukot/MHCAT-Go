@@ -8,6 +8,7 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	drivermongo "go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 func TestEconomyCollectionNames(t *testing.T) {
@@ -64,6 +65,22 @@ func TestEconomyCoinGameTransactionRunnerConfiguration(t *testing.T) {
 	}
 	if err := repository.SetCoinGameTransactionRunner(&fakemongo.TransactionRunner{}); err != nil {
 		t.Fatalf("set runner: %v", err)
+	}
+}
+
+func TestEconomyShopWritesRequireTransactionRunner(t *testing.T) {
+	repository := &EconomyRepository{shopItems: &drivermongo.Collection{}}
+	_, err := repository.PurchaseShopItem(context.Background(), domain.ShopPurchaseCommand{
+		GuildID: "guild-1", UserID: "user-1", CommodityID: 1, Quantity: 1,
+	})
+	if !errors.Is(err, ErrShopTransactionsRequired) {
+		t.Fatalf("purchase error = %v", err)
+	}
+	if err := repository.SetShopTransactionRunner(nil); !errors.Is(err, ErrShopTransactionsRequired) {
+		t.Fatalf("nil shop runner error = %v", err)
+	}
+	if err := repository.SetShopTransactionRunner(&fakemongo.TransactionRunner{}); err != nil {
+		t.Fatalf("set shop runner: %v", err)
 	}
 }
 

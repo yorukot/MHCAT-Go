@@ -14,11 +14,7 @@ import (
 )
 
 func TestEconomyShopMongoIntegrationPreservesBalanceScalars(t *testing.T) {
-	database := economyQueryIntegrationDatabase(t)
-	repository, err := NewEconomyRepositoryFromDatabase(database)
-	if err != nil {
-		t.Fatalf("new repository: %v", err)
-	}
+	repository, database := economyGameIntegrationRepository(t)
 	ctx := context.Background()
 	if _, err := database.Collection(ShopItemCollectionName).InsertOne(ctx, bson.D{
 		{Key: "guild", Value: "guild-1"}, {Key: "commodity_id", Value: 1},
@@ -87,11 +83,7 @@ func TestEconomyShopMongoIntegrationPreservesBalanceScalars(t *testing.T) {
 }
 
 func TestEconomyShopMongoIntegrationUpdatesOneBalanceDuplicate(t *testing.T) {
-	database := economyQueryIntegrationDatabase(t)
-	repository, err := NewEconomyRepositoryFromDatabase(database)
-	if err != nil {
-		t.Fatalf("new repository: %v", err)
-	}
+	repository, database := economyGameIntegrationRepository(t)
 	ctx := context.Background()
 	if _, err := database.Collection(ShopItemCollectionName).InsertOne(ctx, bson.D{
 		{Key: "guild", Value: "guild-1"}, {Key: "commodity_id", Value: 1}, {Key: "name", Value: "item"},
@@ -133,11 +125,7 @@ func TestEconomyShopMongoIntegrationUpdatesOneBalanceDuplicate(t *testing.T) {
 }
 
 func TestEconomyShopMongoIntegrationPreservesAutoDeleteItemDuplicates(t *testing.T) {
-	database := economyQueryIntegrationDatabase(t)
-	repository, err := NewEconomyRepositoryFromDatabase(database)
-	if err != nil {
-		t.Fatalf("new repository: %v", err)
-	}
+	repository, database := economyGameIntegrationRepository(t)
 	ctx := context.Background()
 	items := []any{}
 	for _, count := range []int{1, 5} {
@@ -173,8 +161,8 @@ func TestEconomyShopMongoIntegrationPreservesAutoDeleteItemDuplicates(t *testing
 		got = append(got, row.Count)
 	}
 	sort.Float64s(got)
-	validOutcomes := [][]float64{{0}, {1, 4}, {4, 5}}
+	validOutcomes := [][]float64{{5}, {1, 4}}
 	if !slices.ContainsFunc(validOutcomes, func(want []float64) bool { return slices.Equal(got, want) }) {
-		t.Fatalf("item counts = %v, want selected-row delete plus arbitrary logical decrement", got)
+		t.Fatalf("item counts = %v, want only the selected row mutated", got)
 	}
 }
