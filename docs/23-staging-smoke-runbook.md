@@ -664,7 +664,7 @@ export MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG=true
 ```
 
-Set both together only in an isolated staging guild/database when testing `/帳號需創建時數`. This path writes `create_hours` with legacy-compatible fields: `guild`, string `hours` in seconds, and nullable `channel`. It preserves the legacy public defer/edit UI and permission text, but it does not by itself kick members.
+Set both together only in an isolated staging guild/database when testing `/帳號需創建時數`. This path writes `create_hours` with legacy-compatible fields: `guild`, string `hours` in seconds, and nullable `channel`. It preserves the legacy public defer/edit UI and permission text, but it does not by itself kick members. Follow the canonical [account-age staging smoke](79-account-age.md#staging-smoke).
 
 Optional account-age member gate smoke flags:
 
@@ -674,7 +674,7 @@ export MHCAT_DISCORD_ENABLE_GATEWAY=true
 export MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 ```
 
-Set these only after `/帳號需創建時數 小時數` has configured a staging `create_hours` row. This path reads `create_hours` during `guildMemberAdd`, sends the legacy bilingual DM, kicks too-new members with the legacy reason, optionally logs to the configured channel, and stops later member-add handlers so join roles/welcome messages do not run after a kick. Use only a disposable staging member/account for smoke testing.
+Set these only after `/帳號需創建時數 小時數` has configured a staging `create_hours` row. This path reads `create_hours` during `guildMemberAdd`, sends the legacy bilingual DM, kicks too-new members with the legacy reason, optionally logs to a cached configured channel, and stops later member-add handlers so join roles/welcome messages do not run after a kick. Use only a disposable staging member/account and run [79-account-age.md](79-account-age.md).
 
 Optional role-selection smoke flags:
 
@@ -770,8 +770,8 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WELCOME_MESSAGE_CONFIG=true`, confirm `MHCAT_FEATURE_WELCOME_MESSAGE_CONFIG_ENABLED=true` and the staging database can safely write `leave_messages`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_VERIFICATION_CONFIG_ENABLED=true`, the staging database can safely write `verifications`, and the target role is below the bot's highest role.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_VERIFICATION_FLOW=true`, confirm `MHCAT_FEATURE_VERIFICATION_FLOW_ENABLED=true`, a staging `verifications` row exists or `/驗證設置` will be tested first, the target role is below the bot's highest role, and the test accepts process-local challenge state.
-- If `MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG=true`, confirm `MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED=true` and the staging database can safely write `create_hours`.
-- If `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`, a staging `create_hours` row exists or `/帳號需創建時數 小時數` will be tested first, and a disposable too-new test account/member is available.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_ACCOUNT_AGE_CONFIG=true`, confirm `MHCAT_FEATURE_ACCOUNT_AGE_CONFIG_ENABLED=true`, matching Node command ownership is stopped, duplicate/type/value audits are reviewed, and the staging database can safely write `create_hours`.
+- If `MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true`, confirm Gateway/Guild Members, stop the leading Node member-add branch, review `create_hours`, verify handler order, and use a disposable too-new member. Follow [79-account-age.md](79-account-age.md).
 - If `MHCAT_COMMAND_SYNC_INCLUDE_ROLE_SELECTION=true`, confirm `MHCAT_FEATURE_ROLE_SELECTION_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MESSAGE_REACTIONS_INTENT=true`, the staging database can safely write `message_reactions` and `btns`, and the test role is below the bot's highest role.
 - If `MHCAT_FEATURE_LEAVE_MESSAGE_DELIVERY_ENABLED=true`, confirm `MHCAT_DISCORD_ENABLE_GATEWAY=true`, `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`, the staging database has a safe `leave_messages` row, and the target channel is staging-only.
 

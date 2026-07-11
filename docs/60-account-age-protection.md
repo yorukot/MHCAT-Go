@@ -1,6 +1,6 @@
 # Account-Age Protection Slice
 
-Status: implemented behind explicit staging/runtime gates.
+Status: superseded by the canonical [account-age parity contract](79-account-age.md). Retained as historical implementation-slice context.
 
 ## Legacy References
 

@@ -227,3 +227,13 @@ Birthday command compatibility is parity-audited; the commented delivery block r
 | `birthdays` | `guild`, `user`, birthday/time Number fields, `allow` | none | exact profile lookup and broad list with permissive scalar DTO; null numbers remain absent | typed patches across duplicate matches; delete removes duplicate matches | no | stop Go command ownership; typed values remain Mongoose-readable | backup/export already includes collection; confirm writers |
 
 No repair, deduplication, backfill, scheduler restoration, or startup index is authorized. Candidate indexes remain blocked on duplicate/key/type/value/ownership findings. See the [birthday parity contract](78-birthday.md).
+
+## Account-Age Compatibility
+
+Account-age config and member policy are parity-audited as separate ownership families.
+
+| Collection | Legacy fields | New fields | Read strategy | Write strategy | Backfill needed | Rollback strategy | Dashboard impact |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `create_hours` | `guild`, String `hours`, nullable String `channel` | none | exact guild lookup, Mongoose-compatible scalar strings, JavaScript Number threshold parsing | typed String/null one-row patches; full config delete removes duplicate guild matches | no | stop policy/config owners separately; typed rows remain Mongoose-readable | confirm backup/export and all external writers |
+
+No normalization, repair, deduplication, backfill, or startup index is approved. Candidate `{guild:1}` remains blocked on key/type/value/writer/ownership audits. See the [account-age parity contract](79-account-age.md).

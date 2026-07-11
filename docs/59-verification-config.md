@@ -17,7 +17,7 @@ Implemented:
 - Role assignment and optional `{name}` nickname template after successful captcha.
 - Legacy `<captcha>verification` and `<captcha>ver` compatibility for old live messages.
 - Staging preflight and script pairing checks for both config and flow flags.
-- Account-age member-join enforcement as a separately gated slice documented in [60-account-age-protection.md](60-account-age-protection.md).
+- Account-age member-join enforcement as a separately gated family documented in the [account-age parity contract](79-account-age.md).
 
 Outside this slice:
 

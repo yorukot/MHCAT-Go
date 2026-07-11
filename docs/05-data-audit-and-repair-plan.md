@@ -276,3 +276,17 @@ Audit before enabling command ownership:
 - exclusive Node/Go command ownership and clean findings before any reviewed index apply.
 
 Do not rewrite malformed rows merely to enable Go. Runtime reads are permissive, writes are typed and duplicate-safe, and delivery remains inactive. Follow the [birthday parity contract](78-birthday.md) for staging and rollback.
+
+## Account-Age Rollout Audit
+
+Account-age config and policy are parity-audited but disabled by default. No production repair, deduplication, backfill, or automatic index mutation is authorized.
+
+Audit before enabling either owner:
+
+- duplicate, missing, null, blank, and scalar-drift `create_hours.guild` keys;
+- raw String/scalar/compound `hours` and `channel` shapes, including fractional, exponent, non-finite, zero, negative, and overlong values;
+- stale/non-guild log channel IDs and cache availability;
+- every external/dashboard writer and exclusive Node/Go config/event ownership;
+- clean findings before any reviewed `create_hours_guild` index apply.
+
+Do not normalize thresholds or channels merely to enable Go; raw values affect kick/log behavior. Follow the [account-age parity contract](79-account-age.md) for staging and rollback.

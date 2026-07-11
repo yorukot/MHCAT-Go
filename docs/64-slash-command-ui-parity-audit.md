@@ -43,7 +43,7 @@ Rerun with `go run ./tools/parity-audit --legacy-root ../MHCAT --format markdown
 | `加入訊息設置` | `slashCommands/加入設置/join_messag.js` | matching-definition | none |
 | `加入身份組刪除` | `slashCommands/加入設置/join_role_delete.js` | matching-definition | none |
 | `加入身份組設置` | `slashCommands/加入設置/join_role.js` | matching-definition | none |
-| `帳號需創建時數` | `slashCommands/群組防護/create_hours.js` | matching-definition | none |
+| `帳號需創建時數` | `slashCommands/群組防護/create_hours.js` | parity-audited | See [account-age parity contract](79-account-age.md) |
 | `打工系統` | `slashCommands/打工系統/work_set.js` | matching-definition | none |
 | `扭蛋` | `slashCommands/扭蛋系統/gashapon.js` | matching-definition | none |
 | `扭蛋獎品編輯` | `slashCommands/扭蛋系統/giftadd copy.js` | matching-definition | none |

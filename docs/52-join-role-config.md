@@ -19,7 +19,7 @@ Separate feature gates:
 - Guild Members intent enablement by default;
 - welcome/leave message emitters use their own delivery flags documented in [53-welcome-message-config.md](53-welcome-message-config.md);
 - verification/captcha is not enabled by this join-role slice; `/驗證` is a separate verification-flow gate;
-- account-age kick/log behavior uses its own policy flag documented in [60-account-age-protection.md](60-account-age-protection.md);
+- account-age kick/log behavior uses its own policy flag documented in the [account-age parity contract](79-account-age.md);
 - usage-counter Mongo writes.
 
 ## Flags

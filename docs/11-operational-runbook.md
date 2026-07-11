@@ -816,9 +816,9 @@ MHCAT_DISCORD_ENABLE_GATEWAY=true
 MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true
 ```
 
-The policy reads `create_hours` on `guildMemberAdd`. If the account is younger than the configured threshold, it sends the legacy bilingual DM embed, kicks with the legacy reason, optionally logs the legacy embed to `channel`, and stops later member-add handlers so join-role and welcome behavior do not run after a kick. Unlike legacy unhandled promises, Go awaits kick/log errors and ignores only non-context DM failures so closed DMs do not bypass the protection.
+The policy reads `create_hours` on `guildMemberAdd`. If the account is younger than the configured threshold, it sends the legacy bilingual DM embed, kicks with the legacy reason, optionally logs the legacy embed to a cached `channel`, and stops later member-add handlers so join-role and welcome behavior do not run after a kick. Unlike legacy unhandled promises, Go awaits kick/log errors and ignores only non-context DM failures so closed DMs do not bypass the protection.
 
-See `docs/60-account-age-protection.md` for the exact legacy references, Mongo compatibility notes, and staging checklist.
+See the canonical [account-age parity contract](79-account-age.md) for exact UI/data/event behavior, migration, staging, and rollback.
 
 Role-selection commands and reaction role events are available only when staging command sync, runtime, Gateway, and reaction intent flags are explicitly enabled:
 

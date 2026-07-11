@@ -71,6 +71,7 @@ Status: Phase 1 consolidated. Legacy has only a live Discord login smoke test; t
   - announcement config/send/modal/confirmation/relay, including exact permissions, color semantics, six-second state, scalar reads, send-before-delete, and mention suppression
   - anti-scam config/report/deletion, including pinned URL validation, scalar reads, webhook outcomes, bot scanning, and delete-before-warning failures
   - birthday config/add/preference/delete/list, including exact selectors, five-minute state, scalar reads, duplicate-safe writes, and inactive delivery boundaries
+  - account-age config/policy, including exact UI, scalar/fraction thresholds, DM/kick/log failures, cache behavior, intents, and downstream event ordering
   - verification
   - ticket setup/panel/open/close
   - reaction-role setup/delete/events and button-role modal/add/remove
@@ -84,6 +85,8 @@ The canonical announcement fixtures, focused package commands, race coverage, an
 The canonical anti-scam fixtures, focused commands, race coverage, and staging checklist are recorded in the [anti-scam parity contract](77-anti-scam.md). The locked boundary test is `internal/discord/features/safety/parity_test.go`.
 
 The canonical birthday fixtures, focused commands, race coverage, and staging checklist are recorded in the [birthday parity contract](78-birthday.md). The locked boundary test is `internal/discord/features/birthday/parity_test.go`.
+
+The canonical account-age fixtures, focused commands, race coverage, and staging checklist are recorded in the [account-age parity contract](79-account-age.md). Boundary tests are `internal/discord/features/onboarding/account_age_parity_test.go` and `internal/core/services/onboarding/account_age_test.go`.
 
 ## Golden Fixture Tests
 

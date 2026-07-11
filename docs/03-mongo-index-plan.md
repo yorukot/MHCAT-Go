@@ -71,7 +71,7 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | `codes` | `codes_code` | `{code:1}` | candidate | no | no | redeem code lookup | duplicate/expired codes | audit, dry-run, explicit apply |
 | `coins` | `coins_guild_member` | `{guild:1,member:1}` | candidate | no | no | balance lookup/update and work-payout target resolution | duplicate balances; payout fails closed until repaired | audit before unique; explicit apply |
 | `coins` | `coins_guild_coin_rank` | `{guild:1,coin:-1}` | no | no | no | coin ranking | none for non-unique | explicit apply after live count review |
-| `create_hours` | `create_hours_guild` | `{guild:1}` | candidate | no | no | account-age config command and member-add join policy | singleton duplicates; config delete intentionally removes duplicate guild rows | audit duplicates first, dry-run, explicit apply only; not created by app startup |
+| `create_hours` | `create_hours_guild` | `{guild:1}` | candidate | no | no | account-age config/policy lookup | duplicate/missing/scalar-drift keys, malformed values, external writers, ownership | audit only; reviewed explicit apply after clean findings; no startup apply; see [contract](79-account-age.md) |
 | `cron_sets` | `cron_sets_guild_id` | `{guild:1,id:1}` | candidate | no | no | schedule list/delete/send | duplicate schedule IDs | audit, dry-run, explicit apply |
 | `errors_sets` | `errors_sets_guild` | `{guild:1}` | candidate | no | no | warning escalation config | singleton duplicates | audit, dry-run, explicit apply |
 | `ghps` | `ghps_guild_commodity` | `{guild:1,commodity_id:1}` | candidate | no | no | shop item lookup | duplicate commodity IDs | audit, dry-run, explicit apply |

@@ -110,10 +110,14 @@ Current approved Guild Members exception:
 
 ```txt
 Join-role assignment: MHCAT_FEATURE_JOIN_ROLE_ASSIGNMENT_ENABLED=true
+Welcome-message delivery: MHCAT_FEATURE_WELCOME_MESSAGE_DELIVERY_ENABLED=true
 Leave-message delivery: MHCAT_FEATURE_LEAVE_MESSAGE_DELIVERY_ENABLED=true
+Account-age policy: MHCAT_FEATURE_ACCOUNT_AGE_POLICY_ENABLED=true
 Required additional flag: MHCAT_DISCORD_ENABLE_GATEWAY=true
 Default: disabled
 ```
+
+Account-age intent ownership, event order, cache-only log behavior, staging, and rollback are specified in [79-account-age.md](79-account-age.md).
 
 Current verification command flow:
 
