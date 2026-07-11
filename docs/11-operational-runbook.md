@@ -460,7 +460,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true
 MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true
 ```
 
-This command reads `chatgpt_gets.price` only. It does not itself enable either auto-chat runtime, does not require Message Content intent, and writes no Mongo feature data.
+This command reads one arbitrary matching `chatgpt_gets.price`, preserves Mongoose number display and exact ephemeral UI, and returns a controlled red error on backend failure. It does not enable auto-chat, require Message Content, mutate balances, or create indexes. Audit shared writers and follow [87-balance-query.md](87-balance-query.md) for exact staging and rollback.
 
 `/兌換` is available only when both staging command sync and runtime flags are explicitly enabled:
 

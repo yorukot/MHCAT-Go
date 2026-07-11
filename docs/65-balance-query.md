@@ -1,6 +1,6 @@
 # Balance Query Slice
 
-Status: gated read-only legacy `/查看餘額`.
+Status: superseded by the canonical [balance-query parity contract](87-balance-query.md). Gated read-only legacy `/查看餘額`.
 
 ## Implemented
 
@@ -11,6 +11,8 @@ Status: gated read-only legacy `/查看餘額`.
 - Read-only Mongo lookup from legacy `chatgpt_gets` by `{guild}`.
 - Legacy ephemeral defer/edit response with green embed author `伺服器目前剩於餘額: <price>` and the legacy success gif icon.
 - Missing `chatgpt_gets` row displays `0`, matching legacy `data ? data.price : 0`.
+- Mixed BSON uses Mongoose `Number` coercion and JavaScript formatting; duplicates preserve arbitrary first-match behavior.
+- Backend failures return controlled ephemeral red UI instead of legacy's misleading green zero.
 
 ## Scope
 

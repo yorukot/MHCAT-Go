@@ -250,7 +250,7 @@ export MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true
 ```
 
-Set both together only when testing `/查看餘額`. This path reads `chatgpt_gets.price`, does not require Message Content intent, and does not write Mongo feature data.
+Set both together only when testing `/查看餘額`. Stop the Node command owner and audit shared `chatgpt_gets` types/duplicates/writers without repairing them. This path requires no Message Content intent and writes no balance data or indexes. Follow [87-balance-query.md](87-balance-query.md).
 
 Optional redeem smoke flags:
 
@@ -1472,6 +1472,14 @@ If economy coin-reset flags were enabled and command sync apply was reviewed:
 - rerun `/代幣重製` without `除以多少`, type `^確認^` in the same channel as the same owner within 60 seconds, and verify all disposable guild `coins` rows are deleted;
 - reseed disposable `coins` rows, run `/代幣重製 除以多少:<divisor>` as the staging guild owner, type `^確認^`, and verify every guild balance is updated with legacy rounded division;
 - verify no economy sign-in, gacha, work payout, XP reward, index, or usage-counter side effect happened.
+
+If balance-query flags were enabled and command sync apply was reviewed:
+
+- run `/查看餘額` with no guild row and verify exact ephemeral green `伺服器目前剩於餘額: 0` UI;
+- seed numeric, null/empty, numeric-string, malformed/NaN, infinity, and large-integer fixtures and verify the Mongoose display matrix;
+- seed disposable duplicate rows and verify arbitrary first-match behavior without deduplication or index creation;
+- force a Mongo read failure and verify exact controlled ephemeral `0xED4245` UI with no raw details;
+- verify one usage increment for success/failure, unchanged row counts, guild isolation, and all [87-balance-query.md](87-balance-query.md) rollback checks.
 
 If redeem flags were enabled and command sync apply was reviewed:
 
