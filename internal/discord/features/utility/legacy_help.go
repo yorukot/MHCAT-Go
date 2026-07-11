@@ -208,8 +208,37 @@ func legacyHelpCategoryMessage(interaction interactions.Interaction, selected st
 	return responses.Message{}, false
 }
 
+func legacyHelpSlashCategoryMessage(interaction interactions.Interaction, selected string) (responses.Message, bool) {
+	selected = strings.ToLower(selected)
+	for _, category := range legacyHelpCategories {
+		if strings.ToLower(category.Name) != selected {
+			continue
+		}
+		fields := make([]responses.EmbedField, 0, len(category.Commands))
+		for _, command := range category.Commands {
+			value := command.Description
+			if value == "" {
+				value = "沒有說明"
+			}
+			fields = append(fields, responses.EmbedField{
+				Name:   fmt.Sprintf("/%s`%s`", command.Emoji, command.Name),
+				Value:  value,
+				Inline: true,
+			})
+		}
+		return responses.Message{Embeds: []responses.Embed{{
+			Title:       fmt.Sprintf("__%s 指令!__", upperFirst(selected)),
+			Description: "> 使用 `/help` 或加上指令名稱以獲取有關指令的更多信息.\n> 例: `/help 指令名稱:公告發送`.\n\n",
+			Color:       legacyUtilityRandomColor(),
+			Footer:      legacyFooter(interaction),
+			Fields:      fields,
+		}}}, true
+	}
+	return responses.Message{}, false
+}
+
 func legacyHelpCommandDetail(interaction interactions.Interaction, query string) (responses.Message, bool) {
-	query = strings.ToLower(strings.TrimSpace(query))
+	query = strings.ToLower(query)
 	for _, category := range legacyHelpCategories {
 		for _, command := range category.Commands {
 			if strings.ToLower(command.Name) != query {
@@ -240,6 +269,14 @@ func legacyHelpCommandDetail(interaction interactions.Interaction, query string)
 		}
 	}
 	return responses.Message{}, false
+}
+
+func upperFirst(value string) string {
+	if value == "" {
+		return ""
+	}
+	runes := []rune(value)
+	return strings.ToUpper(string(runes[0])) + string(runes[1:])
 }
 
 func legacyHelpInvalidCommand() responses.Message {

@@ -99,6 +99,45 @@ func TestHelpHandlerUnknownCommandSafe(t *testing.T) {
 	}
 }
 
+func TestHelpHandlerSlashCategoryMatchesLegacyShape(t *testing.T) {
+	module := featureutility.NewModule(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), nil, nil, nil)
+	interaction := fakediscord.SlashInteractionWithOptions("help", "", map[string]string{"指令名稱": "實用工具 extra words"})
+	responder := fakediscord.NewResponder()
+	if err := module.HelpHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	msg := responder.Edits[0]
+	if msg.Ephemeral || len(msg.Embeds) != 1 || msg.Embeds[0].Title != "__實用工具 指令!__" {
+		t.Fatalf("slash category message = %#v", msg)
+	}
+	foundPing := false
+	for _, field := range msg.Embeds[0].Fields {
+		if strings.Contains(field.Name, "`ping`") {
+			foundPing = true
+			if !strings.HasPrefix(field.Name, "/<:icons_goodping:1084881470075703367>") || field.Value != "查看我的ping" {
+				t.Fatalf("slash category ping field = %#v", field)
+			}
+		}
+	}
+	if !foundPing {
+		t.Fatalf("slash category fields = %#v", msg.Embeds[0].Fields)
+	}
+}
+
+func TestHelpHandlerPreservesLiteralSpaceQuerySplit(t *testing.T) {
+	module := featureutility.NewModule(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), nil, nil, nil)
+	for _, query := range []string{" ping", "\tping"} {
+		responder := fakediscord.NewResponder()
+		interaction := fakediscord.SlashInteractionWithOptions("help", "", map[string]string{"指令名稱": query})
+		if err := module.HelpHandler()(context.Background(), interaction, responder); err != nil {
+			t.Fatalf("handler for %q: %v", query, err)
+		}
+		if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "無效的指令") {
+			t.Fatalf("query %q response = %#v", query, responder.Edits)
+		}
+	}
+}
+
 func TestHelpHandlerTracksUsage(t *testing.T) {
 	tracker := &fakeusage.Tracker{}
 	module := featureutility.NewModule(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), nil, nil, tracker)

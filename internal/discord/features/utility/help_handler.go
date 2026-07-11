@@ -13,12 +13,11 @@ func (m Module) HelpHandler() interactions.Handler {
 		if err := responder.Defer(ctx, responses.DeferOptions{}); err != nil {
 			return err
 		}
-		query := helpQuery(interaction)
+		query, supplied := helpQuery(interaction)
 		msg := legacyHelpOverview(interaction)
-		if query != "" {
-			if category, ok := legacyHelpCategoryMessage(interaction, query); ok {
+		if supplied {
+			if category, ok := legacyHelpSlashCategoryMessage(interaction, query); ok {
 				msg = category
-				msg.Ephemeral = false
 			} else if detail, ok := legacyHelpCommandDetail(interaction, query); ok {
 				msg = detail
 			} else {
@@ -61,11 +60,11 @@ func (m Module) HelpComponentHandler() interactions.Handler {
 	}
 }
 
-func helpQuery(interaction interactions.Interaction) string {
+func helpQuery(interaction interactions.Interaction) (string, bool) {
 	for _, key := range []string{"指令名稱", "command", "name"} {
-		if value := strings.TrimSpace(interaction.Options[key]); value != "" {
-			return strings.Fields(value)[0]
+		if value := interaction.Options[key]; value != "" {
+			return strings.Split(value, " ")[0], true
 		}
 	}
-	return ""
+	return "", false
 }
