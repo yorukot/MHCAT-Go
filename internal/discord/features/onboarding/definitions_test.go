@@ -67,8 +67,8 @@ func TestVerificationDefinitionMatchesLegacySurface(t *testing.T) {
 	if def.Name != VerificationSetCommandName || def.Description != "設置驗證完成後要給甚麼身份組" {
 		t.Fatalf("definition = %#v", def)
 	}
-	if def.DefaultMemberPermissions == nil || *def.DefaultMemberPermissions != manageMessagesPermission {
-		t.Fatalf("permissions = %#v", def.DefaultMemberPermissions)
+	if def.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy command is publicly discoverable: %#v", def.DefaultMemberPermissions)
 	}
 	if len(def.Options) != 2 {
 		t.Fatalf("options = %#v", def.Options)

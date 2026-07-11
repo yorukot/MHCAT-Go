@@ -123,12 +123,11 @@ func LeaveMessageDefinition() commands.Definition {
 
 func VerificationSetDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     VerificationSetCommandName,
-		Description:              "設置驗證完成後要給甚麼身份組",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		DocsURL:                  "https://docsmhcat.yorukot.me/commands/announcement.html",
-		Ownership:                commands.ManagedOwnership("verification-config", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        VerificationSetCommandName,
+		Description: "設置驗證完成後要給甚麼身份組",
+		DocsURL:     "https://docsmhcat.yorukot.me/commands/announcement.html",
+		Ownership:   commands.ManagedOwnership("verification-config", commands.ScopeGuild),
 		Options: []commands.Option{
 			{
 				Type:        commands.OptionTypeRole,
