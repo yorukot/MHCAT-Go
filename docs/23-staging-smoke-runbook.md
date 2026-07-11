@@ -223,7 +223,7 @@ export MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true
 export MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true
 ```
 
-Set both together only when testing `/刪除訊息` in disposable staging channels. This path deletes recent Discord messages, requires Manage Messages, requires Administrator above 200 requested messages, refuses more than 1000, and writes no Mongo data.
+Set both together only when testing `/刪除訊息` in disposable staging channels. This path deletes recent Discord messages, requires Manage Messages, requires Administrator above 200 requested messages, refuses more than 1000, and writes no Mongo data. Stop the Node owner and follow [85-message-cleanup.md](85-message-cleanup.md).
 
 Optional delete-data smoke flags:
 
@@ -733,7 +733,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_SETTINGS=true`, confirm `MHCAT_FEATURE_WARNING_SETTINGS_ENABLED=true` and the staging database is isolated because `/警告設定` writes `errors_sets`.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_REMOVAL=true`, confirm `MHCAT_FEATURE_WARNING_REMOVAL_ENABLED=true` and the staging database has disposable `warndbs` fixtures for warning-removal commands.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_WARNING_ISSUE=true`, confirm `MHCAT_FEATURE_WARNING_ISSUE_ENABLED=true`, the staging database has disposable `warndbs` fixtures, and target test members can safely receive warning DMs/kick/ban actions.
-- If `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true`, confirm `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`, the target channel is disposable, and test messages can be safely deleted.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true`, confirm `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`, the Node owner is stopped, the target channel is disposable, bot/channel permissions are reviewed, and [85-message-cleanup.md](85-message-cleanup.md) is accepted.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=true`, confirm `MHCAT_FEATURE_DELETE_DATA_ENABLED=true` and the selected staging config rows are disposable.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`, confirm `MHCAT_FEATURE_TRANSLATE_ENABLED=true` and external translate calls are allowed for the staging bot.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
@@ -1502,11 +1502,16 @@ If any warning flags were enabled and command sync apply was reviewed:
 If message-cleanup flags were enabled and command sync apply was reviewed:
 
 - use a disposable staging text channel containing only test messages;
-- run `/刪除訊息 刪除數量:1` and verify the ephemeral legacy `清理完成!` embed appears;
+- run `/刪除訊息 刪除數量:1` and verify the exact ephemeral `#53FF53` `清理完成!` embed reports the confirmed count;
 - run `/刪除訊息 刪除數量:1001` and verify the legacy maximum-count error appears without deleting messages;
 - with a non-Administrator test moderator, run `/刪除訊息 刪除數量:201` and verify the legacy permission error appears;
-- optionally run `/刪除訊息 刪除數量:10 使用者:<test user>` and verify only that user's recent test messages are targeted;
-- verify no Mongo feature data or indexes changed.
+- verify unfiltered zero and negative values return controlled red errors, while filtered zero returns exact `0/0` success without deletion;
+- seed more than 100 recent messages, run an Administrator cleanup, and verify 100-message pagination plus the actual final count;
+- interleave target/non-target authors across pages, run `/刪除訊息 刪除數量:10 使用者:<test user>`, and verify only that user's recent messages are deleted while scanning advances;
+- seed recent and older-than-14-day messages, including a lone old message, and verify every old message remains;
+- force a later fetch/delete failure, record irreversible earlier progress, verify generic red UI, and inspect state before any retry;
+- verify one global usage event per denied/invalid/successful attempt, the cleanup-specific operation can exceed the normal 2.5-second timeout, and no Mongo feature data or indexes changed;
+- complete rollback and every remaining case in [85-message-cleanup.md](85-message-cleanup.md).
 
 If delete-data flags were enabled and command sync apply was reviewed:
 

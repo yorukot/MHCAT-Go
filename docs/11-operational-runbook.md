@@ -426,6 +426,15 @@ MHCAT_FEATURE_WARNING_ISSUE_ENABLED=true
 
 Enable only the families under test. `/警告紀錄` reads `warndbs` and intentionally does not enforce its advertised Manage Messages metadata. Settings writes `errors_sets`; removal mutates `warndbs`; issue appends warnings, sends best-effort DMs, and may kick or ban disposable members. When global usage tracking is separately enabled, each slash attempt records exactly one event. No warning gate creates indexes or runs startup repair/migration. Back up and audit duplicate/mixed rows, unknown actions, and malformed thresholds before smoke. Exact UI, permission, scalar, threshold, duplicate, ownership, smoke, and rollback requirements are in [84-warning-system.md](84-warning-system.md).
 
+Destructive `/刪除訊息` is available only with paired staging command-sync and runtime flags:
+
+```bash
+MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true
+MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true
+```
+
+Use only a disposable staging channel and one active Node/Go owner. The command is publicly discoverable, defers ephemerally, requires Manage Messages, adds Administrator above 200, and refuses more than 1000. Go waits for sequential Discord batches, reports actual confirmed deletes, scans target-user pages with a cursor, and retains every message older than 14 days. Earlier batches cannot roll back if a later API call fails. It requires no Message Content intent, Mongo repository, index, or database migration. Follow [85-message-cleanup.md](85-message-cleanup.md) before enabling or retrying a partial failure.
+
 Destructive `/刪除資料` is available only when both staging command sync and runtime flags are explicitly enabled:
 
 ```bash

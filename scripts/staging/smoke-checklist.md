@@ -39,7 +39,7 @@
 - For stats role-count smoke, use an isolated staging guild/database with an existing stats `numbers` row and pair `MHCAT_COMMAND_SYNC_INCLUDE_STATS_ROLE_COUNT=true` with `MHCAT_FEATURE_STATS_ROLE_COUNT_ENABLED=true`, `MHCAT_DISCORD_ENABLE_GATEWAY=true`, and `MHCAT_DISCORD_GUILD_MEMBERS_INTENT=true`; it creates a Discord channel and writes `role_numbers`.
 - For stats delete smoke, use only disposable staging `numbers` rows and pair `MHCAT_COMMAND_SYNC_INCLUDE_STATS_DELETE=true` with `MHCAT_FEATURE_STATS_DELETE_ENABLED=true`; it deletes guild-scoped config rows and does not delete Discord channels.
 - For warning-system smoke, stop Node warning owners, back up and audit `warndbs`/`errors_sets`, use disposable members, pair only the four warning runtime/sync families under test, create no indexes, and follow `docs/84-warning-system.md`.
-- For message cleanup smoke, use only a disposable staging channel and pair `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true` with `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`; it deletes recent Discord messages and writes no Mongo data.
+- For message cleanup smoke, stop the Node owner, use only a disposable staging channel, pair `MHCAT_COMMAND_SYNC_INCLUDE_MESSAGE_CLEANUP=true` with `MHCAT_FEATURE_MESSAGE_CLEANUP_ENABLED=true`, and follow `docs/85-message-cleanup.md`; it irreversibly deletes recent Discord messages and writes no Mongo data.
 - For delete-data smoke, back up and use only disposable staging config rows, pair `MHCAT_COMMAND_SYNC_INCLUDE_DELETE_DATA=true` with `MHCAT_FEATURE_DELETE_DATA_ENABLED=true`, and follow `docs/83-delete-data.md`; it deletes all duplicate guild rows in the selected collection.
 - Run `scripts/staging/command-sync-dry-run.sh`.
 - Review the diff plan before apply.
@@ -78,7 +78,7 @@
 - If stats role-count smoke is enabled, run `/統計身分組人數` for a disposable role, verify the success embed references the created channel, verify the channel name is `<role name>: <member count>`, and verify the `role_numbers` row is replaced for that guild/role.
 - If stats delete smoke is enabled, seed a disposable `numbers` row for the staging guild, run `/統計系統刪除`, verify the legacy success embed, confirm the guild `numbers` row is deleted, and confirm Discord channels are untouched.
 - If warning-system smoke is enabled, run the canonical metadata/UI, audience, mixed-scalar/duplicate, raw-reason/timestamp, first-warning threshold skip, exact-ban/fallback-kick, splice-index, failure-continuation, usage, no-index, and rollback cases in `docs/84-warning-system.md`.
-- If message cleanup smoke is enabled, run `/刪除訊息` only in the disposable channel, verify the ephemeral `清理完成!` embed, and verify over-1000 and over-200-without-Administrator errors before broader deletion tests.
+- If message cleanup smoke is enabled, run the canonical exact UI/color, permission/count, filtered-zero, multi-page actual-count, target-user scan, old-message retention, partial-failure, usage, no-Mongo, and rollback cases in `docs/85-message-cleanup.md`.
 - If delete-data smoke is enabled, run `/刪除資料`, verify the exact public owner-scoped select UI, select only a backed-up disposable target, and confirm public success/missing responses, duplicate cleanup, guild/target isolation, no indexes, and rollback.
 - Verify no duplicate initial response and no raw internal error.
 - Verify no command deletion or bulk overwrite happened.
