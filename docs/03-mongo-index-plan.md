@@ -64,7 +64,7 @@ A live read-only index inventory has now run, but full duplicate/null/missing au
 | `birthdays` | `birthdays_guild_user` | `{guild:1,user:1}` | candidate | no | no | birthday profile lookup | duplicate/missing/scalar-drift keys, malformed profile values, ownership | audit only; explicit reviewed apply after clean findings; see [contract](78-birthday.md) |
 | `birthday_sets` | `birthday_sets_guild` | `{guild:1}` | candidate | no | no | birthday guild config | duplicate/missing/scalar-drift keys, external writers | audit only; explicit reviewed apply after clean findings; see [contract](78-birthday.md) |
 | `btns` | `btns_guild_number` | `{guild:1,number:1}` | candidate | no | no | role button lookup | duplicate button IDs | audit, dry-run, explicit apply |
-| `chats` | `chats_guild` | `{guild:1}` | candidate | no | no | autochat config | singleton duplicates | audit, dry-run, explicit apply |
+| `chats` | `chats_guild` | `{guild:1}` | owner-wide candidate only | no | no | autochat config/runtime first match | duplicates are observable and all config/runtime/dashboard writers must agree | no apply solely for config; audit under [89-autochat-config.md](89-autochat-config.md) |
 | `chat_roles` | `chat_roles_guild_level_role` | `{guild:1,leavel:1,role:1}` | candidate | no | no | text level role lookup | misspelled level/type drift | audit, dry-run, explicit apply |
 | `chatgpts` | `chatgpts_guild` | `{guild:1}` | candidate | no | no | chatbot handoff state | external worker may rely on singleton | audit external worker first |
 | `chatgpt_gets` | `chatgpt_gets_guild` | `{guild:1}` | candidate | no | no | chatbot price/config | singleton duplicates | audit external worker first |

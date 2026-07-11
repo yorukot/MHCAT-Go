@@ -261,6 +261,15 @@ export MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true
 
 Set both together only in an isolated staging database when testing `/兌換`. Stop the Node owner, snapshot `codes` and `chatgpt_gets`, and use disposable fixtures because the code consume and one-row balance replacement are non-transactional. Audit mixed types, duplicates, indexes, and external writers without normalizing them. It does not enable auto-chat or require Message Content intent. Follow [88-redeem.md](88-redeem.md).
 
+Optional auto-chat config smoke flags:
+
+```bash
+export MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=true
+export MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG=true
+```
+
+Set both together only in an isolated staging database when testing `/自動聊天頻道` and `/自動聊天頻道刪除`. Stop the Node command owners, snapshot/audit `chats`, and use disposable rows/channels because set replaces one arbitrary row non-transactionally and delete removes one row per invocation. The commands require no Message Content intent and do not enable local or paid MessageCreate handling. Follow [89-autochat-config.md](89-autochat-config.md).
+
 Optional auto-chat local fallback smoke flags:
 
 ```bash
@@ -738,6 +747,7 @@ Do not paste real values into committed docs.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_TRANSLATE=true`, confirm `MHCAT_FEATURE_TRANSLATE_ENABLED=true` and external translate calls are allowed for the staging bot.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_BALANCE_QUERY=true`, confirm `MHCAT_FEATURE_BALANCE_QUERY_ENABLED=true` and the staging database has safe `chatgpt_gets` fixtures or no row.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`, confirm `MHCAT_FEATURE_REDEEM_ENABLED=true`, the Node owner is stopped, both `codes` and `chatgpt_gets` are snapshotted, fixtures are disposable, and [88-redeem.md](88-redeem.md) partial-progress recovery is accepted.
+- If `MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG=true`, confirm `MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=true`, Node config owners are stopped, `chats` is snapshotted/audited, target channels are disposable, and [89-autochat-config.md](89-autochat-config.md) partial-progress recovery is accepted.
 - If `MHCAT_FEATURE_AUTOCHAT_FALLBACK_ENABLED=true`, confirm gateway, Guild Messages, and Message Content are enabled; `chats.channel` targets a disposable staging channel; `chatgpt_gets` fixtures are safe; and the Node Chatbot handler is not concurrently active for that guild.
 - If `MHCAT_FEATURE_AUTOCHAT_PAID_HANDOFF_ENABLED=true`, confirm `MHCAT_AUTOCHAT_PAID_OWNERSHIP_CONFIRMED=true`, transaction-capable Mongo, clean singleton duplicate audits, a compatible external worker, disposable `chatgpts`/`chatgpt_gets` rows, and exclusive Go MessageCreate ownership.
 - If `MHCAT_COMMAND_SYNC_INCLUDE_AUTO_NOTIFICATION_CONFIG=true`, confirm `MHCAT_FEATURE_AUTO_NOTIFICATION_CONFIG_ENABLED=true` and the staging database/channel targets are disposable for auto-notification setup/list/delete.
@@ -967,6 +977,13 @@ For redeem staging smoke, expected additionally:
 - `MHCAT_COMMAND_SYNC_INCLUDE_REDEEM=true`;
 - `MHCAT_FEATURE_REDEEM_ENABLED=true`;
 - plan includes managed `兌換`;
+- plan still performs no create/update/delete during dry-run.
+
+For auto-chat config staging smoke, expected additionally:
+
+- `MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG=true`;
+- `MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=true`;
+- plan includes managed `自動聊天頻道` and `自動聊天頻道刪除`;
 - plan still performs no create/update/delete during dry-run.
 
 For auto-notification config staging smoke, expected additionally:
@@ -1490,6 +1507,16 @@ If redeem flags were enabled and command sync apply was reviewed:
 - run `/兌換 代碼:<missing code>` and verify the legacy red missing-code embed;
 - seed an expired code older than 7 days, run `/兌換`, and verify the legacy expired-code embed while the code remains unconsumed.
 - verify padded/all-space codes, negative price, exact seven-day boundary, null/missing/malformed time, duplicate code and balance preservation, controlled backend failures, one usage increment per outcome, and the [88-redeem.md](88-redeem.md) repair/rollback matrix using disposable rows only.
+
+If auto-chat config flags were enabled and command sync apply was reviewed:
+
+- verify both commands are public with no default permission and `/自動聊天頻道` accepts only text/news channels;
+- as a normal member verify exact red permission UI, then repeat set/delete as Manage Messages and Administrator users;
+- set a disposable channel and verify exact public green UI plus a fresh minimal `{guild,channel}` row;
+- seed duplicate rows with extra fields, set again, and verify only one arbitrary selected row is replaced with a new `_id` while another remains unchanged;
+- delete repeatedly and verify one row per exact green success, followed by the exact missing red UI only after no rows remain;
+- force lookup/delete/insert failures, inspect partial state before retry, verify generic red UI and exactly one usage increment per outcome;
+- complete mixed channel coercion, no-index, rollback, and ownership checks in [89-autochat-config.md](89-autochat-config.md).
 
 If translate flags were enabled and command sync apply was reviewed:
 

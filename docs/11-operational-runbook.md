@@ -471,6 +471,15 @@ MHCAT_FEATURE_REDEEM_ENABLED=true
 
 This command reads an exact raw `codes.code`, deletes only the fetched row, then replaces one arbitrary matching `chatgpt_gets` row by delete+insert. It preserves Mongoose number coercion, the legacy 7-day `>` expiry check, duplicate rows, and exact ephemeral UI. The flow is non-transactional: snapshot both collections and use disposable staging fixtures because an error can occur after code or balance deletion. It does not enable auto-chat, require Message Content intent, or create indexes. Follow [88-redeem.md](88-redeem.md).
 
+Auto-chat config commands are available only with paired staging flags:
+
+```bash
+MHCAT_COMMAND_SYNC_INCLUDE_AUTOCHAT_CONFIG=true
+MHCAT_FEATURE_AUTOCHAT_CONFIG_ENABLED=true
+```
+
+`/自動聊天頻道` and `/自動聊天頻道刪除` remain publicly discoverable but require Manage Messages at runtime. Set replaces one arbitrary fetched `chats` row by delete+insert; delete removes one fetched row. Both preserve duplicate rows and Mongoose String channel coercion, create no index, and are non-transactional. Snapshot/audit `chats`, stop Node command ownership, and use disposable channels. Follow [89-autochat-config.md](89-autochat-config.md). These flags do not enable either MessageCreate runtime.
+
 The event-only local auto-chat fallback is available only with all message runtime prerequisites enabled:
 
 ```bash

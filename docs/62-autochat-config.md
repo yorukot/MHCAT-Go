@@ -1,6 +1,6 @@
 # Auto-Chat Runtime
 
-Status: config commands, local fallback, and the bot-side paid handoff are implemented behind independent disabled-by-default gates. The paid path still requires the separately deployed external worker.
+Status: config commands, local fallback, and the bot-side paid handoff are implemented behind independent disabled-by-default gates. Config command parity is canonical in [89-autochat-config.md](89-autochat-config.md). Local fallback and paid handoff still require separate canonical audits, and the paid path requires the separately deployed external worker.
 
 ## Legacy References
 
