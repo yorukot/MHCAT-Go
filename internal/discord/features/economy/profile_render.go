@@ -13,7 +13,6 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	coreeconomy "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/economy"
 	xdraw "golang.org/x/image/draw"
-	"golang.org/x/image/font"
 
 	_ "image/gif"
 	_ "image/jpeg"
@@ -157,43 +156,49 @@ func drawProfileHeader(canvas *image.RGBA, view profileCanvasView) {
 	if displayName == "" {
 		displayName = view.Result.UserID
 	}
-	drawText(canvas, 151, 80, displayName, color.RGBA{R: 211, G: 211, B: 211, A: 255}, 4)
-	drawText(canvas, 151, 120, view.GuildName, color.RGBA{R: 168, G: 168, B: 168, A: 255}, 2)
-	drawText(canvas, 1220, 100, legacyProfileDate(view.MemberJoinedAt), color.RGBA{R: 211, G: 211, B: 211, A: 255}, 3)
-	drawText(canvas, 960, 100, legacyProfileDate(view.UserCreatedAt), color.RGBA{R: 211, G: 211, B: 211, A: 255}, 3)
+	drawCoinRankText(canvas, 151, 80, displayName, color.RGBA{R: 211, G: 211, B: 211, A: 255}, 45)
+	drawCoinRankText(canvas, 151, 120, view.GuildName, color.RGBA{R: 168, G: 168, B: 168, A: 255}, 25)
+	drawCoinRankNumericText(canvas, 1220, 100, legacyProfileDate(view.MemberJoinedAt), color.RGBA{R: 211, G: 211, B: 211, A: 255}, 40)
+	drawCoinRankNumericText(canvas, 960, 100, legacyProfileDate(view.UserCreatedAt), color.RGBA{R: 211, G: 211, B: 211, A: 255}, 40)
 }
 
 func drawProfileStats(canvas *image.RGBA, result coreeconomy.ProfileResult) {
 	drawProfileProgress(canvas, 550, 333, profileProgressWidth(result.TextXP.XP, coreeconomy.LegacyProfileXPRequired(result.TextXP.Level, false), result.TextXPFound), color.RGBA{R: 100, G: 255, B: 191, A: 255})
 	drawProfileProgress(canvas, 1038, 333, profileProgressWidth(result.VoiceXP.XP, coreeconomy.LegacyProfileXPRequired(result.VoiceXP.Level, true), result.VoiceXPFound), color.RGBA{R: 234, G: 121, B: 255, A: 255})
-	drawProfileTextCentered(canvas, 750, 363, profileXPProgressText(result.TextXP, result.TextXPFound, false), color.RGBA{R: 255, G: 88, B: 9, A: 255}, 3)
-	drawProfileTextCentered(canvas, 1238, 363, profileXPProgressText(result.VoiceXP, result.VoiceXPFound, true), color.RGBA{R: 40, G: 255, B: 40, A: 255}, 3)
+	drawProfileXPTextCentered(canvas, 750, 363, profileXPProgressText(result.TextXP, result.TextXPFound, false), color.RGBA{R: 255, G: 88, B: 9, A: 255}, 30)
+	drawProfileXPTextCentered(canvas, 1238, 363, profileXPProgressText(result.VoiceXP, result.VoiceXPFound, true), color.RGBA{R: 40, G: 255, B: 40, A: 255}, 30)
 
-	drawProfileTextCentered(canvas, 367, 243, profileRankText(result.TextRank, result.TextXPFound, true), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 367, 306, profileRankText(result.VoiceRank, result.VoiceXPFound, false), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 367, 369, profileRankText(result.CoinRank, result.CoinFound, false), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
+	drawProfileTextCentered(canvas, 367, 243, profileRankText(result.TextRank, result.TextXPFound, true), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 367, 306, profileRankText(result.VoiceRank, result.VoiceXPFound, false), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 367, 369, profileRankText(result.CoinRank, result.CoinFound, false), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
 
-	drawProfileTextCentered(canvas, 864, 243, profileXPValue(result.TextXP, result.TextXPFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 864, 306, profileLevelValue(result.TextXP, result.TextXPFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 1351, 243, profileXPValue(result.VoiceXP, result.VoiceXPFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 1351, 306, profileLevelValue(result.VoiceXP, result.VoiceXPFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
+	drawProfileTextCentered(canvas, 864, 243, profileXPValue(result.TextXP, result.TextXPFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 864, 306, profileLevelValue(result.TextXP, result.TextXPFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 1351, 243, profileXPValue(result.VoiceXP, result.VoiceXPFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 1351, 306, profileLevelValue(result.VoiceXP, result.VoiceXPFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
 
-	drawProfileTextCentered(canvas, 295, 525, profileCoinText(result), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 295, 587, result.SignStatus, color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 639, 525, profileWorkEnergyText(result), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 639, 587, profileWorkStateText(result), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 1045, 525, profileConfigIntText(result.Config.GachaCost, result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 1045, 587, profileConfigIntText(result.Config.SignCoins, result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 1385, 525, profileConfigIntText(result.WorkConfig.DailyEnergy, result.WorkConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 1385, 587, profileConfigIntText(result.WorkConfig.MaxEnergy, result.WorkConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
-	drawProfileTextCentered(canvas, 1237, 652, profileConfigFloatText(result.Config.XPMultiple, result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 4)
+	drawProfileTextCentered(canvas, 295, 525, profileCoinText(result), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 295, 587, result.SignStatus, color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 639, 525, profileWorkEnergyText(result), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 639, 587, profileWorkStateText(result), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 1045, 525, profileConfigIntText(result.Config.GachaCost, result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 1045, 587, profileConfigIntText(result.Config.SignCoins, result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 1385, 525, profileConfigIntText(result.WorkConfig.DailyEnergy, result.WorkConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 1385, 587, profileConfigIntText(result.WorkConfig.MaxEnergy, result.WorkConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
+	drawProfileTextCentered(canvas, 1237, 652, profileConfigFloatText(result.Config.XPMultiple, result.ConfigFound), color.RGBA{R: 252, G: 252, B: 252, A: 255}, 40)
 }
 
 func drawProfileProgress(canvas *image.RGBA, x, y, width int, c color.RGBA) {
 	if width <= 0 {
 		return
 	}
-	fillRect(canvas, image.Rect(x, y, x+width, y+35), c)
+	for py := 0; py < 35; py++ {
+		for px := 0; px < width; px++ {
+			if insideRoundedRect(px, py, width, 35, 17) {
+				canvas.Set(x+px, y+py, c)
+			}
+		}
+	}
 }
 
 func profileProgressWidth(xp int64, required int64, found bool) int {
@@ -280,15 +285,6 @@ func legacyProfileDate(value time.Time) string {
 	return value.Format("2006/01/02")
 }
 
-func drawProfileTextCentered(img *image.RGBA, x, y int, text string, c color.RGBA, scale int) {
-	offset := estimatedProfileTextWidth(text, scale) / 2
-	if face := signFontFace(float64(scale) * 10); face != nil {
-		offset = font.MeasureString(face, text).Round() / 2
-		_ = face.Close()
-	}
-	drawText(img, x-offset, y, text, c, scale)
-}
-
-func estimatedProfileTextWidth(text string, scale int) int {
-	return len([]rune(text)) * (6*scale + scale)
+func drawProfileTextCentered(img *image.RGBA, x, y int, text string, c color.RGBA, size int) {
+	drawCoinRankCenteredNumericText(img, x, y, text, c, size)
 }

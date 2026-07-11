@@ -161,6 +161,24 @@ func TestProfileHeaderUsesLegacyDisplayNameWidthAndFullGuildName(t *testing.T) {
 	}
 }
 
+func TestProfileCanvasUsesLegacyXPFontAndRoundedProgressBars(t *testing.T) {
+	face := profileXPFontFace(30)
+	if face == nil {
+		t.Fatal("legacy Oswald profile font was not loaded")
+	}
+	_ = face.Close()
+
+	canvas := image.NewRGBA(image.Rect(0, 0, 100, 50))
+	want := color.RGBA{R: 100, G: 255, B: 191, A: 255}
+	drawProfileProgress(canvas, 10, 5, 70, want)
+	if got := color.RGBAModel.Convert(canvas.At(45, 22)).(color.RGBA); got != want {
+		t.Fatalf("progress center = %#v want %#v", got, want)
+	}
+	if got := color.RGBAModel.Convert(canvas.At(10, 5)).(color.RGBA); got.A != 0 {
+		t.Fatalf("progress corner = %#v, want transparent", got)
+	}
+}
+
 func TestProfileRefreshMissingMemberUsesLegacyEphemeralError(t *testing.T) {
 	repo := fakemongo.NewEconomyProfileRepository()
 	info := &fakebotinfo.DiscordInfoProvider{UserErr: errors.New("missing")}
