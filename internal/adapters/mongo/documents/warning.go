@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type WarningDocument struct {
@@ -23,6 +24,12 @@ type WarningSettingsDocument struct {
 	Guild    string `bson:"guild" json:"guild"`
 	BanCount string `bson:"ban_count" json:"ban_count"`
 	Move     string `bson:"move" json:"move"`
+}
+
+type WarningSettingsReadDocument struct {
+	Guild    bson.RawValue `bson:"guild" json:"guild"`
+	BanCount bson.RawValue `bson:"ban_count" json:"ban_count"`
+	Move     bson.RawValue `bson:"move" json:"move"`
 }
 
 func (d WarningDocument) ToDomain() domain.WarningHistory {
@@ -58,14 +65,25 @@ func WarningEntryDocumentFromIssue(issue domain.WarningIssue) WarningEntryDocume
 }
 
 func (d WarningSettingsDocument) ToDomain() (domain.WarningSettings, error) {
-	threshold, err := strconv.ParseInt(d.BanCount, 10, 64)
+	return warningSettingsToDomain(d.Guild, d.BanCount, d.Move)
+}
+
+func (d WarningSettingsReadDocument) ToDomain() (domain.WarningSettings, error) {
+	guild, _ := legacyMongooseString(d.Guild)
+	banCount, _ := legacyMongooseString(d.BanCount)
+	move, _ := legacyMongooseString(d.Move)
+	return warningSettingsToDomain(guild, banCount, move)
+}
+
+func warningSettingsToDomain(guild string, banCount string, move string) (domain.WarningSettings, error) {
+	threshold, err := strconv.ParseInt(banCount, 10, 64)
 	if err != nil {
 		return domain.WarningSettings{}, fmt.Errorf("%w: ban_count", domain.ErrInvalidWarningSettings)
 	}
 	settings := domain.WarningSettings{
-		GuildID:   d.Guild,
+		GuildID:   guild,
 		Threshold: threshold,
-		Action:    d.Move,
+		Action:    move,
 	}
 	if err := settings.Validate(); err != nil {
 		return domain.WarningSettings{}, err

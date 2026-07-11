@@ -180,7 +180,7 @@ func (r *WarningSettingsRepository) GetWarningSettings(ctx context.Context, guil
 	if guildID == "" {
 		return domain.WarningSettings{}, domain.ErrInvalidWarningSettings
 	}
-	var document documents.WarningSettingsDocument
+	var document documents.WarningSettingsReadDocument
 	err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document)
 	if err != nil {
 		if err == drivermongo.ErrNoDocuments {
