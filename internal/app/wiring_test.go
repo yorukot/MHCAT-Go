@@ -1784,6 +1784,58 @@ func TestBuildRuntimeRoutesRedeemOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeRedeemTracksOneUsageForEveryResult(t *testing.T) {
+	now := time.UnixMilli(1_700_000_000_000)
+	for _, test := range []struct {
+		name  string
+		setup func(*fakemongo.RedeemRepository)
+	}{
+		{
+			name: "success",
+			setup: func(repo *fakemongo.RedeemRepository) {
+				repo.Codes["abc"] = domain.RedeemCode{Code: "abc", Price: 3, CreatedAtMillis: float64(now.UnixMilli())}
+			},
+		},
+		{name: "missing"},
+		{
+			name: "expired",
+			setup: func(repo *fakemongo.RedeemRepository) {
+				repo.Codes["abc"] = domain.RedeemCode{Code: "abc", Price: 3, CreatedAtMillis: float64(now.Add(-8 * 24 * time.Hour).UnixMilli())}
+			},
+		},
+		{
+			name: "backend failure",
+			setup: func(repo *fakemongo.RedeemRepository) {
+				repo.Err = context.DeadlineExceeded
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewRedeemRepository()
+			if test.setup != nil {
+				test.setup(repo)
+			}
+			tracker := &fakeusage.Tracker{}
+			dispatcher, err := BuildRuntime(RuntimeOptions{
+				Config:           validTestConfig(),
+				RedeemRepository: repo,
+				UsageTracker:     tracker,
+				Clock:            appFixedClock{now: now},
+			})
+			if err != nil {
+				t.Fatalf("build runtime: %v", err)
+			}
+			interaction := fakediscord.SlashInteractionWithOptions("兌換", "", map[string]string{"代碼": "abc"})
+			if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+				t.Fatalf("dispatch redeem: %v", err)
+			}
+			if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "兌換" || tracker.Events[0].UserID != "user-1" || tracker.Events[0].GuildID != "guild-1" {
+				t.Fatalf("usage events = %#v", tracker.Events)
+			}
+		})
+	}
+}
+
 func TestBuildRuntimeRoutesAntiScamConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
