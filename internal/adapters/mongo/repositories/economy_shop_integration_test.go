@@ -131,3 +131,50 @@ func TestEconomyShopMongoIntegrationUpdatesOneBalanceDuplicate(t *testing.T) {
 		t.Fatalf("balances = %v, want one arbitrary row updated from one arbitrary read", got)
 	}
 }
+
+func TestEconomyShopMongoIntegrationPreservesAutoDeleteItemDuplicates(t *testing.T) {
+	database := economyQueryIntegrationDatabase(t)
+	repository, err := NewEconomyRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	ctx := context.Background()
+	items := []any{}
+	for _, count := range []int{1, 5} {
+		items = append(items, bson.D{
+			{Key: "guild", Value: "guild-1"}, {Key: "commodity_id", Value: 1}, {Key: "name", Value: "item"},
+			{Key: "need_coin", Value: 20}, {Key: "commodity_description", Value: "desc"},
+			{Key: "code", Value: nil}, {Key: "auto_delete", Value: true}, {Key: "role", Value: nil}, {Key: "commodity_count", Value: count},
+		})
+	}
+	if _, err := database.Collection(ShopItemCollectionName).InsertMany(ctx, items); err != nil {
+		t.Fatalf("seed duplicate items: %v", err)
+	}
+	if _, err := database.Collection(CoinCollectionName).InsertOne(ctx, bson.D{{Key: "guild", Value: "guild-1"}, {Key: "member", Value: "user-1"}, {Key: "coin", Value: 100}}); err != nil {
+		t.Fatalf("seed balance: %v", err)
+	}
+	if _, err := repository.PurchaseShopItem(ctx, domain.ShopPurchaseCommand{GuildID: "guild-1", UserID: "user-1", CommodityID: 1, Quantity: 1}); err != nil {
+		t.Fatalf("purchase: %v", err)
+	}
+
+	cursor, err := database.Collection(ShopItemCollectionName).Find(ctx, bson.D{{Key: "guild", Value: "guild-1"}, {Key: "commodity_id", Value: 1}})
+	if err != nil {
+		t.Fatalf("find duplicate items: %v", err)
+	}
+	defer cursor.Close(ctx)
+	var rows []struct {
+		Count float64 `bson:"commodity_count"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		t.Fatalf("decode duplicate items: %v", err)
+	}
+	got := make([]float64, 0, len(rows))
+	for _, row := range rows {
+		got = append(got, row.Count)
+	}
+	sort.Float64s(got)
+	validOutcomes := [][]float64{{0}, {1, 4}, {4, 5}}
+	if !slices.ContainsFunc(validOutcomes, func(want []float64) bool { return slices.Equal(got, want) }) {
+		t.Fatalf("item counts = %v, want selected-row delete plus arbitrary logical decrement", got)
+	}
+}

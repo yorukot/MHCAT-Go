@@ -880,14 +880,17 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	}
 	if item.AutoDelete {
 		if stock == 1 {
-			if _, err := r.shopItems.DeleteOne(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "commodity_id", Value: command.CommodityID}}); err != nil {
+			deleteFilter := bson.D{{Key: "guild", Value: command.GuildID}, {Key: "commodity_id", Value: command.CommodityID}}
+			if recordID, err := bson.ObjectIDFromHex(item.RecordID); err == nil {
+				deleteFilter = bson.D{{Key: "_id", Value: recordID}}
+			}
+			if _, err := r.shopItems.DeleteOne(ctx, deleteFilter); err != nil {
 				return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("delete purchased shop item: %w", err))
 			}
-		} else {
-			nextCount := stock - float64(command.Quantity)
-			if _, err := r.shopItems.UpdateOne(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "commodity_id", Value: command.CommodityID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "commodity_count", Value: nextCount}}}}); err != nil {
-				return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("decrement shop item count: %w", err))
-			}
+		}
+		nextCount := stock - float64(command.Quantity)
+		if _, err := r.shopItems.UpdateOne(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "commodity_id", Value: command.CommodityID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "commodity_count", Value: nextCount}}}}); err != nil {
+			return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("decrement shop item count: %w", err))
 		}
 	}
 	nextBalance := currentCoins - totalCost

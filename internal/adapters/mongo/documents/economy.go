@@ -32,6 +32,7 @@ type SignListDocument struct {
 }
 
 type ShopItemDocument struct {
+	ID                   bson.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	Guild                string        `bson:"guild" json:"guild"`
 	CommodityID          bson.RawValue `bson:"commodity_id" json:"commodity_id"`
 	Name                 string        `bson:"name" json:"name"`
@@ -125,6 +126,7 @@ func (d ShopItemDocument) ToDomain() domain.ShopItem {
 		roleID = *d.Role
 	}
 	return domain.ShopItem{
+		RecordID:      d.ID.Hex(),
 		GuildID:       d.Guild,
 		CommodityID:   legacyInt64(d.CommodityID),
 		Name:          d.Name,

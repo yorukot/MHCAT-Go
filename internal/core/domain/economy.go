@@ -177,6 +177,7 @@ type RockPaperScissorsResult struct {
 }
 
 type ShopItem struct {
+	RecordID      string
 	GuildID       string
 	CommodityID   int64
 	Name          string
@@ -337,6 +338,7 @@ func ResolveRockPaperScissors(command RockPaperScissorsCommand) (RockPaperScisso
 
 func (i ShopItem) Normalize() ShopItem {
 	return ShopItem{
+		RecordID:      strings.TrimSpace(i.RecordID),
 		GuildID:       strings.TrimSpace(i.GuildID),
 		CommodityID:   i.CommodityID,
 		Name:          i.Name,
