@@ -112,6 +112,7 @@ func TestLegacyProfileFormatting(t *testing.T) {
 		1_000_000:     "1M",
 		1_500_000_000: "1.5G",
 		1.5:           "1.5",
+		1_250:         "1.3K",
 	}
 	for input, want := range cases {
 		if got := LegacyProfileAmount(input); got != want {
@@ -123,5 +124,38 @@ func TestLegacyProfileFormatting(t *testing.T) {
 	}
 	if got := LegacyProfileXPRequired(2, true); got != 300 {
 		t.Fatalf("voice required XP = %d, want 300", got)
+	}
+}
+
+func TestProfileServicePreservesLegacyCoinScalarRankAndDisplay(t *testing.T) {
+	tests := []struct {
+		name        string
+		viewer      string
+		other       string
+		wantDisplay string
+		wantRank    int
+	}{
+		{name: "undefined", viewer: "undefined", other: "500", wantDisplay: "NaN", wantRank: 2},
+		{name: "null", viewer: "null", other: "500", wantDisplay: "0", wantRank: 2},
+		{name: "decimal", viewer: "125.5", other: "500", wantDisplay: "125.5", wantRank: 2},
+		{name: "positive infinity", viewer: "Infinity", other: "500", wantDisplay: "InfinityG", wantRank: 1},
+		{name: "negative infinity", viewer: "-Infinity", other: "500", wantDisplay: "-Infinity", wantRank: 2},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewEconomyProfileRepository()
+			repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "viewer", CoinsText: test.viewer})
+			repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "other", CoinsText: test.other})
+			result, err := (ProfileService{Repository: repo}).Query(context.Background(), ProfileQuery{GuildID: "guild-1", UserID: "viewer"})
+			if err != nil {
+				t.Fatalf("query: %v", err)
+			}
+			if got := LegacyProfileCoinAmount(result.CoinBalance); got != test.wantDisplay {
+				t.Fatalf("display = %q want %q", got, test.wantDisplay)
+			}
+			if result.CoinRank != test.wantRank {
+				t.Fatalf("rank = %d want %d", result.CoinRank, test.wantRank)
+			}
+		})
 	}
 }

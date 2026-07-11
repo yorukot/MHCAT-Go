@@ -247,7 +247,7 @@ func profileCoinText(result coreeconomy.ProfileResult) string {
 	if !result.CoinFound {
 		return "0"
 	}
-	return coreeconomy.LegacyProfileAmount(float64(result.CoinBalance.Coins))
+	return coreeconomy.LegacyProfileCoinAmount(result.CoinBalance)
 }
 
 func profileWorkEnergyText(result coreeconomy.ProfileResult) string {

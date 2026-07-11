@@ -138,7 +138,7 @@ func (s ProfileService) Query(ctx context.Context, query ProfileQuery) (ProfileR
 		if err != nil {
 			return ProfileResult{}, err
 		}
-		result.CoinRank = legacyCoinProfileRank(balances, result.CoinBalance.Coins)
+		result.CoinRank = legacyCoinProfileRank(balances, result.CoinBalance)
 	}
 	if result.TextXPFound {
 		profiles, err := s.Repository.ListTextXPProfiles(ctx, query.GuildID)
@@ -158,10 +158,12 @@ func (s ProfileService) Query(ctx context.Context, query ProfileQuery) (ProfileR
 	return result, nil
 }
 
-func legacyCoinProfileRank(balances []domain.CoinBalance, viewerCoins int64) int {
+func legacyCoinProfileRank(balances []domain.CoinBalance, viewer domain.CoinBalance) int {
+	viewerCoins, viewerNumeric := legacyCoinRankNumber(viewer)
 	rank := 0
 	for _, balance := range balances {
-		if balance.Coins >= viewerCoins {
+		coins, numeric := legacyCoinRankNumber(balance)
+		if !numeric || !viewerNumeric || !(coins < viewerCoins) {
 			rank++
 		}
 	}
@@ -236,6 +238,8 @@ func legacyProfileSignStatus(balance domain.CoinBalance, found bool, config doma
 
 func LegacyProfileAmount(value float64) string {
 	switch {
+	case math.IsInf(value, -1):
+		return "-Infinity"
 	case value >= 1_000_000_000:
 		return legacyProfileScaled(value, 1_000_000_000, "G")
 	case value >= 1_000_000:
@@ -250,8 +254,20 @@ func LegacyProfileAmount(value float64) string {
 	}
 }
 
+func LegacyProfileCoinAmount(balance domain.CoinBalance) string {
+	value, numeric := legacyCoinRankNumber(balance)
+	if !numeric {
+		return "NaN"
+	}
+	return LegacyProfileAmount(value)
+}
+
 func legacyProfileScaled(value float64, divisor float64, suffix string) string {
-	text := fmt.Sprintf("%.1f", value/divisor)
+	if math.IsInf(value, 1) {
+		return "Infinity" + suffix
+	}
+	rounded := math.Floor((value/divisor)*10+0.5) / 10
+	text := fmt.Sprintf("%.1f", rounded)
 	text = strings.TrimSuffix(text, ".0")
 	return text + suffix
 }
