@@ -3,6 +3,7 @@ package economy
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -68,6 +69,18 @@ func TestCoinResetServiceDividesGuildBalancesWithLegacyNegativeRounding(t *testi
 	}
 	if balance, _ := repo.GetCoinBalance(context.Background(), "guild-1", "user-2"); balance.Coins != -5 {
 		t.Fatalf("user-2 balance = %#v", balance)
+	}
+}
+
+func TestLegacyJavaScriptRoundNumberPreservesScalars(t *testing.T) {
+	if got := domain.LegacyJavaScriptRoundNumber(2.75); got != 3 {
+		t.Fatalf("round decimal = %v", got)
+	}
+	if got := domain.LegacyJavaScriptRoundNumber(-2.5); got != -2 {
+		t.Fatalf("round negative half = %v", got)
+	}
+	if got := domain.LegacyJavaScriptRoundNumber(math.Inf(1)); !math.IsInf(got, 1) {
+		t.Fatalf("round infinity = %v", got)
 	}
 }
 

@@ -300,11 +300,13 @@ func (r *EconomyRepository) ResetCoinBalances(ctx context.Context, command domai
 		if err := cursor.Decode(&document); err != nil {
 			return domain.CoinResetResult{}, mhcatmongo.MapError(fmt.Errorf("decode coin balance for reset: %w", err))
 		}
-		next := domain.LegacyJavaScriptRound(float64(document.ToDomain().Coins) / float64(command.Divisor))
-		updateFilter := bson.D{{Key: "_id", Value: document.ID}}
-		if document.ID.IsZero() {
-			updateFilter = bson.D{{Key: "guild", Value: document.Guild}, {Key: "member", Value: document.Member}}
+		balance := document.ToDomain()
+		coins, numeric := coreeconomy.LegacyEconomyNumber(balance.CoinsText)
+		if !numeric {
+			return domain.CoinResetResult{}, domain.ErrInvalidCoinResetCommand
 		}
+		next := domain.LegacyJavaScriptRoundNumber(coins / float64(command.Divisor))
+		updateFilter := bson.D{{Key: "guild", Value: document.Guild}, {Key: "member", Value: document.Member}}
 		result, err := r.coins.UpdateOne(ctx, updateFilter, bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: next}}}})
 		if err != nil {
 			return domain.CoinResetResult{}, mhcatmongo.MapError(fmt.Errorf("divide coin balance: %w", err))

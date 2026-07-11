@@ -282,6 +282,11 @@ func LegacyJavaScriptRound(value float64) int64 {
 	return int64(math.Floor(value + 0.5))
 }
 
+// LegacyJavaScriptRoundNumber preserves Math.round without collapsing non-finite values.
+func LegacyJavaScriptRoundNumber(value float64) float64 {
+	return math.Floor(value + 0.5)
+}
+
 func (c RockPaperScissorsChoice) Normalize() RockPaperScissorsChoice {
 	return RockPaperScissorsChoice(strings.TrimSpace(string(c)))
 }
