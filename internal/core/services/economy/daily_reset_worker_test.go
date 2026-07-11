@@ -14,6 +14,21 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
 
+func TestNewDailyResetWorkerBuildsProductionScheduler(t *testing.T) {
+	worker, err := NewDailyResetWorker(
+		&dailyResetWorkerRepository{},
+		fakemongo.NewSchedulerLeaseStore(),
+		"worker-a",
+		2*time.Minute,
+		10*time.Second,
+		time.Minute,
+		nil,
+	)
+	if err != nil || worker == nil {
+		t.Fatalf("new production worker: worker=%#v err=%v", worker, err)
+	}
+}
+
 func TestDailyResetWorkerSchedulesRunsUnderLeaseAndReleases(t *testing.T) {
 	now := time.Now().UTC()
 	repository := &dailyResetWorkerRepository{result: domain.DailyResetResult{CoinsModified: 2, WorkEnergyIncrements: 3}}

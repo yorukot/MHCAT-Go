@@ -15,6 +15,20 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
 
+func TestNewDeliveryWorkerBuildsProductionScheduler(t *testing.T) {
+	worker, err := NewDeliveryWorker(
+		autoNotificationDeliveryService(newDeliveryRepository(deliveryFixture("*/30 * * * *"))),
+		fakemongo.NewSchedulerLeaseStore(),
+		"worker-a",
+		2*time.Minute,
+		time.Second,
+		nil,
+	)
+	if err != nil || worker == nil {
+		t.Fatalf("new production worker: worker=%#v err=%v", worker, err)
+	}
+}
+
 func TestDeliveryWorkerAcquiresLeaseReconcilesAndReloadsBeforeSend(t *testing.T) {
 	now := time.Now().UTC()
 	repo := newDeliveryRepository(deliveryFixture("*/30 * * * *"))

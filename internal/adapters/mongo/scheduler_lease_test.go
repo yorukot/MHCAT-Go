@@ -1,12 +1,110 @@
 package mongo
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
+
+func TestSchedulerLeaseMongoIntegrationLifecycle(t *testing.T) {
+	if os.Getenv("MHCAT_RUN_MONGO_INTEGRATION_TESTS") != "true" {
+		t.Skip("set MHCAT_RUN_MONGO_INTEGRATION_TESTS=true to run")
+	}
+	uri := os.Getenv("MHCAT_MONGODB_URI")
+	databaseName := os.Getenv("MHCAT_MONGODB_DATABASE")
+	if uri == "" || databaseName == "" {
+		t.Fatal("MHCAT_MONGODB_URI and MHCAT_MONGODB_DATABASE are required")
+	}
+	client, err := NewClient(Options{
+		URI:            uri,
+		Database:       databaseName,
+		ConnectTimeout: 10 * time.Second,
+		PingTimeout:    5 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	ctx := context.Background()
+	if err := client.Connect(ctx); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Disconnect(context.Background()) })
+	database, err := client.Database()
+	if err != nil {
+		t.Fatalf("database: %v", err)
+	}
+	if store, err := NewSchedulerLeaseStoreFromDatabase(database); err != nil || store == nil {
+		t.Fatalf("new store from database: store=%#v err=%v", store, err)
+	}
+	collection := database.Collection(fmt.Sprintf("mhcat_scheduler_lease_test_%d", time.Now().UnixNano()))
+	t.Cleanup(func() { _ = collection.Drop(context.Background()) })
+	store, err := NewSchedulerLeaseStore(collection)
+	if err != nil {
+		t.Fatalf("new store: %v", err)
+	}
+	base, err := NewBaseRepository(collection)
+	if err != nil {
+		t.Fatalf("new base repository: %v", err)
+	}
+	if base.CollectionName() != collection.Name() {
+		t.Fatalf("collection name = %q", base.CollectionName())
+	}
+	if err := base.Ping(ctx); err != nil {
+		t.Fatalf("base repository ping: %v", err)
+	}
+
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	status, err := store.Inspect(ctx, " daily-reset ", now)
+	if err != nil || status.Name != "daily-reset" || status.Held {
+		t.Fatalf("missing status=%#v err=%v", status, err)
+	}
+	first, err := store.TryAcquire(ctx, domain.SchedulerLeaseRequest{Name: " daily-reset ", Owner: " worker-a ", TTL: time.Minute, Now: now})
+	if err != nil || !first.Acquired || first.Fence != 1 || first.Owner != "worker-a" {
+		t.Fatalf("first lease=%#v err=%v", first, err)
+	}
+	blocked, err := store.TryAcquire(ctx, domain.SchedulerLeaseRequest{Name: "daily-reset", Owner: "worker-b", TTL: time.Minute, Now: now.Add(time.Second)})
+	if err != nil || blocked.Acquired {
+		t.Fatalf("blocked lease=%#v err=%v", blocked, err)
+	}
+	reacquired, err := store.TryAcquire(ctx, domain.SchedulerLeaseRequest{Name: "daily-reset", Owner: "worker-a", TTL: time.Minute, Now: now.Add(2 * time.Second)})
+	if err != nil || !reacquired.Acquired || reacquired.Fence != 2 {
+		t.Fatalf("reacquired lease=%#v err=%v", reacquired, err)
+	}
+	renewed, err := store.Renew(ctx, reacquired, 2*time.Minute, now.Add(3*time.Second))
+	if err != nil || !renewed.Acquired || renewed.Fence != reacquired.Fence || !renewed.ExpiresAt.Equal(now.Add(123*time.Second)) {
+		t.Fatalf("renewed lease=%#v err=%v", renewed, err)
+	}
+	if err := store.Release(ctx, first); !errors.Is(err, domain.ErrSchedulerLeaseNotHeld) {
+		t.Fatalf("release stale lease: %v", err)
+	}
+	if err := store.Release(ctx, renewed); err != nil {
+		t.Fatalf("release renewed lease: %v", err)
+	}
+	status, err = store.Inspect(ctx, "daily-reset", now.Add(4*time.Second))
+	if err != nil || status.Held {
+		t.Fatalf("released status=%#v err=%v", status, err)
+	}
+	second, err := store.TryAcquire(ctx, domain.SchedulerLeaseRequest{Name: "daily-reset", Owner: "worker-b", TTL: time.Minute, Now: now.Add(5 * time.Minute)})
+	if err != nil || !second.Acquired || second.Fence != 3 {
+		t.Fatalf("second lease=%#v err=%v", second, err)
+	}
+}
+
+func TestBaseRepositoryNilContract(t *testing.T) {
+	var repository *BaseRepository
+	if repository.CollectionName() != "" {
+		t.Fatal("nil repository must have an empty collection name")
+	}
+	if err := repository.Ping(context.Background()); err == nil {
+		t.Fatal("nil repository ping must fail")
+	}
+}
 
 func TestNewSchedulerLeaseStoreRequiresCollection(t *testing.T) {
 	if _, err := NewSchedulerLeaseStore(nil); err == nil {
