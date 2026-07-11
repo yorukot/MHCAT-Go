@@ -1,6 +1,7 @@
 package documents
 
 import (
+	"math"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -62,8 +63,37 @@ func TestGiftChangeDocumentLegacyBSONDecodesDefaults(t *testing.T) {
 		t.Fatalf("decode document: %v", err)
 	}
 	config := document.ToDomain()
-	if config.GachaCost != 700 || config.SignCoins != 20 || config.ChannelID != "channel-1" || config.XPMultiple != 2.5 || config.ResetMarker != 0 {
+	if config.GachaCost != 700 || config.GachaCostText != "700" || config.SignCoins != 20 || config.ChannelID != "channel-1" || config.XPMultiple != 2.5 || config.ResetMarker != 0 {
 		t.Fatalf("config = %#v", config)
+	}
+}
+
+func TestGiftChangeDocumentPreservesMongooseCoinNumberDisplay(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+		want  string
+	}{
+		{name: "missing", value: bson.Undefined{}, want: "undefined"},
+		{name: "null", value: nil, want: "null"},
+		{name: "decimal", value: 700.5, want: "700.5"},
+		{name: "infinity", value: math.Inf(1), want: "Infinity"},
+		{name: "malformed", value: bson.D{{Key: "bad", Value: true}}, want: "undefined"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			raw, err := bson.Marshal(bson.D{{Key: "guild", Value: "guild-1"}, {Key: "coin_number", Value: test.value}})
+			if err != nil {
+				t.Fatalf("marshal fixture: %v", err)
+			}
+			var document GiftChangeDocument
+			if err := bson.Unmarshal(raw, &document); err != nil {
+				t.Fatalf("decode document: %v", err)
+			}
+			if got := document.ToDomain().GachaCostText; got != test.want {
+				t.Fatalf("display = %q, want %q", got, test.want)
+			}
+		})
 	}
 }
 

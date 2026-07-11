@@ -84,7 +84,7 @@ func legacyCoinQueryMessage(result coreeconomy.CoinQueryResult, subjectName stri
 		Ephemeral: true,
 		Embeds: []responses.Embed{{
 			Title:       fmt.Sprintf("%s%s目前有:`%d`個代幣!", legacyCoinMoneyEmoji, subjectName, result.Balance.Coins),
-			Description: legacyCoinDescription(result.GachaCost),
+			Description: legacyCoinDescription(result.GachaCostText),
 			Color:       color,
 			Footer: &responses.EmbedFooter{
 				Text:    legacyCoinFooterText(result, subjectName),
@@ -95,17 +95,16 @@ func legacyCoinQueryMessage(result coreeconomy.CoinQueryResult, subjectName stri
 	}
 }
 
-func legacyCoinDescription(gachaCost int64) string {
-	return fmt.Sprintf("%s\n使用`/簽到`或是多多聊天都可以拿到代幣喔\n%s對了對了，代幣數到了%d可以進行扭蛋喔!\n如果代幣足夠也可以到代幣商城逛逛!", legacyCoinQuestionLine, legacyCoinCatJumpEmoji, gachaCost)
+func legacyCoinDescription(gachaCost string) string {
+	return fmt.Sprintf("%s\n使用`/簽到`或是多多聊天都可以拿到代幣喔\n%s對了對了，代幣數到了%s可以進行扭蛋喔!\n如果代幣足夠也可以到代幣商城逛逛!", legacyCoinQuestionLine, legacyCoinCatJumpEmoji, gachaCost)
 }
 
 func legacyCoinFooterText(result coreeconomy.CoinQueryResult, subjectName string) string {
 	if !result.ConfigFound {
 		return fmt.Sprintf("%s還差:%d", subjectName, coreeconomy.DefaultGachaCost)
 	}
-	missing := result.GachaCost - result.Balance.Coins
-	if missing > 0 {
-		return fmt.Sprintf("%s還差:你還差%d就可以扭蛋了，加油!!", subjectName, missing)
+	if !result.CanGacha {
+		return fmt.Sprintf("%s還差:你還差%s就可以扭蛋了，加油!!", subjectName, result.MissingCoinsText)
 	}
 	return fmt.Sprintf("%s還差:你可以扭蛋了!!使用`/扭蛋`進行扭蛋", subjectName)
 }

@@ -21,7 +21,7 @@ func TestCoinQueryUsesConfiguredGachaCost(t *testing.T) {
 	if !result.ConfigFound {
 		t.Fatal("expected config to be found")
 	}
-	if result.GachaCost != 700 || result.MissingCoins != 575 {
+	if result.GachaCost != 700 || result.GachaCostText != "700" || result.MissingCoins != 575 || result.MissingCoinsText != "575" || result.CanGacha {
 		t.Fatalf("unexpected result: %#v", result)
 	}
 }
@@ -36,8 +36,37 @@ func TestCoinQueryMissingConfigDefaultsToLegacyGachaCost(t *testing.T) {
 	if result.ConfigFound {
 		t.Fatal("expected config to be missing")
 	}
-	if result.GachaCost != DefaultGachaCost || result.MissingCoins != 375 {
+	if result.GachaCost != DefaultGachaCost || result.GachaCostText != "500" || result.MissingCoins != 375 || result.MissingCoinsText != "375" || result.CanGacha {
 		t.Fatalf("unexpected default result: %#v", result)
+	}
+}
+
+func TestCoinQueryPreservesLegacyConfiguredNumberEdges(t *testing.T) {
+	tests := []struct {
+		name        string
+		text        string
+		wantMissing string
+		wantCan     bool
+	}{
+		{name: "undefined", text: "undefined", wantCan: true},
+		{name: "null", text: "null", wantCan: true},
+		{name: "decimal", text: "700.5", wantMissing: "575.5"},
+		{name: "infinity", text: "Infinity", wantMissing: "Infinity"},
+		{name: "negative infinity", text: "-Infinity", wantCan: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewEconomyRepository()
+			repo.PutBalance(domain.CoinBalance{GuildID: "guild", UserID: "user", Coins: 125})
+			repo.PutConfig(domain.EconomyConfig{GuildID: "guild", GachaCostText: test.text})
+			result, err := (CoinQueryService{Repository: repo}).Query(context.Background(), "guild", "user")
+			if err != nil {
+				t.Fatalf("query: %v", err)
+			}
+			if result.GachaCostText != test.text || result.MissingCoinsText != test.wantMissing || result.CanGacha != test.wantCan {
+				t.Fatalf("result = %#v", result)
+			}
+		})
 	}
 }
 

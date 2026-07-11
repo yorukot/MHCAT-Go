@@ -54,12 +54,13 @@ func (d CoinDocument) ToDomain() domain.CoinBalance {
 
 func (d GiftChangeDocument) ToDomain() domain.EconomyConfig {
 	return domain.EconomyConfig{
-		GuildID:     d.Guild,
-		GachaCost:   legacyInt64(d.CoinNumber),
-		SignCoins:   legacyInt64(d.SignCoin),
-		ChannelID:   d.Channel,
-		XPMultiple:  legacyFloat64(d.XPMultiple),
-		ResetMarker: legacyInt64(d.Time),
+		GuildID:       d.Guild,
+		GachaCost:     legacyInt64(d.CoinNumber),
+		GachaCostText: legacyPriceString(d.CoinNumber),
+		SignCoins:     legacyInt64(d.SignCoin),
+		ChannelID:     d.Channel,
+		XPMultiple:    legacyFloat64(d.XPMultiple),
+		ResetMarker:   legacyInt64(d.Time),
 	}
 }
 

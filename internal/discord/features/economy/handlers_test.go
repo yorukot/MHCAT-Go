@@ -107,6 +107,36 @@ func TestCoinQueryNoBalanceUsesLegacyErrorEmbed(t *testing.T) {
 	}
 }
 
+func TestCoinQueryRendersLegacyConfiguredNumberEdges(t *testing.T) {
+	tests := []struct {
+		name       string
+		text       string
+		wantCost   string
+		wantFooter string
+	}{
+		{name: "undefined", text: "undefined", wantCost: "代幣數到了undefined", wantFooter: "你還差:你可以扭蛋了!!使用`/扭蛋`進行扭蛋"},
+		{name: "null", text: "null", wantCost: "代幣數到了null", wantFooter: "你還差:你可以扭蛋了!!使用`/扭蛋`進行扭蛋"},
+		{name: "decimal", text: "700.5", wantCost: "代幣數到了700.5", wantFooter: "你還差:你還差575.5就可以扭蛋了，加油!!"},
+		{name: "infinity", text: "Infinity", wantCost: "代幣數到了Infinity", wantFooter: "你還差:你還差Infinity就可以扭蛋了，加油!!"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewEconomyRepository()
+			repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 125})
+			repo.PutConfig(domain.EconomyConfig{GuildID: "guild-1", GachaCostText: test.text})
+			module := NewModule(repo, nil, nil)
+			responder := fakediscord.NewResponder()
+			if err := module.CoinQueryHandler()(context.Background(), fakediscord.SlashInteraction("代幣查詢"), responder); err != nil {
+				t.Fatalf("handle coin query: %v", err)
+			}
+			embed := responder.Edits[0].Embeds[0]
+			if !strings.Contains(embed.Description, test.wantCost) || embed.Footer == nil || embed.Footer.Text != test.wantFooter {
+				t.Fatalf("embed = %#v", embed)
+			}
+		})
+	}
+}
+
 func TestCoinQueryModuleRegistersRoute(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 1})

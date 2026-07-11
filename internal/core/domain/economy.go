@@ -49,12 +49,13 @@ type CoinBalance struct {
 }
 
 type EconomyConfig struct {
-	GuildID     string
-	GachaCost   int64
-	SignCoins   int64
-	ChannelID   string
-	XPMultiple  float64
-	ResetMarker int64
+	GuildID       string
+	GachaCost     int64
+	GachaCostText string
+	SignCoins     int64
+	ChannelID     string
+	XPMultiple    float64
+	ResetMarker   int64
 }
 
 func (c EconomyConfig) EffectiveGachaCost() int64 {
