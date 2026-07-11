@@ -1,6 +1,6 @@
-# Gacha Draw and Prize Maintenance Slices
+# Gacha Draw and Prize Maintenance Parity Contract
 
-Status: implemented behind explicit staging/runtime gates.
+Status: parity-audited against the legacy draw, prize-list, prize-create, prize-edit, and prize-delete commands, Mongoose models, and current Go definitions, services, handlers, scalar adapters, repository, app wiring, staging guards, and focused race coverage. Live Discord and operator-gated real-Mongo smoke remain required before production rollout.
 
 ## Legacy References
 
@@ -84,9 +84,23 @@ The write path intentionally follows the legacy delete-plus-insert shape and doe
 
 The command preserves the legacy missing-prize error `找不到這個獎品!` and success embed title `<a:green_tick:994529015652163614>成功刪除!` with description `獎品名:<gift_name>`. Prize names are matched and displayed exactly without trimming. It intentionally uses one-row delete semantics to match legacy `findOne(...); data.delete()` behavior when duplicate prize names exist.
 
-## Not Implemented
+## Operational Gates
 
-- indexes or data repair
+Indexes and automatic data repair are intentionally outside the runtime parity scope. Production rollout requires an explicit audit and operator-reviewed repair policy for duplicate or malformed `coins`, `gifts`, and `gift_changes` rows; the refactor must not silently normalize legacy data.
+
+Shop behavior is separately parity-audited in [104-economy-shop.md](104-economy-shop.md), including its UI, scalar coercion, duplicate-row behavior, role and DM side effects, staging gates, and rollback requirements.
+
+## Verification
+
+```bash
+go test ./internal/core/services/gacha ./internal/adapters/mongo/documents \
+  ./internal/adapters/mongo/repositories ./internal/discord/features/gacha ./internal/app
+go test -race ./internal/core/services/gacha ./internal/adapters/mongo/repositories \
+  ./internal/discord/features/gacha ./internal/app
+go vet ./...
+```
+
+The guarded Mongo integration harness requires a generated disposable database and skips unless both `MHCAT_RUN_MONGO_INTEGRATION_TESTS=true` and `MHCAT_MONGODB_URI` are set. Never point it at production.
 
 ## Rollout Notes
 
