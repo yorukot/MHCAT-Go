@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -176,15 +177,16 @@ type RockPaperScissorsResult struct {
 }
 
 type ShopItem struct {
-	GuildID     string
-	CommodityID int64
-	Name        string
-	NeedCoins   int64
-	Description string
-	Code        string
-	AutoDelete  bool
-	RoleID      string
-	Count       int64
+	GuildID       string
+	CommodityID   int64
+	Name          string
+	NeedCoins     int64
+	NeedCoinsText string
+	Description   string
+	Code          string
+	AutoDelete    bool
+	RoleID        string
+	Count         int64
 }
 
 type ShopPurchaseCommand struct {
@@ -197,7 +199,7 @@ type ShopPurchaseCommand struct {
 type ShopPurchaseResult struct {
 	Item            ShopItem
 	Quantity        int64
-	TotalCost       int64
+	TotalCost       float64
 	PreviousBalance float64
 	Balance         CoinBalance
 }
@@ -334,15 +336,16 @@ func ResolveRockPaperScissors(command RockPaperScissorsCommand) (RockPaperScisso
 
 func (i ShopItem) Normalize() ShopItem {
 	return ShopItem{
-		GuildID:     strings.TrimSpace(i.GuildID),
-		CommodityID: i.CommodityID,
-		Name:        i.Name,
-		NeedCoins:   i.NeedCoins,
-		Description: i.Description,
-		Code:        i.Code,
-		AutoDelete:  i.AutoDelete,
-		RoleID:      strings.TrimSpace(i.RoleID),
-		Count:       i.Count,
+		GuildID:       strings.TrimSpace(i.GuildID),
+		CommodityID:   i.CommodityID,
+		Name:          i.Name,
+		NeedCoins:     i.NeedCoins,
+		NeedCoinsText: i.NeedCoinsText,
+		Description:   i.Description,
+		Code:          i.Code,
+		AutoDelete:    i.AutoDelete,
+		RoleID:        strings.TrimSpace(i.RoleID),
+		Count:         i.Count,
 	}
 }
 
@@ -354,11 +357,27 @@ func (i ShopItem) Validate() error {
 	return nil
 }
 
-func (i ShopItem) PurchaseCost(quantity int64) (int64, bool) {
-	if i.NeedCoins <= 0 || quantity <= 0 || i.NeedCoins > math.MaxInt64/quantity {
+func (i ShopItem) PurchaseCost(quantity int64) (float64, bool) {
+	if quantity <= 0 {
 		return 0, false
 	}
-	return i.NeedCoins * quantity, true
+	price, ok := legacyShopNumber(i.NeedCoinsText, i.NeedCoins)
+	if !ok {
+		return 0, false
+	}
+	return price * float64(quantity), true
+}
+
+func legacyShopNumber(text string, fallback int64) (float64, bool) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return float64(fallback), true
+	}
+	if text == "null" {
+		return 0, true
+	}
+	value, err := strconv.ParseFloat(text, 64)
+	return value, err == nil && !math.IsNaN(value)
 }
 
 func (c ShopPurchaseCommand) Normalize() ShopPurchaseCommand {

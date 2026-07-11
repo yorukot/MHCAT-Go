@@ -125,15 +125,16 @@ func (d ShopItemDocument) ToDomain() domain.ShopItem {
 		roleID = *d.Role
 	}
 	return domain.ShopItem{
-		GuildID:     d.Guild,
-		CommodityID: legacyInt64(d.CommodityID),
-		Name:        d.Name,
-		NeedCoins:   legacyInt64(d.NeedCoin),
-		Description: d.CommodityDescription,
-		Code:        code,
-		AutoDelete:  d.AutoDelete,
-		RoleID:      roleID,
-		Count:       legacyInt64(d.CommodityCount),
+		GuildID:       d.Guild,
+		CommodityID:   legacyInt64(d.CommodityID),
+		Name:          d.Name,
+		NeedCoins:     legacyInt64(d.NeedCoin),
+		NeedCoinsText: legacyPriceString(d.NeedCoin),
+		Description:   d.CommodityDescription,
+		Code:          code,
+		AutoDelete:    d.AutoDelete,
+		RoleID:        roleID,
+		Count:         legacyInt64(d.CommodityCount),
 	}
 }
 
@@ -147,11 +148,19 @@ func ShopItemWriteDocumentFromDomain(item domain.ShopItem) bson.D {
 	if item.RoleID != "" {
 		role = item.RoleID
 	}
+	needCoins := any(item.NeedCoins)
+	if text := strings.TrimSpace(item.NeedCoinsText); text != "" {
+		if parsed, err := strconv.ParseFloat(text, 64); err == nil {
+			needCoins = parsed
+		} else if text == "null" {
+			needCoins = nil
+		}
+	}
 	return bson.D{
 		{Key: "guild", Value: item.GuildID},
 		{Key: "commodity_id", Value: item.CommodityID},
 		{Key: "name", Value: item.Name},
-		{Key: "need_coin", Value: item.NeedCoins},
+		{Key: "need_coin", Value: needCoins},
 		{Key: "commodity_description", Value: item.Description},
 		{Key: "code", Value: code},
 		{Key: "auto_delete", Value: item.AutoDelete},

@@ -158,6 +158,28 @@ func TestShopListRendersLegacyFieldsAndButtons(t *testing.T) {
 	}
 }
 
+func TestShopListAndDetailPreserveLegacyPriceScalar(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoinsText: "20.5", Description: "reward", Count: 1})
+	module := NewShopModule(repo, nil, nil, nil, nil, nil, nil)
+	seedShopBrowse(&module, "interaction-1")
+
+	list := shopListMessage([]domain.ShopItem{{CommodityID: 1001, Name: "VIP", NeedCoinsText: "20.5", Description: "reward", Count: 1}}, "Guild", "User", "avatar", 1)
+	if !strings.Contains(list.Embeds[0].Fields[0].Value, "商品價錢 :**`20.5`") {
+		t.Fatalf("list = %#v", list)
+	}
+	detail := fakediscord.ComponentInteractionFromID("1001")
+	detail.MessageID = "message-1"
+	detail.OriginalInteractionID = "interaction-1"
+	responder := fakediscord.NewResponder()
+	if err := module.ShopItemHandler()(context.Background(), detail, responder); err != nil {
+		t.Fatalf("detail: %v", err)
+	}
+	if len(responder.Updates) != 1 || !strings.Contains(responder.Updates[0].Embeds[0].Description, "```20.5 個代幣```") {
+		t.Fatalf("detail = %#v", responder.Updates)
+	}
+}
+
 func TestShopDetailAndQuantityUseLegacyRandomColors(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 50, Description: "role reward", Count: 2})

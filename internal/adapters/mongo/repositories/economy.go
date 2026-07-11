@@ -871,7 +871,7 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	if !numeric {
 		return domain.ShopPurchaseResult{}, domain.ErrInvalidShopPurchase
 	}
-	if currentCoins < float64(totalCost) {
+	if currentCoins < totalCost {
 		return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
 	}
 	if item.AutoDelete {
@@ -886,7 +886,7 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 			}
 		}
 	}
-	nextBalance := currentCoins - float64(totalCost)
+	nextBalance := currentCoins - totalCost
 	result, err := r.coins.UpdateOne(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "member", Value: command.UserID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: nextBalance}}}})
 	if err != nil {
 		return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("subtract shop purchase coins: %w", err))

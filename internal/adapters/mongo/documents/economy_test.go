@@ -167,6 +167,33 @@ func TestGiftChangeUpdateUsesPreservedCooldownScalar(t *testing.T) {
 	}
 }
 
+func TestShopItemDocumentPreservesMongoosePriceDisplay(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		value any
+		want  string
+	}{
+		{name: "null", value: nil, want: "null"},
+		{name: "decimal", value: 20.5, want: "20.5"},
+		{name: "infinity", value: math.Inf(1), want: "Infinity"},
+		{name: "malformed", value: bson.D{{Key: "bad", Value: true}}, want: "undefined"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			raw, err := bson.Marshal(bson.D{{Key: "need_coin", Value: test.value}})
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			var document ShopItemDocument
+			if err := bson.Unmarshal(raw, &document); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if got := document.ToDomain().NeedCoinsText; got != test.want {
+				t.Fatalf("price text = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func documentTestEconomyConfig() domain.EconomyConfig {
 	return domain.EconomyConfig{
 		GuildID:     "guild-1",

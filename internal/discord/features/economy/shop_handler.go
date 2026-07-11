@@ -373,7 +373,7 @@ func shopAddSuccessMessage(item domain.ShopItem) responses.Message {
 			Description: "已為您添加該商品!",
 			Fields: []responses.EmbedField{{
 				Name:  fmt.Sprintf("<:id:985950321975128094> 商品名稱: %s", item.Name),
-				Value: fmt.Sprintf("商品id:`%d`\n需要代幣數: `%d`\n商品描述:`%s`\n商品是否自動刪除:`%t`\n身分組:`%s\n商品數量:%d`", item.CommodityID, item.NeedCoins, item.Description, item.AutoDelete, shopRoleDisplay(item.RoleID), item.Count),
+				Value: fmt.Sprintf("商品id:`%d`\n需要代幣數: `%s`\n商品描述:`%s`\n商品是否自動刪除:`%t`\n身分組:`%s\n商品數量:%d`", item.CommodityID, shopNeedCoinsText(item), item.Description, item.AutoDelete, shopRoleDisplay(item.RoleID), item.Count),
 			}},
 			Color: shopSuccessColor,
 		}},
@@ -397,7 +397,7 @@ func shopListMessage(items []domain.ShopItem, guildName string, userTag string, 
 	for _, item := range items {
 		fields = append(fields, responses.EmbedField{
 			Name:   fmt.Sprintf("<:id:985950321975128094> **商品名 :** `%s`", item.Name),
-			Value:  fmt.Sprintf("💰 **商品價錢 :**`%d`\n<:productdescription:1001163044560314398> **商品說明 :**`%s`\n<:id:985950321975128094> **商品id:**`%d`", item.NeedCoins, item.Description, item.CommodityID),
+			Value:  fmt.Sprintf("💰 **商品價錢 :**`%s`\n<:productdescription:1001163044560314398> **商品說明 :**`%s`\n<:id:985950321975128094> **商品id:**`%d`", shopNeedCoinsText(item), item.Description, item.CommodityID),
 			Inline: true,
 		})
 	}
@@ -516,7 +516,14 @@ func shopPurchaseSuccessMessage(result domain.ShopPurchaseResult) responses.Mess
 }
 
 func shopItemDetailDescription(item domain.ShopItem) string {
-	return fmt.Sprintf("<:id:1010884394791207003> 商品id:\n```%d```<:pricetag:1010884565822349392> 商品價格:\n```%d 個代幣```<:sign:997374180632825896> 商品描述:\n```%s```<:trashbin:995991389043163257> 是否自動刪除:\n```%t```<:roleplaying:985945121264635964> 是否會附加身分組:\n%s\n <:counter:994585977207140423> 商品數量:\n```%d```", item.CommodityID, item.NeedCoins, item.Description, item.AutoDelete, shopRoleDetailDisplay(item.RoleID), item.Count)
+	return fmt.Sprintf("<:id:1010884394791207003> 商品id:\n```%d```<:pricetag:1010884565822349392> 商品價格:\n```%s 個代幣```<:sign:997374180632825896> 商品描述:\n```%s```<:trashbin:995991389043163257> 是否自動刪除:\n```%t```<:roleplaying:985945121264635964> 是否會附加身分組:\n%s\n <:counter:994585977207140423> 商品數量:\n```%d```", item.CommodityID, shopNeedCoinsText(item), item.Description, item.AutoDelete, shopRoleDetailDisplay(item.RoleID), item.Count)
+}
+
+func shopNeedCoinsText(item domain.ShopItem) string {
+	if text := strings.TrimSpace(item.NeedCoinsText); text != "" {
+		return text
+	}
+	return strconv.FormatInt(item.NeedCoins, 10)
 }
 
 func shopErrorMessage(content string, docsPath string) responses.Message {

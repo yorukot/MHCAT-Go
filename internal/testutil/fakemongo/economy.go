@@ -540,7 +540,7 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	if !numeric {
 		return domain.ShopPurchaseResult{}, domain.ErrInvalidShopPurchase
 	}
-	if currentCoins < float64(totalCost) {
+	if currentCoins < totalCost {
 		return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
 	}
 	purchased := item
@@ -559,7 +559,7 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 		}
 	}
 	previous := currentCoins
-	nextBalance := currentCoins - float64(totalCost)
+	nextBalance := currentCoins - totalCost
 	balance.Coins = int64(nextBalance)
 	balance.CoinsText = strconv.FormatFloat(nextBalance, 'f', -1, 64)
 	if math.IsInf(nextBalance, 1) {

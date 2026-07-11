@@ -22,7 +22,7 @@ func TestEconomyShopMongoIntegrationPreservesBalanceScalars(t *testing.T) {
 	ctx := context.Background()
 	if _, err := database.Collection(ShopItemCollectionName).InsertOne(ctx, bson.D{
 		{Key: "guild", Value: "guild-1"}, {Key: "commodity_id", Value: 1},
-		{Key: "name", Value: "item"}, {Key: "need_coin", Value: 20},
+		{Key: "name", Value: "item"}, {Key: "need_coin", Value: 20.5},
 		{Key: "commodity_description", Value: "desc"}, {Key: "code", Value: nil},
 		{Key: "auto_delete", Value: false}, {Key: "role", Value: nil}, {Key: "commodity_count", Value: 1},
 	}); err != nil {
@@ -36,7 +36,7 @@ func TestEconomyShopMongoIntegrationPreservesBalanceScalars(t *testing.T) {
 		t.Fatalf("seed balances: %v", err)
 	}
 
-	for member, want := range map[string]string{"decimal": "30.5", "infinity": "Infinity"} {
+	for member, want := range map[string]string{"decimal": "30", "infinity": "Infinity"} {
 		result, err := repository.PurchaseShopItem(ctx, domain.ShopPurchaseCommand{GuildID: "guild-1", UserID: member, CommodityID: 1, Quantity: 1})
 		if err != nil || result.Balance.CoinsText != want {
 			t.Fatalf("purchase %s = %#v, err=%v", member, result, err)
@@ -48,6 +48,17 @@ func TestEconomyShopMongoIntegrationPreservesBalanceScalars(t *testing.T) {
 	nullBalance, err := repository.GetCoinBalance(ctx, "guild-1", "null")
 	if err != nil || nullBalance.CoinsText != "null" {
 		t.Fatalf("null balance = %#v, err=%v", nullBalance, err)
+	}
+	if _, err := database.Collection(ShopItemCollectionName).InsertOne(ctx, bson.D{
+		{Key: "guild", Value: "guild-1"}, {Key: "commodity_id", Value: 2}, {Key: "name", Value: "free"},
+		{Key: "need_coin", Value: nil}, {Key: "commodity_description", Value: "desc"},
+		{Key: "code", Value: nil}, {Key: "auto_delete", Value: false}, {Key: "role", Value: nil}, {Key: "commodity_count", Value: 1},
+	}); err != nil {
+		t.Fatalf("seed null-price item: %v", err)
+	}
+	free, err := repository.PurchaseShopItem(ctx, domain.ShopPurchaseCommand{GuildID: "guild-1", UserID: "decimal", CommodityID: 2, Quantity: 1})
+	if err != nil || free.TotalCost != 0 || free.Balance.CoinsText != "30" {
+		t.Fatalf("free purchase = %#v, err=%v", free, err)
 	}
 }
 

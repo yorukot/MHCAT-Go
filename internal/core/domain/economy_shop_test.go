@@ -5,13 +5,32 @@ import (
 	"testing"
 )
 
-func TestShopItemPurchaseCostRejectsOverflow(t *testing.T) {
+func TestShopItemPurchaseCostUsesJavaScriptNumberArithmetic(t *testing.T) {
 	item := ShopItem{NeedCoins: math.MaxInt64}
 
-	if cost, ok := item.PurchaseCost(1); !ok || cost != math.MaxInt64 {
-		t.Fatalf("single item cost = %d, ok = %t", cost, ok)
+	if cost, ok := item.PurchaseCost(1); !ok || cost != float64(math.MaxInt64) {
+		t.Fatalf("single item cost = %v, ok = %t", cost, ok)
 	}
-	if cost, ok := item.PurchaseCost(2); ok || cost != 0 {
-		t.Fatalf("overflow cost = %d, ok = %t", cost, ok)
+	if cost, ok := item.PurchaseCost(2); !ok || cost != float64(math.MaxInt64)*2 {
+		t.Fatalf("large cost = %v, ok = %t", cost, ok)
+	}
+}
+
+func TestShopItemPurchaseCostPreservesLegacyScalars(t *testing.T) {
+	for _, test := range []struct {
+		text string
+		want float64
+	}{
+		{text: "20.5", want: 41},
+		{text: "null", want: 0},
+		{text: "-2", want: -4},
+		{text: "Infinity", want: math.Inf(1)},
+	} {
+		if got, ok := (ShopItem{NeedCoinsText: test.text}).PurchaseCost(2); !ok || got != test.want {
+			t.Fatalf("cost for %q = %v, ok=%t", test.text, got, ok)
+		}
+	}
+	if _, ok := (ShopItem{NeedCoinsText: "undefined"}).PurchaseCost(2); ok {
+		t.Fatal("malformed price should fail")
 	}
 }
