@@ -27,7 +27,6 @@ type Module struct {
 	accountAgeEnabled   bool
 	accountAgePolicy    coreservice.AccountAgePolicyService
 	accountAgeGate      bool
-	usage               ports.UsageTracker
 }
 
 func NewModule(repo ports.JoinRoleConfigRepository, roles ports.DiscordRoleInspector) Module {
@@ -37,11 +36,10 @@ func NewModule(repo ports.JoinRoleConfigRepository, roles ports.DiscordRoleInspe
 	}
 }
 
-func NewMessageModule(repo ports.LeaveMessageConfigRepository, usage ports.UsageTracker) Module {
+func NewMessageModule(repo ports.LeaveMessageConfigRepository) Module {
 	return Module{
 		leaveMessageService: coreservice.LeaveMessageService{Repository: repo},
 		leaveConfigured:     true,
-		usage:               usage,
 	}
 }
 

@@ -2379,6 +2379,41 @@ func TestBuildRuntimeTracksEachJoinRoleSlashAttemptOnce(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeTracksEachWelcomeConfigSlashAttemptOnce(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	repo := fakemongo.NewLeaveMessageConfigRepository()
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                       validTestConfig(),
+		UsageTracker:                 tracker,
+		LeaveMessageConfigRepository: repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+
+	if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction("加入訊息設置"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch dashboard: %v", err)
+	}
+	leave := fakediscord.SlashInteractionWithOptions("退出訊息設置", "", map[string]string{"頻道": "channel-1"})
+	if err := dispatcher.Dispatch(context.Background(), leave, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch leave denial: %v", err)
+	}
+	leave.Actor.PermissionBits = 8192
+	if err := dispatcher.Dispatch(context.Background(), leave, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch leave success: %v", err)
+	}
+
+	wantCommands := []string{"加入訊息設置", "退出訊息設置", "退出訊息設置"}
+	if len(tracker.Events) != len(wantCommands) {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for i, want := range wantCommands {
+		if tracker.Events[i].CommandName != want {
+			t.Fatalf("usage event %d = %#v", i, tracker.Events[i])
+		}
+	}
+}
+
 func TestBuildRuntimeRoutesVerificationConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {

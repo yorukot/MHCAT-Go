@@ -11,7 +11,6 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestSetHandlerCreatesJoinRoleConfigWithLegacySuccess(t *testing.T) {
@@ -117,8 +116,7 @@ func TestDeleteHandlerMissingConfig(t *testing.T) {
 }
 
 func TestJoinMessageDashboardHandlerUsesLegacyRedirectUI(t *testing.T) {
-	usage := &fakeusage.Tracker{}
-	module := NewMessageModule(fakemongo.NewLeaveMessageConfigRepository(), usage)
+	module := NewMessageModule(fakemongo.NewLeaveMessageConfigRepository())
 	interaction := fakediscord.SlashInteractionWithOptions(JoinMessageSetCommandName, "", map[string]string{"頻道": "channel-1"})
 	responder := fakediscord.NewResponder()
 
@@ -136,9 +134,6 @@ func TestJoinMessageDashboardHandlerUsesLegacyRedirectUI(t *testing.T) {
 	if button.Label != "點我前往儀錶板設定!" || button.Emoji != "<a:arrow:986268851786375218>" || button.URL != "https://mhcat.yorukot.meguilds/guild-1/welcome" {
 		t.Fatalf("button = %#v", button)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != JoinMessageSetCommandName {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestLeaveMessagePromptHandlerShowsLegacyModal(t *testing.T) {
@@ -150,7 +145,7 @@ func TestLeaveMessagePromptHandlerShowsLegacyModal(t *testing.T) {
 		Title:          "Bye",
 		MessageContent: "Goodbye {MEMBERNAME}",
 	}
-	module := NewMessageModule(repo, nil)
+	module := NewMessageModule(repo)
 	interaction := fakediscord.SlashInteractionWithOptions(LeaveMessageSetCommandName, "", map[string]string{"頻道": "channel-1"})
 	interaction.Actor.PermissionBits = permissionManageMessages
 	responder := fakediscord.NewResponder()
@@ -184,7 +179,7 @@ func TestLeaveMessagePromptHandlerShowsLegacyModal(t *testing.T) {
 }
 
 func TestLeaveMessagePromptHandlerPermissionDenied(t *testing.T) {
-	module := NewMessageModule(fakemongo.NewLeaveMessageConfigRepository(), nil)
+	module := NewMessageModule(fakemongo.NewLeaveMessageConfigRepository())
 	interaction := fakediscord.SlashInteractionWithOptions(LeaveMessageSetCommandName, "", map[string]string{"頻道": "channel-1"})
 	responder := fakediscord.NewResponder()
 	if err := module.LeaveMessagePromptHandler()(context.Background(), interaction, responder); err != nil {
@@ -198,8 +193,7 @@ func TestLeaveMessagePromptHandlerPermissionDenied(t *testing.T) {
 func TestLeaveMessageModalHandlerSavesAndShowsLegacyPreview(t *testing.T) {
 	repo := fakemongo.NewLeaveMessageConfigRepository()
 	repo.Configs["guild-1"] = domain.LeaveMessageConfig{GuildID: "guild-1", ChannelID: "channel-1"}
-	usage := &fakeusage.Tracker{}
-	module := NewMessageModule(repo, usage)
+	module := NewMessageModule(repo)
 	interaction := leaveMessageModalInteraction("#df1f2f", "Bye", "Goodbye {MEMBERNAME}")
 	interaction.Actor.AvatarURL = "https://cdn.example/avatar.png"
 	responder := fakediscord.NewResponder()
@@ -223,15 +217,12 @@ func TestLeaveMessageModalHandlerSavesAndShowsLegacyPreview(t *testing.T) {
 	if repo.Configs["guild-1"].MessageContent != "Goodbye {MEMBERNAME}" || repo.Configs["guild-1"].Title != "Bye" || repo.Configs["guild-1"].Color != "#df1f2f" {
 		t.Fatalf("saved = %#v", repo.Configs["guild-1"])
 	}
-	if len(usage.Events) != 1 || usage.Events[0].Feature != "welcome-message-config" {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestLeaveMessageModalHandlerRejectsInvalidColor(t *testing.T) {
 	repo := fakemongo.NewLeaveMessageConfigRepository()
 	repo.Configs["guild-1"] = domain.LeaveMessageConfig{GuildID: "guild-1", ChannelID: "channel-1"}
-	module := NewMessageModule(repo, nil)
+	module := NewMessageModule(repo)
 	responder := fakediscord.NewResponder()
 	if err := module.LeaveMessageModalHandler()(context.Background(), leaveMessageModalInteraction("not-a-color", "Bye", "Goodbye"), responder); err != nil {
 		t.Fatalf("handler: %v", err)

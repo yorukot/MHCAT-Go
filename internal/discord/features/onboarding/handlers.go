@@ -62,10 +62,7 @@ func (m Module) DeleteHandler() interactions.Handler {
 
 func (m Module) JoinMessageDashboardHandler() interactions.Handler {
 	return func(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {
-		if err := responder.Reply(ctx, joinMessageDashboardMessage(interaction.Actor.GuildID)); err != nil {
-			return err
-		}
-		return m.trackFeature(ctx, interaction, JoinMessageSetCommandName, "welcome-message-config")
+		return responder.Reply(ctx, joinMessageDashboardMessage(interaction.Actor.GuildID))
 	}
 }
 
@@ -79,10 +76,7 @@ func (m Module) LeaveMessagePromptHandler() interactions.Handler {
 		if err != nil {
 			return responder.Reply(ctx, leaveMessageModalError("很抱歉，出現了未知的錯誤!"))
 		}
-		if err := responder.ShowModal(ctx, leaveMessageModal(config)); err != nil {
-			return err
-		}
-		return m.trackFeature(ctx, interaction, LeaveMessageSetCommandName, "welcome-message-config")
+		return responder.ShowModal(ctx, leaveMessageModal(config))
 	}
 }
 
@@ -104,10 +98,7 @@ func (m Module) LeaveMessageModalHandler() interactions.Handler {
 		if err := m.leaveMessageService.Save(ctx, config); err != nil {
 			return responder.EditOriginal(ctx, leaveMessageModalError(leaveMessageContentError(err)))
 		}
-		if err := responder.EditOriginal(ctx, leaveMessagePreviewMessage(config, interaction.Actor.AvatarURL, time.Now())); err != nil {
-			return err
-		}
-		return m.trackFeature(ctx, interaction, "leave_msg", "welcome-message-config")
+		return responder.EditOriginal(ctx, leaveMessagePreviewMessage(config, interaction.Actor.AvatarURL, time.Now()))
 	}
 }
 
@@ -296,16 +287,4 @@ func firstRawOption(interaction interactions.Interaction, names ...string) strin
 		}
 	}
 	return ""
-}
-
-func (m Module) trackFeature(ctx context.Context, interaction interactions.Interaction, commandName string, feature string) error {
-	if m.usage == nil {
-		return nil
-	}
-	return m.usage.TrackCommand(ctx, ports.UsageEvent{
-		CommandName: commandName,
-		UserID:      interaction.Actor.UserID,
-		GuildID:     interaction.Actor.GuildID,
-		Feature:     feature,
-	})
 }

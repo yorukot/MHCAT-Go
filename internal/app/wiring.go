@@ -690,7 +690,7 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		}
 	}
 	if opts.LeaveMessageConfigRepository != nil {
-		messageModule := featureonboarding.NewMessageModule(opts.LeaveMessageConfigRepository, opts.UsageTracker)
+		messageModule := featureonboarding.NewMessageModule(opts.LeaveMessageConfigRepository)
 		if err := messageModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
