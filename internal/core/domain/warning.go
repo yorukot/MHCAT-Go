@@ -29,7 +29,7 @@ type WarningHistory struct {
 
 type WarningSettings struct {
 	GuildID   string
-	Threshold int64
+	Threshold float64
 	Action    string
 }
 
@@ -60,7 +60,7 @@ func (h WarningHistory) ValidateQuery() error {
 }
 
 func (s WarningSettings) Validate() error {
-	if strings.TrimSpace(s.GuildID) == "" || s.Threshold <= 0 {
+	if strings.TrimSpace(s.GuildID) == "" {
 		return ErrInvalidWarningSettings
 	}
 	switch strings.TrimSpace(s.Action) {

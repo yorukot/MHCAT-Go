@@ -1,7 +1,7 @@
 package documents
 
 import (
-	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -149,7 +149,7 @@ func warningJavaScriptString(value bson.RawValue) string {
 func WarningSettingsDocumentFromDomain(settings domain.WarningSettings) WarningSettingsDocument {
 	return WarningSettingsDocument{
 		Guild:    settings.GuildID,
-		BanCount: strconv.FormatInt(settings.Threshold, 10),
+		BanCount: strconv.FormatFloat(settings.Threshold, 'f', -1, 64),
 		Move:     settings.Action,
 	}
 }
@@ -163,21 +163,16 @@ func WarningEntryDocumentFromIssue(issue domain.WarningIssue) WarningEntryDocume
 }
 
 func (d WarningSettingsDocument) ToDomain() (domain.WarningSettings, error) {
-	return warningSettingsToDomain(d.Guild, d.BanCount, d.Move)
+	return warningSettingsToDomain(d.Guild, warningThresholdFromString(d.BanCount), d.Move)
 }
 
 func (d WarningSettingsReadDocument) ToDomain() (domain.WarningSettings, error) {
 	guild, _ := legacyMongooseString(d.Guild)
-	banCount, _ := legacyMongooseString(d.BanCount)
 	move, _ := legacyMongooseString(d.Move)
-	return warningSettingsToDomain(guild, banCount, move)
+	return warningSettingsToDomain(guild, warningThresholdFromRaw(d.BanCount), move)
 }
 
-func warningSettingsToDomain(guild string, banCount string, move string) (domain.WarningSettings, error) {
-	threshold, err := strconv.ParseInt(banCount, 10, 64)
-	if err != nil {
-		return domain.WarningSettings{}, fmt.Errorf("%w: ban_count", domain.ErrInvalidWarningSettings)
-	}
+func warningSettingsToDomain(guild string, threshold float64, move string) (domain.WarningSettings, error) {
 	settings := domain.WarningSettings{
 		GuildID:   guild,
 		Threshold: threshold,
@@ -187,4 +182,26 @@ func warningSettingsToDomain(guild string, banCount string, move string) (domain
 		return domain.WarningSettings{}, err
 	}
 	return settings, nil
+}
+
+func warningThresholdFromRaw(value bson.RawValue) float64 {
+	if value.Type == 0 || value.Type == bson.TypeUndefined {
+		return math.NaN()
+	}
+	if value.Type == bson.TypeNull {
+		return 0
+	}
+	text, ok := legacyMongooseString(value)
+	if !ok {
+		return math.NaN()
+	}
+	return warningThresholdFromString(text)
+}
+
+func warningThresholdFromString(value string) float64 {
+	threshold, ok := legacyJavaScriptNumericString(value)
+	if !ok {
+		return math.NaN()
+	}
+	return threshold
 }

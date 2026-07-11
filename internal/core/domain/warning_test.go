@@ -14,11 +14,15 @@ func TestWarningSettingsValidate(t *testing.T) {
 	}
 	for _, settings := range []domain.WarningSettings{
 		{GuildID: "", Threshold: 3, Action: domain.WarningSettingsActionBan},
-		{GuildID: "guild-1", Threshold: 0, Action: domain.WarningSettingsActionBan},
 		{GuildID: "guild-1", Threshold: 3, Action: "mute"},
 	} {
 		if err := settings.Validate(); !errors.Is(err, domain.ErrInvalidWarningSettings) {
 			t.Fatalf("settings %#v err = %v", settings, err)
+		}
+	}
+	for _, threshold := range []float64{0, -1, 2.5} {
+		if err := (domain.WarningSettings{GuildID: "guild-1", Threshold: threshold, Action: domain.WarningSettingsActionBan}).Validate(); err != nil {
+			t.Fatalf("legacy threshold %v: %v", threshold, err)
 		}
 	}
 }

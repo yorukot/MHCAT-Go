@@ -79,7 +79,7 @@ func TestWarningSettingsServiceRejectsInvalidAndMissingRepository(t *testing.T) 
 		t.Fatalf("missing repository err = %v", err)
 	}
 	service.Repository = fakemongo.NewWarningSettingsRepository()
-	err = service.Configure(context.Background(), domain.WarningSettings{GuildID: "guild-1", Threshold: 0, Action: domain.WarningSettingsActionBan})
+	err = service.Configure(context.Background(), domain.WarningSettings{GuildID: "guild-1", Threshold: 0, Action: "mute"})
 	if !errors.Is(err, domain.ErrInvalidWarningSettings) {
 		t.Fatalf("invalid err = %v", err)
 	}

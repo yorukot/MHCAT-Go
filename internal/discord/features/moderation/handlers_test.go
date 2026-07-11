@@ -3,6 +3,7 @@ package moderation
 import (
 	"context"
 	"errors"
+	"math"
 	"strconv"
 	"strings"
 	"testing"
@@ -174,6 +175,30 @@ func TestWarningSettingsInvalidInputUsesGenericError(t *testing.T) {
 	}
 }
 
+func TestWarningSettingsPreservesNonPositiveLegacyThresholds(t *testing.T) {
+	for _, threshold := range []string{"0", "-2"} {
+		t.Run(threshold, func(t *testing.T) {
+			repo := fakemongo.NewWarningSettingsRepository()
+			module := NewSettingsModule(repo, nil)
+			responder := fakediscord.NewResponder()
+
+			if err := module.WarningSettingsHandler()(context.Background(), warningSettingsInteraction(domain.WarningSettingsActionKick, threshold), responder); err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+			want, err := strconv.ParseFloat(threshold, 64)
+			if err != nil {
+				t.Fatalf("parse threshold: %v", err)
+			}
+			if got := repo.Settings["guild-1"]; got.Threshold != want || got.Action != domain.WarningSettingsActionKick {
+				t.Fatalf("saved settings = %#v", got)
+			}
+			if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Description != "警告成功設為警告"+threshold+"次後\n執行踢出" {
+				t.Fatalf("edits = %#v", responder.Edits)
+			}
+		})
+	}
+}
+
 func TestWarningIssueRequiresManageMessages(t *testing.T) {
 	module := NewIssueModule(fakemongo.NewWarningHistoryRepository(), nil, nil, nil, nil, nil, nil, moderationFixedClock{}, nil)
 	responder := fakediscord.NewResponder()
@@ -293,6 +318,64 @@ func TestWarningIssueThresholdBansExistingWarning(t *testing.T) {
 	if len(sideEffects.Sent) != 1 || sideEffects.Sent[0].Message.Embeds[0].Title != "<a:greentick:980496858445135893> | 這位使用者已到達警告須執行條件，成功對他執行`停權`!" {
 		t.Fatalf("sent = %#v", sideEffects.Sent)
 	}
+}
+
+func TestWarningIssueUsesJavaScriptNumberThresholdComparison(t *testing.T) {
+	t.Run("decimal", func(t *testing.T) {
+		repo := fakemongo.NewWarningHistoryRepository()
+		repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}}})
+		settings := fakemongo.NewWarningSettingsRepository()
+		settings.Settings["guild-1"] = domain.WarningSettings{GuildID: "guild-1", Threshold: 2.5, Action: domain.WarningSettingsActionKick}
+		sideEffects := fakediscord.NewSideEffects()
+		module := NewIssueModule(repo, settings, sideEffects, nil, sideEffects, sideEffects, sideEffects, moderationFixedClock{}, nil)
+		interaction := warningIssueInteraction("user-2", "next")
+		interaction.ChannelID = "channel-1"
+
+		if err := module.WarningIssueHandler()(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+			t.Fatalf("second warning: %v", err)
+		}
+		if len(sideEffects.Kicked) != 0 {
+			t.Fatalf("count 2 should not reach 2.5: %#v", sideEffects.Kicked)
+		}
+		if err := module.WarningIssueHandler()(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+			t.Fatalf("third warning: %v", err)
+		}
+		if len(sideEffects.Kicked) != 1 {
+			t.Fatalf("count 3 should reach 2.5: %#v", sideEffects.Kicked)
+		}
+	})
+
+	t.Run("malformed", func(t *testing.T) {
+		repo := fakemongo.NewWarningHistoryRepository()
+		repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}}})
+		settings := fakemongo.NewWarningSettingsRepository()
+		settings.Settings["guild-1"] = domain.WarningSettings{GuildID: "guild-1", Threshold: math.NaN(), Action: domain.WarningSettingsActionBan}
+		sideEffects := fakediscord.NewSideEffects()
+		module := NewIssueModule(repo, settings, sideEffects, nil, sideEffects, sideEffects, sideEffects, moderationFixedClock{}, nil)
+
+		if err := module.WarningIssueHandler()(context.Background(), warningIssueInteraction("user-2", "next"), fakediscord.NewResponder()); err != nil {
+			t.Fatalf("handler: %v", err)
+		}
+		if len(sideEffects.Banned) != 0 {
+			t.Fatalf("NaN threshold should never match: %#v", sideEffects.Banned)
+		}
+	})
+
+	t.Run("zero", func(t *testing.T) {
+		repo := fakemongo.NewWarningHistoryRepository()
+		repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}}})
+		settings := fakemongo.NewWarningSettingsRepository()
+		settings.Settings["guild-1"] = domain.WarningSettings{GuildID: "guild-1", Threshold: 0, Action: domain.WarningSettingsActionKick}
+		sideEffects := fakediscord.NewSideEffects()
+		module := NewIssueModule(repo, settings, sideEffects, nil, sideEffects, sideEffects, sideEffects, moderationFixedClock{}, nil)
+
+		if err := module.WarningIssueHandler()(context.Background(), warningIssueInteraction("user-2", "next"), fakediscord.NewResponder()); err != nil {
+			t.Fatalf("handler: %v", err)
+		}
+		if len(sideEffects.Kicked) != 1 {
+			t.Fatalf("zero threshold should match existing warning: %#v", sideEffects.Kicked)
+		}
+	})
 }
 
 func TestWarningRemoveRequiresManageMessages(t *testing.T) {

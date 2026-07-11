@@ -71,7 +71,7 @@ func (m Module) WarningSettingsHandler() interactions.Handler {
 		}
 		settings := domain.WarningSettings{
 			GuildID:   interaction.Actor.GuildID,
-			Threshold: threshold,
+			Threshold: float64(threshold),
 			Action:    action,
 		}
 		if err := m.settings.Configure(ctx, settings); err != nil {
@@ -400,7 +400,7 @@ func warningSettingsMessage(settings domain.WarningSettings) responses.Message {
 	return responses.Message{
 		Embeds: []responses.Embed{{
 			Title:       "警告系統",
-			Description: fmt.Sprintf("警告成功設為警告%d次後\n執行%s", settings.Threshold, strings.TrimSpace(settings.Action)),
+			Description: fmt.Sprintf("警告成功設為警告%s次後\n執行%s", warningThresholdText(settings.Threshold), strings.TrimSpace(settings.Action)),
 			Color:       warningSettingsSuccessColor,
 		}},
 		AllowedMentions: &responses.AllowedMentions{},
@@ -425,7 +425,7 @@ func (m Module) applyWarningThreshold(ctx context.Context, interaction interacti
 	if err != nil {
 		return responses.Message{}, false
 	}
-	if int64(warningCount) < settings.Threshold {
+	if !(float64(warningCount) >= settings.Threshold) {
 		return responses.Message{}, false
 	}
 	switch strings.TrimSpace(settings.Action) {
@@ -447,6 +447,10 @@ func (m Module) applyWarningThreshold(ctx context.Context, interaction interacti
 		m.sendWarningActionMessage(ctx, interaction.ChannelID, settings.Action)
 	}
 	return responses.Message{}, false
+}
+
+func warningThresholdText(threshold float64) string {
+	return strconv.FormatFloat(threshold, 'f', -1, 64)
 }
 
 func (m Module) sendWarningActionMessage(ctx context.Context, channelID string, action string) {

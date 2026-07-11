@@ -114,6 +114,49 @@ func TestWarningMongoIntegrationNormalizesScalarContentOnAppend(t *testing.T) {
 	assertWarningContentLength(t, collection, id, 2)
 }
 
+func TestWarningSettingsMongoIntegrationPreservesThresholdScalarsAndDuplicateWrites(t *testing.T) {
+	database := warningIntegrationDatabase(t)
+	repository, err := NewWarningSettingsRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new warning settings repository: %v", err)
+	}
+	collection := database.Collection(WarningSettingsCollectionName)
+	if _, err := collection.InsertMany(context.Background(), []any{
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "ban_count", Value: "2.5"}, {Key: "move", Value: domain.WarningSettingsActionKick}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "ban_count", Value: nil}, {Key: "move", Value: domain.WarningSettingsActionBan}},
+	}); err != nil {
+		t.Fatalf("seed warning settings: %v", err)
+	}
+
+	settings, err := repository.GetWarningSettings(context.Background(), "guild-1")
+	if err != nil {
+		t.Fatalf("get warning settings: %v", err)
+	}
+	if settings.Threshold != 2.5 || settings.Action != domain.WarningSettingsActionKick {
+		t.Fatalf("settings = %#v", settings)
+	}
+	if err := repository.SaveWarningSettings(context.Background(), domain.WarningSettings{GuildID: "guild-1", Threshold: -2, Action: domain.WarningSettingsActionBan}); err != nil {
+		t.Fatalf("save warning settings: %v", err)
+	}
+	cursor, err := collection.Find(context.Background(), bson.D{{Key: "guild", Value: "guild-1"}})
+	if err != nil {
+		t.Fatalf("find warning settings: %v", err)
+	}
+	defer cursor.Close(context.Background())
+	var documents []bson.Raw
+	if err := cursor.All(context.Background(), &documents); err != nil {
+		t.Fatalf("decode warning settings: %v", err)
+	}
+	if len(documents) != 2 {
+		t.Fatalf("settings documents = %d", len(documents))
+	}
+	for index, document := range documents {
+		if document.Lookup("ban_count").Type != bson.TypeString || document.Lookup("ban_count").StringValue() != "-2" || document.Lookup("move").StringValue() != domain.WarningSettingsActionBan {
+			t.Fatalf("settings document %d = %v", index, document)
+		}
+	}
+}
+
 func assertWarningContentLength(t *testing.T, collection *drivermongo.Collection, id bson.ObjectID, want int) {
 	t.Helper()
 	var document struct {

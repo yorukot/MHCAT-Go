@@ -2,6 +2,7 @@ package documents_test
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo/documents"
@@ -142,8 +143,9 @@ func TestWarningSettingsDocumentToDomain(t *testing.T) {
 	if got.GuildID != "guild-1" || got.Threshold != 2 || got.Action != domain.WarningSettingsActionBan {
 		t.Fatalf("settings = %#v", got)
 	}
-	if _, err := (documents.WarningSettingsDocument{Guild: "guild-1", BanCount: "bad", Move: domain.WarningSettingsActionBan}).ToDomain(); !errors.Is(err, domain.ErrInvalidWarningSettings) {
-		t.Fatalf("invalid threshold err = %v", err)
+	invalid, err := (documents.WarningSettingsDocument{Guild: "guild-1", BanCount: "bad", Move: domain.WarningSettingsActionBan}).ToDomain()
+	if err != nil || !math.IsNaN(invalid.Threshold) {
+		t.Fatalf("invalid threshold settings = %#v err=%v", invalid, err)
 	}
 }
 
@@ -169,10 +171,9 @@ func TestWarningSettingsReadDocumentUsesMongooseStringCoercion(t *testing.T) {
 	}
 }
 
-func TestWarningSettingsReadDocumentRejectsCompoundAndInvalidScalars(t *testing.T) {
+func TestWarningSettingsReadDocumentRejectsInvalidIdentityAndAction(t *testing.T) {
 	tests := []bson.D{
 		{{Key: "guild", Value: bson.D{{Key: "bad", Value: true}}}, {Key: "ban_count", Value: "2"}, {Key: "move", Value: domain.WarningSettingsActionBan}},
-		{{Key: "guild", Value: "guild-1"}, {Key: "ban_count", Value: bson.A{2}}, {Key: "move", Value: domain.WarningSettingsActionBan}},
 		{{Key: "guild", Value: "guild-1"}, {Key: "ban_count", Value: "2"}, {Key: "move", Value: true}},
 	}
 	for index, input := range tests {
@@ -187,5 +188,45 @@ func TestWarningSettingsReadDocumentRejectsCompoundAndInvalidScalars(t *testing.
 		if _, err := document.ToDomain(); !errors.Is(err, domain.ErrInvalidWarningSettings) {
 			t.Fatalf("case %d error = %v", index, err)
 		}
+	}
+}
+
+func TestWarningSettingsReadDocumentPreservesJavaScriptNumberThresholds(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   any
+		want    float64
+		wantNaN bool
+	}{
+		{name: "zero", value: nil, want: 0},
+		{name: "negative", value: "-2", want: -2},
+		{name: "decimal", value: "2.5", want: 2.5},
+		{name: "hex", value: "0x10", want: 16},
+		{name: "malformed", value: "bad", wantNaN: true},
+		{name: "boolean string cast", value: true, wantNaN: true},
+		{name: "compound", value: bson.A{2}, wantNaN: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			payload, err := bson.Marshal(bson.D{{Key: "guild", Value: "guild-1"}, {Key: "ban_count", Value: test.value}, {Key: "move", Value: domain.WarningSettingsActionKick}})
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			var document documents.WarningSettingsReadDocument
+			if err := bson.Unmarshal(payload, &document); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			settings, err := document.ToDomain()
+			if err != nil {
+				t.Fatalf("to domain: %v", err)
+			}
+			if test.wantNaN {
+				if !math.IsNaN(settings.Threshold) {
+					t.Fatalf("threshold = %v", settings.Threshold)
+				}
+			} else if settings.Threshold != test.want {
+				t.Fatalf("threshold = %v, want %v", settings.Threshold, test.want)
+			}
+		})
 	}
 }
