@@ -100,7 +100,7 @@ Implemented utility commands:
 - `/代幣查詢` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_QUERY_ENABLED=true`
 - `/簽到` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_SIGNIN_ENABLED=true`
 - parity-audited `/coin-related-settings` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_SETTINGS_ENABLED=true`; see [docs/99-economy-settings.md](docs/99-economy-settings.md)
-- `/代幣增加` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`
+- parity-audited `/代幣增加` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true`; see [docs/100-economy-coin-admin.md](docs/100-economy-coin-admin.md)
 - parity-audited `/代幣排行榜` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RANK_ENABLED=true`; see [docs/96-economy-coin-rank.md](docs/96-economy-coin-rank.md)
 - `/代幣重製` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_COIN_RESET_ENABLED=true`, gateway enabled, Guild Messages intent enabled, and Message Content intent enabled
 - `/剪刀石頭布` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`
@@ -168,7 +168,7 @@ Known external, intentionally inactive, or rollout gaps include lottery creation
 
 `/簽到` is a staging-gated write slice, not a production-ready economy rollout. Do not enable it against production until duplicate audits and unique-key/index plans for `coins`/`sign_lists` are complete and daily-reset ownership is assigned exclusively to the lease-backed one-shot or recurring Go path after Node cron is stopped.
 
-`/代幣增加` is a disabled-by-default staging admin write slice. It requires Manage Messages, writes legacy-compatible `coins` rows, preserves signed amounts and the legacy add-only upper/reduce-only lower guards, and must be paired with `MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
+`/代幣增加` is a disabled-by-default staging admin write slice. It requires Manage Messages, writes one legacy-compatible `coins` row, and preserves signed amounts, Mongoose-visible number scalars, uncapped creation, and add-only upper/reduce-only lower guards. Pair both feature/sync flags only against disposable staging data and follow [docs/100-economy-coin-admin.md](docs/100-economy-coin-admin.md).
 
 `/剪刀石頭布` is a disabled-by-default staging game write slice. It writes existing `coins` rows only, rejects missing or insufficient balances, preserves legacy tie/win/loss wager behavior, and must be paired with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true` plus `MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true` only against disposable staging data until duplicate audits and production ownership are reviewed.
 
