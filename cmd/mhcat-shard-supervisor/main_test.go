@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -62,6 +66,80 @@ func TestNextRestartDelayResetsAfterStableRun(t *testing.T) {
 	}
 }
 
+func TestSupervisorRunBacksOffCrashLoopUntilCanceled(t *testing.T) {
+	botPath := writeSupervisorTestExecutable(t, "#!/bin/sh\nexit 1\n")
+	var stdout, stderr bytes.Buffer
+	s := newSupervisor(supervisorConfig{
+		BotPath:           botPath,
+		ShardCount:        1,
+		RestartDelay:      5 * time.Millisecond,
+		RestartMaxDelay:   20 * time.Millisecond,
+		RestartResetAfter: time.Hour,
+		StopTimeout:       time.Second,
+	}, &stdout, &stderr)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	if err := s.run(ctx); err != nil {
+		t.Fatalf("run supervisor: %v", err)
+	}
+	if starts := strings.Count(stdout.String(), "started shard 0/1"); starts < 2 {
+		t.Fatalf("starts=%d stdout=%q stderr=%q", starts, stdout.String(), stderr.String())
+	}
+	for _, delay := range []string{"restarting in 5ms", "restarting in 10ms"} {
+		if !strings.Contains(stderr.String(), delay) {
+			t.Fatalf("missing %q in stderr=%q", delay, stderr.String())
+		}
+	}
+	s.mu.Lock()
+	children := len(s.children)
+	s.mu.Unlock()
+	if children != 0 {
+		t.Fatalf("children after cancellation = %d", children)
+	}
+}
+
+func TestSupervisorShutdownKillsAndReapsUnresponsiveChild(t *testing.T) {
+	botPath := writeSupervisorTestExecutable(t, "#!/bin/sh\ntrap '' TERM\nwhile :; do sleep 1 >/dev/null 2>&1; done\n")
+	s := newSupervisor(supervisorConfig{
+		BotPath:     botPath,
+		ShardCount:  1,
+		StopTimeout: 20 * time.Millisecond,
+	}, nil, nil)
+	if err := s.start(0); err != nil {
+		t.Fatalf("start child: %v", err)
+	}
+	time.Sleep(25 * time.Millisecond)
+	if err := s.shutdown(); err == nil || !strings.Contains(err.Error(), "remaining children killed") {
+		t.Fatalf("shutdown error = %v", err)
+	}
+	s.mu.Lock()
+	children := len(s.children)
+	s.mu.Unlock()
+	if children != 0 {
+		t.Fatalf("children after force kill = %d", children)
+	}
+}
+
+func TestLockedWriterSerializesConcurrentWrites(t *testing.T) {
+	var output bytes.Buffer
+	writer := lockedWriter{mu: &sync.Mutex{}, writer: &output}
+	var wait sync.WaitGroup
+	for index := 0; index < 10; index++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			if _, err := writer.Write([]byte("x")); err != nil {
+				t.Errorf("write: %v", err)
+			}
+		}()
+	}
+	wait.Wait()
+	if output.String() != "xxxxxxxxxx" {
+		t.Fatalf("output = %q", output.String())
+	}
+}
+
 func TestShardEnvironmentReplacesExistingShardValues(t *testing.T) {
 	got := shardEnvironment([]string{"A=1", "MHCAT_DISCORD_SHARD_ID=9", "MHCAT_DISCORD_SHARD_COUNT=10", "MHCAT_SCHEDULER_LEASE_OWNER=production"}, 3, 16)
 	want := []string{"A=1", "MHCAT_DISCORD_SHARD_ID=3", "MHCAT_DISCORD_SHARD_COUNT=16", "MHCAT_SCHEDULER_LEASE_OWNER=production-shard-3"}
@@ -97,4 +175,13 @@ func mapLookup(values map[string]string) func(string) (string, bool) {
 		value, ok := values[key]
 		return value, ok
 	}
+}
+
+func writeSupervisorTestExecutable(t *testing.T, content string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "bot")
+	if err := os.WriteFile(path, []byte(content), 0o700); err != nil {
+		t.Fatalf("write test executable: %v", err)
+	}
+	return path
 }

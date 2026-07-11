@@ -130,6 +130,21 @@ func (s *State) MarkUpdateMessage(ctx context.Context, msg Message) error {
 	return nil
 }
 
+func (s *State) RollbackInitialResponse(expected Status) bool {
+	if expected != StatusReplied && expected != StatusDeferred {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.status != expected {
+		return false
+	}
+	s.status = StatusInitial
+	s.ephemeral = false
+	s.deadline = time.Time{}
+	return true
+}
+
 func (s *State) MarkFollowUp(ctx context.Context, msg Message) error {
 	if err := ctx.Err(); err != nil {
 		return err

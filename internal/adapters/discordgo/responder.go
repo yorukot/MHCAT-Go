@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"sync"
 	"time"
 
 	dgo "github.com/bwmarrin/discordgo"
@@ -14,10 +15,13 @@ import (
 )
 
 type InteractionResponder struct {
+	mu          sync.Mutex
 	session     *dgo.Session
 	interaction *dgo.Interaction
 	state       *responses.State
 }
+
+var errInteractionResponderNotConfigured = errors.New("discordgo interaction responder is not configured")
 
 func NewInteractionResponder(session *dgo.Session, interaction *dgo.Interaction) *InteractionResponder {
 	return &InteractionResponder{
@@ -28,6 +32,11 @@ func NewInteractionResponder(session *dgo.Session, interaction *dgo.Interaction)
 }
 
 func (r *InteractionResponder) Reply(ctx context.Context, msg responses.Message) error {
+	if r == nil {
+		return errInteractionResponderNotConfigured
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if err := r.ready(ctx); err != nil {
 		return err
 	}
@@ -38,12 +47,18 @@ func (r *InteractionResponder) Reply(ctx context.Context, msg responses.Message)
 		Type: dgo.InteractionResponseChannelMessageWithSource,
 		Data: interactionResponseData(msg),
 	}); err != nil {
+		r.state.RollbackInitialResponse(responses.StatusReplied)
 		return fmt.Errorf("reply to interaction: %w", err)
 	}
 	return ctx.Err()
 }
 
 func (r *InteractionResponder) Defer(ctx context.Context, opts responses.DeferOptions) error {
+	if r == nil {
+		return errInteractionResponderNotConfigured
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if err := r.ready(ctx); err != nil {
 		return err
 	}
@@ -58,12 +73,18 @@ func (r *InteractionResponder) Defer(ctx context.Context, opts responses.DeferOp
 		Type: dgo.InteractionResponseDeferredChannelMessageWithSource,
 		Data: data,
 	}); err != nil {
+		r.state.RollbackInitialResponse(responses.StatusDeferred)
 		return fmt.Errorf("defer interaction: %w", err)
 	}
 	return ctx.Err()
 }
 
 func (r *InteractionResponder) DeferUpdate(ctx context.Context) error {
+	if r == nil {
+		return errInteractionResponderNotConfigured
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if err := r.ready(ctx); err != nil {
 		return err
 	}
@@ -73,12 +94,18 @@ func (r *InteractionResponder) DeferUpdate(ctx context.Context) error {
 	if err := r.session.InteractionRespond(r.interaction, &dgo.InteractionResponse{
 		Type: dgo.InteractionResponseDeferredMessageUpdate,
 	}); err != nil {
+		r.state.RollbackInitialResponse(responses.StatusDeferred)
 		return fmt.Errorf("defer interaction message update: %w", err)
 	}
 	return ctx.Err()
 }
 
 func (r *InteractionResponder) ShowModal(ctx context.Context, modal responses.Modal) error {
+	if r == nil {
+		return errInteractionResponderNotConfigured
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if err := r.ready(ctx); err != nil {
 		return err
 	}
@@ -89,12 +116,18 @@ func (r *InteractionResponder) ShowModal(ctx context.Context, modal responses.Mo
 		Type: dgo.InteractionResponseModal,
 		Data: modalResponseData(modal),
 	}); err != nil {
+		r.state.RollbackInitialResponse(responses.StatusReplied)
 		return fmt.Errorf("show interaction modal: %w", err)
 	}
 	return ctx.Err()
 }
 
 func (r *InteractionResponder) UpdateMessage(ctx context.Context, msg responses.Message) error {
+	if r == nil {
+		return errInteractionResponderNotConfigured
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if err := r.ready(ctx); err != nil {
 		return err
 	}
@@ -105,12 +138,18 @@ func (r *InteractionResponder) UpdateMessage(ctx context.Context, msg responses.
 		Type: dgo.InteractionResponseUpdateMessage,
 		Data: interactionResponseData(msg),
 	}); err != nil {
+		r.state.RollbackInitialResponse(responses.StatusReplied)
 		return fmt.Errorf("update interaction message: %w", err)
 	}
 	return ctx.Err()
 }
 
 func (r *InteractionResponder) EditOriginal(ctx context.Context, msg responses.Message) error {
+	if r == nil {
+		return errInteractionResponderNotConfigured
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if err := r.ready(ctx); err != nil {
 		return err
 	}
@@ -129,6 +168,11 @@ func (r *InteractionResponder) FollowUp(ctx context.Context, msg responses.Messa
 }
 
 func (r *InteractionResponder) CreateFollowUp(ctx context.Context, msg responses.Message) (string, error) {
+	if r == nil {
+		return "", errInteractionResponderNotConfigured
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if err := r.ready(ctx); err != nil {
 		return "", err
 	}
@@ -149,6 +193,11 @@ func (r *InteractionResponder) CreateFollowUp(ctx context.Context, msg responses
 }
 
 func (r *InteractionResponder) EditFollowUp(ctx context.Context, messageID string, msg responses.Message) error {
+	if r == nil {
+		return errInteractionResponderNotConfigured
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if err := r.ready(ctx); err != nil {
 		return err
 	}
@@ -162,6 +211,11 @@ func (r *InteractionResponder) EditFollowUp(ctx context.Context, messageID strin
 }
 
 func (r *InteractionResponder) DeleteFollowUp(ctx context.Context, messageID string) error {
+	if r == nil {
+		return errInteractionResponderNotConfigured
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if err := r.ready(ctx); err != nil {
 		return err
 	}
@@ -175,6 +229,9 @@ func (r *InteractionResponder) DeleteFollowUp(ctx context.Context, messageID str
 }
 
 func (r *InteractionResponder) Error(ctx context.Context, err error) error {
+	if r == nil || r.state == nil {
+		return errInteractionResponderNotConfigured
+	}
 	msg := responses.SafeErrorMessage(err)
 	if r.state.Status() == responses.StatusInitial {
 		return r.Reply(ctx, msg)
@@ -186,8 +243,8 @@ func (r *InteractionResponder) ready(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if r == nil || r.session == nil || r.interaction == nil {
-		return errors.New("discordgo interaction responder is not configured")
+	if r == nil || r.session == nil || r.interaction == nil || r.state == nil {
+		return errInteractionResponderNotConfigured
 	}
 	return nil
 }

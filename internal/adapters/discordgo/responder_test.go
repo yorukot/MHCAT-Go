@@ -2,14 +2,19 @@ package discordgo
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	dgo "github.com/bwmarrin/discordgo"
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/responses"
+	discordruntime "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/runtime"
 )
 
 type recordedResponderRequest struct {
@@ -74,6 +79,197 @@ func TestInteractionResponderCreatesAndEditsFollowUpByMessageID(t *testing.T) {
 	}
 	if requests[2].method != http.MethodDelete || !strings.Contains(requests[2].url, "/webhooks/app-1/token-1/messages/loading-1") {
 		t.Fatalf("delete request = %#v", requests[2])
+	}
+}
+
+func TestInteractionResponderRollsBackFailedInitialResponses(t *testing.T) {
+	transportErr := errors.New("discord transport failed")
+	tests := []struct {
+		name string
+		call func(*InteractionResponder) error
+	}{
+		{name: "reply", call: func(r *InteractionResponder) error { return r.Reply(context.Background(), responses.Message{}) }},
+		{name: "defer", call: func(r *InteractionResponder) error {
+			return r.Defer(context.Background(), responses.DeferOptions{Ephemeral: true})
+		}},
+		{name: "defer update", call: func(r *InteractionResponder) error { return r.DeferUpdate(context.Background()) }},
+		{name: "modal", call: func(r *InteractionResponder) error {
+			return r.ShowModal(context.Background(), responses.Modal{CustomID: "modal", Title: "Modal"})
+		}},
+		{name: "update", call: func(r *InteractionResponder) error { return r.UpdateMessage(context.Background(), responses.Message{}) }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			session := newResponderTestSession(t, responderRoundTripFunc(func(*http.Request) (*http.Response, error) {
+				return nil, transportErr
+			}))
+			responder := NewInteractionResponder(session, &dgo.Interaction{ID: "interaction", AppID: "app", Token: "token"})
+			if err := test.call(responder); !errors.Is(err, transportErr) {
+				t.Fatalf("response error = %v", err)
+			}
+			if responder.state.Status() != responses.StatusInitial || responder.state.Ephemeral() || !responder.state.Deadline().IsZero() {
+				t.Fatalf("state was not rolled back: status=%s ephemeral=%v deadline=%s", responder.state.Status(), responder.state.Ephemeral(), responder.state.Deadline())
+			}
+		})
+	}
+}
+
+func TestInteractionResponderSerializesConcurrentInitialResponses(t *testing.T) {
+	var requests atomic.Int32
+	session := newResponderTestSession(t, responderRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests.Add(1)
+		return responderHTTPResponse(request, http.StatusNoContent, ""), nil
+	}))
+	responder := NewInteractionResponder(session, &dgo.Interaction{ID: "interaction", AppID: "app", Token: "token"})
+	results := make(chan error, 2)
+	var wait sync.WaitGroup
+	for range 2 {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			results <- responder.Reply(context.Background(), responses.Message{Content: "ok"})
+		}()
+	}
+	wait.Wait()
+	close(results)
+	var succeeded, rejected int
+	for err := range results {
+		switch {
+		case err == nil:
+			succeeded++
+		case errors.Is(err, responses.ErrAlreadyResponded):
+			rejected++
+		default:
+			t.Fatalf("unexpected response error: %v", err)
+		}
+	}
+	if succeeded != 1 || rejected != 1 || requests.Load() != 1 {
+		t.Fatalf("succeeded=%d rejected=%d requests=%d", succeeded, rejected, requests.Load())
+	}
+}
+
+func TestInteractionResponderCanRetryAfterTransportFailure(t *testing.T) {
+	transportErr := errors.New("temporary failure")
+	var attempts atomic.Int32
+	session := newResponderTestSession(t, responderRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if attempts.Add(1) == 1 {
+			return nil, transportErr
+		}
+		return responderHTTPResponse(request, http.StatusNoContent, ""), nil
+	}))
+	responder := NewInteractionResponder(session, &dgo.Interaction{ID: "interaction", AppID: "app", Token: "token"})
+	if err := responder.Reply(context.Background(), responses.Message{Content: "first"}); !errors.Is(err, transportErr) {
+		t.Fatalf("first response error = %v", err)
+	}
+	if err := responder.Reply(context.Background(), responses.Message{Content: "second"}); err != nil {
+		t.Fatalf("retry response: %v", err)
+	}
+	if responder.state.Status() != responses.StatusReplied || attempts.Load() != 2 {
+		t.Fatalf("status=%s attempts=%d", responder.state.Status(), attempts.Load())
+	}
+}
+
+func TestRuntimeRetriesInitialErrorResponseAfterReplyTransportFailure(t *testing.T) {
+	transportErr := errors.New("temporary failure")
+	var requestPaths []string
+	session := newResponderTestSession(t, responderRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requestPaths = append(requestPaths, request.URL.Path)
+		if len(requestPaths) == 1 {
+			return nil, transportErr
+		}
+		return responderHTTPResponse(request, http.StatusNoContent, ""), nil
+	}))
+	router := interactions.NewRouter()
+	if err := router.RegisterSlash("fail", func(ctx context.Context, _ interactions.Interaction, responder responses.Responder) error {
+		return responder.Reply(ctx, responses.Message{Content: "first"})
+	}); err != nil {
+		t.Fatalf("register route: %v", err)
+	}
+	dispatcher, err := discordruntime.NewDispatcher(router, nil)
+	if err != nil {
+		t.Fatalf("new dispatcher: %v", err)
+	}
+	responder := NewInteractionResponder(session, &dgo.Interaction{ID: "interaction", AppID: "app", Token: "token"})
+	err = dispatcher.Dispatch(context.Background(), interactions.Interaction{Type: interactions.TypeSlash, CommandName: "fail"}, responder)
+	if !errors.Is(err, transportErr) {
+		t.Fatalf("dispatch error = %v", err)
+	}
+	if len(requestPaths) != 2 || !strings.HasSuffix(requestPaths[0], "/callback") || !strings.HasSuffix(requestPaths[1], "/callback") {
+		t.Fatalf("request paths = %#v", requestPaths)
+	}
+}
+
+func TestInteractionResponderDeferredLifecycleUsesOriginalAndFollowUps(t *testing.T) {
+	var requests []recordedResponderRequest
+	session := newResponderTestSession(t, responderRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			t.Fatalf("read request: %v", err)
+		}
+		requests = append(requests, recordedResponderRequest{method: request.Method, url: request.URL.String(), body: string(body)})
+		if request.Method == http.MethodPost && strings.Contains(request.URL.Path, "/callback") {
+			return responderHTTPResponse(request, http.StatusNoContent, ""), nil
+		}
+		return responderHTTPResponse(request, http.StatusOK, `{"id":"message-1"}`), nil
+	}))
+	responder := NewInteractionResponder(session, &dgo.Interaction{ID: "interaction", AppID: "app", Token: "token"})
+	if err := responder.Defer(context.Background(), responses.DeferOptions{Ephemeral: true}); err != nil {
+		t.Fatalf("defer: %v", err)
+	}
+	if err := responder.EditOriginal(context.Background(), responses.Message{Content: "done", Ephemeral: true}); err != nil {
+		t.Fatalf("edit original: %v", err)
+	}
+	if err := responder.FollowUp(context.Background(), responses.Message{Content: "follow"}); err != nil {
+		t.Fatalf("follow up: %v", err)
+	}
+	if err := responder.Error(context.Background(), errors.New("internal detail")); err != nil {
+		t.Fatalf("error follow up: %v", err)
+	}
+	if len(requests) != 4 {
+		t.Fatalf("requests = %#v", requests)
+	}
+	if requests[1].method != http.MethodPatch || !strings.Contains(requests[1].url, "/messages/@original") || !strings.Contains(requests[1].body, `"content":"done"`) {
+		t.Fatalf("edit request = %#v", requests[1])
+	}
+	if requests[2].method != http.MethodPost || requests[3].method != http.MethodPost || !strings.Contains(requests[3].body, `"flags":64`) {
+		t.Fatalf("follow-up requests = %#v", requests[2:])
+	}
+}
+
+func TestInteractionResponderNilReceiverFailsClosed(t *testing.T) {
+	var responder *InteractionResponder
+	if err := responder.Reply(context.Background(), responses.Message{}); !errors.Is(err, errInteractionResponderNotConfigured) {
+		t.Fatalf("reply error = %v", err)
+	}
+	if err := responder.Error(context.Background(), errors.New("boom")); !errors.Is(err, errInteractionResponderNotConfigured) {
+		t.Fatalf("error response = %v", err)
+	}
+	zeroValue := &InteractionResponder{}
+	if err := zeroValue.Reply(context.Background(), responses.Message{}); !errors.Is(err, errInteractionResponderNotConfigured) {
+		t.Fatalf("zero-value reply error = %v", err)
+	}
+	if err := zeroValue.Error(context.Background(), errors.New("boom")); !errors.Is(err, errInteractionResponderNotConfigured) {
+		t.Fatalf("zero-value error response = %v", err)
+	}
+}
+
+func newResponderTestSession(t *testing.T, transport http.RoundTripper) *dgo.Session {
+	t.Helper()
+	session, err := dgo.New("")
+	if err != nil {
+		t.Fatalf("new discord session: %v", err)
+	}
+	session.Client = &http.Client{Transport: transport}
+	return session
+}
+
+func responderHTTPResponse(request *http.Request, status int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: status,
+		Status:     http.StatusText(status),
+		Header:     make(http.Header),
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Request:    request,
 	}
 }
 

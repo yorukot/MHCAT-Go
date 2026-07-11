@@ -213,3 +213,33 @@ func TestResponderEphemeralStatePreserved(t *testing.T) {
 		t.Fatal("expected ephemeral state to remain true")
 	}
 }
+
+func TestStateRollbackInitialResponseRestoresInitialMetadata(t *testing.T) {
+	state := responses.NewState()
+	deadline := time.Now().Add(time.Minute)
+	if err := state.MarkDefer(context.Background(), responses.DeferOptions{Ephemeral: true, Deadline: deadline}); err != nil {
+		t.Fatalf("mark defer: %v", err)
+	}
+	if !state.RollbackInitialResponse(responses.StatusDeferred) {
+		t.Fatal("expected deferred response rollback")
+	}
+	if state.Status() != responses.StatusInitial || state.Ephemeral() || !state.Deadline().IsZero() {
+		t.Fatalf("state after rollback: status=%s ephemeral=%v deadline=%s", state.Status(), state.Ephemeral(), state.Deadline())
+	}
+	if state.RollbackInitialResponse(responses.StatusDeferred) || state.RollbackInitialResponse(responses.StatusInitial) {
+		t.Fatal("rollback should reject stale or invalid expected status")
+	}
+}
+
+func TestStateRollbackDoesNotReplaceDifferentCommittedResponse(t *testing.T) {
+	state := responses.NewState()
+	if err := state.MarkReply(context.Background(), responses.Message{Content: "ok"}); err != nil {
+		t.Fatalf("mark reply: %v", err)
+	}
+	if state.RollbackInitialResponse(responses.StatusDeferred) {
+		t.Fatal("mismatched rollback unexpectedly succeeded")
+	}
+	if state.Status() != responses.StatusReplied {
+		t.Fatalf("status = %s", state.Status())
+	}
+}

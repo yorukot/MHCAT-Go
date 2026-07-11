@@ -22,6 +22,7 @@ const (
 	defaultRestartMaxDelay   = 2 * time.Minute
 	defaultRestartResetAfter = 5 * time.Minute
 	defaultStopTimeout       = 30 * time.Second
+	defaultForceKillWait     = 5 * time.Second
 )
 
 type supervisorConfig struct {
@@ -48,6 +49,11 @@ type supervisor struct {
 	mu       sync.Mutex
 	children map[int]*exec.Cmd
 	exits    chan childExit
+}
+
+type lockedWriter struct {
+	mu     *sync.Mutex
+	writer io.Writer
 }
 
 func main() {
@@ -112,7 +118,26 @@ func loadSupervisorConfig(lookup func(string) (string, bool)) (supervisorConfig,
 }
 
 func newSupervisor(cfg supervisorConfig, stdout io.Writer, stderr io.Writer) *supervisor {
-	return &supervisor{cfg: cfg, stdout: stdout, stderr: stderr, children: make(map[int]*exec.Cmd), exits: make(chan childExit, cfg.ShardCount)}
+	if stdout == nil {
+		stdout = io.Discard
+	}
+	if stderr == nil {
+		stderr = io.Discard
+	}
+	outputMu := &sync.Mutex{}
+	return &supervisor{
+		cfg:      cfg,
+		stdout:   lockedWriter{mu: outputMu, writer: stdout},
+		stderr:   lockedWriter{mu: outputMu, writer: stderr},
+		children: make(map[int]*exec.Cmd),
+		exits:    make(chan childExit, cfg.ShardCount),
+	}
+}
+
+func (w lockedWriter) Write(payload []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.writer.Write(payload)
 }
 
 func (s *supervisor) run(ctx context.Context) error {
@@ -187,14 +212,25 @@ func nextRestartDelay(initial time.Duration, maximum time.Duration, previous tim
 
 func (s *supervisor) shutdown() error {
 	s.stopAll()
-	deadline := time.NewTimer(s.cfg.StopTimeout)
+	if s.waitForChildren(s.cfg.StopTimeout) {
+		return nil
+	}
+	s.killAll()
+	if !s.waitForChildren(defaultForceKillWait) {
+		return errors.New("shard shutdown timed out; killed children did not exit")
+	}
+	return errors.New("shard shutdown timed out; remaining children killed")
+}
+
+func (s *supervisor) waitForChildren(timeout time.Duration) bool {
+	deadline := time.NewTimer(timeout)
 	defer deadline.Stop()
 	for {
 		s.mu.Lock()
 		remaining := len(s.children)
 		s.mu.Unlock()
 		if remaining == 0 {
-			return nil
+			return true
 		}
 		select {
 		case exited := <-s.exits:
@@ -202,8 +238,7 @@ func (s *supervisor) shutdown() error {
 			delete(s.children, exited.shardID)
 			s.mu.Unlock()
 		case <-deadline.C:
-			s.killAll()
-			return errors.New("shard shutdown timed out; remaining children killed")
+			return false
 		}
 	}
 }
