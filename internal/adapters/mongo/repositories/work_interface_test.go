@@ -123,7 +123,7 @@ func TestValidateWorkAdminCommands(t *testing.T) {
 }
 
 func TestWorkEnergyGrantPipelineClampsEnergy(t *testing.T) {
-	pipeline := workEnergyGrantPipeline(5, 20)
+	pipeline := workEnergyGrantPipeline(5, 20.5)
 	if len(pipeline) != 1 {
 		t.Fatalf("pipeline = %#v", pipeline)
 	}
@@ -134,6 +134,18 @@ func TestWorkEnergyGrantPipelineClampsEnergy(t *testing.T) {
 	set, ok := stage[0].Value.(bson.D)
 	if !ok || !containsKey(set, "energi") {
 		t.Fatalf("expected energi set expression: %#v", stage[0].Value)
+	}
+	energy := lookupD(set, "energi").(bson.D)
+	condition := lookupD(energy, "$cond").(bson.A)
+	if condition[1] != 20.5 {
+		t.Fatalf("max energy = %#v", condition[1])
+	}
+	comparison := condition[0].(bson.D)
+	operands := lookupD(comparison, "$gt").(bson.A)
+	next := operands[0].(bson.D)
+	add := lookupD(next, "$add").(bson.A)
+	if conversion := add[0].(bson.D); !containsKey(conversion, "$convert") {
+		t.Fatalf("energy conversion = %#v", conversion)
 	}
 }
 

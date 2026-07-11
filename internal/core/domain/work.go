@@ -88,16 +88,18 @@ type WorkDeleteItemCommand struct {
 }
 
 type WorkEnergyGrantCommand struct {
-	GuildID   string
-	UserID    string
-	Amount    int64
-	MaxEnergy int64
+	GuildID       string
+	UserID        string
+	Amount        int64
+	MaxEnergy     int64
+	MaxEnergyText string
 }
 
 type WorkEnergyGrantAllCommand struct {
-	GuildID   string
-	Amount    int64
-	MaxEnergy int64
+	GuildID       string
+	Amount        int64
+	MaxEnergy     int64
+	MaxEnergyText string
 }
 
 type WorkEnergyGrantAllResult struct {

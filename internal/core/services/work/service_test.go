@@ -306,6 +306,26 @@ func TestAdminMethodsAcceptLegacySignedEnergyAmounts(t *testing.T) {
 	}
 }
 
+func TestAdminMethodsPreserveMixedEnergyGrantScalars(t *testing.T) {
+	repo := fakemongo.NewWorkInterfaceRepository()
+	repo.PutConfig(domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 10, MaxEnergyText: "10.5"})
+	repo.PutUser(domain.WorkUserState{GuildID: "guild-1", UserID: "decimal", Energy: 10, EnergyText: "10", Initialized: true})
+	repo.PutUser(domain.WorkUserState{GuildID: "guild-1", UserID: "null", EnergyText: "null", Initialized: true})
+	service := NewServiceWithAdminRepository(repo, nil)
+
+	decimal, err := service.GrantEnergy(context.Background(), domain.WorkEnergyGrantCommand{GuildID: "guild-1", UserID: "decimal", Amount: 2})
+	if err != nil || decimal.EnergyText != "10.5" {
+		t.Fatalf("decimal grant = %#v, err=%v", decimal, err)
+	}
+	if _, err := service.GrantEnergyToAll(context.Background(), domain.WorkEnergyGrantAllCommand{GuildID: "guild-1", Amount: -2}); err != nil {
+		t.Fatalf("grant all: %v", err)
+	}
+	nullUser, err := repo.GetWorkUser(context.Background(), "guild-1", "null")
+	if err != nil || nullUser.EnergyText != "-2" {
+		t.Fatalf("null user = %#v, err=%v", nullUser, err)
+	}
+}
+
 func TestInvalidRequestFails(t *testing.T) {
 	service := NewService(fakeRepo{}, nil)
 	if _, err := service.Interface(context.Background(), InterfaceRequest{GuildID: "", UserID: "user-1"}); !errors.Is(err, domain.ErrInvalidWorkQuery) {

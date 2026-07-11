@@ -231,3 +231,33 @@ func TestWorkInterfaceMongoIntegrationAcceptsSignedEnergyGrants(t *testing.T) {
 		t.Fatalf("zero grant = %#v, err=%v", result, err)
 	}
 }
+
+func TestWorkInterfaceMongoIntegrationCoercesScalarEnergyGrants(t *testing.T) {
+	database := economyQueryIntegrationDatabase(t)
+	repository, err := NewWorkInterfaceRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	ctx := context.Background()
+	if _, err := database.Collection(WorkUserCollectionName).InsertMany(ctx, []any{
+		bson.D{{Key: "guild", Value: "scalar-grant"}, {Key: "user", Value: "string"}, {Key: "energi", Value: "10"}},
+		bson.D{{Key: "guild", Value: "scalar-grant"}, {Key: "user", Value: "null"}, {Key: "energi", Value: nil}},
+	}); err != nil {
+		t.Fatalf("insert users: %v", err)
+	}
+	updated, err := repository.GrantWorkEnergy(ctx, domain.WorkEnergyGrantCommand{
+		GuildID: "scalar-grant", UserID: "string", Amount: 2, MaxEnergy: 10, MaxEnergyText: "10.5",
+	})
+	if err != nil || updated.EnergyText != "10.5" {
+		t.Fatalf("decimal max grant = %#v, err=%v", updated, err)
+	}
+	if _, err := repository.GrantWorkEnergyToAll(ctx, domain.WorkEnergyGrantAllCommand{
+		GuildID: "scalar-grant", Amount: -2, MaxEnergy: 10, MaxEnergyText: "10.5",
+	}); err != nil {
+		t.Fatalf("grant all: %v", err)
+	}
+	nullUser, err := repository.GetWorkUser(ctx, "scalar-grant", "null")
+	if err != nil || nullUser.EnergyText != "-2" {
+		t.Fatalf("null user = %#v, err=%v", nullUser, err)
+	}
+}

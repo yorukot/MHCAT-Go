@@ -217,6 +217,7 @@ func (s Service) GrantEnergy(ctx context.Context, command domain.WorkEnergyGrant
 		return domain.WorkUserState{}, err
 	}
 	command.MaxEnergy = config.MaxEnergy
+	command.MaxEnergyText = config.MaxEnergyText
 	return s.adminRepo.GrantWorkEnergy(ctx, command)
 }
 
@@ -233,6 +234,7 @@ func (s Service) GrantEnergyToAll(ctx context.Context, command domain.WorkEnergy
 		return domain.WorkEnergyGrantAllResult{}, err
 	}
 	command.MaxEnergy = config.MaxEnergy
+	command.MaxEnergyText = config.MaxEnergyText
 	return s.adminRepo.GrantWorkEnergyToAll(ctx, command)
 }
 

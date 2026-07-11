@@ -72,13 +72,15 @@ func (r *WorkInterfaceRepository) StartWork(_ context.Context, command domain.Wo
 	}
 	key := workUserKey(command.GuildID, command.UserID)
 	user, ok := r.Users[key]
+	maxEnergy := fakeWorkNumber(command.MaxEnergyText, command.MaxEnergy)
 	if !ok {
 		user = domain.WorkUserState{
 			GuildID:     command.GuildID,
 			UserID:      command.UserID,
 			State:       domain.WorkIdleState,
 			EndTimeUnix: 0,
-			Energy:      command.MaxEnergy,
+			Energy:      int64(maxEnergy),
+			EnergyText:  fakeWorkNumberText(maxEnergy),
 			GetCoin:     0,
 			Initialized: false,
 		}
@@ -162,20 +164,23 @@ func (r *WorkInterfaceRepository) GrantWorkEnergy(_ context.Context, command dom
 	}
 	key := workUserKey(command.GuildID, command.UserID)
 	user, ok := r.Users[key]
+	maxEnergy := fakeWorkNumber(command.MaxEnergyText, command.MaxEnergy)
 	if !ok {
 		user = domain.WorkUserState{
 			GuildID:     command.GuildID,
 			UserID:      command.UserID,
 			State:       domain.WorkIdleState,
 			EndTimeUnix: 0,
-			Energy:      command.MaxEnergy,
+			Energy:      int64(maxEnergy),
+			EnergyText:  fakeWorkNumberText(maxEnergy),
 			GetCoin:     0,
 			Initialized: true,
 		}
-	} else {
-		user.Energy = clampWorkEnergy(user.Energy+command.Amount, command.MaxEnergy)
-		user.Initialized = true
 	}
+	nextEnergy := fakeWorkGrantEnergy(fakeWorkNumber(user.EnergyText, user.Energy), float64(command.Amount), maxEnergy)
+	user.Energy = int64(nextEnergy)
+	user.EnergyText = fakeWorkNumberText(nextEnergy)
+	user.Initialized = true
 	user.GuildID = command.GuildID
 	user.UserID = command.UserID
 	r.Users[key] = user
@@ -188,16 +193,19 @@ func (r *WorkInterfaceRepository) GrantWorkEnergyToAll(_ context.Context, comman
 		return domain.WorkEnergyGrantAllResult{}, domain.ErrInvalidWorkQuery
 	}
 	var result domain.WorkEnergyGrantAllResult
+	maxEnergy := fakeWorkNumber(command.MaxEnergyText, command.MaxEnergy)
 	for key, user := range r.Users {
 		if user.GuildID != command.GuildID {
 			continue
 		}
 		result.Matched++
-		next := clampWorkEnergy(user.Energy+command.Amount, command.MaxEnergy)
-		if next != user.Energy {
+		previous := fakeWorkNumber(user.EnergyText, user.Energy)
+		next := fakeWorkGrantEnergy(previous, float64(command.Amount), maxEnergy)
+		if next != previous {
 			result.Modified++
 		}
-		user.Energy = next
+		user.Energy = int64(next)
+		user.EnergyText = fakeWorkNumberText(next)
 		r.Users[key] = user
 	}
 	return result, nil
@@ -207,7 +215,8 @@ func workUserKey(guildID string, userID string) string {
 	return strings.TrimSpace(guildID) + "\x00" + strings.TrimSpace(userID)
 }
 
-func clampWorkEnergy(value int64, maxEnergy int64) int64 {
+func fakeWorkGrantEnergy(energy float64, amount float64, maxEnergy float64) float64 {
+	value := energy + amount
 	if value > maxEnergy {
 		return maxEnergy
 	}

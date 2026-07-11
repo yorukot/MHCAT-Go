@@ -216,7 +216,7 @@ func (r *WorkInterfaceRepository) GrantWorkEnergy(ctx context.Context, command d
 	err := r.workUsers.FindOneAndUpdate(
 		ctx,
 		bson.D{{Key: "guild", Value: strings.TrimSpace(command.GuildID)}, {Key: "user", Value: strings.TrimSpace(command.UserID)}},
-		workEnergyGrantPipeline(command.Amount, command.MaxEnergy),
+		workEnergyGrantPipeline(command.Amount, workStartNumber(command.MaxEnergyText, command.MaxEnergy)),
 		opts,
 	).Decode(&updated)
 	if err != nil {
@@ -238,7 +238,7 @@ func (r *WorkInterfaceRepository) GrantWorkEnergyToAll(ctx context.Context, comm
 	result, err := r.workUsers.UpdateMany(
 		ctx,
 		bson.D{{Key: "guild", Value: strings.TrimSpace(command.GuildID)}},
-		workEnergyGrantPipeline(command.Amount, command.MaxEnergy),
+		workEnergyGrantPipeline(command.Amount, workStartNumber(command.MaxEnergyText, command.MaxEnergy)),
 	)
 	if err != nil {
 		return domain.WorkEnergyGrantAllResult{}, mhcatmongo.MapError(fmt.Errorf("grant work energy to all: %w", err))
@@ -354,17 +354,20 @@ func workStartNumber(text string, fallback int64) float64 {
 	return value
 }
 
-func workEnergyGrantPipeline(amount int64, maxEnergy int64) drivermongo.Pipeline {
+func workEnergyGrantPipeline(amount int64, maxEnergy float64) drivermongo.Pipeline {
+	nextEnergy := bson.D{{Key: "$add", Value: bson.A{workMongoNumber("$energi"), amount}}}
+	value := any(bson.D{{Key: "$cond", Value: bson.A{
+		bson.D{{Key: "$gt", Value: bson.A{nextEnergy, maxEnergy}}},
+		maxEnergy,
+		nextEnergy,
+	}}})
+	if math.IsNaN(maxEnergy) {
+		value = nextEnergy
+	}
 	return drivermongo.Pipeline{
 		bson.D{{Key: "$set", Value: bson.D{{
-			Key: "energi",
-			Value: bson.D{{Key: "$min", Value: bson.A{
-				maxEnergy,
-				bson.D{{Key: "$add", Value: bson.A{
-					bson.D{{Key: "$ifNull", Value: bson.A{"$energi", int64(0)}}},
-					amount,
-				}}},
-			}}},
+			Key:   "energi",
+			Value: value,
 		}}}},
 	}
 }
