@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -140,7 +141,9 @@ func (m Module) CaptchaHandler() interactions.Handler {
 		if err != nil {
 			return responder.Reply(ctx, legacyWorkErrorMessage("驗證碼錯誤!"))
 		}
-		if modalFieldValue(interaction.ModalFields, "captcha") != expected {
+		expectedNumber, expectedOK := legacyCaptchaNumber(expected)
+		answerNumber, answerOK := legacyCaptchaNumber(modalFieldValue(interaction.ModalFields, "captcha"))
+		if !expectedOK || !answerOK || expectedNumber != answerNumber {
 			return responder.Reply(ctx, responses.Message{
 				Content:         "<a:error:980086028113182730> | 驗證碼錯誤!",
 				AllowedMentions: &responses.AllowedMentions{},
@@ -158,6 +161,24 @@ func (m Module) CaptchaHandler() interactions.Handler {
 		}
 		return m.track(ctx, interaction)
 	}
+}
+
+func legacyCaptchaNumber(value string) (float64, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, true
+	}
+	if parsed, err := strconv.ParseFloat(value, 64); err == nil && !math.IsNaN(parsed) {
+		return parsed, true
+	}
+	lower := strings.ToLower(value)
+	if strings.HasPrefix(lower, "0x") || strings.HasPrefix(lower, "+0x") || strings.HasPrefix(lower, "-0x") ||
+		strings.HasPrefix(lower, "0b") || strings.HasPrefix(lower, "+0b") || strings.HasPrefix(lower, "-0b") ||
+		strings.HasPrefix(lower, "0o") || strings.HasPrefix(lower, "+0o") || strings.HasPrefix(lower, "-0o") {
+		parsed, err := strconv.ParseInt(value, 0, 64)
+		return float64(parsed), err == nil
+	}
+	return 0, false
 }
 
 func (m Module) handleWorkInterface(ctx context.Context, interaction interactions.Interaction, responder responses.Responder) error {

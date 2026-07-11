@@ -266,6 +266,28 @@ func TestWorkCaptchaModalWrongAnswerUsesLegacyErrorContent(t *testing.T) {
 	}
 }
 
+func TestWorkCaptchaModalUsesLegacyNumberCoercion(t *testing.T) {
+	for _, answer := range []string{"5", "05", " 5 ", "5e0", "0x5", "0b101", "0o5"} {
+		t.Run(answer, func(t *testing.T) {
+			repo := fakemongo.NewWorkInterfaceRepository()
+			repo.PutConfig(domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 20})
+			repo.PutItems("guild-1", domain.WorkItem{GuildID: "guild-1", Name: "礦坑", DurationSec: 60, EnergyCost: 1, CoinReward: 1})
+			module := NewModuleWithRepository(repo, nil, nil)
+			responder := fakediscord.NewResponder()
+			interaction := fakediscord.ModalInteraction(interactions.ModalKey{})
+			interaction.CustomID = "mhcat:v1:work:captcha:sum=5"
+			interaction.ModalFields = []customid.ModalField{{CustomID: "captcha", Value: answer}}
+
+			if err := module.CaptchaHandler()(context.Background(), interaction, responder); err != nil {
+				t.Fatalf("captcha handler: %v", err)
+			}
+			if len(responder.Defers) != 1 || len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "打工簡章") {
+				t.Fatalf("response = defers %#v edits %#v", responder.Defers, responder.Edits)
+			}
+		})
+	}
+}
+
 func TestWorkDetailRendersLegacyDetailWithDisabledConfirmWhenReadOnly(t *testing.T) {
 	repo := fakemongo.NewWorkInterfaceRepository()
 	repo.PutConfig(domain.WorkConfig{GuildID: "guild-1", MaxEnergy: 20})
