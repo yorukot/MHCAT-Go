@@ -35,35 +35,23 @@ func (m Module) AccountAgeHandler() interactions.Handler {
 			if _, err := m.accountAgeService.SetRequirement(ctx, interaction.Actor.GuildID, hours); err != nil {
 				return responder.EditOriginal(ctx, accountAgeErrorFromError(err))
 			}
-			if err := responder.EditOriginal(ctx, accountAgeHoursSuccessMessage(hours)); err != nil {
-				return err
-			}
-			return m.trackFeature(ctx, interaction, AccountAgeCommandName, "account-age-config")
+			return responder.EditOriginal(ctx, accountAgeHoursSuccessMessage(hours))
 		case "被踢出資訊頻道":
 			channelID := firstOption(interaction, "頻道")
 			if _, err := m.accountAgeService.SetLogChannel(ctx, interaction.Actor.GuildID, channelID); err != nil {
 				return responder.EditOriginal(ctx, accountAgeMissingHoursError(err))
 			}
-			if err := responder.EditOriginal(ctx, accountAgeChannelSuccessMessage(channelID)); err != nil {
-				return err
-			}
-			return m.trackFeature(ctx, interaction, AccountAgeCommandName, "account-age-config")
+			return responder.EditOriginal(ctx, accountAgeChannelSuccessMessage(channelID))
 		case "創建時數刪除":
 			if err := m.accountAgeService.DeleteConfig(ctx, interaction.Actor.GuildID); err != nil {
 				return responder.EditOriginal(ctx, accountAgeErrorFromError(err))
 			}
-			if err := responder.EditOriginal(ctx, accountAgeDeleteSuccessMessage("已刪除帳號需創建時數所有設定")); err != nil {
-				return err
-			}
-			return m.trackFeature(ctx, interaction, AccountAgeCommandName, "account-age-config")
+			return responder.EditOriginal(ctx, accountAgeDeleteSuccessMessage("已刪除帳號需創建時數所有設定"))
 		case "被踢出資訊頻道刪除":
 			if err := m.accountAgeService.DeleteLogChannel(ctx, interaction.Actor.GuildID); err != nil {
 				return responder.EditOriginal(ctx, accountAgeErrorFromError(err))
 			}
-			if err := responder.EditOriginal(ctx, accountAgeDeleteSuccessMessage("已刪除被踢出資訊頻道")); err != nil {
-				return err
-			}
-			return m.trackFeature(ctx, interaction, AccountAgeCommandName, "account-age-config")
+			return responder.EditOriginal(ctx, accountAgeDeleteSuccessMessage("已刪除被踢出資訊頻道"))
 		default:
 			return responder.EditOriginal(ctx, accountAgeErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 		}

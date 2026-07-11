@@ -1752,6 +1752,37 @@ func TestBuildRuntimeTracksEachBirthdaySlashAttemptOnce(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeTracksEachAccountAgeSlashAttemptOnce(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                     validTestConfig(),
+		UsageTracker:               tracker,
+		AccountAgeConfigRepository: fakemongo.NewAccountAgeConfigRepository(),
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+
+	success := fakediscord.SlashInteractionWithOptions("帳號需創建時數", "小時數", map[string]string{"小時數": "24"})
+	success.Actor.PermissionBits = 2
+	if err := dispatcher.Dispatch(context.Background(), success, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch success: %v", err)
+	}
+	denied := fakediscord.SlashInteractionWithOptions("帳號需創建時數", "小時數", map[string]string{"小時數": "24"})
+	if err := dispatcher.Dispatch(context.Background(), denied, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch denial: %v", err)
+	}
+
+	if len(tracker.Events) != 2 {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for _, event := range tracker.Events {
+		if event.CommandName != "帳號需創建時數" {
+			t.Fatalf("usage event = %#v", event)
+		}
+	}
+}
+
 func TestBuildRuntimeRoutesBirthdayAddComponentsWithRepository(t *testing.T) {
 	repo := &fakemongo.BirthdayConfigRepository{Configs: map[string]domain.BirthdayConfig{
 		"guild-1": {

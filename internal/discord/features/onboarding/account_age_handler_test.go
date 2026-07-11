@@ -9,13 +9,11 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestAccountAgeHandlerSetsHoursWithLegacySuccess(t *testing.T) {
 	repo := fakemongo.NewAccountAgeConfigRepository()
-	usage := &fakeusage.Tracker{}
-	module := NewAccountAgeModule(repo, usage)
+	module := NewAccountAgeModule(repo)
 	interaction := fakediscord.SlashInteractionWithOptions(AccountAgeCommandName, "小時數", map[string]string{"小時數": "24"})
 	interaction.Actor.PermissionBits = permissionKickMembersBit
 	responder := fakediscord.NewResponder()
@@ -36,13 +34,10 @@ func TestAccountAgeHandlerSetsHoursWithLegacySuccess(t *testing.T) {
 	if got := repo.Configs["guild-1"]; got.RequiredSeconds != 86400 {
 		t.Fatalf("saved = %#v", got)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].Feature != "account-age-config" {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestAccountAgeHandlerRejectsPermissionAndInvalidHours(t *testing.T) {
-	module := NewAccountAgeModule(fakemongo.NewAccountAgeConfigRepository(), nil)
+	module := NewAccountAgeModule(fakemongo.NewAccountAgeConfigRepository())
 	interaction := fakediscord.SlashInteractionWithOptions(AccountAgeCommandName, "小時數", map[string]string{"小時數": "24"})
 	responder := fakediscord.NewResponder()
 
@@ -65,7 +60,7 @@ func TestAccountAgeHandlerRejectsPermissionAndInvalidHours(t *testing.T) {
 }
 
 func TestAccountAgeHandlerRequiresHoursBeforeLogChannel(t *testing.T) {
-	module := NewAccountAgeModule(fakemongo.NewAccountAgeConfigRepository(), nil)
+	module := NewAccountAgeModule(fakemongo.NewAccountAgeConfigRepository())
 	interaction := fakediscord.SlashInteractionWithOptions(AccountAgeCommandName, "被踢出資訊頻道", map[string]string{"頻道": "channel-1"})
 	interaction.Actor.PermissionBits = permissionKickMembersBit
 	responder := fakediscord.NewResponder()
@@ -81,7 +76,7 @@ func TestAccountAgeHandlerRequiresHoursBeforeLogChannel(t *testing.T) {
 func TestAccountAgeHandlerSetsAndDeletesLogChannel(t *testing.T) {
 	repo := fakemongo.NewAccountAgeConfigRepository()
 	repo.Configs["guild-1"] = domain.AccountAgeConfig{GuildID: "guild-1", RequiredSeconds: 3600}
-	module := NewAccountAgeModule(repo, nil)
+	module := NewAccountAgeModule(repo)
 	interaction := fakediscord.SlashInteractionWithOptions(AccountAgeCommandName, "被踢出資訊頻道", map[string]string{"頻道": "channel-1"})
 	interaction.Actor.PermissionBits = permissionKickMembersBit
 	responder := fakediscord.NewResponder()
@@ -111,7 +106,7 @@ func TestAccountAgeHandlerSetsAndDeletesLogChannel(t *testing.T) {
 }
 
 func TestAccountAgeModuleRegistersRoute(t *testing.T) {
-	module := NewAccountAgeModule(fakemongo.NewAccountAgeConfigRepository(), nil)
+	module := NewAccountAgeModule(fakemongo.NewAccountAgeConfigRepository())
 	router := interactions.NewRouter()
 	if err := module.RegisterRoutes(router); err != nil {
 		t.Fatalf("register: %v", err)

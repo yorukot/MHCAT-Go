@@ -715,7 +715,7 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		}
 	}
 	if opts.AccountAgeConfigRepository != nil {
-		accountAgeModule := featureonboarding.NewAccountAgeModule(opts.AccountAgeConfigRepository, opts.UsageTracker)
+		accountAgeModule := featureonboarding.NewAccountAgeModule(opts.AccountAgeConfigRepository)
 		if err := accountAgeModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

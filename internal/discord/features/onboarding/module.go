@@ -97,11 +97,10 @@ func NewVerificationFlowModule(repo ports.VerificationConfigReader, roles ports.
 	}
 }
 
-func NewAccountAgeModule(repo ports.AccountAgeConfigRepository, usage ports.UsageTracker) Module {
+func NewAccountAgeModule(repo ports.AccountAgeConfigRepository) Module {
 	return Module{
 		accountAgeService: coreservice.AccountAgeConfigService{Repository: repo},
 		accountAgeEnabled: repo != nil,
-		usage:             usage,
 	}
 }
 
