@@ -523,7 +523,7 @@ MHCAT_SCHEDULER_LEASE_TTL=2m
 MHCAT_SCHEDULER_LEASE_TIMEOUT=10s
 ```
 
-The worker acquires `auto-notification-delivery`, interprets five-field cron in fixed UTC+8 named `Asia/Taipei`, and reconciles active `cron_sets` rows every 30 seconds or one-third of the lease TTL, whichever is shorter. It reloads `{guild,id}` immediately before each channel send, allows the same user/role/everyone mentions as legacy `channel.send`, removes schedules after row deletion or lease loss, and releases the lease during graceful shutdown. It writes only `mhcat_scheduler_locks`; it does not mutate active `cron_sets` rows or require Message Content intent. Disable the Node `handler/cron.js` owner before enabling this runtime. See `docs/66-auto-notification-config.md` for isolated staging and rollback steps.
+The worker acquires `auto-notification-delivery`, interprets five-field cron in fixed UTC+8 named `Asia/Taipei`, and reconciles active `cron_sets` rows every 30 seconds or one-third of the lease TTL, whichever is shorter. It reloads `{guild,id}` immediately before each channel send, requires a cached channel belonging to the row's guild, allows the same user/role/everyone mentions as legacy `channel.send`, removes schedules after row deletion or lease loss, and releases the lease during graceful shutdown. It writes only `mhcat_scheduler_locks`; it does not mutate active `cron_sets` rows or require Message Content intent. Disable the Node `handler/cron.js` owner before enabling this runtime. Follow [92-auto-notification.md](92-auto-notification.md) for exact compatibility, isolated staging, reconciliation, and rollback.
 
 `/set-log-channel` is available only when both staging command sync and runtime flags are explicitly enabled:
 

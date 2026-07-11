@@ -1,6 +1,6 @@
 # Auto-Notification Config And Delivery
 
-Status: setup/list/delete and lease-backed recurring delivery are implemented behind independent disabled-by-default gates.
+Status: parity-audited; setup/list/delete and lease-backed recurring delivery are implemented behind independent disabled-by-default gates. Exact compatibility, staging, and rollback are canonical in [92-auto-notification.md](92-auto-notification.md).
 
 ## Scope
 

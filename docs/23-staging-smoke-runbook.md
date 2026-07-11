@@ -313,7 +313,7 @@ export MHCAT_SCHEDULER_LEASE_TTL=2m
 export MHCAT_SCHEDULER_LEASE_TIMEOUT=10s
 ```
 
-Delivery may be tested without syncing the config commands. It reads active `cron_sets`, sends their persisted messages to Discord, and writes the `auto-notification-delivery` row in `mhcat_scheduler_locks`. Disable the Node `handler/cron.js` process before setting this gate, and use only a disposable schedule and channel.
+Delivery may be tested without syncing the config commands. It reads active `cron_sets`, sends their persisted messages only through cached channels belonging to the stored guild, and writes the `auto-notification-delivery` row in `mhcat_scheduler_locks`. Disable the Node `handler/cron.js` process before setting this gate, use only a disposable schedule and channel, and follow the canonical [auto-notification contract](92-auto-notification.md).
 
 Optional logging-config smoke flags:
 
@@ -1572,6 +1572,8 @@ If delete-data flags were enabled and command sync apply was reviewed:
 
 If auto-notification config flags were enabled and command sync apply was reviewed:
 
+- run the complete canonical config matrix in [92-auto-notification.md](92-auto-notification.md#staging-and-reconciliation), not only the happy path below;
+
 - run `/automatic-notification channel:<test channel>` and submit the legacy modal with a safe direct cron such as `*/30 * * * *`;
 - verify the completion message includes the generated id and a setup preview message appears in the interaction channel;
 - verify the staging `cron_sets` row contains `guild`, `channel`, `id`, `cron`, and rollback-compatible `message`;
@@ -1586,6 +1588,8 @@ If auto-notification config flags were enabled and command sync apply was review
 - verify no recurring channel send occurred unless the independent delivery gate was explicitly enabled, and verify no index creation or Message Content intent was involved.
 
 If auto-notification delivery was explicitly enabled:
+
+- run the complete canonical delivery, malformed-row, lease-loss, and rollback matrix in [92-auto-notification.md](92-auto-notification.md#staging-and-reconciliation);
 
 - stop the legacy Node process that loads `handler/cron.js` before starting the Go bot;
 - use an isolated database and audit all active `cron_sets` rows so only the intended disposable row can send;
