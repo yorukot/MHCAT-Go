@@ -187,6 +187,7 @@ type ShopItem struct {
 	AutoDelete    bool
 	RoleID        string
 	Count         int64
+	CountText     string
 }
 
 type ShopPurchaseCommand struct {
@@ -346,6 +347,7 @@ func (i ShopItem) Normalize() ShopItem {
 		AutoDelete:    i.AutoDelete,
 		RoleID:        strings.TrimSpace(i.RoleID),
 		Count:         i.Count,
+		CountText:     i.CountText,
 	}
 }
 
@@ -366,6 +368,10 @@ func (i ShopItem) PurchaseCost(quantity int64) (float64, bool) {
 		return 0, false
 	}
 	return price * float64(quantity), true
+}
+
+func (i ShopItem) StockNumber() (float64, bool) {
+	return legacyShopNumber(i.CountText, i.Count)
 }
 
 func legacyShopNumber(text string, fallback int64) (float64, bool) {

@@ -60,6 +60,30 @@ func TestEconomyShopMongoIntegrationPreservesBalanceScalars(t *testing.T) {
 	if err != nil || free.TotalCost != 0 || free.Balance.CoinsText != "30" {
 		t.Fatalf("free purchase = %#v, err=%v", free, err)
 	}
+	if _, err := database.Collection(ShopItemCollectionName).InsertMany(ctx, []any{
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "commodity_id", Value: 3}, {Key: "name", Value: "decimal-stock"}, {Key: "need_coin", Value: 20}, {Key: "commodity_description", Value: "desc"}, {Key: "code", Value: nil}, {Key: "auto_delete", Value: true}, {Key: "role", Value: nil}, {Key: "commodity_count", Value: 1.5}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "commodity_id", Value: 4}, {Key: "name", Value: "null-stock"}, {Key: "need_coin", Value: 0}, {Key: "commodity_description", Value: "desc"}, {Key: "code", Value: nil}, {Key: "auto_delete", Value: true}, {Key: "role", Value: nil}, {Key: "commodity_count", Value: nil}},
+		bson.D{{Key: "guild", Value: "guild-1"}, {Key: "commodity_id", Value: 5}, {Key: "name", Value: "infinite-stock"}, {Key: "need_coin", Value: 0}, {Key: "commodity_description", Value: "desc"}, {Key: "code", Value: nil}, {Key: "auto_delete", Value: true}, {Key: "role", Value: nil}, {Key: "commodity_count", Value: math.Inf(1)}},
+	}); err != nil {
+		t.Fatalf("seed stock scalars: %v", err)
+	}
+	if _, err := repository.PurchaseShopItem(ctx, domain.ShopPurchaseCommand{GuildID: "guild-1", UserID: "decimal", CommodityID: 3, Quantity: 1}); err != nil {
+		t.Fatalf("purchase decimal stock: %v", err)
+	}
+	decimalStock, err := repository.GetShopItem(ctx, "guild-1", 3)
+	if err != nil || decimalStock.CountText != "0.5" {
+		t.Fatalf("decimal stock = %#v, err=%v", decimalStock, err)
+	}
+	if _, err := repository.PurchaseShopItem(ctx, domain.ShopPurchaseCommand{GuildID: "guild-1", UserID: "decimal", CommodityID: 4, Quantity: 1}); !errors.Is(err, ports.ErrShopQuantityInvalid) {
+		t.Fatalf("null stock error = %v", err)
+	}
+	if _, err := repository.PurchaseShopItem(ctx, domain.ShopPurchaseCommand{GuildID: "guild-1", UserID: "decimal", CommodityID: 5, Quantity: 1}); err != nil {
+		t.Fatalf("purchase infinite stock: %v", err)
+	}
+	infiniteStock, err := repository.GetShopItem(ctx, "guild-1", 5)
+	if err != nil || infiniteStock.CountText != "Infinity" {
+		t.Fatalf("infinite stock = %#v, err=%v", infiniteStock, err)
+	}
 }
 
 func TestEconomyShopMongoIntegrationUpdatesOneBalanceDuplicate(t *testing.T) {

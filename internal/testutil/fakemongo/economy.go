@@ -524,7 +524,11 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	if !ok {
 		return domain.ShopPurchaseResult{}, ports.ErrShopItemMissing
 	}
-	if command.Quantity > item.Count {
+	stock, numeric := item.StockNumber()
+	if !numeric {
+		return domain.ShopPurchaseResult{}, domain.ErrInvalidShopPurchase
+	}
+	if float64(command.Quantity) > stock {
 		return domain.ShopPurchaseResult{}, ports.ErrShopQuantityInvalid
 	}
 	balanceKey := economyBalanceKey(command.GuildID, command.UserID)
@@ -545,7 +549,7 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	}
 	purchased := item
 	if item.AutoDelete {
-		if item.Count == 1 {
+		if stock == 1 {
 			delete(r.ShopItems, itemKey)
 			for index, candidate := range r.shopItemOrder {
 				if candidate == itemKey {
@@ -554,7 +558,14 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 				}
 			}
 		} else {
-			item.Count -= command.Quantity
+			nextCount := stock - float64(command.Quantity)
+			item.Count = int64(nextCount)
+			item.CountText = strconv.FormatFloat(nextCount, 'f', -1, 64)
+			if math.IsInf(nextCount, 1) {
+				item.CountText = "Infinity"
+			} else if math.IsInf(nextCount, -1) {
+				item.CountText = "-Infinity"
+			}
 			r.ShopItems[itemKey] = item
 		}
 	}

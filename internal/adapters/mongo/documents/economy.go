@@ -135,6 +135,7 @@ func (d ShopItemDocument) ToDomain() domain.ShopItem {
 		AutoDelete:    d.AutoDelete,
 		RoleID:        roleID,
 		Count:         legacyInt64(d.CommodityCount),
+		CountText:     legacyPriceString(d.CommodityCount),
 	}
 }
 
@@ -156,6 +157,14 @@ func ShopItemWriteDocumentFromDomain(item domain.ShopItem) bson.D {
 			needCoins = nil
 		}
 	}
+	count := any(item.Count)
+	if text := strings.TrimSpace(item.CountText); text != "" {
+		if parsed, err := strconv.ParseFloat(text, 64); err == nil {
+			count = parsed
+		} else if text == "null" {
+			count = nil
+		}
+	}
 	return bson.D{
 		{Key: "guild", Value: item.GuildID},
 		{Key: "commodity_id", Value: item.CommodityID},
@@ -165,7 +174,7 @@ func ShopItemWriteDocumentFromDomain(item domain.ShopItem) bson.D {
 		{Key: "code", Value: code},
 		{Key: "auto_delete", Value: item.AutoDelete},
 		{Key: "role", Value: role},
-		{Key: "commodity_count", Value: item.Count},
+		{Key: "commodity_count", Value: count},
 	}
 }
 

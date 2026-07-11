@@ -34,3 +34,21 @@ func TestShopItemPurchaseCostPreservesLegacyScalars(t *testing.T) {
 		t.Fatal("malformed price should fail")
 	}
 }
+
+func TestShopItemStockNumberPreservesLegacyScalars(t *testing.T) {
+	for _, test := range []struct {
+		text string
+		want float64
+	}{
+		{text: "1.5", want: 1.5},
+		{text: "null", want: 0},
+		{text: "Infinity", want: math.Inf(1)},
+	} {
+		if got, ok := (ShopItem{CountText: test.text}).StockNumber(); !ok || got != test.want {
+			t.Fatalf("stock for %q = %v, ok=%t", test.text, got, ok)
+		}
+	}
+	if _, ok := (ShopItem{CountText: "undefined"}).StockNumber(); ok {
+		t.Fatal("malformed stock should fail")
+	}
+}

@@ -180,6 +180,49 @@ func TestShopListAndDetailPreserveLegacyPriceScalar(t *testing.T) {
 	}
 }
 
+func TestShopDetailAndQuantityPreserveLegacyStockScalars(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		stock     string
+		digit     string
+		wantError bool
+	}{
+		{name: "decimal allows one", stock: "1.5", digit: "1ghp_number"},
+		{name: "decimal rejects two", stock: "1.5", digit: "2ghp_number", wantError: true},
+		{name: "null rejects one", stock: "null", digit: "1ghp_number", wantError: true},
+		{name: "infinity allows nine", stock: "Infinity", digit: "9ghp_number"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewEconomyRepository()
+			repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 20, Description: "reward", CountText: test.stock})
+			module := NewShopModule(repo, nil, nil, nil, nil, nil, nil)
+			showShopDetail(t, &module, 1001, "message-1")
+			start := fakediscord.ComponentInteractionFromID("1001ghp")
+			start.MessageID = "message-1"
+			startResponder := fakediscord.NewResponder()
+			if err := module.ShopItemHandler()(context.Background(), start, startResponder); err != nil {
+				t.Fatalf("start: %v", err)
+			}
+			if !strings.Contains(startResponder.Updates[0].Embeds[0].Description, "```"+test.stock+"```") {
+				t.Fatalf("stock display = %#v", startResponder.Updates)
+			}
+			digit := fakediscord.ComponentInteractionFromID(test.digit)
+			digit.MessageID = "message-1"
+			responder := fakediscord.NewResponder()
+			if err := module.ShopQuantityHandler()(context.Background(), digit, responder); err != nil {
+				t.Fatalf("digit: %v", err)
+			}
+			if test.wantError {
+				if len(responder.Replies) != 1 || !strings.Contains(responder.Replies[0].Content, "不可超過商品數量") {
+					t.Fatalf("error response = %#v", responder.Replies)
+				}
+			} else if len(responder.Updates) != 1 {
+				t.Fatalf("update response = %#v", responder.Updates)
+			}
+		})
+	}
+}
+
 func TestShopDetailAndQuantityUseLegacyRandomColors(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 50, Description: "role reward", Count: 2})
