@@ -696,7 +696,7 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		}
 	}
 	if opts.VerificationConfigRepository != nil {
-		verificationModule := featureonboarding.NewVerificationModule(opts.VerificationConfigRepository, opts.VerificationRoleInspector, opts.UsageTracker)
+		verificationModule := featureonboarding.NewVerificationModule(opts.VerificationConfigRepository, opts.VerificationRoleInspector)
 		if err := verificationModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}
@@ -708,7 +708,6 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 			opts.VerificationMemberPort,
 			opts.VerificationRoleInspector,
 			opts.VerificationGuildInfo,
-			opts.UsageTracker,
 		)
 		if err := verificationModule.RegisterRoutes(router); err != nil {
 			return nil, err

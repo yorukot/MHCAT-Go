@@ -27,10 +27,7 @@ func (m Module) VerificationSetHandler() interactions.Handler {
 		if err := m.verificationService.Save(ctx, config); err != nil {
 			return responder.EditOriginal(ctx, verificationErrorFromError(err))
 		}
-		if err := responder.EditOriginal(ctx, verificationSuccessMessage(config.RoleID, config.RenameTemplate)); err != nil {
-			return err
-		}
-		return m.trackFeature(ctx, interaction, VerificationSetCommandName, "verification-config")
+		return responder.EditOriginal(ctx, verificationSuccessMessage(config.RoleID, config.RenameTemplate))
 	}
 }
 

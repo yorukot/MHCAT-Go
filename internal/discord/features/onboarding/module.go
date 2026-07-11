@@ -73,15 +73,14 @@ func NewLeaveMessageDeliveryModule(repo ports.LeaveMessageConfigReader, messages
 	}
 }
 
-func NewVerificationModule(repo ports.VerificationConfigRepository, roles ports.DiscordRoleInspector, usage ports.UsageTracker) Module {
+func NewVerificationModule(repo ports.VerificationConfigRepository, roles ports.DiscordRoleInspector) Module {
 	return Module{
 		verificationService: coreservice.VerificationConfigService{Repository: repo, RoleInspector: roles},
 		verificationEnabled: repo != nil && roles != nil,
-		usage:               usage,
 	}
 }
 
-func NewVerificationFlowModule(repo ports.VerificationConfigReader, roles ports.DiscordRolePort, members ports.DiscordMemberPort, inspector ports.DiscordRoleInspector, guilds ports.DiscordInfoProvider, usage ports.UsageTracker) Module {
+func NewVerificationFlowModule(repo ports.VerificationConfigReader, roles ports.DiscordRolePort, members ports.DiscordMemberPort, inspector ports.DiscordRoleInspector, guilds ports.DiscordInfoProvider) Module {
 	return Module{
 		flowService: coreservice.VerificationFlowService{
 			Repository: repo,
@@ -93,7 +92,6 @@ func NewVerificationFlowModule(repo ports.VerificationConfigReader, roles ports.
 			Guilds:     guilds,
 		},
 		flowEnabled: repo != nil && roles != nil,
-		usage:       usage,
 	}
 }
 

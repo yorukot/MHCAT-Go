@@ -8,15 +8,13 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/interactions"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestVerificationSetHandlerSavesConfigWithLegacySuccess(t *testing.T) {
 	repo := fakemongo.NewVerificationConfigRepository()
 	roles := fakediscord.NewSideEffects()
 	roles.AssignableRoles["guild-1/role-1"] = true
-	usage := &fakeusage.Tracker{}
-	module := NewVerificationModule(repo, roles, usage)
+	module := NewVerificationModule(repo, roles)
 	interaction := fakediscord.SlashInteractionWithOptions(VerificationSetCommandName, "", map[string]string{
 		"身分組": "role-1",
 		"改名":  "  {name} | MHCAT  ",
@@ -47,16 +45,13 @@ func TestVerificationSetHandlerSavesConfigWithLegacySuccess(t *testing.T) {
 	if saved.RoleID != "role-1" || saved.RenameTemplate != "  {name} | MHCAT  " {
 		t.Fatalf("saved = %#v", saved)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != VerificationSetCommandName || usage.Events[0].Feature != "verification-config" {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestVerificationSetHandlerDisplaysNullRenameWhenMissing(t *testing.T) {
 	repo := fakemongo.NewVerificationConfigRepository()
 	roles := fakediscord.NewSideEffects()
 	roles.AssignableRoles["guild-1/role-1"] = true
-	module := NewVerificationModule(repo, roles, nil)
+	module := NewVerificationModule(repo, roles)
 	interaction := fakediscord.SlashInteractionWithOptions(VerificationSetCommandName, "", map[string]string{"身分組": "role-1"})
 	interaction.Actor.PermissionBits = permissionManageMessages
 	responder := fakediscord.NewResponder()
@@ -75,7 +70,7 @@ func TestVerificationSetHandlerDisplaysNullRenameWhenMissing(t *testing.T) {
 func TestVerificationSetHandlerRejectsPermissionAndUnassignableRole(t *testing.T) {
 	repo := fakemongo.NewVerificationConfigRepository()
 	roles := fakediscord.NewSideEffects()
-	module := NewVerificationModule(repo, roles, nil)
+	module := NewVerificationModule(repo, roles)
 	interaction := fakediscord.SlashInteractionWithOptions(VerificationSetCommandName, "", map[string]string{"身分組": "role-1"})
 	responder := fakediscord.NewResponder()
 
@@ -100,7 +95,7 @@ func TestVerificationModuleRegistersOnlyVerificationRoute(t *testing.T) {
 	repo := fakemongo.NewVerificationConfigRepository()
 	roles := fakediscord.NewSideEffects()
 	roles.AssignableRoles["guild-1/role-1"] = true
-	module := NewVerificationModule(repo, roles, nil)
+	module := NewVerificationModule(repo, roles)
 	if module.Name() != "verification-config" {
 		t.Fatalf("module name = %q", module.Name())
 	}

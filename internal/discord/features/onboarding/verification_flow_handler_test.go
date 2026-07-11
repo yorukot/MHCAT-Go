@@ -13,11 +13,10 @@ import (
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakebotinfo"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakediscord"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakeusage"
 )
 
 func TestVerificationHandlerShowsLegacyPromptWithSafeStateID(t *testing.T) {
-	module, _, sideEffects, usage := newVerificationFlowTestModule()
+	module, _, sideEffects := newVerificationFlowTestModule()
 	interaction := fakediscord.SlashInteraction(VerificationCommandName)
 	responder := fakediscord.NewResponder()
 	sideEffects.AssignableRoles["guild-1/role-1"] = true
@@ -42,13 +41,10 @@ func TestVerificationHandlerShowsLegacyPromptWithSafeStateID(t *testing.T) {
 	if !strings.HasPrefix(button.CustomID, "mhcat:v1:verification:prompt:state=") || strings.Contains(button.CustomID, "1234") {
 		t.Fatalf("custom id should use state id, got %q", button.CustomID)
 	}
-	if len(usage.Events) != 1 || usage.Events[0].CommandName != VerificationCommandName {
-		t.Fatalf("usage = %#v", usage.Events)
-	}
 }
 
 func TestVerificationPromptShowsVersionedAndLegacyModal(t *testing.T) {
-	module, _, sideEffects, _ := newVerificationFlowTestModule()
+	module, _, sideEffects := newVerificationFlowTestModule()
 	sideEffects.AssignableRoles["guild-1/role-1"] = true
 	start := fakediscord.NewResponder()
 	if err := module.VerificationHandler()(context.Background(), fakediscord.SlashInteraction(VerificationCommandName), start); err != nil {
@@ -79,7 +75,7 @@ func TestVerificationPromptShowsVersionedAndLegacyModal(t *testing.T) {
 }
 
 func TestVerificationPromptRechecksRoleBeforeModal(t *testing.T) {
-	module, _, sideEffects, _ := newVerificationFlowTestModule()
+	module, _, sideEffects := newVerificationFlowTestModule()
 	sideEffects.AssignableRoles["guild-1/role-1"] = true
 	start := fakediscord.NewResponder()
 	if err := module.VerificationHandler()(context.Background(), fakediscord.SlashInteraction(VerificationCommandName), start); err != nil {
@@ -101,7 +97,7 @@ func TestVerificationPromptRechecksRoleBeforeModal(t *testing.T) {
 }
 
 func TestVerificationAnswerAddsRoleNicknameAndReturnsLegacySuccess(t *testing.T) {
-	module, _, sideEffects, _ := newVerificationFlowTestModule()
+	module, _, sideEffects := newVerificationFlowTestModule()
 	sideEffects.AssignableRoles["guild-1/role-1"] = true
 	interaction := fakediscord.SlashInteraction(VerificationCommandName)
 	responder := fakediscord.NewResponder()
@@ -139,7 +135,7 @@ func TestVerificationAnswerAddsRoleNicknameAndReturnsLegacySuccess(t *testing.T)
 }
 
 func TestVerificationLegacyAnswerAndWrongAnswer(t *testing.T) {
-	module, _, sideEffects, _ := newVerificationFlowTestModule()
+	module, _, sideEffects := newVerificationFlowTestModule()
 	sideEffects.AssignableRoles["guild-1/role-1"] = true
 	interaction := interactions.Interaction{
 		Type:     interactions.TypeModal,
@@ -195,15 +191,14 @@ func TestVerificationAnswerErrorsUseLegacyModalTitles(t *testing.T) {
 
 const fixedVerificationAnswer = "1234"
 
-func newVerificationFlowTestModule() (Module, *fakemongo.VerificationConfigRepository, *fakediscord.SideEffects, *fakeusage.Tracker) {
+func newVerificationFlowTestModule() (Module, *fakemongo.VerificationConfigRepository, *fakediscord.SideEffects) {
 	repo := fakemongo.NewVerificationConfigRepository()
 	repo.Configs["guild-1"] = domain.VerificationConfig{GuildID: "guild-1", RoleID: "role-1", RenameTemplate: "{name} | MHCAT"}
 	sideEffects := fakediscord.NewSideEffects()
-	usage := &fakeusage.Tracker{}
 	guilds := &fakebotinfo.DiscordInfoProvider{Guild: domainToDiscordGuild("owner-1")}
-	module := NewVerificationFlowModule(repo, sideEffects, sideEffects, sideEffects, guilds, usage)
+	module := NewVerificationFlowModule(repo, sideEffects, sideEffects, sideEffects, guilds)
 	module.flowService.Generator = fixedVerificationGenerator{}
-	return module, repo, sideEffects, usage
+	return module, repo, sideEffects
 }
 
 type fixedVerificationGenerator struct{}

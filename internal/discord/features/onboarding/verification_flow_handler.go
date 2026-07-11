@@ -28,10 +28,7 @@ func (m Module) VerificationHandler() interactions.Handler {
 		if err != nil {
 			return responder.EditOriginal(ctx, verificationFlowErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 		}
-		if err := responder.EditOriginal(ctx, msg); err != nil {
-			return err
-		}
-		return m.trackFeature(ctx, interaction, VerificationCommandName, "verification-flow")
+		return responder.EditOriginal(ctx, msg)
 	}
 }
 

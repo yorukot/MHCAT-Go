@@ -2421,6 +2421,52 @@ func TestBuildRuntimeRoutesVerificationFlowOnlyWithRepository(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeTracksEachVerificationSlashAttemptOnce(t *testing.T) {
+	tracker := &fakeusage.Tracker{}
+	repo := fakemongo.NewVerificationConfigRepository()
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.AssignableRoles["guild-1/role-1"] = true
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                       validTestConfig(),
+		UsageTracker:                 tracker,
+		VerificationConfigRepository: repo,
+		VerificationFlowRepository:   repo,
+		VerificationRolePort:         sideEffects,
+		VerificationMemberPort:       sideEffects,
+		VerificationRoleInspector:    sideEffects,
+		VerificationGuildInfo:        &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "owner-1"}},
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+
+	configSuccess := fakediscord.SlashInteractionWithOptions("驗證設置", "", map[string]string{"身分組": "role-1"})
+	configSuccess.Actor.PermissionBits = 8192
+	if err := dispatcher.Dispatch(context.Background(), configSuccess, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch config success: %v", err)
+	}
+	if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteractionWithOptions("驗證設置", "", map[string]string{"身分組": "role-1"}), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch config denial: %v", err)
+	}
+	if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction("驗證"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch flow success: %v", err)
+	}
+	delete(repo.Configs, "guild-1")
+	if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction("驗證"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch missing config: %v", err)
+	}
+
+	wantCommands := []string{"驗證設置", "驗證設置", "驗證", "驗證"}
+	if len(tracker.Events) != len(wantCommands) {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for i, want := range wantCommands {
+		if tracker.Events[i].CommandName != want {
+			t.Fatalf("usage event %d = %#v", i, tracker.Events[i])
+		}
+	}
+}
+
 func TestBuildRuntimeRoutesVoiceRoomConfigOnlyWithRepository(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig()})
 	if err != nil {
