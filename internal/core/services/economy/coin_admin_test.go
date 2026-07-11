@@ -3,6 +3,7 @@ package economy
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -96,5 +97,23 @@ func TestCoinAdminPreservesLegacySignedAmountSemantics(t *testing.T) {
 				t.Fatalf("result = %#v", result)
 			}
 		})
+	}
+}
+
+func TestLegacyEconomyNumberTextMatchesJavaScript(t *testing.T) {
+	tests := []struct {
+		value float64
+		want  string
+	}{
+		{value: 11.5, want: "11.5"},
+		{value: 0, want: "0"},
+		{value: math.Inf(1), want: "Infinity"},
+		{value: math.Inf(-1), want: "-Infinity"},
+		{value: 1e-7, want: "1e-7"},
+	}
+	for _, test := range tests {
+		if got := LegacyEconomyNumberText(test.value); got != test.want {
+			t.Fatalf("format %v = %q want %q", test.value, got, test.want)
+		}
 	}
 }

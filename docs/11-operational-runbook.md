@@ -370,7 +370,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_COIN_ADMIN=true
 MHCAT_FEATURE_ECONOMY_COIN_ADMIN_ENABLED=true
 ```
 
-This command requires Manage Messages, writes `coins`, creates missing balances only for add operations, preserves signed amounts with add-only upper and reduce-only lower guards, and currently updates duplicate `{guild,member}` rows together. Test only against disposable staging data until duplicate audits and production ownership are reviewed.
+This command requires Manage Messages, writes `coins`, creates missing balances only for add operations, preserves signed amounts and Mongoose-visible numeric scalars with add-only upper and reduce-only lower guards, and updates one arbitrary duplicate `{guild,member}` row. Test only against disposable staging data until duplicate audits and production ownership are reviewed.
 
 `/剪刀石頭布` is available only when both staging command sync and runtime flags are explicitly enabled:
 

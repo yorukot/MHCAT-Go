@@ -239,14 +239,22 @@ func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domai
 		}
 		return domain.CoinAdminResult{}, err
 	}
-	next := current.Coins + delta
+	currentCoins, numeric := coreeconomy.LegacyEconomyNumber(current.CoinsText)
+	if strings.TrimSpace(current.CoinsText) == "" {
+		currentCoins = float64(current.Coins)
+		numeric = true
+	}
+	if !numeric {
+		return domain.CoinAdminResult{}, domain.ErrInvalidCoinAdminCommand
+	}
+	next := currentCoins + float64(delta)
 	if command.Operation == domain.CoinAdminOperationReduce && next < 0 {
 		return domain.CoinAdminResult{}, ports.ErrCoinNegativeBalance
 	}
-	if command.Operation == domain.CoinAdminOperationAdd && next > coreeconomy.MaxLegacyCoinBalance {
+	if command.Operation == domain.CoinAdminOperationAdd && next > float64(coreeconomy.MaxLegacyCoinBalance) {
 		return domain.CoinAdminResult{}, ports.ErrCoinLimitExceeded
 	}
-	result, err := r.coins.UpdateMany(
+	result, err := r.coins.UpdateOne(
 		ctx,
 		bson.D{{Key: "guild", Value: command.GuildID}, {Key: "member", Value: command.UserID}},
 		bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: next}}}},
@@ -257,7 +265,8 @@ func (r *EconomyRepository) AdjustCoinBalance(ctx context.Context, command domai
 	if result.MatchedCount == 0 {
 		return domain.CoinAdminResult{}, ports.ErrCoinBalanceNotFound
 	}
-	current.Coins = next
+	current.Coins = int64(next)
+	current.CoinsText = coreeconomy.LegacyEconomyNumberText(next)
 	return domain.CoinAdminResult{Balance: current, Delta: delta}, ctx.Err()
 }
 

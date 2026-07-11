@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -108,4 +109,28 @@ func legacyDisplayedNumber(value string) (float64, bool) {
 // LegacyEconomyNumber exposes Mongoose/JavaScript number coercion to economy adapters.
 func LegacyEconomyNumber(value string) (float64, bool) {
 	return legacyDisplayedNumber(value)
+}
+
+// LegacyEconomyNumberText formats a number like JavaScript String(number).
+func LegacyEconomyNumberText(value float64) string {
+	switch {
+	case math.IsNaN(value):
+		return "NaN"
+	case math.IsInf(value, 1):
+		return "Infinity"
+	case math.IsInf(value, -1):
+		return "-Infinity"
+	case value == 0:
+		return "0"
+	}
+	absolute := math.Abs(value)
+	if absolute >= 1e-6 && absolute < 1e21 {
+		return strconv.FormatFloat(value, 'f', -1, 64)
+	}
+	mantissa, exponent, _ := strings.Cut(strconv.FormatFloat(value, 'e', -1, 64), "e")
+	parsedExponent, _ := strconv.Atoi(exponent)
+	if parsedExponent >= 0 {
+		return mantissa + "e+" + strconv.Itoa(parsedExponent)
+	}
+	return mantissa + "e" + strconv.Itoa(parsedExponent)
 }
