@@ -86,12 +86,11 @@ func JoinRoleDeleteDefinition() commands.Definition {
 
 func JoinMessageDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     JoinMessageSetCommandName,
-		Description:              "設定玩家加入時發送甚麼訊息",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		DocsURL:                  "https://docsmhcat.yorukot.meocs/join_message",
-		Ownership:                commands.ManagedOwnership("welcome-message-config", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        JoinMessageSetCommandName,
+		Description: "設定玩家加入時發送甚麼訊息",
+		DocsURL:     "https://docsmhcat.yorukot.meocs/join_message",
+		Ownership:   commands.ManagedOwnership("welcome-message-config", commands.ScopeGuild),
 		Options: []commands.Option{{
 			Type:         commands.OptionTypeChannel,
 			Name:         "頻道",
@@ -104,11 +103,10 @@ func JoinMessageDefinition() commands.Definition {
 
 func LeaveMessageDefinition() commands.Definition {
 	return commands.Definition{
-		Type:                     commands.CommandTypeChatInput,
-		Name:                     LeaveMessageSetCommandName,
-		Description:              "設定玩家退出時發送甚麼訊息",
-		DefaultMemberPermissions: stringPtr(manageMessagesPermission),
-		Ownership:                commands.ManagedOwnership("welcome-message-config", commands.ScopeGuild),
+		Type:        commands.CommandTypeChatInput,
+		Name:        LeaveMessageSetCommandName,
+		Description: "設定玩家退出時發送甚麼訊息",
+		Ownership:   commands.ManagedOwnership("welcome-message-config", commands.ScopeGuild),
 		Options: []commands.Option{{
 			Type:         commands.OptionTypeChannel,
 			Name:         "頻道",

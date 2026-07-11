@@ -43,8 +43,8 @@ func TestMessageDefinitionsMatchLegacySurface(t *testing.T) {
 	if join.Name != JoinMessageSetCommandName || join.Description != "設定玩家加入時發送甚麼訊息" {
 		t.Fatalf("join definition = %#v", join)
 	}
-	if join.DefaultMemberPermissions == nil || *join.DefaultMemberPermissions != manageMessagesPermission {
-		t.Fatalf("join permissions = %#v", join.DefaultMemberPermissions)
+	if join.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy join command is publicly discoverable: %#v", join.DefaultMemberPermissions)
 	}
 	if len(join.Options) != 1 || join.Options[0].Type != commands.OptionTypeChannel || join.Options[0].Name != "頻道" || join.Options[0].Description != "輸入加入訊息要在那發送!" {
 		t.Fatalf("join options = %#v", join.Options)
@@ -55,6 +55,9 @@ func TestMessageDefinitionsMatchLegacySurface(t *testing.T) {
 	leave := defs[1]
 	if leave.Name != LeaveMessageSetCommandName || leave.Description != "設定玩家退出時發送甚麼訊息" {
 		t.Fatalf("leave definition = %#v", leave)
+	}
+	if leave.DefaultMemberPermissions != nil {
+		t.Fatalf("legacy leave command is publicly discoverable: %#v", leave.DefaultMemberPermissions)
 	}
 	if len(leave.Options) != 1 || leave.Options[0].Description != "輸入加入訊息要在那發送!" {
 		t.Fatalf("leave options = %#v", leave.Options)
