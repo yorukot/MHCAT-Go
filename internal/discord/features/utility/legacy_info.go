@@ -154,15 +154,13 @@ func legacyInfoShardRefreshMessage(info ports.BotInfo) responses.Message {
 }
 
 func legacyShardField(info ports.BotInfo) responses.EmbedField {
-	memoryUsed := info.MemoryUsedMB
-	memoryTotal := info.MemoryTotalMB
 	return responses.EmbedField{
 		Name: fmt.Sprintf("<:server:986064124209418251> 分片ID: %d", info.ShardID),
 		Value: fmt.Sprintf("```fix\n公會數量: %d\n使用者數量: %d\n記憶體: %d\\%d mb\n上線時間:%s\n延遲: %s```",
 			info.GuildCount,
 			info.UserCount,
-			memoryUsed,
-			memoryTotal,
+			info.ProcessHeapMB,
+			info.ProcessRSSMB,
 			formatLegacyShardUptime(info.Uptime),
 			formatLegacyShardPing(info.Latency),
 		),

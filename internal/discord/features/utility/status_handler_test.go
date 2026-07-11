@@ -80,8 +80,8 @@ func TestInfoShardHandlerReturnsLegacyEmbed(t *testing.T) {
 		UserCount:     330,
 		Latency:       12 * time.Millisecond,
 		Uptime:        3 * time.Minute,
-		MemoryUsedMB:  256,
-		MemoryTotalMB: 1024,
+		ProcessHeapMB: 256,
+		ProcessRSSMB:  1024,
 	}}
 	module := featureutility.NewModule(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), provider, nil, nil)
 	responder := fakediscord.NewResponder()
@@ -295,8 +295,8 @@ func TestInfoShardRefreshUpdatesMessage(t *testing.T) {
 		UserCount:     330,
 		Latency:       12 * time.Millisecond,
 		Uptime:        3 * time.Minute,
-		MemoryUsedMB:  256,
-		MemoryTotalMB: 1024,
+		ProcessHeapMB: 256,
+		ProcessRSSMB:  1024,
 	}}
 	module := featureutility.NewModule(commands.BuiltinRegistry(commands.Scope{Kind: commands.ScopeGlobal}), provider, nil, nil)
 	responder := fakediscord.NewResponder()
@@ -313,6 +313,7 @@ func TestInfoShardRefreshUpdatesMessage(t *testing.T) {
 	if !strings.Contains(embed.Fields[0].Name, "分片ID: 3") ||
 		!strings.Contains(embed.Fields[0].Value, "公會數量: 22") ||
 		!strings.Contains(embed.Fields[0].Value, "使用者數量: 330") ||
+		!strings.Contains(embed.Fields[0].Value, "記憶體: 256\\1024 mb") ||
 		!strings.Contains(embed.Fields[0].Value, "上線時間:00h03m00s") ||
 		!strings.Contains(embed.Fields[0].Value, "延遲: 12```") {
 		t.Fatalf("shard field = %#v", embed.Fields[0])

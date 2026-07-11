@@ -17,6 +17,8 @@ type BotInfo struct {
 	CPUUsagePercent  float64
 	MemoryUsedMB     int64
 	MemoryTotalMB    int64
+	ProcessHeapMB    int64
+	ProcessRSSMB     int64
 	GatewayConnected bool
 }
 

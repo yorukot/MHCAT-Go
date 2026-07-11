@@ -2,7 +2,6 @@ package discordgo
 
 import (
 	"context"
-	"runtime"
 	"time"
 
 	dgo "github.com/bwmarrin/discordgo"
@@ -15,20 +14,31 @@ type BotInfoProvider struct {
 	StartedAt  time.Time
 	ShardID    int
 	ShardCount int
+	Metrics    SystemMetricsSampler
 }
 
 func (p BotInfoProvider) BotInfo(ctx context.Context) (ports.BotInfo, error) {
 	if err := ctx.Err(); err != nil {
 		return ports.BotInfo{}, err
 	}
+	metricsSampler := p.Metrics
+	if metricsSampler == nil {
+		metricsSampler = defaultSystemMetricsSampler()
+	}
+	metrics, err := metricsSampler.Sample(ctx)
+	if err != nil {
+		return ports.BotInfo{}, err
+	}
 	info := ports.BotInfo{
 		Name:            p.Name,
 		ShardID:         p.ShardID,
 		ShardCount:      p.ShardCount,
-		CPUModel:        runtime.GOOS + "/" + runtime.GOARCH,
-		MemoryUsedMB:    processMemoryUsedMB(),
-		MemoryTotalMB:   processMemoryTotalMB(),
-		CPUUsagePercent: 0,
+		CPUModel:        metrics.CPUModel,
+		CPUUsagePercent: metrics.CPUUsagePercent,
+		MemoryUsedMB:    metrics.HostMemoryUsedMB,
+		MemoryTotalMB:   metrics.HostMemoryTotalMB,
+		ProcessHeapMB:   metrics.ProcessHeapMB,
+		ProcessRSSMB:    metrics.ProcessRSSMB,
 	}
 	if info.Name == "" {
 		info.Name = "MHCAT"
@@ -55,18 +65,6 @@ func (p BotInfoProvider) BotInfo(ctx context.Context) (ports.BotInfo, error) {
 	}
 	info.GuildCount, info.UserCount = stateCounts(session.State)
 	return info, nil
-}
-
-func processMemoryUsedMB() int64 {
-	var stats runtime.MemStats
-	runtime.ReadMemStats(&stats)
-	return int64(stats.Alloc / 1024 / 1024)
-}
-
-func processMemoryTotalMB() int64 {
-	var stats runtime.MemStats
-	runtime.ReadMemStats(&stats)
-	return int64(stats.Sys / 1024 / 1024)
 }
 
 func stateCounts(state *dgo.State) (int, int) {
