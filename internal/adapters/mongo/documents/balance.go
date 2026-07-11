@@ -1,9 +1,6 @@
 package documents
 
 import (
-	"strconv"
-	"strings"
-
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -25,35 +22,23 @@ func legacyPriceString(value bson.RawValue) string {
 		return "undefined"
 	}
 	if value.Type == bson.TypeNull {
-		return "0"
+		return "null"
 	}
 	if text, ok := value.StringValueOK(); ok {
-		text = strings.TrimSpace(text)
-		if text != "" {
-			return text
-		}
-		return "0"
-	}
-	if parsed, ok := value.DoubleOK(); ok {
-		return strconv.FormatFloat(parsed, 'f', -1, 64)
-	}
-	if parsed, ok := value.AsInt64OK(); ok {
-		return strconv.FormatInt(parsed, 10)
-	}
-	if parsed, ok := value.BooleanOK(); ok {
-		if parsed {
-			return "1"
-		}
-		return "0"
-	}
-	if parsed, ok := value.DateTimeOK(); ok {
-		return strconv.FormatInt(parsed, 10)
-	}
-	if parsed, ok := value.Decimal128OK(); ok {
-		amount, err := strconv.ParseFloat(parsed.String(), 64)
-		if err == nil {
-			return strconv.FormatFloat(amount, 'f', -1, 64)
+		if text == "" {
+			return "null"
 		}
 	}
-	return "undefined"
+	if _, data, ok := value.BinaryOK(); ok {
+		parsed, valid := legacyJavaScriptNumericString(string(data))
+		if !valid {
+			return "undefined"
+		}
+		return legacyJavaScriptNumberString(parsed)
+	}
+	parsed, ok := LegacyMongooseNumber(value)
+	if !ok {
+		return "undefined"
+	}
+	return legacyJavaScriptNumberString(parsed)
 }
