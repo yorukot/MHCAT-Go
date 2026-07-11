@@ -198,7 +198,7 @@ type ShopPurchaseResult struct {
 	Item            ShopItem
 	Quantity        int64
 	TotalCost       int64
-	PreviousBalance int64
+	PreviousBalance float64
 	Balance         CoinBalance
 }
 

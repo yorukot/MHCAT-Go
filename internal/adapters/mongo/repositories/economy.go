@@ -867,7 +867,11 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	if !ok {
 		return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
 	}
-	if balance.Coins < totalCost {
+	currentCoins, numeric := coinGameBalanceNumber(balance)
+	if !numeric {
+		return domain.ShopPurchaseResult{}, domain.ErrInvalidShopPurchase
+	}
+	if currentCoins < float64(totalCost) {
 		return domain.ShopPurchaseResult{}, ports.ErrShopInsufficientCoin
 	}
 	if item.AutoDelete {
@@ -882,7 +886,7 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 			}
 		}
 	}
-	nextBalance := balance.Coins - totalCost
+	nextBalance := currentCoins - float64(totalCost)
 	result, err := r.coins.UpdateMany(ctx, bson.D{{Key: "guild", Value: command.GuildID}, {Key: "member", Value: command.UserID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: nextBalance}}}})
 	if err != nil {
 		return domain.ShopPurchaseResult{}, mhcatmongo.MapError(fmt.Errorf("subtract shop purchase coins: %w", err))
@@ -890,8 +894,9 @@ func (r *EconomyRepository) PurchaseShopItem(ctx context.Context, command domain
 	if result.MatchedCount == 0 {
 		return domain.ShopPurchaseResult{}, ports.ErrCoinBalanceNotFound
 	}
-	previous := balance.Coins
-	balance.Coins = nextBalance
+	previous := currentCoins
+	balance.Coins = int64(nextBalance)
+	balance.CoinsText = coreeconomy.LegacyEconomyNumberText(nextBalance)
 	return domain.ShopPurchaseResult{
 		Item:            item,
 		Quantity:        command.Quantity,
