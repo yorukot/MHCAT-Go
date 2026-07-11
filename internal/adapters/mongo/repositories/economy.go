@@ -136,19 +136,13 @@ func (r *EconomyRepository) SaveEconomyConfig(ctx context.Context, config domain
 		return domain.EconomyConfig{}, domain.ErrInvalidEconomySettings
 	}
 	filter := bson.D{{Key: "guild", Value: config.GuildID}}
-	update := bson.D{{Key: "$set", Value: documents.GiftChangeUpdateFromDomain(config)}}
-	result, err := r.giftChanges.UpdateMany(ctx, filter, update)
-	if err != nil {
-		return domain.EconomyConfig{}, mhcatmongo.MapError(fmt.Errorf("update economy config: %w", err))
+	if err := r.giftChanges.FindOneAndDelete(ctx, filter).Err(); err != nil && err != drivermongo.ErrNoDocuments {
+		return domain.EconomyConfig{}, mhcatmongo.MapError(fmt.Errorf("replace economy config: %w", err))
 	}
-	if result.MatchedCount == 0 {
-		insertUpdate := bson.D{
-			{Key: "$set", Value: documents.GiftChangeUpdateFromDomain(config)},
-			{Key: "$setOnInsert", Value: bson.D{{Key: "guild", Value: config.GuildID}}},
-		}
-		if _, err := r.giftChanges.UpdateOne(ctx, filter, insertUpdate, options.UpdateOne().SetUpsert(true)); err != nil {
-			return domain.EconomyConfig{}, mhcatmongo.MapError(fmt.Errorf("create economy config: %w", err))
-		}
+	document := bson.D{{Key: "guild", Value: config.GuildID}}
+	document = append(document, documents.GiftChangeUpdateFromDomain(config)...)
+	if _, err := r.giftChanges.InsertOne(ctx, document); err != nil {
+		return domain.EconomyConfig{}, mhcatmongo.MapError(fmt.Errorf("create economy config: %w", err))
 	}
 	return config, ctx.Err()
 }
