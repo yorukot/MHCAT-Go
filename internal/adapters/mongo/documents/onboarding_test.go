@@ -253,3 +253,84 @@ func TestAccountAgeDocumentRejectsInvalidLegacyHours(t *testing.T) {
 		})
 	}
 }
+
+func TestAccountAgeReadDocumentUsesMongooseStringAndNumberCoercion(t *testing.T) {
+	tests := []struct {
+		name        string
+		hours       any
+		channel     any
+		wantSeconds float64
+		wantChannel string
+	}{
+		{name: "numeric scalar", hours: int32(3600), channel: int64(123), wantSeconds: 3600, wantChannel: "123"},
+		{name: "exponent string", hours: "3.6e3", channel: true, wantSeconds: 3600, wantChannel: "true"},
+		{name: "fractional string", hours: "3600.5", channel: nil, wantSeconds: 3600.5},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded, err := bson.Marshal(bson.D{
+				{Key: "guild", Value: "guild"},
+				{Key: "hours", Value: tc.hours},
+				{Key: "channel", Value: tc.channel},
+			})
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			var document AccountAgeReadDocument
+			if err := bson.Unmarshal(encoded, &document); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			config, err := document.ToDomain()
+			if err != nil {
+				t.Fatalf("to domain: %v", err)
+			}
+			if config.GuildID != "guild" || config.RequiredSeconds != tc.wantSeconds || config.ChannelID != tc.wantChannel {
+				t.Fatalf("config = %#v", config)
+			}
+		})
+	}
+}
+
+func TestAccountAgeReadDocumentRejectsUnusableHoursWithoutRejectingChannel(t *testing.T) {
+	for _, hours := range []any{nil, "", "not-a-number", "0", "-1", "Infinity", bson.D{{Key: "bad", Value: true}}, bson.A{3600}} {
+		encoded, err := bson.Marshal(bson.D{
+			{Key: "guild", Value: "guild"},
+			{Key: "hours", Value: hours},
+			{Key: "channel", Value: bson.D{{Key: "bad", Value: true}}},
+		})
+		if err != nil {
+			t.Fatalf("marshal %#v: %v", hours, err)
+		}
+		var document AccountAgeReadDocument
+		if err := bson.Unmarshal(encoded, &document); err != nil {
+			t.Fatalf("unmarshal %#v: %v", hours, err)
+		}
+		if document.ChannelID() != "" {
+			t.Fatalf("compound channel should remain unusable: %#v", document.Channel)
+		}
+		if _, err := document.ToDomain(); !errors.Is(err, domain.ErrInvalidAccountAgeConfig) {
+			t.Fatalf("hours %#v error = %v", hours, err)
+		}
+	}
+}
+
+func TestAccountAgeWriteDocumentRemainsTyped(t *testing.T) {
+	payload, err := bson.Marshal(AccountAgeDocumentFromDomain(domain.AccountAgeConfig{
+		GuildID: "guild", RequiredSeconds: 3600.5, ChannelID: "channel",
+	}))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	raw := bson.Raw(payload)
+	if raw.Lookup("guild").Type != bson.TypeString || raw.Lookup("hours").Type != bson.TypeString || raw.Lookup("hours").StringValue() != "3600.5" || raw.Lookup("channel").Type != bson.TypeString {
+		t.Fatalf("payload = %#v", raw)
+	}
+
+	nullPayload, err := bson.Marshal(AccountAgeDocumentFromDomain(domain.AccountAgeConfig{GuildID: "guild", RequiredSeconds: 3600}))
+	if err != nil {
+		t.Fatalf("marshal null channel: %v", err)
+	}
+	if got := bson.Raw(nullPayload).Lookup("channel").Type; got != 0 {
+		t.Fatalf("omitted channel type = %s", got)
+	}
+}

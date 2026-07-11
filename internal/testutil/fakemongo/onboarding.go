@@ -215,7 +215,7 @@ func (r *AccountAgeConfigRepository) SaveAccountAgeRequirement(ctx context.Conte
 		return domain.AccountAgeConfig{}, err
 	}
 	guildID = strings.TrimSpace(guildID)
-	config := domain.AccountAgeConfig{GuildID: guildID, RequiredSeconds: requiredSeconds}
+	config := domain.AccountAgeConfig{GuildID: guildID, RequiredSeconds: float64(requiredSeconds)}
 	if err := config.Validate(); err != nil {
 		return domain.AccountAgeConfig{}, err
 	}

@@ -1,10 +1,12 @@
 package documents
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type JoinRoleDocument struct {
@@ -40,6 +42,12 @@ type AccountAgeDocument struct {
 	Guild   string  `bson:"guild" json:"guild"`
 	Hours   string  `bson:"hours" json:"hours"`
 	Channel *string `bson:"channel,omitempty" json:"channel,omitempty"`
+}
+
+type AccountAgeReadDocument struct {
+	Guild   bson.RawValue `bson:"guild" json:"guild"`
+	Hours   bson.RawValue `bson:"hours" json:"hours"`
+	Channel bson.RawValue `bson:"channel" json:"channel"`
 }
 
 func JoinRoleDocumentFromDomain(config domain.JoinRoleConfig) JoinRoleDocument {
@@ -116,9 +124,32 @@ func (d VerificationDocument) ToDomain() domain.VerificationConfig {
 func AccountAgeDocumentFromDomain(config domain.AccountAgeConfig) AccountAgeDocument {
 	return AccountAgeDocument{
 		Guild:   config.GuildID,
-		Hours:   int64String(config.RequiredSeconds),
+		Hours:   strconv.FormatFloat(config.RequiredSeconds, 'f', -1, 64),
 		Channel: stringPointerOrNil(config.ChannelID),
 	}
+}
+
+func (d AccountAgeReadDocument) ToDomain() (domain.AccountAgeConfig, error) {
+	guild, _ := legacyMongooseString(d.Guild)
+	hoursText, ok := legacyMongooseString(d.Hours)
+	if !ok {
+		return domain.AccountAgeConfig{}, domain.ErrInvalidAccountAgeConfig
+	}
+	seconds, ok := legacyJavaScriptNumericString(hoursText)
+	if !ok || seconds <= 0 || math.IsInf(seconds, 0) || math.IsNaN(seconds) {
+		return domain.AccountAgeConfig{}, domain.ErrInvalidAccountAgeConfig
+	}
+	channel, _ := legacyMongooseString(d.Channel)
+	config := domain.AccountAgeConfig{GuildID: guild, RequiredSeconds: seconds, ChannelID: channel}
+	if err := config.Validate(); err != nil {
+		return domain.AccountAgeConfig{}, err
+	}
+	return config, nil
+}
+
+func (d AccountAgeReadDocument) ChannelID() string {
+	channel, _ := legacyMongooseString(d.Channel)
+	return channel
 }
 
 func (d AccountAgeDocument) ToDomain() (domain.AccountAgeConfig, error) {
@@ -128,7 +159,7 @@ func (d AccountAgeDocument) ToDomain() (domain.AccountAgeConfig, error) {
 	}
 	config := domain.AccountAgeConfig{
 		GuildID:         d.Guild,
-		RequiredSeconds: seconds,
+		RequiredSeconds: float64(seconds),
 		ChannelID:       stringValue(d.Channel),
 	}
 	if err := config.Validate(); err != nil {
@@ -149,10 +180,6 @@ func stringValue(value *string) string {
 		return ""
 	}
 	return *value
-}
-
-func int64String(value int64) string {
-	return strconv.FormatInt(value, 10)
 }
 
 func parsePositiveInt64(value string) (int64, error) {

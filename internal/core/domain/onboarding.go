@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"math"
 	"strings"
 )
 
@@ -56,7 +57,7 @@ type VerificationChallenge struct {
 
 type AccountAgeConfig struct {
 	GuildID         string
-	RequiredSeconds int64
+	RequiredSeconds float64
 	ChannelID       string
 }
 
@@ -106,7 +107,7 @@ func (c VerificationChallenge) Validate() error {
 }
 
 func (c AccountAgeConfig) Validate() error {
-	if strings.TrimSpace(c.GuildID) == "" || c.RequiredSeconds <= 0 {
+	if strings.TrimSpace(c.GuildID) == "" || c.RequiredSeconds <= 0 || math.IsNaN(c.RequiredSeconds) || math.IsInf(c.RequiredSeconds, 0) {
 		return ErrInvalidAccountAgeConfig
 	}
 	return nil

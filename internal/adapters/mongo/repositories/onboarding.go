@@ -417,17 +417,17 @@ func (r *AccountAgeConfigRepository) SaveAccountAgeRequirement(ctx context.Conte
 		return domain.AccountAgeConfig{}, err
 	}
 	guildID = strings.TrimSpace(guildID)
-	config := domain.AccountAgeConfig{GuildID: guildID, RequiredSeconds: requiredSeconds}
+	config := domain.AccountAgeConfig{GuildID: guildID, RequiredSeconds: float64(requiredSeconds)}
 	if err := config.Validate(); err != nil {
 		return domain.AccountAgeConfig{}, err
 	}
-	var existing documents.AccountAgeDocument
+	var existing documents.AccountAgeReadDocument
 	if err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&existing); err != nil {
 		if !errors.Is(err, drivermongo.ErrNoDocuments) {
 			return domain.AccountAgeConfig{}, mhcatmongo.MapError(fmt.Errorf("load existing account age config before save: %w", err))
 		}
-	} else if existing.Channel != nil {
-		config.ChannelID = strings.TrimSpace(*existing.Channel)
+	} else {
+		config.ChannelID = strings.TrimSpace(existing.ChannelID())
 	}
 	document := documents.AccountAgeDocumentFromDomain(config)
 	update, err := mhcatmongo.NewUpdate().
@@ -520,7 +520,7 @@ func (r *AccountAgeConfigRepository) GetAccountAgeConfig(ctx context.Context, gu
 	if guildID == "" {
 		return domain.AccountAgeConfig{}, domain.ErrInvalidAccountAgeConfig
 	}
-	var document documents.AccountAgeDocument
+	var document documents.AccountAgeReadDocument
 	if err := r.collection.FindOne(ctx, bson.D{{Key: "guild", Value: guildID}}).Decode(&document); err != nil {
 		if errors.Is(err, drivermongo.ErrNoDocuments) {
 			return domain.AccountAgeConfig{}, ports.ErrAccountAgeConfigMissing

@@ -266,6 +266,35 @@ func TestAccountAgePolicyPreservesThresholdBoundary(t *testing.T) {
 	}
 }
 
+func TestAccountAgePolicyPreservesFractionalLegacyThreshold(t *testing.T) {
+	now := time.Unix(2_000_000, 0)
+	repo := fakemongo.NewAccountAgeConfigRepository()
+	repo.Configs["guild-1"] = domain.AccountAgeConfig{GuildID: "guild-1", RequiredSeconds: 3600.5}
+
+	for _, tc := range []struct {
+		name        string
+		age         time.Duration
+		wantMatched bool
+	}{
+		{name: "below fractional threshold", age: time.Hour + 250*time.Millisecond, wantMatched: true},
+		{name: "at fractional threshold", age: time.Hour + 500*time.Millisecond},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sideEffects := fakediscord.NewSideEffects()
+			service := AccountAgePolicyService{Repository: repo, Members: sideEffects, Clock: accountAgeClock{now: now}}
+			result, err := service.GateMemberAdd(context.Background(), AccountAgeMemberEvent{
+				GuildID: "guild-1", UserID: "user-1", AccountCreatedAt: now.Add(-tc.age),
+			})
+			if err != nil {
+				t.Fatalf("gate: %v", err)
+			}
+			if result.Matched != tc.wantMatched {
+				t.Fatalf("result = %#v", result)
+			}
+		})
+	}
+}
+
 func TestAccountAgeMessagesPreserveLegacyPayloads(t *testing.T) {
 	event := AccountAgeMemberEvent{
 		GuildID:          "guild-1",

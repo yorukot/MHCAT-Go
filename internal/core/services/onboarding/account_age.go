@@ -189,8 +189,8 @@ func AccountAgeRoundedDays(hours int64) string {
 	return strconv.FormatFloat(rounded, 'f', -1, 64)
 }
 
-func AccountAgeHoursString(seconds int64) string {
-	return strconv.FormatFloat(float64(seconds)/3600, 'f', -1, 64)
+func AccountAgeHoursString(seconds float64) string {
+	return strconv.FormatFloat(seconds/3600, 'f', -1, 64)
 }
 
 func accountAgeDirectMessage(config domain.AccountAgeConfig, event AccountAgeMemberEvent) ports.OutboundMessage {
