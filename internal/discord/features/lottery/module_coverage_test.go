@@ -1,8 +1,10 @@
 package lottery
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/testutil/fakemongo"
 )
 
@@ -17,4 +19,13 @@ func TestLotteryCombinedModuleMetadataAndRandomIndex(t *testing.T) {
 	if index, err := lotteryCryptoRandomIndex(4); err != nil || index < 0 || index >= 4 {
 		t.Fatalf("random index=%d err=%v", index, err)
 	}
+}
+
+func TestLotteryComponentErrorHelpers(t *testing.T) {
+	lookup := lotteryLookupErrorMessage(ports.ErrLotteryNotFound, true)
+	generic := lotteryComponentErrorMessage("failure")
+	if !lookup.Ephemeral || lookup.Content == "" || !generic.Ephemeral || generic.Content == "" {
+		t.Fatalf("lookup=%#v generic=%#v", lookup, generic)
+	}
+	_ = lotteryLookupErrorMessage(errors.New("unknown"), false)
 }

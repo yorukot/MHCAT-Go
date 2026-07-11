@@ -12,3 +12,10 @@ func TestTicketModuleMetadata(t *testing.T) {
 		t.Fatalf("ticket metadata name=%q commands=%d", module.Name(), len(module.Commands()))
 	}
 }
+
+func TestTicketPanelMessage(t *testing.T) {
+	message := ticketPanelMessage("Support", "Open a ticket", 0x123456)
+	if len(message.Embeds) != 1 || len(message.Components) != 1 || message.Embeds[0].Title != "Support" {
+		t.Fatalf("ticket panel message = %#v", message)
+	}
+}

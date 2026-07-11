@@ -27,3 +27,13 @@ func TestXPModuleMetadata(t *testing.T) {
 	(TextEventModule{}).RegisterEventRoutes(nil)
 	(VoiceEventModule{}).RegisterEventRoutes(nil)
 }
+
+func TestRankFallbackFaceEmptyMetrics(t *testing.T) {
+	face := &rankFallbackFace{}
+	if _, _, ok := face.GlyphBounds('x'); ok {
+		t.Fatal("empty fallback face reported glyph bounds")
+	}
+	if metrics := face.Metrics(); metrics.Height != 0 {
+		t.Fatalf("empty fallback metrics = %#v", metrics)
+	}
+}
