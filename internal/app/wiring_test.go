@@ -707,6 +707,37 @@ func TestBuildRuntimeRoutesEconomyGameWithoutPublishingOtherEconomyCommands(t *t
 	}
 }
 
+func TestBuildRuntimeTracksEveryCoinGameAttemptOnce(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{Config: validTestConfig(), EconomyGameRepository: repo, UsageTracker: tracker})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := func(wager string) interactions.Interaction {
+		return fakediscord.SlashInteractionWithOptions("代幣遊戲", "比大小", map[string]string{"跟誰玩": "user-2", "賭注": wager})
+	}
+	if err := dispatcher.Dispatch(context.Background(), interaction("5"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch missing balance: %v", err)
+	}
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 100})
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-2", Coins: 100})
+	if err := dispatcher.Dispatch(context.Background(), interaction("5"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch success: %v", err)
+	}
+	if err := dispatcher.Dispatch(context.Background(), interaction("-2"), fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch invalid wager: %v", err)
+	}
+	if len(tracker.Events) != 3 {
+		t.Fatalf("usage events = %#v", tracker.Events)
+	}
+	for index, event := range tracker.Events {
+		if event.CommandName != "代幣遊戲" {
+			t.Fatalf("usage event %d = %#v", index, event)
+		}
+	}
+}
+
 func TestBuildRuntimeRoutesEconomyShopWithoutPublishingOtherEconomyCommands(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutShopItem(domain.ShopItem{GuildID: "guild-1", CommodityID: 1001, Name: "VIP", NeedCoins: 50, Description: "role reward", Count: 1})
