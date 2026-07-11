@@ -414,6 +414,39 @@ func TestWarningIssueUsesJavaScriptNumberThresholdComparison(t *testing.T) {
 	})
 }
 
+func TestWarningIssueThresholdFailureFollowsLegacySuccessAndDM(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		action    string
+		wantError string
+		configure func(*fakediscord.SideEffects)
+	}{
+		{name: "kick", action: domain.WarningSettingsActionKick, wantError: "我沒有權限踢出他", configure: func(sideEffects *fakediscord.SideEffects) { sideEffects.KickErr = errors.New("missing permission") }},
+		{name: "ban", action: domain.WarningSettingsActionBan, wantError: "我沒有權限ban掉他", configure: func(sideEffects *fakediscord.SideEffects) { sideEffects.BanErr = errors.New("missing permission") }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewWarningHistoryRepository()
+			repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "first"}}})
+			settings := fakemongo.NewWarningSettingsRepository()
+			settings.Settings["guild-1"] = domain.WarningSettings{GuildID: "guild-1", Threshold: 2, Action: test.action}
+			sideEffects := fakediscord.NewSideEffects()
+			test.configure(sideEffects)
+			module := NewIssueModule(repo, settings, sideEffects, nil, sideEffects, sideEffects, sideEffects, moderationFixedClock{}, nil)
+			responder := fakediscord.NewResponder()
+
+			if err := module.WarningIssueHandler()(context.Background(), warningIssueInteraction("user-2", "reason"), responder); err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+			if len(responder.Edits) != 2 || responder.Edits[0].Embeds[0].Title != "<a:greentick:980496858445135893> | 成功警告這位使用者!" || !strings.Contains(responder.Edits[1].Embeds[0].Title, test.wantError) {
+				t.Fatalf("edits = %#v", responder.Edits)
+			}
+			if len(sideEffects.DirectMessages) != 1 || sideEffects.DirectMessages[0].UserID != "user-2" {
+				t.Fatalf("direct messages = %#v", sideEffects.DirectMessages)
+			}
+		})
+	}
+}
+
 func TestWarningRemoveRequiresManageMessages(t *testing.T) {
 	module := NewRemovalModule(fakemongo.NewWarningRemovalRepository(), nil, nil, nil)
 	responder := fakediscord.NewResponder()

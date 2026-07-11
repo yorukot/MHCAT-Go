@@ -159,15 +159,15 @@ func (m Module) WarningIssueHandler() interactions.Handler {
 		if err != nil {
 			return responder.EditOriginal(ctx, warningIssueErrorMessage(err))
 		}
+		if err := responder.EditOriginal(ctx, warningIssueSuccessMessage()); err != nil {
+			return err
+		}
+		m.sendWarningIssueDM(ctx, interaction, userID, reason)
 		if !result.Created {
 			if message, failed := m.applyWarningThreshold(ctx, interaction, userID, reason, len(result.History.Entries)); failed {
 				return responder.EditOriginal(ctx, message)
 			}
 		}
-		if err := responder.EditOriginal(ctx, warningIssueSuccessMessage()); err != nil {
-			return err
-		}
-		m.sendWarningIssueDM(ctx, interaction, userID, reason)
 		return nil
 	}
 }
