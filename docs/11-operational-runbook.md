@@ -379,7 +379,7 @@ MHCAT_COMMAND_SYNC_INCLUDE_ECONOMY_RPS=true
 MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true
 ```
 
-This command writes existing `coins` rows for one member, rejects missing or insufficient balances, subtracts half the wager on ties using legacy integer flooring, and does not cap post-win balances at `999999999`. Test only against disposable staging balances until duplicate audits and economy ownership are reviewed.
+This command reads and updates one arbitrary existing `coins` row, preserves decimal/null/infinite Mongoose number behavior, rejects missing or insufficient balances, subtracts half the wager on ties using legacy integer flooring, and does not cap post-win balances at `999999999`. Test only against disposable staging balances until duplicate/scalar audits and economy ownership are reviewed.
 
 `/代幣遊戲` is available only when both staging command sync and runtime flags are explicitly enabled:
 

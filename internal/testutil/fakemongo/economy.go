@@ -232,7 +232,7 @@ func (r *EconomyRepository) ApplyRockPaperScissors(ctx context.Context, command 
 	r.Balances[key] = balance
 	return domain.RockPaperScissorsResult{
 		Balance:         balance,
-		PreviousBalance: previous,
+		PreviousBalance: float64(previous),
 		Delta:           delta,
 		Outcome:         outcome,
 		PlayerChoice:    command.PlayerChoice,

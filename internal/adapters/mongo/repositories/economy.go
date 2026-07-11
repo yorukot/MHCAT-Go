@@ -343,14 +343,19 @@ func (r *EconomyRepository) ApplyRockPaperScissors(ctx context.Context, command 
 	if err != nil {
 		return domain.RockPaperScissorsResult{}, err
 	}
-	if current.Coins < command.Wager {
+	currentCoins, numeric := coreeconomy.LegacyEconomyNumber(current.CoinsText)
+	if strings.TrimSpace(current.CoinsText) == "" {
+		currentCoins = float64(current.Coins)
+		numeric = true
+	}
+	if !numeric {
+		return domain.RockPaperScissorsResult{}, domain.ErrInvalidRockPaperScissorsCommand
+	}
+	if currentCoins-float64(command.Wager) < 0 {
 		return domain.RockPaperScissorsResult{}, ports.ErrCoinNegativeBalance
 	}
-	next := current.Coins + delta
-	if next < 0 {
-		return domain.RockPaperScissorsResult{}, ports.ErrCoinNegativeBalance
-	}
-	result, err := r.coins.UpdateMany(
+	next := currentCoins + float64(delta)
+	result, err := r.coins.UpdateOne(
 		ctx,
 		bson.D{{Key: "guild", Value: command.GuildID}, {Key: "member", Value: command.UserID}},
 		bson.D{{Key: "$set", Value: bson.D{{Key: "coin", Value: next}}}},
@@ -361,8 +366,9 @@ func (r *EconomyRepository) ApplyRockPaperScissors(ctx context.Context, command 
 	if result.MatchedCount == 0 {
 		return domain.RockPaperScissorsResult{}, ports.ErrCoinBalanceNotFound
 	}
-	previous := current.Coins
-	current.Coins = next
+	previous := currentCoins
+	current.Coins = int64(next)
+	current.CoinsText = coreeconomy.LegacyEconomyNumberText(next)
 	return domain.RockPaperScissorsResult{
 		Balance:         current,
 		PreviousBalance: previous,

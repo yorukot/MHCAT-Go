@@ -168,7 +168,7 @@ type RockPaperScissorsCommand struct {
 
 type RockPaperScissorsResult struct {
 	Balance         CoinBalance
-	PreviousBalance int64
+	PreviousBalance float64
 	Delta           int64
 	Outcome         RockPaperScissorsOutcome
 	PlayerChoice    RockPaperScissorsChoice
