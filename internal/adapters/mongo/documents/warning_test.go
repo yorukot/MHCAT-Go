@@ -75,6 +75,39 @@ func TestWarningReadDocumentWrapsMongooseArrayScalar(t *testing.T) {
 	}
 }
 
+func TestWarningReadDocumentContentValuesPreserveMixedElements(t *testing.T) {
+	payload, err := bson.Marshal(bson.D{
+		{Key: "_id", Value: bson.NewObjectID()},
+		{Key: "content", Value: bson.A{bson.D{{Key: "reason", Value: 7}}, "raw", nil}},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document documents.WarningReadDocument
+	if err := bson.Unmarshal(payload, &document); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	values, isArray, err := document.ContentValues()
+	if err != nil {
+		t.Fatalf("content values: %v", err)
+	}
+	if !isArray || len(values) != 3 || values[1] != "raw" || values[2] != nil {
+		t.Fatalf("values = %#v isArray=%v", values, isArray)
+	}
+
+	scalarPayload, err := bson.Marshal(bson.D{{Key: "content", Value: "raw"}})
+	if err != nil {
+		t.Fatalf("marshal scalar: %v", err)
+	}
+	if err := bson.Unmarshal(scalarPayload, &document); err != nil {
+		t.Fatalf("unmarshal scalar: %v", err)
+	}
+	values, isArray, err = document.ContentValues()
+	if err != nil || isArray || len(values) != 1 || values[0] != "raw" {
+		t.Fatalf("scalar values = %#v isArray=%v err=%v", values, isArray, err)
+	}
+}
+
 func TestWarningSettingsDocumentFromDomainStoresLegacyShape(t *testing.T) {
 	doc := documents.WarningSettingsDocumentFromDomain(domain.WarningSettings{
 		GuildID:   "guild-1",

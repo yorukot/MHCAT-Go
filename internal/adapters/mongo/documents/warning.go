@@ -16,9 +16,34 @@ type WarningDocument struct {
 }
 
 type WarningReadDocument struct {
+	ID      bson.RawValue `bson:"_id" json:"_id"`
 	Guild   bson.RawValue `bson:"guild" json:"guild"`
 	User    bson.RawValue `bson:"user" json:"user"`
 	Content bson.RawValue `bson:"content" json:"content"`
+}
+
+func (d WarningReadDocument) ContentValues() ([]any, bool, error) {
+	values := []bson.RawValue{}
+	isArray := false
+	if array, ok := d.Content.ArrayOK(); ok {
+		isArray = true
+		decoded, err := array.Values()
+		if err != nil {
+			return nil, true, err
+		}
+		values = decoded
+	} else if d.Content.Type != 0 && d.Content.Type != bson.TypeNull {
+		values = append(values, d.Content)
+	}
+	decoded := make([]any, 0, len(values))
+	for _, value := range values {
+		var item any
+		if err := value.Unmarshal(&item); err != nil {
+			return nil, isArray, err
+		}
+		decoded = append(decoded, item)
+	}
+	return decoded, isArray, nil
 }
 
 type WarningEntryDocument struct {

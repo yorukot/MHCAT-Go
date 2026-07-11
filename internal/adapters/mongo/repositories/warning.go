@@ -92,31 +92,45 @@ func (r *WarningHistoryRepository) AddWarning(ctx context.Context, issue domain.
 	}
 	filter := bson.D{{Key: "guild", Value: issue.GuildID}, {Key: "user", Value: issue.UserID}}
 	entry := documents.WarningEntryDocumentFromIssue(issue)
-	var document documents.WarningDocument
+	var document documents.WarningReadDocument
 	err := r.collection.FindOne(ctx, filter).Decode(&document)
 	if err != nil {
 		if err != drivermongo.ErrNoDocuments {
 			return domain.WarningIssueResult{}, mhcatmongo.MapError(fmt.Errorf("find warning for append: %w", err))
 		}
-		document = documents.WarningDocument{
+		created := documents.WarningDocument{
 			Guild:   issue.GuildID,
 			User:    issue.UserID,
 			Content: []documents.WarningEntryDocument{entry},
 		}
-		if _, err := r.collection.InsertOne(ctx, document); err != nil {
+		if _, err := r.collection.InsertOne(ctx, created); err != nil {
 			return domain.WarningIssueResult{}, mhcatmongo.MapError(fmt.Errorf("insert warning: %w", err))
 		}
-		return domain.WarningIssueResult{History: document.ToDomain(), Created: true}, ctx.Err()
+		return domain.WarningIssueResult{History: created.ToDomain(), Created: true}, ctx.Err()
 	}
-	document.Content = append(document.Content, entry)
-	result, err := r.collection.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: bson.D{{Key: "content", Value: document.Content}}}})
+	content, isArray, err := document.ContentValues()
 	if err != nil {
+		return domain.WarningIssueResult{}, mhcatmongo.MapError(fmt.Errorf("decode warning content for append: %w", err))
+	}
+	update := bson.D{{Key: "$push", Value: bson.D{{Key: "content", Value: entry}}}}
+	if !isArray {
+		content = append(content, entry)
+		update = bson.D{{Key: "$set", Value: bson.D{{Key: "content", Value: content}}}}
+	}
+	var updated documents.WarningReadDocument
+	err = r.collection.FindOneAndUpdate(
+		ctx,
+		bson.D{{Key: "_id", Value: document.ID}},
+		update,
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&updated)
+	if err != nil {
+		if err == drivermongo.ErrNoDocuments {
+			return domain.WarningIssueResult{}, ports.ErrWarningsNotFound
+		}
 		return domain.WarningIssueResult{}, mhcatmongo.MapError(fmt.Errorf("append warning: %w", err))
 	}
-	if result.MatchedCount == 0 {
-		return domain.WarningIssueResult{}, ports.ErrWarningsNotFound
-	}
-	return domain.WarningIssueResult{History: document.ToDomain()}, ctx.Err()
+	return domain.WarningIssueResult{History: updated.ToDomain()}, ctx.Err()
 }
 
 func (r *WarningHistoryRepository) RemoveWarning(ctx context.Context, removal domain.WarningRemoval) error {
@@ -129,7 +143,7 @@ func (r *WarningHistoryRepository) RemoveWarning(ctx context.Context, removal do
 		return err
 	}
 	filter := bson.D{{Key: "guild", Value: removal.GuildID}, {Key: "user", Value: removal.UserID}}
-	var document documents.WarningDocument
+	var document documents.WarningReadDocument
 	err := r.collection.FindOne(ctx, filter).Decode(&document)
 	if err != nil {
 		if err == drivermongo.ErrNoDocuments {
@@ -137,13 +151,17 @@ func (r *WarningHistoryRepository) RemoveWarning(ctx context.Context, removal do
 		}
 		return mhcatmongo.MapError(fmt.Errorf("find warning for removal: %w", err))
 	}
+	content, _, err := document.ContentValues()
+	if err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("decode warning content for removal: %w", err))
+	}
 	index := int(removal.Index - 1)
-	if index < 0 || index >= len(document.Content) {
+	if index < 0 || index >= len(content) {
 		return ports.ErrWarningsNotFound
 	}
-	next := append([]documents.WarningEntryDocument(nil), document.Content[:index]...)
-	next = append(next, document.Content[index+1:]...)
-	result, err := r.collection.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: bson.D{{Key: "content", Value: next}}}})
+	next := append([]any(nil), content[:index]...)
+	next = append(next, content[index+1:]...)
+	result, err := r.collection.UpdateOne(ctx, bson.D{{Key: "_id", Value: document.ID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "content", Value: next}}}})
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("remove warning: %w", err))
 	}
