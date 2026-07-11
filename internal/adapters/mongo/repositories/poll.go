@@ -39,6 +39,9 @@ func (r *PollRepository) CreatePoll(ctx context.Context, create domain.PollCreat
 	if err := ctx.Err(); err != nil {
 		return domain.Poll{}, err
 	}
+	create.GuildID = strings.TrimSpace(create.GuildID)
+	create.MessageID = strings.TrimSpace(create.MessageID)
+	create.CreatorID = strings.TrimSpace(create.CreatorID)
 	if err := create.Validate(); err != nil {
 		return domain.Poll{}, err
 	}
@@ -77,27 +80,37 @@ func (r *PollRepository) Vote(ctx context.Context, guildID string, messageID str
 	}
 
 	removeFilter := pollRemoveVoteFilter(guildID, messageID, userID, choice)
-	removeResult, err := r.collection.UpdateOne(ctx, removeFilter, bson.D{{Key: "$pull", Value: bson.D{{Key: "join_member", Value: bson.D{{Key: "id", Value: userID}, {Key: "choise", Value: choice}}}}}})
-	if err != nil {
-		return domain.PollVoteChange{}, mhcatmongo.MapError(fmt.Errorf("remove poll vote: %w", err))
+	var document documents.PollReadDocument
+	after := options.FindOneAndUpdate().SetReturnDocument(options.After)
+	err := r.collection.FindOneAndUpdate(
+		ctx,
+		removeFilter,
+		bson.D{{Key: "$pull", Value: bson.D{{Key: "join_member", Value: bson.D{{Key: "id", Value: userID}, {Key: "choise", Value: choice}}}}}},
+		after,
+	).Decode(&document)
+	if err == nil {
+		return domain.PollVoteChange{Removed: true, Poll: document.ToDomain()}, ctx.Err()
 	}
-	if removeResult.ModifiedCount > 0 {
-		poll, err := r.GetPoll(ctx, guildID, messageID)
-		return domain.PollVoteChange{Removed: true, Poll: poll}, err
+	if !errors.Is(err, drivermongo.ErrNoDocuments) {
+		return domain.PollVoteChange{}, mhcatmongo.MapError(fmt.Errorf("remove poll vote: %w", err))
 	}
 
 	addFilter := pollAddVoteFilter(guildID, messageID, userID, choice)
-	addResult, err := r.collection.UpdateOne(ctx, addFilter, bson.D{{Key: "$push", Value: bson.D{{Key: "join_member", Value: bson.D{
-		{Key: "id", Value: userID},
-		{Key: "choise", Value: choice},
-		{Key: "time", Value: voteTime},
-	}}}}})
-	if err != nil {
-		return domain.PollVoteChange{}, mhcatmongo.MapError(fmt.Errorf("add poll vote: %w", err))
+	err = r.collection.FindOneAndUpdate(
+		ctx,
+		addFilter,
+		bson.D{{Key: "$push", Value: bson.D{{Key: "join_member", Value: bson.D{
+			{Key: "id", Value: userID},
+			{Key: "choise", Value: choice},
+			{Key: "time", Value: voteTime},
+		}}}}},
+		after,
+	).Decode(&document)
+	if err == nil {
+		return domain.PollVoteChange{Added: true, Poll: document.ToDomain()}, ctx.Err()
 	}
-	if addResult.ModifiedCount > 0 {
-		poll, err := r.GetPoll(ctx, guildID, messageID)
-		return domain.PollVoteChange{Added: true, Poll: poll}, err
+	if !errors.Is(err, drivermongo.ErrNoDocuments) {
+		return domain.PollVoteChange{}, mhcatmongo.MapError(fmt.Errorf("add poll vote: %w", err))
 	}
 
 	return domain.PollVoteChange{}, r.voteMissReason(ctx, guildID, messageID, userID, choice)
@@ -113,10 +126,18 @@ func pollRemoveVoteFilter(guildID string, messageID string, userID string, choic
 func pollAddVoteFilter(guildID string, messageID string, userID string, choice string) bson.D {
 	return append(pollActiveFilter(guildID, messageID),
 		bson.E{Key: "choose_data", Value: choice},
+		bson.E{Key: "$or", Value: bson.A{
+			bson.D{{Key: "join_member", Value: bson.D{{Key: "$type", Value: "array"}}}},
+			bson.D{{Key: "join_member", Value: bson.D{{Key: "$exists", Value: false}}}},
+		}},
 		bson.E{Key: "join_member", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "id", Value: userID}, {Key: "choise", Value: choice}}}}}}},
 		bson.E{Key: "$expr", Value: bson.D{{Key: "$lt", Value: bson.A{
 			bson.D{{Key: "$size", Value: bson.D{{Key: "$filter", Value: bson.D{
-				{Key: "input", Value: "$join_member"},
+				{Key: "input", Value: bson.D{{Key: "$cond", Value: bson.A{
+					bson.D{{Key: "$isArray", Value: "$join_member"}},
+					"$join_member",
+					bson.A{},
+				}}}},
 				{Key: "as", Value: "vote"},
 				{Key: "cond", Value: bson.D{{Key: "$eq", Value: bson.A{"$$vote.id", userID}}}},
 			}}}}},
@@ -187,14 +208,20 @@ func (r *PollRepository) SetMaxChoices(ctx context.Context, guildID string, mess
 	if maxChoices < 1 {
 		return domain.Poll{}, domain.ErrInvalidPoll
 	}
-	result, err := r.collection.UpdateOne(ctx, pollKeyFilter(guildID, messageID), bson.D{{Key: "$set", Value: bson.D{{Key: "many_choose", Value: maxChoices}}}})
-	if err != nil {
+	var document documents.PollReadDocument
+	err := r.collection.FindOneAndUpdate(
+		ctx,
+		pollKeyFilter(guildID, messageID),
+		bson.D{{Key: "$set", Value: bson.D{{Key: "many_choose", Value: maxChoices}}}},
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&document)
+	if err == nil {
+		return document.ToDomain(), ctx.Err()
+	}
+	if !errors.Is(err, drivermongo.ErrNoDocuments) {
 		return domain.Poll{}, mhcatmongo.MapError(fmt.Errorf("set poll max choices: %w", err))
 	}
-	if result.MatchedCount == 0 {
-		return domain.Poll{}, ports.ErrPollNotFound
-	}
-	return r.GetPoll(ctx, guildID, messageID)
+	return domain.Poll{}, ports.ErrPollNotFound
 }
 
 func (r *PollRepository) voteMissReason(ctx context.Context, guildID string, messageID string, userID string, choice string) error {
