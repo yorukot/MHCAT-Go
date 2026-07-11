@@ -46,12 +46,13 @@ func (c GoogleTranslateClient) Translate(ctx context.Context, request ports.Tran
 	query.Set("tl", request.TargetLanguage)
 	query.Set("dt", "t")
 	query.Set("q", request.Text)
-	endpoint.RawQuery = query.Encode()
+	endpoint.RawQuery = ""
 
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), strings.NewReader(query.Encode()))
 	if err != nil {
 		return ports.TranslationResult{}, fmt.Errorf("create translate request: %w", err)
 	}
+	httpRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response, err := client.Do(httpRequest)
 	if err != nil {
 		return ports.TranslationResult{}, fmt.Errorf("send translate request: %w", err)

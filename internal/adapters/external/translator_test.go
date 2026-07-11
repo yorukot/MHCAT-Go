@@ -12,8 +12,14 @@ import (
 
 func TestGoogleTranslateClientParsesResponse(t *testing.T) {
 	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		if r.URL.Query().Get("tl") != "en" || r.URL.Query().Get("q") != "你好" {
-			t.Fatalf("query = %s", r.URL.RawQuery)
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s", r.Method)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if r.Form.Get("client") != "gtx" || r.Form.Get("sl") != "auto" || r.Form.Get("tl") != "en" || r.Form.Get("dt") != "t" || r.Form.Get("q") != "你好" {
+			t.Fatalf("form = %#v", r.Form)
 		}
 		return &http.Response{
 			StatusCode: http.StatusOK,
@@ -27,6 +33,34 @@ func TestGoogleTranslateClientParsesResponse(t *testing.T) {
 		t.Fatalf("translate: %v", err)
 	}
 	if result.Text != "hello world" {
+		t.Fatalf("text = %q", result.Text)
+	}
+}
+
+func TestGoogleTranslateClientSendsMaximumDiscordInputInRequestBody(t *testing.T) {
+	text := strings.Repeat("界", 6000)
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.RawQuery != "" {
+			t.Fatalf("raw query contains translation input: %q", r.URL.RawQuery)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if r.Form.Get("q") != text {
+			t.Fatalf("translation body length = %d", len([]rune(r.Form.Get("q"))))
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`[[["world","界",null,null,1]],null,"zh-TW"]`)),
+			Header:     make(http.Header),
+		}, nil
+	})}
+	client := GoogleTranslateClient{Client: httpClient, BaseURL: "https://translate.example.invalid/translate"}
+	result, err := client.Translate(context.Background(), ports.TranslationRequest{Text: text, TargetLanguage: "en"})
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+	if result.Text != "world" {
 		t.Fatalf("text = %q", result.Text)
 	}
 }
