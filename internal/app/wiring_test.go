@@ -2859,6 +2859,39 @@ func TestBuildRuntimeRoutesTranslateOnlyWithProvider(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeTranslateTracksOneUsageBeforeProviderResult(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		provider *faketranslate.Translator
+	}{
+		{name: "success", provider: &faketranslate.Translator{Result: ports.TranslationResult{Text: "hello"}}},
+		{name: "provider failure", provider: &faketranslate.Translator{Err: context.DeadlineExceeded}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			tracker := &fakeusage.Tracker{}
+			dispatcher, err := BuildRuntime(RuntimeOptions{
+				Config:                  validTestConfig(),
+				TranslateFeatureEnabled: true,
+				TranslateProvider:       test.provider,
+				UsageTracker:            tracker,
+			})
+			if err != nil {
+				t.Fatalf("build runtime: %v", err)
+			}
+			interaction := fakediscord.SlashInteractionWithOptions("翻譯", "", map[string]string{
+				"要的翻譯": "你好",
+				"目標語言": "en",
+			})
+			if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+				t.Fatalf("dispatch translate: %v", err)
+			}
+			if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "翻譯" || tracker.Events[0].Feature != "utility" {
+				t.Fatalf("usage events = %#v", tracker.Events)
+			}
+		})
+	}
+}
+
 func timeNowForTest() time.Time {
 	return time.Date(2026, 7, 4, 10, 30, 0, 0, time.FixedZone("Asia/Taipei", 8*60*60))
 }
