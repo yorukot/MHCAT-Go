@@ -76,3 +76,26 @@ func TestWorkInterfaceMongoIntegrationPreservesLegacyStartArithmetic(t *testing.
 		})
 	}
 }
+
+func TestWorkInterfaceMongoIntegrationUsesLegacyNaturalItemOrder(t *testing.T) {
+	database := economyQueryIntegrationDatabase(t)
+	repository, err := NewWorkInterfaceRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	ctx := context.Background()
+	collection := database.Collection(WorkSomethingCollectionName)
+	if _, err := collection.InsertMany(ctx, []any{
+		bson.D{{Key: "_id", Value: "z"}, {Key: "guild", Value: "order-guild"}, {Key: "name", Value: "first"}},
+		bson.D{{Key: "_id", Value: "a"}, {Key: "guild", Value: "order-guild"}, {Key: "name", Value: "second"}},
+	}); err != nil {
+		t.Fatalf("insert items: %v", err)
+	}
+	items, err := repository.ListWorkItems(ctx, "order-guild")
+	if err != nil {
+		t.Fatalf("list items: %v", err)
+	}
+	if len(items) != 2 || items[0].Name != "first" || items[1].Name != "second" {
+		t.Fatalf("items = %#v", items)
+	}
+}

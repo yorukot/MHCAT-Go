@@ -69,7 +69,7 @@ func (r *WorkInterfaceRepository) ListWorkItems(ctx context.Context, guildID str
 	if guildID == "" {
 		return nil, domain.ErrInvalidWorkQuery
 	}
-	cursor, err := r.workSomethings.Find(ctx, bson.D{{Key: "guild", Value: guildID}}, options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}))
+	cursor, err := r.workSomethings.Find(ctx, bson.D{{Key: "guild", Value: guildID}})
 	if err != nil {
 		return nil, mhcatmongo.MapError(fmt.Errorf("list work items: %w", err))
 	}
