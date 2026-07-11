@@ -107,3 +107,15 @@ func LegacySignWindow(config domain.EconomyConfig, configFound bool) (bool, floa
 	}
 	return true, marker
 }
+
+// LegacySignReward preserves numeric sign_coin values while rejecting undefined and NaN writes.
+func LegacySignReward(config domain.EconomyConfig, configFound bool) (float64, bool) {
+	if !configFound {
+		return float64(DefaultSignCoins), true
+	}
+	rewardText := strings.TrimSpace(config.SignCoinsText)
+	if rewardText == "" {
+		return float64(config.SignCoins), true
+	}
+	return LegacyEconomyNumber(rewardText)
+}

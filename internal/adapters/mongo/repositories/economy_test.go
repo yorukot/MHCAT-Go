@@ -85,3 +85,12 @@ func TestSignInRollingFilterPreservesFractionalThreshold(t *testing.T) {
 		t.Fatalf("rolling threshold = %#v", todayLimit)
 	}
 }
+
+func TestSignInCoinLimitFilterPreservesFractionalReward(t *testing.T) {
+	filter := coinLimitFilter(25.5)
+	orClause := filter[0].Value.(bson.A)
+	coinLimit := orClause[0].(bson.D)[0].Value.(bson.D)[0].Value
+	if got, ok := coinLimit.(float64); !ok || got != 999999973.5 {
+		t.Fatalf("coin limit = %#v", coinLimit)
+	}
+}

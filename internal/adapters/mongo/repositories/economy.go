@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	mhcatmongo "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo"
@@ -523,9 +524,9 @@ func (r *EconomyRepository) SignIn(ctx context.Context, command domain.SignInCom
 		}
 		configFound = false
 	}
-	reward := config.SignCoins
-	if !configFound {
-		reward = coreeconomy.DefaultSignCoins
+	reward, rewardValid := coreeconomy.LegacySignReward(config, configFound)
+	if !rewardValid {
+		return domain.SignInResult{}, domain.ErrInvalidSignIn
 	}
 	nowUnix := coreeconomy.LegacyRoundedUnixSeconds(command.Now)
 	todayValue := int64(1)
@@ -601,7 +602,7 @@ func (r *EconomyRepository) GetSignCalendar(ctx context.Context, guildID string,
 	return document.ToDomain(), ctx.Err()
 }
 
-func signInDailyFilter(guildID string, userID string, reward int64) bson.D {
+func signInDailyFilter(guildID string, userID string, reward float64) bson.D {
 	return bson.D{
 		{Key: "guild", Value: guildID},
 		{Key: "member", Value: userID},
@@ -615,7 +616,7 @@ func signInDailyFilter(guildID string, userID string, reward int64) bson.D {
 	}
 }
 
-func signInRollingFilter(guildID string, userID string, reward int64, eligibleBefore float64) bson.D {
+func signInRollingFilter(guildID string, userID string, reward float64, eligibleBefore float64) bson.D {
 	return bson.D{
 		{Key: "guild", Value: guildID},
 		{Key: "member", Value: userID},
@@ -630,14 +631,14 @@ func signInRollingFilter(guildID string, userID string, reward int64, eligibleBe
 	}
 }
 
-func coinLimitFilter(reward int64) bson.D {
+func coinLimitFilter(reward float64) bson.D {
 	return bson.D{{Key: "$or", Value: bson.A{
-		bson.D{{Key: "coin", Value: bson.D{{Key: "$lte", Value: coreeconomy.MaxLegacyCoinBalance - reward}}}},
+		bson.D{{Key: "coin", Value: bson.D{{Key: "$lte", Value: float64(coreeconomy.MaxLegacyCoinBalance) - reward}}}},
 		bson.D{{Key: "coin", Value: bson.D{{Key: "$exists", Value: false}}}},
 	}}}
 }
 
-func (r *EconomyRepository) signInMissReason(ctx context.Context, guildID string, userID string, reward int64) error {
+func (r *EconomyRepository) signInMissReason(ctx context.Context, guildID string, userID string, reward float64) error {
 	balance, err := r.GetCoinBalance(ctx, guildID, userID)
 	if err != nil {
 		if errors.Is(err, ports.ErrCoinBalanceNotFound) {
@@ -645,29 +646,32 @@ func (r *EconomyRepository) signInMissReason(ctx context.Context, guildID string
 		}
 		return err
 	}
-	if balance.Coins+reward > coreeconomy.MaxLegacyCoinBalance {
+	coins, numeric := coreeconomy.LegacyEconomyNumber(balance.CoinsText)
+	if strings.TrimSpace(balance.CoinsText) == "" {
+		coins = float64(balance.Coins)
+		numeric = true
+	}
+	if numeric && coins+reward > float64(coreeconomy.MaxLegacyCoinBalance) {
 		return ports.ErrCoinLimitExceeded
 	}
 	return ports.ErrAlreadySignedIn
 }
 
-func (r *EconomyRepository) createFirstSignInBalance(ctx context.Context, command domain.SignInCommand, reward int64, todayValue int64) (domain.CoinBalance, error) {
-	if reward > coreeconomy.MaxLegacyCoinBalance {
-		return domain.CoinBalance{}, ports.ErrCoinLimitExceeded
-	}
+func (r *EconomyRepository) createFirstSignInBalance(ctx context.Context, command domain.SignInCommand, reward float64, todayValue int64) (domain.CoinBalance, error) {
 	if err := r.signInMissReason(ctx, command.GuildID, command.UserID, reward); err != nil && !errors.Is(err, ports.ErrCoinBalanceNotFound) {
 		return domain.CoinBalance{}, err
 	}
 	balance := domain.CoinBalance{
-		GuildID: command.GuildID,
-		UserID:  command.UserID,
-		Coins:   reward,
-		Today:   todayValue,
+		GuildID:   command.GuildID,
+		UserID:    command.UserID,
+		Coins:     int64(reward),
+		CoinsText: strconv.FormatFloat(reward, 'f', -1, 64),
+		Today:     todayValue,
 	}
 	document := bson.D{
 		{Key: "guild", Value: balance.GuildID},
 		{Key: "member", Value: balance.UserID},
-		{Key: "coin", Value: balance.Coins},
+		{Key: "coin", Value: reward},
 		{Key: "today", Value: balance.Today},
 	}
 	if _, err := r.coins.InsertOne(ctx, document); err != nil {

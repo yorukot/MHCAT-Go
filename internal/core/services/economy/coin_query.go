@@ -104,3 +104,8 @@ func legacyDisplayedNumber(value string) (float64, bool) {
 	parsed, err := strconv.ParseFloat(value, 64)
 	return parsed, err == nil && !math.IsNaN(parsed)
 }
+
+// LegacyEconomyNumber exposes Mongoose/JavaScript number coercion to economy adapters.
+func LegacyEconomyNumber(value string) (float64, bool) {
+	return legacyDisplayedNumber(value)
+}

@@ -106,7 +106,7 @@ type SignInResult struct {
 	Balance     CoinBalance
 	Config      EconomyConfig
 	Calendar    SignCalendar
-	Reward      int64
+	Reward      float64
 	ConfigFound bool
 	SignedAt    time.Time
 }

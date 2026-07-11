@@ -3,6 +3,7 @@ package economy
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -66,6 +67,32 @@ func TestLegacySignListWindowPreservesMongooseTimeSemantics(t *testing.T) {
 			rolling, window := LegacySignWindow(test.config, test.found)
 			if rolling != test.wantRolling || window != test.wantWindow {
 				t.Fatalf("window = (%v, %v), want (%v, %v)", rolling, window, test.wantRolling, test.wantWindow)
+			}
+		})
+	}
+}
+
+func TestLegacySignRewardPreservesConfiguredNumberSemantics(t *testing.T) {
+	tests := []struct {
+		name       string
+		found      bool
+		config     domain.EconomyConfig
+		wantReward float64
+		wantValid  bool
+	}{
+		{name: "missing config", wantReward: 25, wantValid: true},
+		{name: "typed fallback", found: true, config: domain.EconomyConfig{SignCoins: 30}, wantReward: 30, wantValid: true},
+		{name: "null", found: true, config: domain.EconomyConfig{SignCoinsText: "null"}, wantValid: true},
+		{name: "decimal", found: true, config: domain.EconomyConfig{SignCoinsText: "25.5"}, wantReward: 25.5, wantValid: true},
+		{name: "infinity", found: true, config: domain.EconomyConfig{SignCoinsText: "Infinity"}, wantReward: math.Inf(1), wantValid: true},
+		{name: "undefined", found: true, config: domain.EconomyConfig{SignCoinsText: "undefined"}},
+		{name: "nan", found: true, config: domain.EconomyConfig{SignCoinsText: "NaN"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			reward, valid := LegacySignReward(test.config, test.found)
+			if reward != test.wantReward || valid != test.wantValid {
+				t.Fatalf("reward = (%v, %v), want (%v, %v)", reward, valid, test.wantReward, test.wantValid)
 			}
 		})
 	}
