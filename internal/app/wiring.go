@@ -508,7 +508,7 @@ func BuildRuntime(opts RuntimeOptions) (*discordruntime.Dispatcher, error) {
 		}
 	}
 	if opts.DeleteDataFeatureEnabled && opts.DeleteDataRepository != nil {
-		deleteDataModule := featuremoderation.NewDeleteDataModule(opts.DeleteDataRepository)
+		deleteDataModule := featuremoderation.NewDeleteDataModuleWithClock(opts.DeleteDataRepository, clockOrSystem(opts.Clock))
 		if err := deleteDataModule.RegisterRoutes(router); err != nil {
 			return nil, err
 		}

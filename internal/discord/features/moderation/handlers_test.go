@@ -3,6 +3,7 @@ package moderation
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -654,6 +655,57 @@ func TestDeleteDataSelectRejectsForeignPromptUser(t *testing.T) {
 	}
 }
 
+func TestDeleteDataSelectHonorsLegacyCollectorLifetime(t *testing.T) {
+	createdAt := time.Date(2026, 7, 11, 10, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name        string
+		now         time.Time
+		wantDeleted bool
+	}{
+		{name: "just before one hour", now: createdAt.Add(time.Hour - time.Millisecond), wantDeleted: true},
+		{name: "exactly one hour", now: createdAt.Add(time.Hour), wantDeleted: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewDeleteDataRepository()
+			repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
+			module := NewDeleteDataModuleWithClock(repo, moderationFixedClock{now: test.now})
+			interaction := deleteDataComponentInteraction(domain.DeleteDataTargetAutoChat)
+			interaction.OriginalInteractionID = deleteDataTestSnowflake(createdAt)
+			responder := fakediscord.NewResponder()
+
+			if err := module.DeleteDataSelectHandler()(context.Background(), interaction, responder); err != nil {
+				t.Fatalf("handle delete data select: %v", err)
+			}
+			if got := len(repo.Deleted) == 1; got != test.wantDeleted {
+				t.Fatalf("deleted = %#v", repo.Deleted)
+			}
+			if !test.wantDeleted && (len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Content, "你沒有設定過這個選項")) {
+				t.Fatalf("expiry response = %#v", responder.Edits)
+			}
+		})
+	}
+}
+
+func TestDeleteDataSelectKeepsCompatibilityForMissingOrMalformedPromptID(t *testing.T) {
+	for _, originalInteractionID := range []string{"", "not-a-snowflake"} {
+		t.Run(originalInteractionID, func(t *testing.T) {
+			repo := fakemongo.NewDeleteDataRepository()
+			repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
+			module := NewDeleteDataModuleWithClock(repo, moderationFixedClock{now: time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)})
+			interaction := deleteDataComponentInteraction(domain.DeleteDataTargetAutoChat)
+			interaction.OriginalInteractionID = originalInteractionID
+
+			if err := module.DeleteDataSelectHandler()(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+				t.Fatalf("handle delete data select: %v", err)
+			}
+			if len(repo.Deleted) != 1 {
+				t.Fatalf("deleted = %#v", repo.Deleted)
+			}
+		})
+	}
+}
+
 func TestDeleteDataSelectMissingUsesLegacyContent(t *testing.T) {
 	repo := fakemongo.NewDeleteDataRepository()
 	module := NewDeleteDataModule(repo)
@@ -759,4 +811,9 @@ func deleteDataComponentInteraction(target domain.DeleteDataTarget) interactions
 	interaction.OriginalInteractionUserID = interaction.Actor.UserID
 	interaction.Values = []string{string(target)}
 	return interaction
+}
+
+func deleteDataTestSnowflake(createdAt time.Time) string {
+	const discordEpoch = int64(1420070400000)
+	return strconv.FormatUint(uint64(createdAt.UnixMilli()-discordEpoch)<<22, 10)
 }

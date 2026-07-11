@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -966,6 +967,36 @@ func TestBuildRuntimeTracksEachDeleteDataSlashAttemptOnce(t *testing.T) {
 		if event.CommandName != "刪除資料" {
 			t.Fatalf("usage event %d = %#v", index, event)
 		}
+	}
+}
+
+func TestBuildRuntimeUsesClockForDeleteDataPromptExpiry(t *testing.T) {
+	createdAt := time.Date(2026, 7, 11, 10, 0, 0, 0, time.UTC)
+	repo := fakemongo.NewDeleteDataRepository()
+	repo.Put("guild-1", domain.DeleteDataTargetAutoChat)
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                   validTestConfig(),
+		Clock:                    appFixedClock{now: createdAt.Add(time.Hour)},
+		DeleteDataFeatureEnabled: true,
+		DeleteDataRepository:     repo,
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+
+	component := fakediscord.ComponentInteractionFromID("delete-data")
+	component.Actor.PermissionBits = 8192
+	component.Values = []string{string(domain.DeleteDataTargetAutoChat)}
+	component.OriginalInteractionID = strconv.FormatUint(uint64(createdAt.UnixMilli()-1420070400000)<<22, 10)
+	responder := fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), component, responder); err != nil {
+		t.Fatalf("dispatch select: %v", err)
+	}
+	if len(repo.Deleted) != 0 {
+		t.Fatalf("expired prompt deleted = %#v", repo.Deleted)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Content, "你沒有設定過這個選項") {
+		t.Fatalf("expiry response = %#v", responder.Edits)
 	}
 }
 

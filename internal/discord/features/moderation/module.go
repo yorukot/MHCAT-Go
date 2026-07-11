@@ -71,8 +71,13 @@ func NewCleanupModule(cleaner ports.DiscordMessageCleaner, usage ports.UsageTrac
 }
 
 func NewDeleteDataModule(repo ports.DeleteDataRepository) Module {
+	return NewDeleteDataModuleWithClock(repo, ports.SystemClock{})
+}
+
+func NewDeleteDataModuleWithClock(repo ports.DeleteDataRepository, clock ports.Clock) Module {
 	return Module{
 		deleteData: coremoderation.DeleteDataService{Repository: repo},
+		clock:      clock,
 	}
 }
 

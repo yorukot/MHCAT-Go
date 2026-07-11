@@ -31,6 +31,8 @@ const (
 	cleanupPermissionLabel          = "訊息管理(刪除超過200則需要有權限)"
 	cleanupSuccessColor             = 0x57F287
 	deleteDataFallbackColor         = 0xEA0000
+	deleteDataCollectorLifetime     = time.Hour
+	discordEpochMilliseconds        = uint64(1420070400000)
 )
 
 func (m Module) WarningHistoryHandler() interactions.Handler {
@@ -240,6 +242,9 @@ func (m Module) DeleteDataSelectHandler() interactions.Handler {
 		if ownerID != "" && ownerID != strings.TrimSpace(interaction.Actor.UserID) {
 			return responder.EditOriginal(ctx, deleteDataContentMessage("<a:Discord_AnimatedNo:1015989839809757295> **| 你沒有設定過這個選項!**"))
 		}
+		if m.deleteDataPromptExpired(interaction.OriginalInteractionID) {
+			return responder.EditOriginal(ctx, deleteDataContentMessage("<a:Discord_AnimatedNo:1015989839809757295> **| 你沒有設定過這個選項!**"))
+		}
 		target, ok := selectedDeleteDataTarget(interaction)
 		if !ok {
 			return responder.EditOriginal(ctx, deleteDataContentMessage("<a:Discord_AnimatedNo:1015989839809757295> **| 你沒有設定過這個選項!**"))
@@ -255,6 +260,19 @@ func (m Module) DeleteDataSelectHandler() interactions.Handler {
 		}
 		return nil
 	}
+}
+
+func (m Module) deleteDataPromptExpired(originalInteractionID string) bool {
+	id, err := strconv.ParseUint(strings.TrimSpace(originalInteractionID), 10, 64)
+	if err != nil {
+		return false
+	}
+	createdAt := time.UnixMilli(int64((id >> 22) + discordEpochMilliseconds))
+	now := time.Now()
+	if m.clock != nil {
+		now = m.clock.Now()
+	}
+	return !now.Before(createdAt.Add(deleteDataCollectorLifetime))
 }
 
 func (m Module) targetUsername(ctx context.Context, guildID string, userID string) string {
