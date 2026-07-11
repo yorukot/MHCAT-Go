@@ -18,7 +18,6 @@ const (
 	economySettingsErrorColor               = 0xED4245
 	economySettingsMaxError                 = "最高代幣設定數只能是999999999"
 	economySettingsCooldownError            = "必須大於-1(0代表0:00重製)"
-	economySettingsNonNegativeError         = "設定數必須大於或等於0"
 	economySettingsUnknownError             = "很抱歉，出現了未知的錯誤，請重試!"
 	economySettingsPermissionError          = "你需要有`訊息管理`才能使用此指令"
 )
@@ -78,8 +77,6 @@ func economySettingsCommandFromInteraction(interaction interactions.Interaction)
 		return domain.EconomySettingsCommand{}, economySettingsMaxError, false
 	case cooldownHours < 0:
 		return domain.EconomySettingsCommand{}, economySettingsCooldownError, false
-	case gachaCost < 0 || signCoins < 0 || xpMultiple < 0:
-		return domain.EconomySettingsCommand{}, economySettingsNonNegativeError, false
 	}
 	return domain.EconomySettingsCommand{
 		GuildID:           interaction.Actor.GuildID,

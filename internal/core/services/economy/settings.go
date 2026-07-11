@@ -23,13 +23,13 @@ func (s SettingsService) Save(ctx context.Context, command domain.EconomySetting
 	if command.GuildID == "" || command.NotificationID == "" {
 		return domain.EconomyConfig{}, domain.ErrInvalidEconomySettings
 	}
-	if command.GachaCost < 0 || command.GachaCost > MaxLegacyCoinBalance {
+	if command.GachaCost > MaxLegacyCoinBalance {
 		return domain.EconomyConfig{}, domain.ErrInvalidEconomySettings
 	}
-	if command.SignCoins < 0 || command.SignCoins > MaxLegacyCoinBalance {
+	if command.SignCoins > MaxLegacyCoinBalance {
 		return domain.EconomyConfig{}, domain.ErrInvalidEconomySettings
 	}
-	if command.SignCooldownHours < 0 || command.SignCooldownHours > maxCooldownHours || command.XPMultiple < 0 {
+	if command.SignCooldownHours < 0 || command.SignCooldownHours > maxCooldownHours {
 		return domain.EconomyConfig{}, domain.ErrInvalidEconomySettings
 	}
 	config := domain.EconomyConfig{

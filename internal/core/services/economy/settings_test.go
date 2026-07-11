@@ -42,14 +42,11 @@ func TestSettingsSaveRejectsInvalidValues(t *testing.T) {
 	service := economy.SettingsService{Repository: repo}
 	cases := []domain.EconomySettingsCommand{
 		{GuildID: "", GachaCost: 1, SignCoins: 1, NotificationID: "channel", XPMultiple: 1},
-		{GuildID: "guild", GachaCost: -1, SignCoins: 1, NotificationID: "channel", XPMultiple: 1},
 		{GuildID: "guild", GachaCost: economy.MaxLegacyCoinBalance + 1, SignCoins: 1, NotificationID: "channel", XPMultiple: 1},
-		{GuildID: "guild", GachaCost: 1, SignCoins: -1, NotificationID: "channel", XPMultiple: 1},
 		{GuildID: "guild", GachaCost: 1, SignCoins: economy.MaxLegacyCoinBalance + 1, NotificationID: "channel", XPMultiple: 1},
 		{GuildID: "guild", GachaCost: 1, SignCoins: 1, SignCooldownHours: -1, NotificationID: "channel", XPMultiple: 1},
 		{GuildID: "guild", GachaCost: 1, SignCoins: 1, SignCooldownHours: int64(1<<63-1)/3600 + 1, NotificationID: "channel", XPMultiple: 1},
 		{GuildID: "guild", GachaCost: 1, SignCoins: 1, NotificationID: "", XPMultiple: 1},
-		{GuildID: "guild", GachaCost: 1, SignCoins: 1, NotificationID: "channel", XPMultiple: -1},
 	}
 	for _, command := range cases {
 		if _, err := service.Save(context.Background(), command); !errors.Is(err, domain.ErrInvalidEconomySettings) {

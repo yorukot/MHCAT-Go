@@ -65,7 +65,7 @@ func TestSettingsSavesLegacyConfigShape(t *testing.T) {
 	}
 }
 
-func TestSettingsRejectsLegacyMaxAndNegativeValues(t *testing.T) {
+func TestSettingsRejectsLegacyMaximumAndNegativeCooldown(t *testing.T) {
 	module := NewSettingsModule(fakemongo.NewEconomyRepository(), nil, nil)
 	cases := []struct {
 		name    string
@@ -74,8 +74,6 @@ func TestSettingsRejectsLegacyMaxAndNegativeValues(t *testing.T) {
 	}{
 		{name: "max", options: map[string]string{"coin-raffle-takes": "1000000000"}, want: economySettingsMaxError},
 		{name: "cooldown", options: map[string]string{"check-in-cooldown-time": "-1"}, want: economySettingsCooldownError},
-		{name: "negative gacha", options: map[string]string{"coin-raffle-takes": "-1"}, want: economySettingsNonNegativeError},
-		{name: "negative xp", options: map[string]string{"level-up-multiply-amount": "-0.5"}, want: economySettingsNonNegativeError},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -92,6 +90,31 @@ func TestSettingsRejectsLegacyMaxAndNegativeValues(t *testing.T) {
 				t.Fatalf("edits = %#v want %q", responder.Edits, tc.want)
 			}
 		})
+	}
+}
+
+func TestSettingsPreservesLegacyNegativeNumericValues(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	module := NewSettingsModule(repo, nil, nil)
+	interaction := settingsInteraction()
+	interaction.Actor.PermissionBits = economySettingsManageMessagesPermission
+	interaction.Options["coin-raffle-takes"] = "-10"
+	interaction.Options["check-in-give-coins"] = "-20"
+	interaction.Options["level-up-multiply-amount"] = "-0.5"
+	responder := fakediscord.NewResponder()
+
+	if err := module.SettingsHandler()(context.Background(), interaction, responder); err != nil {
+		t.Fatalf("handle settings: %v", err)
+	}
+	if len(repo.SavedConfigs) != 1 {
+		t.Fatalf("saved configs = %#v", repo.SavedConfigs)
+	}
+	config := repo.SavedConfigs[0]
+	if config.GachaCost != -10 || config.SignCoins != -20 || config.XPMultiple != -0.5 {
+		t.Fatalf("saved config = %#v", config)
+	}
+	if len(responder.Edits) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Title, "扭蛋所需代幣:`-10`") || !strings.Contains(responder.Edits[0].Embeds[0].Title, "簽到給予代幣數:`-20`") || !strings.Contains(responder.Edits[0].Embeds[0].Title, "等級提升給予倍數:`-0.5`") {
+		t.Fatalf("success response = %#v", responder.Edits)
 	}
 }
 
