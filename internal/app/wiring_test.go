@@ -488,6 +488,36 @@ func TestBuildRuntimeRoutesEconomyCoinRankWithoutPublishingOtherEconomyCommands(
 	}
 }
 
+func TestBuildRuntimeTracksCoinRankSlashOnceAndNotComponents(t *testing.T) {
+	repo := fakemongo.NewEconomyRepository()
+	viewerID := "123456789012345678"
+	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: viewerID, Coins: 42})
+	tracker := &fakeusage.Tracker{}
+	dispatcher, err := BuildRuntime(RuntimeOptions{
+		Config:                    validTestConfig(),
+		EconomyCoinRankRepository: repo,
+		UsageTracker:              tracker,
+	})
+	if err != nil {
+		t.Fatalf("build runtime: %v", err)
+	}
+	interaction := fakediscord.SlashInteraction("代幣排行榜")
+	interaction.Actor.UserID = viewerID
+	if err := dispatcher.Dispatch(context.Background(), interaction, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch rank slash: %v", err)
+	}
+	if len(tracker.Events) != 1 || tracker.Events[0].CommandName != "代幣排行榜" {
+		t.Fatalf("slash usage = %#v", tracker.Events)
+	}
+	component := fakediscord.ComponentInteractionFromID("[" + viewerID + "]{0}coin_rank")
+	if err := dispatcher.Dispatch(context.Background(), component, fakediscord.NewResponder()); err != nil {
+		t.Fatalf("dispatch rank component: %v", err)
+	}
+	if len(tracker.Events) != 1 {
+		t.Fatalf("component changed usage = %#v", tracker.Events)
+	}
+}
+
 func TestBuildRuntimeRoutesEconomyRPSWithoutPublishingOtherEconomyCommands(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
 	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 42})
