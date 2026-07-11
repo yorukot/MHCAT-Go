@@ -4,6 +4,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -64,6 +65,15 @@ func legacyMongooseString(value bson.RawValue) (string, bool) {
 	}
 	if parsed, ok := value.ObjectIDOK(); ok {
 		return parsed.Hex(), true
+	}
+	if _, data, ok := value.BinaryOK(); ok {
+		return strings.ToValidUTF8(string(data), "\uFFFD"), true
+	}
+	if parsed, ok := value.DateTimeOK(); ok {
+		return time.UnixMilli(parsed).UTC().Format("Mon Jan 02 2006 15:04:05 GMT+0000 (Coordinated Universal Time)"), true
+	}
+	if pattern, options, ok := value.RegexOK(); ok {
+		return "/" + pattern + "/" + options, true
 	}
 	return "", false
 }

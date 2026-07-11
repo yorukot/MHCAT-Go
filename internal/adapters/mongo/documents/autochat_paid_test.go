@@ -90,6 +90,9 @@ func TestAutoChatPaidDocumentCoercesLegacyScalarWorkerResponses(t *testing.T) {
 		{name: "small decimal", message: 0.000001, want: "0.000001"},
 		{name: "scientific decimal", message: 0.0000001, want: "1e-7"},
 		{name: "large decimal", message: 1e21, want: "1e+21"},
+		{name: "binary", message: bson.Binary{Data: []byte("buffer answer")}, want: "buffer answer"},
+		{name: "date", message: time.UnixMilli(0), want: "Thu Jan 01 1970 00:00:00 GMT+0000 (Coordinated Universal Time)"},
+		{name: "regex", message: bson.Regex{Pattern: "abc", Options: "i"}, want: "/abc/i"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			encoded, err := bson.Marshal(bson.D{
