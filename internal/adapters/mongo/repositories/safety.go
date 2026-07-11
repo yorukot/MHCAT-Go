@@ -59,38 +59,32 @@ func (r *AntiScamConfigRepository) SaveAntiScamConfig(ctx context.Context, confi
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	config.GuildID = strings.TrimSpace(config.GuildID)
 	if err := config.Validate(); err != nil {
 		return err
 	}
 	document := documents.GoodWebConfigDocumentFromDomain(config)
-	update, err := antiScamConfigUpdate(document, false)
+	update, err := antiScamConfigUpdate(document)
 	if err != nil {
 		return err
 	}
-	result, err := r.collection.UpdateMany(ctx, bson.D{{Key: "guild", Value: document.Guild}}, update)
+	_, err = r.collection.UpdateMany(
+		ctx,
+		bson.D{{Key: "guild", Value: document.Guild}},
+		update,
+		options.UpdateMany().SetUpsert(true),
+	)
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("save anti-scam config: %w", err))
-	}
-	if result.MatchedCount > 0 {
-		return ctx.Err()
-	}
-	insertUpdate, err := antiScamConfigUpdate(document, true)
-	if err != nil {
-		return err
-	}
-	_, err = r.collection.UpdateOne(ctx, bson.D{{Key: "guild", Value: document.Guild}}, insertUpdate, options.UpdateOne().SetUpsert(true))
-	if err != nil {
-		return mhcatmongo.MapError(fmt.Errorf("upsert anti-scam config: %w", err))
 	}
 	return ctx.Err()
 }
 
-func antiScamConfigUpdate(document documents.GoodWebConfigDocument, upsert bool) (bson.D, error) {
-	builder := mhcatmongo.NewUpdate().Set("open", document.Open)
-	if upsert {
-		builder.SetOnInsert("guild", document.Guild)
-	}
-	return builder.Build()
+func antiScamConfigUpdate(document documents.GoodWebConfigDocument) (bson.D, error) {
+	return mhcatmongo.NewUpdate().
+		Set("open", document.Open).
+		SetOnInsert("guild", document.Guild).
+		Build()
 }
 
 var _ ports.AntiScamConfigRepository = (*AntiScamConfigRepository)(nil)

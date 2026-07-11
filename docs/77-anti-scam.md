@@ -83,7 +83,7 @@ The success embed preserves:
 
 A missing `good_webs` row creates `{guild:<id>,open:true}`. An existing row toggles its Mongoose-decoded Boolean. Boolean `true`, numeric `1`, and strings `true`, `1`, or `yes` decode enabled; false/zero/no forms and unusable values decode disabled.
 
-Legacy deletes the first row and starts an unawaited replacement insert. Go uses typed `$set.open`, updates all duplicate `{guild}` matches, preserves unrelated fields, and upserts only when no row matches. This avoids a delete/reinsert gap while retaining rollback-readable fields.
+Legacy deletes the first row and starts an unawaited replacement insert. Go uses one upserting `UpdateMany` with typed `$set.open`, updates all duplicate `{guild}` matches, preserves unrelated fields, and creates one row only when no row matches. This avoids both a delete/reinsert gap and a second Mongo round trip while retaining rollback-readable fields.
 
 ## Report UI And Validation
 
