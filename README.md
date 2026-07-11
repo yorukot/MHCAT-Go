@@ -108,6 +108,7 @@ Implemented utility commands:
 - audited env-only config, secret redaction, and hardcoded webhook/operator-ID prevention; see [docs/106-config-secrets.md](docs/106-config-secrets.md)
 - audited Mongo-first startup, Gateway readiness, graceful shutdown, and single-session deployment boundaries; see [docs/107-runtime-lifecycle.md](docs/107-runtime-lifecycle.md)
 - audited 74-command registration, guarded sync, slash dispatch, fallback UI, and global usage ownership; see [docs/108-command-registration-dispatch.md](docs/108-command-registration-dispatch.md)
+- audited Discord Gateway intents, interactions, event mapping, side-effect ports, mentions, and cache boundaries; see [docs/109-discord-platform.md](docs/109-discord-platform.md)
 - parity-audited `/代幣重製` when explicitly enabled with its runtime, sync, gateway, Guild Messages, and Message Content gates; see [docs/102-economy-coin-reset.md](docs/102-economy-coin-reset.md)
 - parity-audited `/剪刀石頭布` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_RPS_ENABLED=true`; see [docs/101-economy-rps.md](docs/101-economy-rps.md)
 - parity-audited `/my-profile` when explicitly enabled with `MHCAT_FEATURE_ECONOMY_PROFILE_ENABLED=true`; see [docs/97-economy-profile.md](docs/97-economy-profile.md)
