@@ -211,6 +211,23 @@ func TestRenameStatsPreservesStoredWhitespaceAsCacheMisses(t *testing.T) {
 			t.Fatalf("result=%#v renamed=%#v", result, discord.Renamed)
 		}
 	})
+
+	t.Run("base channel id", func(t *testing.T) {
+		repo := fakemongo.NewStatsConfigRepository()
+		repo.Put(domain.StatsConfig{GuildID: "guild-1", MemberNumberID: " member-channel ", MemberNumberName: "10"})
+		discord := fakediscord.NewSideEffects()
+		discord.TotalMembers = 11
+		discord.Channels = append(discord.Channels, ports.ChannelRef{GuildID: "guild-1", ChannelID: "member-channel", Name: "members: 10"})
+		service := RenameService{Repository: repo, Channels: discord, GuildStats: discord, RoleStats: discord}
+
+		result, err := service.RunOnce(context.Background())
+		if err != nil {
+			t.Fatalf("rename stats: %v", err)
+		}
+		if result.ConfigsChecked != 1 || result.ChannelsSkipped != 1 || len(discord.Renamed) != 0 {
+			t.Fatalf("result=%#v renamed=%#v", result, discord.Renamed)
+		}
+	})
 }
 
 type guildStatsReaderFunc func(context.Context, string) (domain.StatsSnapshot, error)
@@ -225,6 +242,9 @@ func TestLegacyStatsRenamedChannelName(t *testing.T) {
 	}
 	if got := legacyStatsRenamedChannelName("custom-name", "10", "12"); got != "12" {
 		t.Fatalf("missing old value rename = %q", got)
+	}
+	if got := legacyStatsRenamedChannelName("count:  10 ", " 10 ", "12"); got != "count: 12" {
+		t.Fatalf("raw whitespace replacement = %q", got)
 	}
 }
 

@@ -160,7 +160,7 @@ func (s RenameService) renameRoleStats(ctx context.Context) (RenameResult, error
 		if renamed {
 			result.ChannelsRenamed++
 		}
-		if strings.TrimSpace(config.ChannelName) != currentValue {
+		if config.ChannelName != currentValue {
 			if err := s.Repository.UpdateStatsRoleConfigCounter(ctx, config.GuildID, config.RoleID, currentValue); err != nil {
 				return result, err
 			}
@@ -171,7 +171,6 @@ func (s RenameService) renameRoleStats(ctx context.Context) (RenameResult, error
 }
 
 func (s RenameService) applyBaseCounter(ctx context.Context, result *RenameResult, guildID string, channelID string, oldValue string, count int, set func(*string)) {
-	channelID = strings.TrimSpace(channelID)
 	if channelID == "" {
 		return
 	}
@@ -189,7 +188,7 @@ func (s RenameService) applyBaseCounter(ctx context.Context, result *RenameResul
 	if renamed {
 		result.ChannelsRenamed++
 	}
-	if strings.TrimSpace(oldValue) != currentValue {
+	if oldValue != currentValue {
 		set(domain.StatsCounterValue(count))
 	}
 }
@@ -216,8 +215,6 @@ func (s RenameService) renameConfiguredChannel(ctx context.Context, guildID stri
 }
 
 func legacyStatsRenamedChannelName(name string, oldValue string, currentValue string) string {
-	oldValue = strings.TrimSpace(oldValue)
-	currentValue = strings.TrimSpace(currentValue)
 	if currentValue == "" {
 		return name
 	}
@@ -237,7 +234,7 @@ func configuredBaseStatsChannelCount(config domain.StatsConfig) int {
 		config.TextNumberID,
 		config.VoiceNumberID,
 	} {
-		if strings.TrimSpace(channelID) != "" {
+		if channelID != "" {
 			count++
 		}
 	}
