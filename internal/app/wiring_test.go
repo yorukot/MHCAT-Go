@@ -363,6 +363,7 @@ func TestBuildRuntimeRoutesEconomyQueryOnlyWithRepository(t *testing.T) {
 
 func TestBuildRuntimeRoutesEconomySignInWithoutPublishingQuery(t *testing.T) {
 	repo := fakemongo.NewEconomyRepository()
+	tracker := &fakeusage.Tracker{}
 	repo.PutSignInResult(domain.SignInResult{
 		Balance:  domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Coins: 25, Today: 1},
 		Calendar: domain.SignCalendar{GuildID: "guild-1", UserID: "user-1", Date: map[string]map[string][]string{}},
@@ -372,6 +373,7 @@ func TestBuildRuntimeRoutesEconomySignInWithoutPublishingQuery(t *testing.T) {
 	dispatcher, err := BuildRuntime(RuntimeOptions{
 		Config:                  validTestConfig(),
 		EconomySignInRepository: repo,
+		UsageTracker:            tracker,
 	})
 	if err != nil {
 		t.Fatalf("build runtime with sign-in repo: %v", err)
@@ -380,12 +382,16 @@ func TestBuildRuntimeRoutesEconomySignInWithoutPublishingQuery(t *testing.T) {
 	if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction("代幣查詢"), responder); err == nil {
 		t.Fatal("economy query route should not be available with sign-in repository alone")
 	}
+	usageBaseline := len(tracker.Events)
 	responder = fakediscord.NewResponder()
 	if err := dispatcher.Dispatch(context.Background(), fakediscord.SlashInteraction("簽到"), responder); err != nil {
 		t.Fatalf("dispatch sign-in: %v", err)
 	}
 	if len(responder.Edits) != 1 || len(responder.Edits[0].Files) != 1 {
 		t.Fatalf("sign-in response = %#v", responder.Edits)
+	}
+	if len(tracker.Events) != usageBaseline+1 || tracker.Events[usageBaseline].CommandName != "簽到" {
+		t.Fatalf("sign-in usage = %#v", tracker.Events)
 	}
 	repo.PutBalance(domain.CoinBalance{GuildID: "guild-1", UserID: "user-1", Today: 1})
 	responder = fakediscord.NewResponder()
@@ -394,6 +400,23 @@ func TestBuildRuntimeRoutesEconomySignInWithoutPublishingQuery(t *testing.T) {
 	}
 	if len(responder.Edits) != 1 || len(responder.Edits[0].Embeds) != 1 || !strings.Contains(responder.Edits[0].Embeds[0].Description, "`1`**人已經簽到") {
 		t.Fatalf("sign-in list response = %#v", responder.Edits)
+	}
+	if len(tracker.Events) != usageBaseline+2 || tracker.Events[usageBaseline+1].CommandName != "簽到列表" {
+		t.Fatalf("sign-in list usage = %#v", tracker.Events)
+	}
+	componentUserID := "222222222222222222"
+	repo.PutCalendar(domain.SignCalendar{GuildID: "guild-1", UserID: componentUserID, Date: map[string]map[string][]string{}})
+	component := fakediscord.ComponentInteractionFromID("/" + componentUserID + "_sing{2026}-[7]")
+	component.Actor.UserID = componentUserID
+	responder = fakediscord.NewResponder()
+	if err := dispatcher.Dispatch(context.Background(), component, responder); err != nil {
+		t.Fatalf("dispatch sign calendar component: %v", err)
+	}
+	if len(responder.Updates) != 1 || len(responder.Edits) != 1 || len(responder.Edits[0].Files) != 1 {
+		t.Fatalf("sign calendar component response = updates %#v edits %#v", responder.Updates, responder.Edits)
+	}
+	if len(tracker.Events) != usageBaseline+2 {
+		t.Fatalf("sign component changed usage = %#v", tracker.Events)
 	}
 }
 
