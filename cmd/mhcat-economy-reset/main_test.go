@@ -24,6 +24,17 @@ func TestEconomyResetMissingMongoEnvFails(t *testing.T) {
 	}
 }
 
+func TestEconomyResetRejectsPositionalArguments(t *testing.T) {
+	repository := &fakemongo.DailyResetRepository{}
+	exitCode, _, stderr, _ := runWithFake(t, []string{"--apply", "unexpected"}, applyEnv(), repository)
+	if exitCode == 0 || !strings.Contains(stderr, "unexpected positional arguments") {
+		t.Fatalf("exit=%d stderr=%q", exitCode, stderr)
+	}
+	if repository.PreviewCalls != 0 || repository.RunCalls != 0 {
+		t.Fatalf("positional argument reached repository: %#v", repository)
+	}
+}
+
 func TestEconomyResetDefaultsToDryRunPreviewOnly(t *testing.T) {
 	repository := &fakemongo.DailyResetRepository{
 		PreviewResult: domain.DailyResetResult{

@@ -147,6 +147,9 @@ func applyFlags(args []string, cfg *config.SchedulerLeaseConfig, stderr io.Write
 	if err := flags.Parse(args); err != nil {
 		return cliOptions{}, err
 	}
+	if flags.NArg() != 0 {
+		return cliOptions{}, fmt.Errorf("unexpected positional arguments: %s", strings.Join(flags.Args(), " "))
+	}
 	cfg.Owner = strings.TrimSpace(*owner)
 	cfg.TTL = *ttl
 	cfg.Timeout = *timeout

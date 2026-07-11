@@ -80,11 +80,15 @@ func TestRoleSelectionIndexesRemainExplicitlyAuditGated(t *testing.T) {
 	}
 	for _, test := range tests {
 		spec := byName[test.collection]
-		if len(spec.PlannedIndexes) != 1 {
-			t.Fatalf("%s indexes = %#v", test.collection, spec.PlannedIndexes)
+		var index *IndexSpec
+		for candidateIndex := range spec.PlannedIndexes {
+			candidate := &spec.PlannedIndexes[candidateIndex]
+			if candidate.Name == test.index {
+				index = candidate
+				break
+			}
 		}
-		index := spec.PlannedIndexes[0]
-		if index.Name != test.index || !index.Unique || !index.RequiresDuplicateAudit {
+		if index == nil || !index.Unique || !index.RequiresDuplicateAudit {
 			t.Fatalf("%s index = %#v", test.collection, index)
 		}
 	}
@@ -125,12 +129,18 @@ func TestPerformanceIndexesDoNotRequireDuplicateCleanup(t *testing.T) {
 		collection string
 		index      string
 	}{
+		{collection: "ann_all_sets", index: "ann_all_sets_guild_announcement_lookup"},
 		{collection: "chats", index: "chats_guild_lookup"},
 		{collection: "coins", index: "coins_guild_member_lookup"},
 		{collection: "coins", index: "coins_today_guild"},
+		{collection: "join_messages", index: "join_messages_guild_lookup"},
+		{collection: "join_roles", index: "join_roles_guild_lookup"},
+		{collection: "leave_messages", index: "leave_messages_guild_lookup"},
+		{collection: "loggings", index: "loggings_guild_lookup"},
+		{collection: "message_reactions", index: "message_reactions_guild_message_react_lookup"},
 		{collection: "text_xps", index: "text_xps_guild_member_lookup"},
 		{collection: "voice_xps", index: "voice_xps_guild_member_lookup"},
-		{collection: "work_users", index: "work_users_guild"},
+		{collection: "work_users", index: "work_users_guild_energi"},
 		{collection: "good_webs", index: "good_webs_guild_lookup"},
 	} {
 		var found *IndexSpec

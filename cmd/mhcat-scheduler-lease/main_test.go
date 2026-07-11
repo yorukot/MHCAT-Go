@@ -5,6 +5,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/config"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -18,6 +19,18 @@ func TestSchedulerLeaseMissingMongoEnvFails(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "MHCAT_MONGODB_URI") {
 		t.Fatalf("expected missing URI error, stderr=%q", stderr)
+	}
+}
+
+func TestSchedulerLeaseRejectsPositionalArguments(t *testing.T) {
+	store := fakemongo.NewSchedulerLeaseStore()
+	exitCode, _, stderr, _ := runWithFake(t, []string{"--action", "acquire", "--name", "daily-reset", "--apply", "unexpected"}, enabledEnv(), store)
+	if exitCode == 0 || !strings.Contains(stderr, "unexpected positional arguments") {
+		t.Fatalf("exit=%d stderr=%q", exitCode, stderr)
+	}
+	status, err := store.Inspect(context.Background(), "daily-reset", time.Now())
+	if err != nil || status.Held {
+		t.Fatalf("positional argument acquired lease: status=%#v err=%v", status, err)
 	}
 }
 

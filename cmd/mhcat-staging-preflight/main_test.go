@@ -20,6 +20,13 @@ func TestPreflightMissingEnvFails(t *testing.T) {
 	}
 }
 
+func TestPreflightRejectsPositionalArguments(t *testing.T) {
+	code, stdout, stderr := runPreflight(t, []string{"unexpected"}, validEnv())
+	if code == 0 || stdout != "" || !strings.Contains(stderr, "unexpected positional arguments") {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+}
+
 func TestPreflightAllRequiredEnvPasses(t *testing.T) {
 	code, stdout, stderr := runPreflight(t, nil, validEnv())
 	if code != 0 {

@@ -23,6 +23,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Usage writes are feature-gated; audit duplicate and null/blank command names before unique index apply."),
 		catalogSpec("ann_all_sets", "ann_all_set", "models/ann_all_set.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("ann_all_sets_guild_announcement_id", []string{"guild", "announcement_id"}, "announcement config lookup by guild and announcement id"),
+			nonUniqueCatalogIndex("ann_all_sets_guild_announcement_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "announcement_id", Order: 1}}, "per-message announcement relay lookup without requiring duplicate cleanup"),
 		}, ""),
 		catalogSpec("birthdays", "birthday", "models/birthday.js", []string{"guild", "user"}, []catalogIndex{
 			uniqueCatalogIndex("birthdays_guild_user", []string{"guild", "user"}, "user birthday lookup"),
@@ -83,25 +84,30 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Dashboard-shared collection; patch writes only after compatibility review."),
 		catalogSpec("join_messages", "join_message", "models/join_message.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("join_messages_guild", []string{"guild"}, "welcome message config singleton"),
+			nonUniqueCatalogIndex("join_messages_guild_lookup", []IndexKey{{Field: "guild", Order: 1}}, "member-join welcome config lookup without requiring duplicate cleanup"),
 		}, "Dashboard-shared collection; do not create legacy `enable` unique index."),
 		catalogSpec("join_roles", "join_role", "models/join_role.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("join_roles_guild_role", []string{"guild", "role"}, "join role rule lookup"),
+			nonUniqueCatalogIndex("join_roles_guild_lookup", []IndexKey{{Field: "guild", Order: 1}}, "member-join role list lookup without requiring duplicate cleanup"),
 		}, ""),
 		catalogSpec("leave_messages", "leave_message", "models/leave_message.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("leave_messages_guild", []string{"guild"}, "leave message config singleton"),
+			nonUniqueCatalogIndex("leave_messages_guild_lookup", []IndexKey{{Field: "guild", Order: 1}}, "member-leave message config lookup without requiring duplicate cleanup"),
 		}, ""),
 		catalogSpec("lock_channels", "lock_channel", "models/lock_channel.js", []string{"guild", "channel_id"}, []catalogIndex{
 			uniqueCatalogIndex("lock_channels_guild_channel_id", []string{"guild", "channel_id"}, "voice lock state lookup"),
 		}, "Legacy stores lock answer text; avoid logging raw values."),
 		catalogSpec("loggings", "logging", "models/logging.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("loggings_guild", []string{"guild"}, "logging config singleton"),
+			nonUniqueCatalogIndex("loggings_guild_lookup", []IndexKey{{Field: "guild", Order: 1}}, "logging event config lookup without requiring duplicate cleanup"),
 		}, "Audit-log reads require rate-limit policy before feature wiring."),
 		catalogSpec("lotters", "lotter", "models/lotter.js", []string{"guild"}, []catalogIndex{
 			uniqueCatalogIndex("lotters_guild_id", []string{"guild", "id"}, "lottery lookup and member updates"),
 		}, "Lottery creation is disabled in legacy; keep inactive behavior unless ADR changes it."),
 		catalogSpec("message_reactions", "message_reaction", "models/message_reaction.js", []string{"guild", "message", "react"}, []catalogIndex{
 			uniqueCatalogIndex("message_reactions_guild_message_react", []string{"guild", "message", "react"}, "reaction-role lookup"),
-		}, "Dashboard backup evidence mentioned singular `message_reaction`; live audit must report it as unknown if present. Go aligns duplicates during setup and removes them on explicit delete; create no index until a full duplicate audit and exclusive Node/Go setup ownership."),
+			nonUniqueCatalogIndex("message_reactions_guild_message_react_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "message", Order: 1}, {Field: "react", Order: 1}}, "reaction event lookup without requiring duplicate cleanup"),
+		}, "Dashboard backup evidence mentioned singular `message_reaction`; live audit must report it as unknown if present. Go aligns duplicates during setup and removes them on explicit delete; create no unique index until a full duplicate audit and exclusive Node/Go setup ownership."),
 		catalogSpec("not_a_good_webs", "not_a_good_web", "models/not_a_good_web.js", []string{"web"}, []catalogIndex{
 			uniqueCatalogIndex("not_a_good_webs_web", []string{"web"}, "anti-scam URL lookup"),
 		}, "Normalize domains and escape regex before any schema/write changes."),
@@ -165,7 +171,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		}, "Dashboard-shared collection; do not copy dashboard-only `guild` unique declaration."),
 		catalogSpec("work_users", "work_user", "models/work_user.js", []string{"guild", "user"}, []catalogIndex{
 			uniqueCatalogIndex("work_users_guild_user", []string{"guild", "user"}, "work user state lookup"),
-			nonUniqueCatalogIndex("work_users_guild", []IndexKey{{Field: "guild", Order: 1}}, "daily energy refill without requiring duplicate cleanup"),
+			nonUniqueCatalogIndex("work_users_guild_energi", []IndexKey{{Field: "guild", Order: 1}, {Field: "energi", Order: 1}}, "daily energy refill and clamp without requiring duplicate cleanup"),
 			nonUniqueCatalogIndex("work_users_state_end_time", []IndexKey{{Field: "state", Order: 1}, {Field: "end_time", Order: 1}}, "due work-job scan"),
 		}, "Preserve misspelled legacy field `energi`; work payout uses `work_users._id` for per-row idempotency."),
 	}

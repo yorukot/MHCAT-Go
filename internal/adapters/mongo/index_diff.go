@@ -78,6 +78,16 @@ func DiffIndexes(desired IndexPlan, live map[string][]IndexInfo, opts IndexDiffO
 				operations = append(operations, indexOperation(IndexOperationExists, spec, "lookup is covered by existing index "+covering.Name, IndexRiskLow))
 				continue
 			}
+			if conflict, blocked := conflictingLiveFallback(spec, live[spec.Collection]); blocked {
+				op := indexOperation(IndexOperationDangerous, spec, "remove same-key non-unique fallback "+conflict.Name+" before creating unique index", IndexRiskHigh)
+				op.RequiresDuplicateAudit = true
+				operations = append(operations, op)
+				continue
+			}
+			if covering, covered := approvedDesiredUniqueIndex(spec, desired.Indexes, opts); covered {
+				operations = append(operations, indexOperation(IndexOperationExists, spec, "lookup will be covered by approved unique index "+covering.Name, IndexRiskLow))
+				continue
+			}
 			operations = append(operations, missingIndexOperation(spec, opts))
 			continue
 		}
@@ -115,26 +125,62 @@ func DiffIndexes(desired IndexPlan, live map[string][]IndexInfo, opts IndexDiffO
 	return IndexDiffPlan{Operations: operations}, nil
 }
 
+func approvedDesiredUniqueIndex(spec IndexSpec, desired []IndexSpec, opts IndexDiffOptions) (IndexSpec, bool) {
+	if spec.Unique || spec.Sparse || spec.PartialFilter != "" || spec.TTLSeconds != nil || !opts.AllowUnique {
+		return IndexSpec{}, false
+	}
+	for _, candidate := range desired {
+		if candidate.Collection != spec.Collection || !candidate.Unique || candidate.Sparse || candidate.PartialFilter != "" || candidate.TTLSeconds != nil {
+			continue
+		}
+		if !opts.DuplicateAuditClean[indexKey(candidate.Collection, candidate.Name)] || !indexKeysHavePrefix(candidate.Keys, spec.Keys) {
+			continue
+		}
+		return candidate, true
+	}
+	return IndexSpec{}, false
+}
+
+func conflictingLiveFallback(spec IndexSpec, indexes []IndexInfo) (IndexInfo, bool) {
+	if !spec.Unique || spec.Sparse || spec.PartialFilter != "" || spec.TTLSeconds != nil {
+		return IndexInfo{}, false
+	}
+	for _, index := range indexes {
+		if index.Unique || index.Sparse || index.PartialFilter != "" || index.TTLSeconds != nil || len(index.Keys) != len(spec.Keys) {
+			continue
+		}
+		if indexKeysHavePrefix(index.Keys, spec.Keys) {
+			return index, true
+		}
+	}
+	return IndexInfo{}, false
+}
+
 func coveringLiveIndex(spec IndexSpec, indexes []IndexInfo) (IndexInfo, bool) {
 	if spec.Unique || spec.Sparse || spec.PartialFilter != "" || spec.TTLSeconds != nil {
 		return IndexInfo{}, false
 	}
 	for _, index := range indexes {
-		if index.Sparse || index.PartialFilter != "" || index.TTLSeconds != nil || len(index.Keys) != len(spec.Keys) {
+		if index.Sparse || index.PartialFilter != "" || index.TTLSeconds != nil || len(index.Keys) < len(spec.Keys) {
 			continue
 		}
-		matched := true
-		for i := range spec.Keys {
-			if index.Keys[i] != spec.Keys[i] {
-				matched = false
-				break
-			}
-		}
-		if matched {
+		if indexKeysHavePrefix(index.Keys, spec.Keys) {
 			return index, true
 		}
 	}
 	return IndexInfo{}, false
+}
+
+func indexKeysHavePrefix(keys []IndexKey, prefix []IndexKey) bool {
+	if len(keys) < len(prefix) {
+		return false
+	}
+	for index := range prefix {
+		if keys[index] != prefix[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func FormatIndexDiffPlan(w io.Writer, plan IndexDiffPlan, format string) error {

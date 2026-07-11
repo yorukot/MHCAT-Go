@@ -185,9 +185,9 @@ Collections and fields remain exact:
 
 Writes remain typed BSON strings readable by Mongoose. Existing `guilds` rows are patch-updated so dashboard/shared fields remain intact. Go updates all duplicate matches before upserting and deletes all exact duplicate bound rows, instead of legacy first-row update/delete behavior.
 
-Reads use separate permissive DTOs. Mongoose-compatible String coercion accepts string, Boolean, numeric, decimal, ObjectID, symbol, and JavaScript scalar forms supported by the shared decoder. Compound object/array values remain unusable. Read values are no longer trimmed or case-normalized.
+Reads use separate permissive DTOs. Mongoose-compatible String coercion accepts string, Boolean, numeric, decimal, ObjectID, symbol, and JavaScript scalar forms supported by the shared decoder. Compound object/array values remain unusable. Read values are no longer trimmed or case-normalized. Bound-channel lookups use a 30-second positive/negative in-process cache, with immediate local invalidation after config writes; cross-process config changes can take up to one cache window to appear.
 
-The application creates no startup index. Candidate unique indexes on `guilds.guild` and `ann_all_sets.{guild,announcement_id}` must not be applied until duplicate keys, null/missing keys, scalar drift, shared dashboard writes, and malformed color/tag/title values are audited. No TTL index or draft collection is used.
+The application creates no startup index. Candidate unique indexes on `guilds.guild` and `ann_all_sets.{guild,announcement_id}` must not be applied until duplicate keys, null/missing keys, scalar drift, shared dashboard writes, and malformed color/tag/title values are audited. The duplicate-safe non-unique `ann_all_sets_guild_announcement_lookup` index may be explicitly applied for the relay hot path before uniqueness is approved; remove it before promoting the same-key unique index. No TTL index or draft collection is used.
 
 ## Intentional Safety And Reliability Differences
 

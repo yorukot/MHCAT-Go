@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo"
@@ -107,6 +108,9 @@ func applyFlags(args []string, cfg *config.MongoAdminConfig, stderr io.Writer) (
 	output := flags.String("output", "", "optional output path")
 	if err := flags.Parse(args); err != nil {
 		return "", "", err
+	}
+	if flags.NArg() != 0 {
+		return "", "", fmt.Errorf("unexpected positional arguments: %s", strings.Join(flags.Args(), " "))
 	}
 	cfg.AuditSampleLimit = *sampleLimit
 	cfg.AuditLargeDocumentBytes = *largeDocBytes

@@ -16,23 +16,28 @@ import (
 )
 
 const (
-	defaultBotPath      = "/usr/local/bin/mhcat-bot"
-	defaultSpawnDelay   = 6 * time.Second
-	defaultRestartDelay = 2 * time.Second
-	defaultStopTimeout  = 30 * time.Second
+	defaultBotPath           = "/usr/local/bin/mhcat-bot"
+	defaultSpawnDelay        = 6 * time.Second
+	defaultRestartDelay      = 2 * time.Second
+	defaultRestartMaxDelay   = 2 * time.Minute
+	defaultRestartResetAfter = 5 * time.Minute
+	defaultStopTimeout       = 30 * time.Second
 )
 
 type supervisorConfig struct {
-	BotPath      string
-	ShardCount   int
-	SpawnDelay   time.Duration
-	RestartDelay time.Duration
-	StopTimeout  time.Duration
+	BotPath           string
+	ShardCount        int
+	SpawnDelay        time.Duration
+	RestartDelay      time.Duration
+	RestartMaxDelay   time.Duration
+	RestartResetAfter time.Duration
+	StopTimeout       time.Duration
 }
 
 type childExit struct {
 	shardID int
 	err     error
+	uptime  time.Duration
 }
 
 type supervisor struct {
@@ -76,23 +81,33 @@ func loadSupervisorConfig(lookup func(string) (string, bool)) (supervisorConfig,
 	if err != nil {
 		return supervisorConfig{}, err
 	}
+	restartMaxDelay, err := envDuration(lookup, "MHCAT_DISCORD_SHARD_RESTART_MAX_DELAY", defaultRestartMaxDelay)
+	if err != nil {
+		return supervisorConfig{}, err
+	}
+	restartResetAfter, err := envDuration(lookup, "MHCAT_DISCORD_SHARD_RESTART_RESET_AFTER", defaultRestartResetAfter)
+	if err != nil {
+		return supervisorConfig{}, err
+	}
 	stopTimeout, err := envDuration(lookup, "MHCAT_DISCORD_SHARD_STOP_TIMEOUT", defaultStopTimeout)
 	if err != nil {
 		return supervisorConfig{}, err
 	}
-	if spawnDelay < 0 || restartDelay < 0 || stopTimeout <= 0 {
-		return supervisorConfig{}, errors.New("shard delays must be non-negative and stop timeout must be positive")
+	if spawnDelay < 0 || restartDelay <= 0 || restartMaxDelay < restartDelay || restartResetAfter <= 0 || stopTimeout <= 0 {
+		return supervisorConfig{}, errors.New("shard spawn delay must be non-negative; restart delays, reset window, and stop timeout must be positive; restart max delay must not be shorter than restart delay")
 	}
 	botPath := envString(lookup, "MHCAT_BOT_PATH", defaultBotPath)
 	if strings.TrimSpace(botPath) == "" {
 		return supervisorConfig{}, errors.New("MHCAT_BOT_PATH must not be empty")
 	}
 	return supervisorConfig{
-		BotPath:      botPath,
-		ShardCount:   count,
-		SpawnDelay:   spawnDelay,
-		RestartDelay: restartDelay,
-		StopTimeout:  stopTimeout,
+		BotPath:           botPath,
+		ShardCount:        count,
+		SpawnDelay:        spawnDelay,
+		RestartDelay:      restartDelay,
+		RestartMaxDelay:   restartMaxDelay,
+		RestartResetAfter: restartResetAfter,
+		StopTimeout:       stopTimeout,
 	}, nil
 }
 
@@ -101,6 +116,7 @@ func newSupervisor(cfg supervisorConfig, stdout io.Writer, stderr io.Writer) *su
 }
 
 func (s *supervisor) run(ctx context.Context) error {
+	restartDelays := make(map[int]time.Duration, s.cfg.ShardCount)
 	for shardID := 0; shardID < s.cfg.ShardCount; shardID++ {
 		if err := s.start(shardID); err != nil {
 			return errors.Join(err, s.shutdown())
@@ -118,8 +134,16 @@ func (s *supervisor) run(ctx context.Context) error {
 			s.mu.Lock()
 			delete(s.children, exited.shardID)
 			s.mu.Unlock()
-			fmt.Fprintf(s.stderr, "shard %d exited: %v\n", exited.shardID, exited.err)
-			if !sleepContext(ctx, s.cfg.RestartDelay) {
+			restartDelay := nextRestartDelay(
+				s.cfg.RestartDelay,
+				s.cfg.RestartMaxDelay,
+				restartDelays[exited.shardID],
+				exited.uptime,
+				s.cfg.RestartResetAfter,
+			)
+			restartDelays[exited.shardID] = restartDelay
+			fmt.Fprintf(s.stderr, "shard %d exited after %s: %v; restarting in %s\n", exited.shardID, exited.uptime.Round(time.Millisecond), exited.err, restartDelay)
+			if !sleepContext(ctx, restartDelay) {
 				return s.shutdown()
 			}
 			if err := s.start(exited.shardID); err != nil {
@@ -130,6 +154,7 @@ func (s *supervisor) run(ctx context.Context) error {
 }
 
 func (s *supervisor) start(shardID int) error {
+	startedAt := time.Now()
 	cmd := exec.Command(s.cfg.BotPath)
 	cmd.Stdout = s.stdout
 	cmd.Stderr = s.stderr
@@ -142,9 +167,22 @@ func (s *supervisor) start(shardID int) error {
 	s.mu.Unlock()
 	fmt.Fprintf(s.stdout, "started shard %d/%d pid=%d\n", shardID, s.cfg.ShardCount, cmd.Process.Pid)
 	go func() {
-		s.exits <- childExit{shardID: shardID, err: cmd.Wait()}
+		s.exits <- childExit{shardID: shardID, err: cmd.Wait(), uptime: time.Since(startedAt)}
 	}()
 	return nil
+}
+
+func nextRestartDelay(initial time.Duration, maximum time.Duration, previous time.Duration, uptime time.Duration, resetAfter time.Duration) time.Duration {
+	if uptime >= resetAfter {
+		previous = 0
+	}
+	if previous <= 0 {
+		return initial
+	}
+	if previous >= maximum || previous > maximum/2 {
+		return maximum
+	}
+	return previous * 2
 }
 
 func (s *supervisor) shutdown() error {

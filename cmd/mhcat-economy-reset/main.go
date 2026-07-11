@@ -152,6 +152,9 @@ func applyFlags(args []string, cfg *config.DailyResetConfig, stderr io.Writer) (
 	if err := flags.Parse(args); err != nil {
 		return "", err
 	}
+	if flags.NArg() != 0 {
+		return "", fmt.Errorf("unexpected positional arguments: %s", strings.Join(flags.Args(), " "))
+	}
 	dryRunExplicit := false
 	flags.Visit(func(f *flag.Flag) {
 		if f.Name == "dry-run" {

@@ -72,6 +72,10 @@ func run(ctx context.Context, args []string, lookup config.LookupFunc, stdout io
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
+	if flags.NArg() != 0 {
+		fmt.Fprintf(stderr, "production preflight flag error: unexpected positional arguments: %s\n", strings.Join(flags.Args(), " "))
+		return 1
+	}
 	if *format != "text" && *format != "json" {
 		fmt.Fprintln(stderr, "production preflight: format must be text or json")
 		return 1

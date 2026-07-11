@@ -23,6 +23,16 @@ func TestCommandSyncMissingApplicationIDFails(t *testing.T) {
 	}
 }
 
+func TestCommandSyncRejectsPositionalArguments(t *testing.T) {
+	exitCode, _, stderr, client := runWithFake(t, []string{"--apply", "unexpected"}, stagingCommandSyncEnv(), nil)
+	if exitCode == 0 || !strings.Contains(stderr, "unexpected positional arguments") {
+		t.Fatalf("exit=%d stderr=%q", exitCode, stderr)
+	}
+	if len(client.Created) != 0 || len(client.Updated) != 0 || len(client.Deleted) != 0 {
+		t.Fatalf("positional argument performed writes: %#v", client)
+	}
+}
+
 func TestCommandSyncGuildScopeMissingGuildIDFails(t *testing.T) {
 	env := baseCommandSyncEnv()
 	delete(env, "MHCAT_COMMAND_SYNC_GUILD_ID")

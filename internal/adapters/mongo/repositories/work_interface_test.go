@@ -149,6 +149,22 @@ func TestWorkEnergyGrantPipelineClampsEnergy(t *testing.T) {
 	}
 }
 
+func TestWorkEnergyGrantPipelinePreservesScalarOnZeroGrant(t *testing.T) {
+	pipeline := workEnergyGrantPipeline(0, 20.5)
+	set := pipeline[0][0].Value.(bson.D)
+	energy := lookupD(set, "energi").(bson.D)
+	condition := lookupD(energy, "$cond").(bson.A)
+	if condition[1] != 20.5 || condition[2] != "$energi" {
+		t.Fatalf("zero grant condition = %#v", condition)
+	}
+
+	malformedMax := workEnergyGrantPipeline(0, math.NaN())
+	malformedSet := malformedMax[0][0].Value.(bson.D)
+	if value := lookupD(malformedSet, "energi"); value != "$energi" {
+		t.Fatalf("malformed max should preserve scalar, got %#v", value)
+	}
+}
+
 func testWorkStartCommand() domain.WorkStartCommand {
 	return domain.WorkStartCommand{
 		GuildID:     "guild-1",

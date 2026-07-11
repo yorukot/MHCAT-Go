@@ -24,6 +24,18 @@ func TestWorkPayoutMissingMongoEnvFails(t *testing.T) {
 	}
 }
 
+func TestWorkPayoutRejectsPositionalArguments(t *testing.T) {
+	repository := &fakemongo.WorkPayoutRepository{}
+	store := newTestLeaseStore(true)
+	exitCode, _, stderr, _, _ := runWithFake(t, []string{"--apply", "unexpected"}, applyEnv(), repository, store)
+	if exitCode == 0 || !strings.Contains(stderr, "unexpected positional arguments") {
+		t.Fatalf("exit=%d stderr=%q", exitCode, stderr)
+	}
+	if repository.PreviewCalls != 0 || repository.RunCalls != 0 || store.AcquireCalls != 0 {
+		t.Fatalf("positional argument reached write path: repo=%#v store=%#v", repository, store)
+	}
+}
+
 func TestWorkPayoutDefaultsToDryRunPreviewOnly(t *testing.T) {
 	repository := &fakemongo.WorkPayoutRepository{PreviewResult: domain.WorkPayoutResult{EligibleJobs: 7}}
 	leaseStore := newTestLeaseStore(true)

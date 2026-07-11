@@ -64,6 +64,9 @@ func parseFlags(args []string, stderr io.Writer) (string, error) {
 	if err := flags.Parse(args); err != nil {
 		return "", err
 	}
+	if flags.NArg() != 0 {
+		return "", fmt.Errorf("unexpected positional arguments: %s", strings.Join(flags.Args(), " "))
+	}
 	switch *format {
 	case "text", "json":
 		return *format, nil

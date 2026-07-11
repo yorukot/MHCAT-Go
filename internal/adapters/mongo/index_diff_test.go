@@ -35,6 +35,62 @@ func TestDiffIndexesExistingUniqueIndexCoversSafeLookupFallback(t *testing.T) {
 	}
 }
 
+func TestDiffIndexesExistingCompoundIndexCoversLookupPrefix(t *testing.T) {
+	spec := plainIndex("join_roles", "join_roles_guild_lookup")
+	spec.Keys = []IndexKey{{Field: "guild", Order: 1}}
+	plan, err := DiffIndexes(IndexPlan{Indexes: []IndexSpec{spec}}, map[string][]IndexInfo{
+		"join_roles": {{
+			Collection: "join_roles",
+			Name:       "join_roles_guild_role",
+			Keys:       []IndexKey{{Field: "guild", Order: 1}, {Field: "role", Order: 1}},
+			Unique:     true,
+		}},
+	}, IndexDiffOptions{})
+	if err != nil {
+		t.Fatalf("diff indexes: %v", err)
+	}
+	for _, operation := range plan.Operations {
+		if operation.IndexName == spec.Name && operation.Operation != IndexOperationExists {
+			t.Fatalf("prefix fallback operation = %#v", operation)
+		}
+	}
+}
+
+func TestDiffIndexesApprovedUniqueIndexSuppressesFallbackCreation(t *testing.T) {
+	unique := uniqueIndex("coins", "coins_guild_member")
+	fallback := plainIndex("coins", "coins_guild_member_lookup")
+	plan, err := DiffIndexes(IndexPlan{Indexes: []IndexSpec{unique, fallback}}, nil, IndexDiffOptions{
+		AllowUnique: true,
+		DuplicateAuditClean: map[string]bool{
+			"coins/coins_guild_member": true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("diff indexes: %v", err)
+	}
+	assertIndexOperation(t, plan, IndexOperationCreate, "coins", "coins_guild_member")
+	assertIndexOperation(t, plan, IndexOperationExists, "coins", "coins_guild_member_lookup")
+}
+
+func TestDiffIndexesSameKeyFallbackBlocksUniquePromotion(t *testing.T) {
+	unique := uniqueIndex("coins", "coins_guild_member")
+	plan, err := DiffIndexes(IndexPlan{Indexes: []IndexSpec{unique}}, map[string][]IndexInfo{
+		"coins": {{Collection: "coins", Name: "coins_guild_member_lookup", Keys: append([]IndexKey(nil), unique.Keys...)}},
+	}, IndexDiffOptions{
+		AllowUnique: true,
+		DuplicateAuditClean: map[string]bool{
+			"coins/coins_guild_member": true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("diff indexes: %v", err)
+	}
+	op := assertIndexOperation(t, plan, IndexOperationDangerous, "coins", "coins_guild_member")
+	if op.Risk != IndexRiskHigh || !op.RequiresDuplicateAudit {
+		t.Fatalf("promotion operation = %#v", op)
+	}
+}
+
 func TestDiffIndexesExistingIdenticalMarkedExists(t *testing.T) {
 	spec := plainIndex("coin", "guild_member_idx")
 	diff, err := DiffIndexes(IndexPlan{Indexes: []IndexSpec{spec}}, map[string][]IndexInfo{

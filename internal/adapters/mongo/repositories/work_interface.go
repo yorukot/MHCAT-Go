@@ -355,6 +355,19 @@ func workStartNumber(text string, fallback int64) float64 {
 }
 
 func workEnergyGrantPipeline(amount int64, maxEnergy float64) drivermongo.Pipeline {
+	if amount == 0 {
+		value := any("$energi")
+		if !math.IsNaN(maxEnergy) {
+			value = bson.D{{Key: "$cond", Value: bson.A{
+				bson.D{{Key: "$gt", Value: bson.A{workMongoNumber("$energi"), maxEnergy}}},
+				maxEnergy,
+				"$energi",
+			}}}
+		}
+		return drivermongo.Pipeline{
+			bson.D{{Key: "$set", Value: bson.D{{Key: "energi", Value: value}}}},
+		}
+	}
 	nextEnergy := bson.D{{Key: "$add", Value: bson.A{workMongoNumber("$energi"), amount}}}
 	value := any(bson.D{{Key: "$cond", Value: bson.A{
 		bson.D{{Key: "$gt", Value: bson.A{nextEnergy, maxEnergy}}},

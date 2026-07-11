@@ -163,6 +163,9 @@ func applyFlags(args []string, cfg *config.MongoAdminConfig, stderr io.Writer) (
 	if err := flags.Parse(args); err != nil {
 		return cliOptions{}, err
 	}
+	if flags.NArg() != 0 {
+		return cliOptions{}, fmt.Errorf("unexpected positional arguments: %s", strings.Join(flags.Args(), " "))
+	}
 
 	dryRunSet := flagWasSet(args, "dry-run")
 	if *apply && dryRunSet && *dryRun {

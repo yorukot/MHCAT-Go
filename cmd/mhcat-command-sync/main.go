@@ -138,6 +138,9 @@ func applyFlags(args []string, cfg *config.CommandSyncConfig, stderr io.Writer) 
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected positional arguments: %s", strings.Join(flags.Args(), " "))
+	}
 
 	dryRunSet := flagWasSet(args, "dry-run")
 	if *apply && dryRunSet && *dryRun {

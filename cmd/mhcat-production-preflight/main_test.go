@@ -16,6 +16,14 @@ func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) 
 	return f(request)
 }
 
+func TestProductionPreflightRejectsPositionalArguments(t *testing.T) {
+	var stdout, stderr strings.Builder
+	code := run(context.Background(), []string{"unexpected"}, nil, &stdout, &stderr, nil)
+	if code == 0 || !strings.Contains(stderr.String(), "unexpected positional arguments") {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+}
+
 func TestRecommendedShardCountUsesAuthenticatedGatewayEndpoint(t *testing.T) {
 	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 		if request.URL.String() != "https://discord.com/api/v10/gateway/bot" {

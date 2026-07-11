@@ -9,16 +9,18 @@ import (
 
 func TestLoadSupervisorConfig(t *testing.T) {
 	cfg, err := loadSupervisorConfig(mapLookup(map[string]string{
-		"MHCAT_BOT_PATH":                    "/bot",
-		"MHCAT_DISCORD_SHARD_COUNT":         "16",
-		"MHCAT_DISCORD_SHARD_SPAWN_DELAY":   "5s",
-		"MHCAT_DISCORD_SHARD_RESTART_DELAY": "3s",
-		"MHCAT_DISCORD_SHARD_STOP_TIMEOUT":  "20s",
+		"MHCAT_BOT_PATH":                          "/bot",
+		"MHCAT_DISCORD_SHARD_COUNT":               "16",
+		"MHCAT_DISCORD_SHARD_SPAWN_DELAY":         "5s",
+		"MHCAT_DISCORD_SHARD_RESTART_DELAY":       "3s",
+		"MHCAT_DISCORD_SHARD_RESTART_MAX_DELAY":   "90s",
+		"MHCAT_DISCORD_SHARD_RESTART_RESET_AFTER": "4m",
+		"MHCAT_DISCORD_SHARD_STOP_TIMEOUT":        "20s",
 	}))
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
-	if cfg.BotPath != "/bot" || cfg.ShardCount != 16 || cfg.SpawnDelay != 5*time.Second || cfg.RestartDelay != 3*time.Second || cfg.StopTimeout != 20*time.Second {
+	if cfg.BotPath != "/bot" || cfg.ShardCount != 16 || cfg.SpawnDelay != 5*time.Second || cfg.RestartDelay != 3*time.Second || cfg.RestartMaxDelay != 90*time.Second || cfg.RestartResetAfter != 4*time.Minute || cfg.StopTimeout != 20*time.Second {
 		t.Fatalf("config = %#v", cfg)
 	}
 }
@@ -28,12 +30,35 @@ func TestLoadSupervisorConfigRejectsInvalidValues(t *testing.T) {
 		{"MHCAT_DISCORD_SHARD_COUNT": "0"},
 		{"MHCAT_DISCORD_SHARD_COUNT": "nope"},
 		{"MHCAT_DISCORD_SHARD_SPAWN_DELAY": "-1s"},
+		{"MHCAT_DISCORD_SHARD_RESTART_DELAY": "0s"},
+		{"MHCAT_DISCORD_SHARD_RESTART_DELAY": "5s", "MHCAT_DISCORD_SHARD_RESTART_MAX_DELAY": "4s"},
+		{"MHCAT_DISCORD_SHARD_RESTART_RESET_AFTER": "0s"},
 		{"MHCAT_DISCORD_SHARD_STOP_TIMEOUT": "0s"},
 		{"MHCAT_BOT_PATH": " "},
 	} {
 		if _, err := loadSupervisorConfig(mapLookup(env)); err == nil {
 			t.Fatalf("expected error for %#v", env)
 		}
+	}
+}
+
+func TestNextRestartDelayUsesCappedExponentialBackoff(t *testing.T) {
+	initial := 2 * time.Second
+	maximum := 20 * time.Second
+	previous := time.Duration(0)
+	want := []time.Duration{2 * time.Second, 4 * time.Second, 8 * time.Second, 16 * time.Second, 20 * time.Second, 20 * time.Second}
+	for index, expected := range want {
+		previous = nextRestartDelay(initial, maximum, previous, time.Second, 5*time.Minute)
+		if previous != expected {
+			t.Fatalf("delay[%d] = %s, want %s", index, previous, expected)
+		}
+	}
+}
+
+func TestNextRestartDelayResetsAfterStableRun(t *testing.T) {
+	got := nextRestartDelay(2*time.Second, 2*time.Minute, time.Minute, 5*time.Minute, 5*time.Minute)
+	if got != 2*time.Second {
+		t.Fatalf("delay = %s, want 2s", got)
 	}
 }
 
