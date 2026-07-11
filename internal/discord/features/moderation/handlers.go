@@ -184,6 +184,10 @@ func (m Module) CleanupHandler() interactions.Handler {
 		if !ok {
 			return responder.EditOriginal(ctx, cleanupErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 		}
+		userID := warningStringOption(interaction, cleanupOptionUser)
+		if count == 0 && userID != "" {
+			return responder.EditOriginal(ctx, cleanupSuccessMessage(0, 0))
+		}
 		if count <= 0 {
 			return responder.EditOriginal(ctx, cleanupErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))
 		}
@@ -199,7 +203,7 @@ func (m Module) CleanupHandler() interactions.Handler {
 		deleted, err := m.cleaner.CleanupMessages(ctx, ports.MessageCleanupRequest{
 			ChannelID: interaction.ChannelID,
 			Limit:     int(count),
-			UserID:    warningStringOption(interaction, cleanupOptionUser),
+			UserID:    userID,
 		})
 		if err != nil {
 			return responder.EditOriginal(ctx, cleanupErrorMessage("很抱歉，出現了未知的錯誤，請重試!"))

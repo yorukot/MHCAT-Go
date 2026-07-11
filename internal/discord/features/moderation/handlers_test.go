@@ -827,6 +827,26 @@ func TestCleanupRejectsNonPositiveCount(t *testing.T) {
 	}
 }
 
+func TestCleanupFilteredZeroPreservesLegacySuccess(t *testing.T) {
+	sideEffects := fakediscord.NewSideEffects()
+	module := NewCleanupModule(sideEffects, nil)
+	responder := fakediscord.NewResponder()
+
+	if err := module.CleanupHandler()(context.Background(), cleanupInteraction("0", "user-2"), responder); err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if len(sideEffects.CleanupRequests) != 0 {
+		t.Fatalf("cleanup requests = %#v", sideEffects.CleanupRequests)
+	}
+	if len(responder.Edits) != 1 || !responder.Edits[0].Ephemeral || len(responder.Edits[0].Embeds) != 1 {
+		t.Fatalf("edits = %#v", responder.Edits)
+	}
+	embed := responder.Edits[0].Embeds[0]
+	if embed.Title != "<a:green_tick:994529015652163614> | 清理完成!" || embed.Description != "**成功清除:**`0`/`0`\n**<:deletebutton:981971559679950848> 如果沒有成功清完全\n代表可能超過14天或沒這麼多訊息給清**" || embed.Color != 0x53FF53 {
+		t.Fatalf("embed = %#v", embed)
+	}
+}
+
 func TestCleanupCleanerErrorUsesGenericLegacyError(t *testing.T) {
 	sideEffects := fakediscord.NewSideEffects()
 	sideEffects.CleanupErr = errors.New("discord unavailable")
