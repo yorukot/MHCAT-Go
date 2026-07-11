@@ -154,12 +154,12 @@ func (r *WarningHistoryRepository) RemoveWarning(ctx context.Context, removal do
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("decode warning content for removal: %w", err))
 	}
-	index := int(removal.Index - 1)
-	if index < 0 || index >= len(content) {
-		return ports.ErrWarningsNotFound
+	index, remove := warningSpliceIndex(removal.Index, len(content))
+	next := append([]any(nil), content...)
+	if remove {
+		next = append([]any(nil), content[:index]...)
+		next = append(next, content[index+1:]...)
 	}
-	next := append([]any(nil), content[:index]...)
-	next = append(next, content[index+1:]...)
 	result, err := r.collection.UpdateOne(ctx, bson.D{{Key: "_id", Value: document.ID}}, bson.D{{Key: "$set", Value: bson.D{{Key: "content", Value: next}}}})
 	if err != nil {
 		return mhcatmongo.MapError(fmt.Errorf("remove warning: %w", err))
@@ -168,6 +168,27 @@ func (r *WarningHistoryRepository) RemoveWarning(ctx context.Context, removal do
 		return ports.ErrWarningsNotFound
 	}
 	return ctx.Err()
+}
+
+func warningSpliceIndex(optionIndex int64, length int) (int, bool) {
+	if length == 0 {
+		return 0, false
+	}
+	start := optionIndex
+	if start > -1<<63 {
+		start--
+	}
+	if start < 0 {
+		if start <= -int64(length) {
+			start = 0
+		} else {
+			start = int64(length) + start
+		}
+	}
+	if start >= int64(length) {
+		return length, false
+	}
+	return int(start), true
 }
 
 func (r *WarningHistoryRepository) RemoveAllWarnings(ctx context.Context, removal domain.WarningRemoval) error {

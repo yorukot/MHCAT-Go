@@ -527,6 +527,43 @@ func TestWarningRemoveTypedIntegerOption(t *testing.T) {
 	}
 }
 
+func TestWarningRemovePreservesJavaScriptSpliceIndexes(t *testing.T) {
+	tests := []struct {
+		name  string
+		index string
+		want  []string
+	}{
+		{name: "zero removes last", index: "0", want: []string{"one", "two"}},
+		{name: "negative counts from end", index: "-1", want: []string{"one", "three"}},
+		{name: "very negative clamps first", index: "-99", want: []string{"two", "three"}},
+		{name: "large index is successful no-op", index: "99", want: []string{"one", "two", "three"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := fakemongo.NewWarningRemovalRepository()
+			repo.Put(domain.WarningHistory{GuildID: "guild-1", UserID: "user-2", Entries: []domain.WarningEntry{{Reason: "one"}, {Reason: "two"}, {Reason: "three"}}})
+			module := NewRemovalModule(repo, nil, nil, nil)
+			responder := fakediscord.NewResponder()
+
+			if err := module.WarningRemoveHandler()(context.Background(), warningRemoveInteraction("user-2", test.index), responder); err != nil {
+				t.Fatalf("handler: %v", err)
+			}
+			entries := repo.Histories["guild-1\x00user-2"].Entries
+			if len(entries) != len(test.want) {
+				t.Fatalf("entries = %#v", entries)
+			}
+			for index, want := range test.want {
+				if entries[index].Reason != want {
+					t.Fatalf("entries = %#v", entries)
+				}
+			}
+			if len(responder.Edits) != 1 || responder.Edits[0].Embeds[0].Title != "<a:greentick:980496858445135893> | 這位使用者的警告成功移除!" {
+				t.Fatalf("edits = %#v", responder.Edits)
+			}
+		})
+	}
+}
+
 func TestWarningRemoveMissingUsesLegacyError(t *testing.T) {
 	module := NewRemovalModule(fakemongo.NewWarningRemovalRepository(), nil, nil, nil)
 	responder := fakediscord.NewResponder()

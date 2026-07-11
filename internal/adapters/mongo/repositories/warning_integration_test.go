@@ -75,6 +75,14 @@ func TestWarningMongoIntegrationPreservesDuplicateIdentityAndMixedContent(t *tes
 	if !ok || addedReason != "added" {
 		t.Fatalf("preserved appended entry = %#v", content[1])
 	}
+	if err := repository.RemoveWarning(context.Background(), domain.WarningRemoval{GuildID: "guild-1", UserID: "user-1", Index: 99}); err != nil {
+		t.Fatalf("large-index no-op: %v", err)
+	}
+	assertWarningContentLength(t, collection, firstID, 2)
+	if err := repository.RemoveWarning(context.Background(), domain.WarningRemoval{GuildID: "guild-1", UserID: "user-1", Index: 0}); err != nil {
+		t.Fatalf("zero-index last removal: %v", err)
+	}
+	assertWarningContentLength(t, collection, firstID, 1)
 
 	if err := repository.RemoveAllWarnings(context.Background(), domain.WarningRemoval{GuildID: "guild-1", UserID: "user-1"}); err != nil {
 		t.Fatalf("remove all duplicate warnings: %v", err)

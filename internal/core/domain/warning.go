@@ -83,7 +83,7 @@ func (i WarningIssue) Validate() error {
 }
 
 func (r WarningRemoval) ValidateSingle() error {
-	if strings.TrimSpace(r.GuildID) == "" || strings.TrimSpace(r.UserID) == "" || r.Index <= 0 {
+	if strings.TrimSpace(r.GuildID) == "" || strings.TrimSpace(r.UserID) == "" {
 		return ErrInvalidWarningRemoval
 	}
 	return nil

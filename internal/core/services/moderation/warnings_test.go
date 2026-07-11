@@ -163,7 +163,7 @@ func TestWarningRemovalServiceRejectsInvalidAndMissingRepository(t *testing.T) {
 		t.Fatalf("missing repository err = %v", err)
 	}
 	service.Repository = fakemongo.NewWarningRemovalRepository()
-	err = service.RemoveOne(context.Background(), domain.WarningRemoval{GuildID: "guild-1", UserID: "user-1", Index: 0})
+	err = service.RemoveOne(context.Background(), domain.WarningRemoval{GuildID: "guild-1", Index: 0})
 	if !errors.Is(err, domain.ErrInvalidWarningRemoval) {
 		t.Fatalf("invalid err = %v", err)
 	}

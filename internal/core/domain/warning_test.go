@@ -59,10 +59,14 @@ func TestWarningRemovalValidate(t *testing.T) {
 	for _, removal := range []domain.WarningRemoval{
 		{GuildID: "", UserID: "user-1", Index: 1},
 		{GuildID: "guild-1", UserID: "", Index: 1},
-		{GuildID: "guild-1", UserID: "user-1", Index: 0},
 	} {
 		if err := removal.ValidateSingle(); !errors.Is(err, domain.ErrInvalidWarningRemoval) {
 			t.Fatalf("single removal %#v err = %v", removal, err)
+		}
+	}
+	for _, index := range []int64{0, -1, 100} {
+		if err := (domain.WarningRemoval{GuildID: "guild-1", UserID: "user-1", Index: index}).ValidateSingle(); err != nil {
+			t.Fatalf("legacy splice index %d: %v", index, err)
 		}
 	}
 	if err := (domain.WarningRemoval{GuildID: "guild-1"}).ValidateAll(); !errors.Is(err, domain.ErrInvalidWarningRemoval) {

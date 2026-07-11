@@ -96,19 +96,40 @@ func (r *WarningRemovalRepository) RemoveWarning(_ context.Context, removal doma
 	}
 	key := warningHistoryKey(removal.GuildID, removal.UserID)
 	history, ok := r.Histories[key]
-	if !ok || len(history.Entries) == 0 {
+	if !ok {
 		return ports.ErrWarningsNotFound
 	}
-	index := int(removal.Index - 1)
-	if index < 0 || index >= len(history.Entries) {
-		return ports.ErrWarningsNotFound
+	index, remove := fakeWarningSpliceIndex(removal.Index, len(history.Entries))
+	next := append([]domain.WarningEntry(nil), history.Entries...)
+	if remove {
+		next = append([]domain.WarningEntry(nil), history.Entries[:index]...)
+		next = append(next, history.Entries[index+1:]...)
 	}
-	next := append([]domain.WarningEntry(nil), history.Entries[:index]...)
-	next = append(next, history.Entries[index+1:]...)
 	history.Entries = next
 	r.Histories[key] = history
 	r.RemoveOnes = append(r.RemoveOnes, removal)
 	return nil
+}
+
+func fakeWarningSpliceIndex(optionIndex int64, length int) (int, bool) {
+	if length == 0 {
+		return 0, false
+	}
+	start := optionIndex
+	if start > -1<<63 {
+		start--
+	}
+	if start < 0 {
+		if start <= -int64(length) {
+			start = 0
+		} else {
+			start = int64(length) + start
+		}
+	}
+	if start >= int64(length) {
+		return length, false
+	}
+	return int(start), true
 }
 
 func (r *WarningRemovalRepository) RemoveAllWarnings(_ context.Context, removal domain.WarningRemoval) error {
