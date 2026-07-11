@@ -18,6 +18,18 @@ import (
 	drivermongo "go.mongodb.org/mongo-driver/v2/mongo"
 )
 
+func TestAutoChatPaidMongoTransactionIntegrationStartupDoesNotMutateDatabase(t *testing.T) {
+	_, database := autoChatPaidIntegrationRepository(t)
+	ctx := context.Background()
+	names, err := database.ListCollectionNames(ctx, bson.D{})
+	if err != nil {
+		t.Fatalf("list collections: %v", err)
+	}
+	if len(names) != 0 {
+		t.Fatalf("startup collections = %#v", names)
+	}
+}
+
 func TestAutoChatPaidMongoTransactionIntegrationLifecycle(t *testing.T) {
 	repository, database := autoChatPaidIntegrationRepository(t)
 	ctx := context.Background()
