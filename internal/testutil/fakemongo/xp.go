@@ -235,19 +235,38 @@ func (r *XPAdminRepository) MarkVoiceXPLeft(ctx context.Context, guildID string,
 	return r.markVoiceXPSession(ctx, guildID, userID, domain.VoiceXPSessionLeft)
 }
 
-func (r *XPAdminRepository) ListJoinedVoiceXPSessions(ctx context.Context) ([]domain.XPProfile, error) {
+func (r *XPAdminRepository) ReconcileVoiceXPSessions(ctx context.Context, guildID string, activeUserIDs []string) error {
 	if err := r.ready(ctx); err != nil {
-		return nil, err
+		return err
 	}
-	out := []domain.XPProfile{}
-	for _, profile := range r.VoiceProfiles {
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return domain.ErrInvalidXPAdjustment
+	}
+	active := make(map[string]struct{}, len(activeUserIDs))
+	for _, userID := range activeUserIDs {
+		userID = strings.TrimSpace(userID)
+		if userID != "" {
+			active[userID] = struct{}{}
+		}
+	}
+	for key, profile := range r.VoiceProfiles {
 		profile = profile.Normalize()
-		if profile.GuildID == "" || profile.UserID == "" || profile.LeaveJoin != domain.VoiceXPSessionJoined {
+		if profile.GuildID != guildID && !strings.HasPrefix(key, guildID+"/") {
 			continue
 		}
-		out = append(out, profile)
+		profile.LeaveJoin = domain.VoiceXPSessionLeft
+		r.VoiceProfiles[key] = profile
 	}
-	return out, nil
+	for userID := range active {
+		key := xpProfileKey(guildID, userID)
+		profile := r.VoiceProfiles[key].Normalize()
+		profile.GuildID = guildID
+		profile.UserID = userID
+		profile.LeaveJoin = domain.VoiceXPSessionJoined
+		r.VoiceProfiles[key] = profile
+	}
+	return ctx.Err()
 }
 
 func (r *XPAdminRepository) ListTextXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error) {

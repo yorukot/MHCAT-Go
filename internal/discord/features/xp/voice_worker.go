@@ -10,7 +10,6 @@ import (
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/xp"
-	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/sharding"
 )
 
 const LegacyVoiceXPInterval = 30 * time.Second
@@ -39,6 +38,7 @@ type voiceXPWorkerEntry struct {
 	userID         string
 	currentRoleIDs []string
 	nextTick       time.Time
+	generation     uint64
 }
 
 func NewVoiceXPWorker(interval time.Duration, tick VoiceXPTickFunc, logger *slog.Logger) *VoiceXPWorker {
@@ -78,20 +78,121 @@ func (w *VoiceXPWorker) Start(guildID string, userID string, currentRoleIDs []st
 		w.mu.Unlock()
 		return false
 	}
-	if !w.running {
-		w.rootCtx, w.cancel = context.WithCancel(context.Background())
-		w.done = make(chan struct{})
-		w.running = true
-		go w.run(w.rootCtx, w.done)
-	}
+	w.ensureRunningLocked()
 	ctx, cancel := context.WithCancel(w.rootCtx)
 	w.active[key] = &voiceXPWorkerEntry{
 		ctx: ctx, cancel: cancel, guildID: guildID, userID: userID,
-		currentRoleIDs: roles, nextTick: time.Now().Add(w.interval),
+		currentRoleIDs: roles, nextTick: time.Now().Add(w.interval), generation: 1,
 	}
 	w.mu.Unlock()
 	w.notify()
 	return true
+}
+
+func (w *VoiceXPWorker) StartOrUpdate(guildID string, userID string, currentRoleIDs []string) bool {
+	if w == nil || w.tick == nil {
+		return false
+	}
+	guildID = strings.TrimSpace(guildID)
+	userID = strings.TrimSpace(userID)
+	if guildID == "" || userID == "" {
+		return false
+	}
+	key := voiceXPWorkerKey(guildID, userID)
+	w.mu.Lock()
+	if entry, ok := w.active[key]; ok {
+		entry.currentRoleIDs = trimmedRoleIDs(currentRoleIDs)
+		entry.generation++
+		w.mu.Unlock()
+		return false
+	}
+	w.mu.Unlock()
+	return w.Start(guildID, userID, currentRoleIDs)
+}
+
+func (w *VoiceXPWorker) ReconcileGuild(guildID string, states []ports.DiscordVoiceState) (int, int) {
+	if w == nil || w.tick == nil {
+		return 0, 0
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return 0, 0
+	}
+	desired := make(map[string][]string, len(states))
+	for _, state := range states {
+		userID := strings.TrimSpace(state.UserID)
+		if userID == "" || state.IsBot || strings.TrimSpace(state.ChannelID) == "" {
+			continue
+		}
+		desired[userID] = trimmedRoleIDs(state.RoleIDs)
+	}
+
+	var canceled []context.CancelFunc
+	started := 0
+	stopped := 0
+	w.mu.Lock()
+	if w.stopped {
+		w.mu.Unlock()
+		return 0, 0
+	}
+	for key, entry := range w.active {
+		if entry.guildID != guildID {
+			continue
+		}
+		if _, ok := desired[entry.userID]; ok {
+			continue
+		}
+		delete(w.active, key)
+		canceled = append(canceled, entry.cancel)
+		stopped++
+	}
+	for userID, roles := range desired {
+		key := voiceXPWorkerKey(guildID, userID)
+		if entry, ok := w.active[key]; ok {
+			entry.currentRoleIDs = roles
+			entry.generation++
+			continue
+		}
+		w.ensureRunningLocked()
+		ctx, cancel := context.WithCancel(w.rootCtx)
+		w.active[key] = &voiceXPWorkerEntry{
+			ctx: ctx, cancel: cancel, guildID: guildID, userID: userID,
+			currentRoleIDs: roles, nextTick: time.Now().Add(w.interval), generation: 1,
+		}
+		started++
+	}
+	w.mu.Unlock()
+	for _, cancel := range canceled {
+		cancel()
+	}
+	if started > 0 || stopped > 0 {
+		w.notify()
+	}
+	return started, stopped
+}
+
+func (w *VoiceXPWorker) StopGuild(guildID string) int {
+	if w == nil {
+		return 0
+	}
+	guildID = strings.TrimSpace(guildID)
+	var canceled []context.CancelFunc
+	w.mu.Lock()
+	for key, entry := range w.active {
+		if entry.guildID != guildID {
+			continue
+		}
+		delete(w.active, key)
+		canceled = append(canceled, entry.cancel)
+	}
+	w.mu.Unlock()
+	for _, cancel := range canceled {
+		cancel()
+	}
+	if len(canceled) > 0 {
+		w.notify()
+	}
+	return len(canceled)
 }
 
 func (w *VoiceXPWorker) Stop(guildID string, userID string) bool {
@@ -189,16 +290,28 @@ func (w *VoiceXPWorker) run(ctx context.Context, done chan struct{}) {
 	}
 }
 
+func (w *VoiceXPWorker) ensureRunningLocked() {
+	if w.running {
+		return
+	}
+	w.rootCtx, w.cancel = context.WithCancel(context.Background())
+	w.done = make(chan struct{})
+	w.running = true
+	go w.run(w.rootCtx, w.done)
+}
+
 func (w *VoiceXPWorker) runDue(cutoff time.Time) {
 	for _, due := range w.collectDue(cutoff) {
 		key, entry := due.key, due.entry
-		result, err := w.tick(entry.ctx, entry.guildID, entry.userID, entry.currentRoleIDs)
+		result, err := w.tick(entry.ctx, entry.guildID, entry.userID, due.currentRoleIDs)
 		if err != nil {
 			if entry.ctx.Err() != nil {
 				continue
 			}
 			if errors.Is(err, ports.ErrVoiceXPProfileMissing) {
-				w.finish(key, entry)
+				if !w.finish(key, entry, due.generation) {
+					w.scheduleNext(key, entry)
+				}
 				continue
 			}
 			w.logger.WarnContext(entry.ctx, "voice xp tick failed", "guild_id", entry.guildID, "user_id", entry.userID, "error", err.Error())
@@ -206,7 +319,9 @@ func (w *VoiceXPWorker) runDue(cutoff time.Time) {
 			continue
 		}
 		if !result.Active {
-			w.finish(key, entry)
+			if !w.finish(key, entry, due.generation) {
+				w.scheduleNext(key, entry)
+			}
 			continue
 		}
 		w.scheduleNext(key, entry)
@@ -214,8 +329,10 @@ func (w *VoiceXPWorker) runDue(cutoff time.Time) {
 }
 
 type dueVoiceXPWorkerEntry struct {
-	key   string
-	entry *voiceXPWorkerEntry
+	key            string
+	entry          *voiceXPWorkerEntry
+	currentRoleIDs []string
+	generation     uint64
 }
 
 func (w *VoiceXPWorker) collectDue(cutoff time.Time) []dueVoiceXPWorkerEntry {
@@ -230,7 +347,11 @@ func (w *VoiceXPWorker) collectDue(cutoff time.Time) []dueVoiceXPWorkerEntry {
 		// next tick is scheduled from completion so slow Mongo calls never cause
 		// catch-up bursts.
 		entry.nextTick = cutoff.Add(w.interval)
-		due = append(due, dueVoiceXPWorkerEntry{key: key, entry: entry})
+		due = append(due, dueVoiceXPWorkerEntry{
+			key: key, entry: entry,
+			currentRoleIDs: append([]string(nil), entry.currentRoleIDs...),
+			generation:     entry.generation,
+		})
 	}
 	return due
 }
@@ -247,14 +368,16 @@ func (w *VoiceXPWorker) nextDeadline() (time.Time, bool) {
 	return earliest, !earliest.IsZero()
 }
 
-func (w *VoiceXPWorker) finish(key string, expected *voiceXPWorkerEntry) {
+func (w *VoiceXPWorker) finish(key string, expected *voiceXPWorkerEntry, generation uint64) bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	entry, ok := w.active[key]
-	if ok && entry == expected {
+	if ok && entry == expected && entry.generation == generation {
 		delete(w.active, key)
 		entry.cancel()
+		return true
 	}
+	return false
 }
 
 func (w *VoiceXPWorker) scheduleNext(key string, expected *voiceXPWorkerEntry) {
@@ -291,13 +414,11 @@ func resetVoiceXPTimer(timer *time.Timer, delay time.Duration) {
 }
 
 func (m VoiceEventModule) WithRuntimeWorker(interval time.Duration, logger *slog.Logger) VoiceEventModule {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	m.logger = logger
 	m.worker = NewVoiceXPWorker(interval, m.TickVoiceXP, logger)
-	return m
-}
-
-func (m VoiceEventModule) WithShard(shardID int, shardCount int) VoiceEventModule {
-	m.shardID = shardID
-	m.shardCount = shardCount
 	return m
 }
 
@@ -308,43 +429,23 @@ func (m VoiceEventModule) StopRuntimeWorker(ctx context.Context) error {
 	return m.worker.StopAll(ctx)
 }
 
-func (m VoiceEventModule) StartJoinedSessions(ctx context.Context) (int, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	if err := ctx.Err(); err != nil {
-		return 0, err
-	}
-	if m.worker == nil || m.service.Repository == nil {
-		return 0, ctx.Err()
-	}
-	profiles, err := m.service.JoinedSessions(ctx)
-	if err != nil {
-		return 0, err
-	}
-	started := 0
-	for _, profile := range profiles {
-		if !sharding.OwnsGuild(profile.GuildID, m.shardID, m.shardCount) {
-			continue
-		}
-		if m.worker.Start(profile.GuildID, profile.UserID, nil) {
-			started++
-		}
-	}
-	return started, ctx.Err()
-}
-
 func voiceXPWorkerKey(guildID string, userID string) string {
 	return strings.TrimSpace(guildID) + "\x00" + strings.TrimSpace(userID)
 }
 
 func trimmedRoleIDs(roleIDs []string) []string {
 	roles := make([]string, 0, len(roleIDs))
+	seen := make(map[string]struct{}, len(roleIDs))
 	for _, roleID := range roleIDs {
 		roleID = strings.TrimSpace(roleID)
-		if roleID != "" {
-			roles = append(roles, roleID)
+		if roleID == "" {
+			continue
 		}
+		if _, exists := seen[roleID]; exists {
+			continue
+		}
+		seen[roleID] = struct{}{}
+		roles = append(roles, roleID)
 	}
 	return roles
 }

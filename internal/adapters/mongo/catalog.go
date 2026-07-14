@@ -164,6 +164,7 @@ func DefaultCollectionCatalog() []CollectionSpec {
 		catalogSpec("voice_xps", "voice_xp", "models/voice_xp.js", []string{"guild", "member"}, []catalogIndex{
 			uniqueCatalogIndex("voice_xps_guild_member", []string{"guild", "member"}, "voice XP lookup and atomic XP increments"),
 			nonUniqueCatalogIndex("voice_xps_guild_member_lookup", []IndexKey{{Field: "guild", Order: 1}, {Field: "member", Order: 1}}, "voice XP scheduler update without requiring duplicate cleanup"),
+			nonUniqueCatalogIndex("voice_xps_guild_leavejoin", []IndexKey{{Field: "guild", Order: 1}, {Field: "leavejoin", Order: 1}}, "guild voice session reconciliation"),
 			nonUniqueCatalogIndex("voice_xps_guild_rank", []IndexKey{{Field: "guild", Order: 1}, {Field: "leavel", Order: -1}, {Field: "xp", Order: -1}}, "voice XP ranking after type audit"),
 		}, "Voice session reconciliation is required before feature writes."),
 		catalogSpec("voice_xp_channels", "voice_xp_channel", "models/voice_xp_channel.js", []string{"guild"}, []catalogIndex{

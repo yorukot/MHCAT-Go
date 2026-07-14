@@ -1031,16 +1031,8 @@ func defaultEventRuntimeFactory(cfg config.Config, logger *slog.Logger, session 
 			WithAnnouncementFallbacks(sideEffects, sideEffects, discordInfoProvider(session)).
 			WithRewardRoles(rewardRoleRepo, sideEffects).
 			WithCoinRewards(economyRepo).
-			WithShard(cfg.DiscordShardID, cfg.DiscordShardCount).
+			WithVoiceStateReader(sideEffects).
 			WithRuntimeWorker(featurexp.LegacyVoiceXPInterval, logger)
-		started, err := module.StartJoinedSessions(context.Background())
-		if err != nil {
-			_ = module.StopRuntimeWorker(context.Background())
-			return nil, err
-		}
-		if logger != nil && started > 0 {
-			logger.Info("reconciled voice xp sessions", "workers", started)
-		}
 		module.RegisterEventRoutes(dispatcher)
 		dispatcher.RegisterShutdown(module.StopRuntimeWorker)
 	}

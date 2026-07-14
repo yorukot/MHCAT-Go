@@ -28,6 +28,23 @@ func TestRegisterGatewayEventHandlersSupportsAllOptionsAndRemoval(t *testing.T) 
 	session.RegisterGatewayEventHandlers(nil, GatewayEventOptions{})()
 }
 
+func TestEventFromGuildCreateEmitsOnlyAvailableGuildSnapshots(t *testing.T) {
+	event, ok := eventFromGuildCreate(&dgo.GuildCreate{Guild: &dgo.Guild{ID: "guild-1"}})
+	if !ok || event.Type != events.TypeGuildAvailable || event.GuildID != "guild-1" {
+		t.Fatalf("available event = %#v ok=%t", event, ok)
+	}
+	for _, guildCreate := range []*dgo.GuildCreate{
+		nil,
+		{},
+		{Guild: &dgo.Guild{}},
+		{Guild: &dgo.Guild{ID: "guild-1", Unavailable: true}},
+	} {
+		if event, ok := eventFromGuildCreate(guildCreate); ok {
+			t.Fatalf("unexpected unavailable event = %#v", event)
+		}
+	}
+}
+
 func TestEventFromMessage(t *testing.T) {
 	timestamp := time.Unix(1_700_000_000, 0)
 	event := eventFromMessage(events.TypeMessageCreate, &dgo.Message{

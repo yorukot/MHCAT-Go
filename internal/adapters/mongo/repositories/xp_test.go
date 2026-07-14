@@ -113,7 +113,10 @@ func TestVoiceXPSessionUpdateTracksLegacyJoinState(t *testing.T) {
 }
 
 func TestVoiceXPJoinedSessionFilterUsesLegacyLeaveJoinField(t *testing.T) {
-	filter := voiceXPJoinedSessionFilter()
+	filter := voiceXPJoinedSessionFilter(" guild-1 ")
+	if value := documentValue(t, filter, "guild"); value != "guild-1" {
+		t.Fatalf("guild = %#v", value)
+	}
 	if value := documentValue(t, filter, "leavejoin"); value != domain.VoiceXPSessionJoined {
 		t.Fatalf("leavejoin = %#v", value)
 	}

@@ -41,23 +41,26 @@ func TestVoiceSessionServiceRejectsInvalidIDs(t *testing.T) {
 	}
 }
 
-func TestVoiceSessionServiceListsJoinedSessions(t *testing.T) {
+func TestVoiceSessionServiceReconcilesJoinedSessions(t *testing.T) {
 	repo := fakemongo.NewXPAdminRepository()
 	repo.VoiceProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: " guild-1 ", UserID: " user-1 ", LeaveJoin: domain.VoiceXPSessionJoined}
-	repo.VoiceProfiles["guild-1/user-2"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-2", LeaveJoin: domain.VoiceXPSessionLeft}
+	repo.VoiceProfiles["guild-1/user-2"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-2", XP: 50, Level: 2, LeaveJoin: domain.VoiceXPSessionJoined}
 	repo.VoiceProfiles["guild-2/user-3"] = domain.XPProfile{GuildID: "guild-2", UserID: "user-3", LeaveJoin: domain.VoiceXPSessionJoined}
 	service := VoiceSessionService{Repository: repo}
 
-	profiles, err := service.JoinedSessions(context.Background())
-	if err != nil {
-		t.Fatalf("joined sessions: %v", err)
+	if err := service.Reconcile(context.Background(), " guild-1 ", []string{" user-1 ", "user-1", " user-4 ", ""}); err != nil {
+		t.Fatalf("reconcile sessions: %v", err)
 	}
-	if len(profiles) != 2 {
-		t.Fatalf("profiles = %#v", profiles)
+	if profile := repo.VoiceProfiles["guild-1/user-1"]; profile.LeaveJoin != domain.VoiceXPSessionJoined {
+		t.Fatalf("active profile = %#v", profile)
 	}
-	for _, profile := range profiles {
-		if profile.LeaveJoin != domain.VoiceXPSessionJoined || profile.GuildID == "" || profile.UserID == "" {
-			t.Fatalf("unexpected profile = %#v", profile)
-		}
+	if profile := repo.VoiceProfiles["guild-1/user-2"]; profile.LeaveJoin != domain.VoiceXPSessionLeft || profile.XP != 50 || profile.Level != 2 {
+		t.Fatalf("stale profile = %#v", profile)
+	}
+	if profile := repo.VoiceProfiles["guild-1/user-4"]; profile.LeaveJoin != domain.VoiceXPSessionJoined || profile.GuildID != "guild-1" || profile.UserID != "user-4" {
+		t.Fatalf("new profile = %#v", profile)
+	}
+	if profile := repo.VoiceProfiles["guild-2/user-3"]; profile.LeaveJoin != domain.VoiceXPSessionJoined {
+		t.Fatalf("other guild profile = %#v", profile)
 	}
 }

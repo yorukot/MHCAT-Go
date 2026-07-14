@@ -152,6 +152,7 @@ func TestPerformanceIndexesDoNotRequireDuplicateCleanup(t *testing.T) {
 		{collection: "text_xps", index: "text_xps_guild_member_lookup"},
 		{collection: "tickets", index: "tickets_guild_lookup"},
 		{collection: "voice_xps", index: "voice_xps_guild_member_lookup"},
+		{collection: "voice_xps", index: "voice_xps_guild_leavejoin"},
 		{collection: "voice_channels", index: "voice_channels_guild_parent_lookup"},
 		{collection: "work_sets", index: "work_sets_guild_lookup"},
 		{collection: "work_somethings", index: "work_somethings_guild_name_lookup"},

@@ -107,6 +107,13 @@ type ChannelRef struct {
 	PermissionOverwrites []PermissionOverwrite
 }
 
+type DiscordVoiceState struct {
+	UserID    string
+	ChannelID string
+	IsBot     bool
+	RoleIDs   []string
+}
+
 type AuditLogQuery struct {
 	GuildID string
 	UserID  string
@@ -135,6 +142,10 @@ type DiscordMessagePort interface {
 
 type DiscordCachedChannelReader interface {
 	FindCachedChannelByID(ctx context.Context, guildID string, channelID string) (ChannelRef, error)
+}
+
+type DiscordVoiceStateReader interface {
+	GuildVoiceStates(ctx context.Context, guildID string) ([]DiscordVoiceState, error)
 }
 
 type DiscordTypingPort interface {

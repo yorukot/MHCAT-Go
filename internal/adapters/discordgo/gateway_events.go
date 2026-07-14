@@ -90,9 +90,19 @@ func (s *Session) RegisterGatewayEventHandlers(dispatcher *events.Dispatcher, op
 		)
 	}
 	if opts.VoiceStates {
-		removers = append(removers, s.session.AddHandler(func(session *dgo.Session, event *dgo.VoiceStateUpdate) {
-			dispatcher.DispatchSafe(context.Background(), eventFromVoiceState(event.VoiceState, event.BeforeUpdate, session))
-		}))
+		removers = append(removers,
+			s.session.AddHandler(func(_ *dgo.Session, event *dgo.GuildCreate) {
+				if available, ok := eventFromGuildCreate(event); ok {
+					dispatcher.DispatchSafe(context.Background(), available)
+				}
+			}),
+			s.session.AddHandler(func(session *dgo.Session, event *dgo.VoiceStateUpdate) {
+				if event == nil {
+					return
+				}
+				dispatcher.DispatchSafe(context.Background(), eventFromVoiceState(event.VoiceState, event.BeforeUpdate, session))
+			}),
+		)
 	}
 	return func() {
 		for i := len(removers) - 1; i >= 0; i-- {
@@ -101,6 +111,13 @@ func (s *Session) RegisterGatewayEventHandlers(dispatcher *events.Dispatcher, op
 			}
 		}
 	}
+}
+
+func eventFromGuildCreate(event *dgo.GuildCreate) (events.Event, bool) {
+	if event == nil || event.Guild == nil || event.Unavailable || event.ID == "" {
+		return events.Event{}, false
+	}
+	return events.Event{Type: events.TypeGuildAvailable, GuildID: event.ID}, true
 }
 
 func eventFromMessage(eventType events.Type, message *dgo.Message, bot *dgo.User) events.Event {

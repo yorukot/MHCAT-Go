@@ -3,14 +3,66 @@ package xp
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
+	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
 	coreservice "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/services/xp"
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/discord/events"
 )
 
+const (
+	voiceXPReconcileTimeout     = 15 * time.Second
+	voiceXPReconcileConcurrency = 4
+)
+
+type voiceXPGuildCoordinator struct {
+	mu        sync.Mutex
+	guilds    map[string]chan struct{}
+	snapshots chan struct{}
+}
+
+func newVoiceXPGuildCoordinator() *voiceXPGuildCoordinator {
+	return &voiceXPGuildCoordinator{
+		guilds:    make(map[string]chan struct{}),
+		snapshots: make(chan struct{}, voiceXPReconcileConcurrency),
+	}
+}
+
+func (c *voiceXPGuildCoordinator) lockGuild(ctx context.Context, guildID string) (func(), error) {
+	c.mu.Lock()
+	lock := c.guilds[guildID]
+	if lock == nil {
+		lock = make(chan struct{}, 1)
+		c.guilds[guildID] = lock
+	}
+	c.mu.Unlock()
+	select {
+	case lock <- struct{}{}:
+		return func() { <-lock }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func (c *voiceXPGuildCoordinator) acquireSnapshot(ctx context.Context) (func(), error) {
+	select {
+	case c.snapshots <- struct{}{}:
+		return func() { <-c.snapshots }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
 func (m VoiceEventModule) VoiceStateHandler() events.Handler {
+	coordinator := m.coordinator
+	if coordinator == nil {
+		coordinator = newVoiceXPGuildCoordinator()
+	}
 	return func(ctx context.Context, event events.Event) error {
 		if event.Type != events.TypeVoiceState || event.VoiceState == nil {
 			return nil
@@ -36,23 +88,122 @@ func (m VoiceEventModule) VoiceStateHandler() events.Handler {
 		if guildID == "" || userID == "" || isBot || channelID == beforeChannelID {
 			return nil
 		}
+		unlock, err := coordinator.lockGuild(ctx, guildID)
+		if err != nil {
+			return err
+		}
+		defer unlock()
 		if channelID == "" {
-			if err := m.service.Leave(ctx, guildID, userID); err != nil {
-				return err
-			}
 			if m.worker != nil {
 				m.worker.Stop(guildID, userID)
 			}
-			return ctx.Err()
+			return m.service.Leave(ctx, guildID, userID)
 		}
 		if err := m.service.Join(ctx, guildID, userID); err != nil {
 			return err
 		}
 		if m.worker != nil {
-			m.worker.Start(guildID, userID, voiceEventRoleIDs(event.Member))
+			if event.Member != nil {
+				m.worker.StartOrUpdate(guildID, userID, voiceEventRoleIDs(event.Member))
+			} else {
+				m.worker.Start(guildID, userID, nil)
+			}
 		}
 		return ctx.Err()
 	}
+}
+
+func (m VoiceEventModule) GuildAvailableHandler() events.Handler {
+	coordinator := m.coordinator
+	if coordinator == nil {
+		coordinator = newVoiceXPGuildCoordinator()
+	}
+	logger := m.logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return func(ctx context.Context, event events.Event) error {
+		if event.Type != events.TypeGuildAvailable || m.voiceStates == nil {
+			return nil
+		}
+		guildID := strings.TrimSpace(event.GuildID)
+		if guildID == "" {
+			return nil
+		}
+		unlock, err := coordinator.lockGuild(ctx, guildID)
+		if err != nil {
+			return m.failVoiceXPReconciliation(ctx, logger, guildID, "guild_lock", err)
+		}
+		defer unlock()
+		releaseSlot, err := coordinator.acquireSnapshot(ctx)
+		if err != nil {
+			return m.failVoiceXPReconciliation(ctx, logger, guildID, "concurrency_limit", err)
+		}
+		defer releaseSlot()
+		reconcileCtx, cancel := context.WithTimeout(ctx, voiceXPReconcileTimeout)
+		defer cancel()
+
+		states, err := m.voiceStates.GuildVoiceStates(reconcileCtx, guildID)
+		if err != nil {
+			return m.failVoiceXPReconciliation(reconcileCtx, logger, guildID, "discord_cache", err)
+		}
+		activeStates := activeVoiceXPStates(states)
+		activeUserIDs := make([]string, 0, len(activeStates))
+		for _, state := range activeStates {
+			activeUserIDs = append(activeUserIDs, state.UserID)
+		}
+		if err := m.service.Reconcile(reconcileCtx, guildID, activeUserIDs); err != nil {
+			return m.failVoiceXPReconciliation(reconcileCtx, logger, guildID, "mongo", err)
+		}
+		started, stopped := 0, 0
+		if m.worker != nil {
+			started, stopped = m.worker.ReconcileGuild(guildID, activeStates)
+		}
+		logger.DebugContext(reconcileCtx, "voice xp guild reconciled",
+			"guild_id", guildID,
+			"active_users", len(activeStates),
+			"workers_started", started,
+			"workers_stopped", stopped,
+		)
+		return reconcileCtx.Err()
+	}
+}
+
+func (m VoiceEventModule) failVoiceXPReconciliation(ctx context.Context, logger *slog.Logger, guildID string, stage string, err error) error {
+	stopped := 0
+	if m.worker != nil {
+		stopped = m.worker.StopGuild(guildID)
+	}
+	logger.WarnContext(ctx, "voice xp guild reconciliation failed",
+		"guild_id", guildID,
+		"stage", stage,
+		"workers_stopped", stopped,
+		"error", err.Error(),
+	)
+	return fmt.Errorf("reconcile voice xp guild %s at %s: %w", guildID, stage, err)
+}
+
+func activeVoiceXPStates(states []ports.DiscordVoiceState) []ports.DiscordVoiceState {
+	active := make(map[string]ports.DiscordVoiceState, len(states))
+	for _, state := range states {
+		state.UserID = strings.TrimSpace(state.UserID)
+		state.ChannelID = strings.TrimSpace(state.ChannelID)
+		if state.UserID == "" || state.ChannelID == "" || state.IsBot {
+			continue
+		}
+		state.RoleIDs = trimmedRoleIDs(state.RoleIDs)
+		active[state.UserID] = state
+	}
+	userIDs := make([]string, 0, len(active))
+	for userID := range active {
+		userIDs = append(userIDs, userID)
+	}
+	sort.Strings(userIDs)
+	out := make([]ports.DiscordVoiceState, 0, len(userIDs))
+	for _, userID := range userIDs {
+		out = append(out, active[userID])
+	}
+	return out
 }
 
 func voiceEventRoleIDs(member *events.Member) []string {

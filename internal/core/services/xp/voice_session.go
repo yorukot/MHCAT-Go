@@ -2,6 +2,7 @@ package xp
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/domain"
@@ -36,21 +37,29 @@ func (s VoiceSessionService) Leave(ctx context.Context, guildID string, userID s
 	return s.Repository.MarkVoiceXPLeft(ctx, guildID, userID)
 }
 
-func (s VoiceSessionService) JoinedSessions(ctx context.Context) ([]domain.XPProfile, error) {
+func (s VoiceSessionService) Reconcile(ctx context.Context, guildID string, activeUserIDs []string) error {
 	if s.Repository == nil {
-		return nil, domain.ErrInvalidXPAdjustment
+		return domain.ErrInvalidXPAdjustment
 	}
-	profiles, err := s.Repository.ListJoinedVoiceXPSessions(ctx)
-	if err != nil {
-		return nil, err
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return domain.ErrInvalidXPAdjustment
 	}
-	out := make([]domain.XPProfile, 0, len(profiles))
-	for _, profile := range profiles {
-		profile = profile.Normalize()
-		if profile.GuildID == "" || profile.UserID == "" || profile.LeaveJoin != domain.VoiceXPSessionJoined {
+	unique := make(map[string]struct{}, len(activeUserIDs))
+	for _, userID := range activeUserIDs {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		userID = strings.TrimSpace(userID)
+		if userID == "" {
 			continue
 		}
-		out = append(out, profile)
+		unique[userID] = struct{}{}
 	}
-	return out, ctx.Err()
+	users := make([]string, 0, len(unique))
+	for userID := range unique {
+		users = append(users, userID)
+	}
+	sort.Strings(users)
+	return s.Repository.ReconcileVoiceXPSessions(ctx, guildID, users)
 }

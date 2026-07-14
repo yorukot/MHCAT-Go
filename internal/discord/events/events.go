@@ -23,6 +23,7 @@ const (
 	TypeMemberAdd      Type = "member_add"
 	TypeMemberRemove   Type = "member_remove"
 	TypeVoiceState     Type = "voice_state"
+	TypeGuildAvailable Type = "guild_available"
 )
 
 var ErrNoHandler = errors.New("discord event handler not found")

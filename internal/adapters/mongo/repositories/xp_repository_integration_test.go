@@ -178,9 +178,12 @@ func TestXPAdminMongoIntegrationLifecycle(t *testing.T) {
 	if err := repository.MarkVoiceXPLeft(ctx, "guild-1", "user-2"); err != nil {
 		t.Fatalf("mark voice XP left: %v", err)
 	}
-	joined, err := repository.ListJoinedVoiceXPSessions(ctx)
-	if err != nil || len(joined) != 1 || joined[0].UserID != "user-1" || joined[0].LeaveJoin != domain.VoiceXPSessionJoined {
-		t.Fatalf("joined voice XP sessions = %#v err=%v", joined, err)
+	if err := repository.ReconcileVoiceXPSessions(ctx, "guild-1", []string{"user-1"}); err != nil {
+		t.Fatalf("reconcile joined voice XP sessions: %v", err)
+	}
+	joined, err := repository.GetVoiceXPProfile(ctx, "guild-1", "user-1")
+	if err != nil || joined.LeaveJoin != domain.VoiceXPSessionJoined {
+		t.Fatalf("joined voice XP session = %#v err=%v", joined, err)
 	}
 
 	if err := repository.DeleteTextXPProfile(ctx, "guild-1", "user-1"); err != nil {
@@ -206,5 +209,66 @@ func TestXPAdminMongoIntegrationLifecycle(t *testing.T) {
 	}
 	if err := repository.DeleteVoiceXPGuild(ctx, "guild-1"); !errors.Is(err, ports.ErrVoiceXPProfileMissing) {
 		t.Fatalf("missing voice XP guild error = %v", err)
+	}
+}
+
+func TestVoiceXPSessionMongoIntegrationReconcilesGuildSnapshot(t *testing.T) {
+	database := xpAccrualIntegrationDatabase(t)
+	repository, err := NewXPAdminRepositoryFromDatabase(database)
+	if err != nil {
+		t.Fatalf("new XP admin repository: %v", err)
+	}
+	ctx := context.Background()
+	for _, profile := range []domain.XPProfile{
+		{GuildID: "guild-1", UserID: "active", XP: 75, Level: 2},
+		{GuildID: "guild-1", UserID: "stale", XP: 20, Level: 1},
+		{GuildID: "guild-2", UserID: "same-user", XP: 30, Level: 1},
+	} {
+		if err := repository.SaveVoiceXPProfile(ctx, profile); err != nil {
+			t.Fatalf("seed voice profile %#v: %v", profile, err)
+		}
+		if err := repository.MarkVoiceXPJoined(ctx, profile.GuildID, profile.UserID); err != nil {
+			t.Fatalf("mark voice profile joined %#v: %v", profile, err)
+		}
+	}
+
+	if err := repository.ReconcileVoiceXPSessions(ctx, " guild-1 ", []string{" active ", "active", "new-user", ""}); err != nil {
+		t.Fatalf("reconcile voice sessions: %v", err)
+	}
+	active, err := repository.GetVoiceXPProfile(ctx, "guild-1", "active")
+	if err != nil || active.LeaveJoin != domain.VoiceXPSessionJoined || active.XP != 75 || active.Level != 2 {
+		t.Fatalf("active profile = %#v err=%v", active, err)
+	}
+	stale, err := repository.GetVoiceXPProfile(ctx, "guild-1", "stale")
+	if err != nil || stale.LeaveJoin != domain.VoiceXPSessionLeft || stale.XP != 20 || stale.Level != 1 {
+		t.Fatalf("stale profile = %#v err=%v", stale, err)
+	}
+	created, err := repository.GetVoiceXPProfile(ctx, "guild-1", "new-user")
+	if err != nil || created.LeaveJoin != domain.VoiceXPSessionJoined || created.XP != 0 || created.Level != 0 {
+		t.Fatalf("created profile = %#v err=%v", created, err)
+	}
+	other, err := repository.GetVoiceXPProfile(ctx, "guild-2", "same-user")
+	if err != nil || other.LeaveJoin != domain.VoiceXPSessionJoined || other.XP != 30 {
+		t.Fatalf("other guild profile = %#v err=%v", other, err)
+	}
+
+	if err := repository.ReconcileVoiceXPSessions(ctx, "guild-1", nil); err != nil {
+		t.Fatalf("clear guild voice sessions: %v", err)
+	}
+	active, _ = repository.GetVoiceXPProfile(ctx, "guild-1", "active")
+	created, _ = repository.GetVoiceXPProfile(ctx, "guild-1", "new-user")
+	other, _ = repository.GetVoiceXPProfile(ctx, "guild-2", "same-user")
+	if active.LeaveJoin != domain.VoiceXPSessionLeft || created.LeaveJoin != domain.VoiceXPSessionLeft || other.LeaveJoin != domain.VoiceXPSessionJoined {
+		t.Fatalf("cleared active=%#v created=%#v other=%#v", active, created, other)
+	}
+
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := repository.ReconcileVoiceXPSessions(canceled, "guild-2", nil); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled reconciliation error = %v", err)
+	}
+	other, _ = repository.GetVoiceXPProfile(ctx, "guild-2", "same-user")
+	if other.LeaveJoin != domain.VoiceXPSessionJoined {
+		t.Fatalf("canceled reconciliation changed profile = %#v", other)
 	}
 }

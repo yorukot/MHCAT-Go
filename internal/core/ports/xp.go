@@ -72,7 +72,7 @@ type AtomicTextXPAccrualRepository interface {
 type VoiceXPSessionRepository interface {
 	MarkVoiceXPJoined(ctx context.Context, guildID string, userID string) error
 	MarkVoiceXPLeft(ctx context.Context, guildID string, userID string) error
-	ListJoinedVoiceXPSessions(ctx context.Context) ([]domain.XPProfile, error)
+	ReconcileVoiceXPSessions(ctx context.Context, guildID string, activeUserIDs []string) error
 }
 
 type VoiceXPAccrualRepository interface {

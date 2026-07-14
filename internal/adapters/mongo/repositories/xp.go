@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	mhcatmongo "github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/adapters/mongo"
@@ -352,8 +353,8 @@ func (r *XPAdminRepository) MarkVoiceXPLeft(ctx context.Context, guildID string,
 	return markVoiceXPSession(ctx, r.voiceProfiles, guildID, userID, domain.VoiceXPSessionLeft)
 }
 
-func (r *XPAdminRepository) ListJoinedVoiceXPSessions(ctx context.Context) ([]domain.XPProfile, error) {
-	return listJoinedVoiceXPSessions(ctx, r.voiceProfiles)
+func (r *XPAdminRepository) ReconcileVoiceXPSessions(ctx context.Context, guildID string, activeUserIDs []string) error {
+	return reconcileVoiceXPSessions(ctx, r.voiceProfiles, guildID, activeUserIDs)
 }
 
 func (r *XPAdminRepository) ListTextXPProfiles(ctx context.Context, guildID string) ([]domain.XPProfile, error) {
@@ -582,31 +583,45 @@ func markVoiceXPSession(ctx context.Context, collection *drivermongo.Collection,
 	return ctx.Err()
 }
 
-func listJoinedVoiceXPSessions(ctx context.Context, collection *drivermongo.Collection) ([]domain.XPProfile, error) {
+func reconcileVoiceXPSessions(ctx context.Context, collection *drivermongo.Collection, guildID string, activeUserIDs []string) error {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return err
 	}
-	cursor, err := collection.Find(ctx, voiceXPJoinedSessionFilter())
-	if err != nil {
-		return nil, mhcatmongo.MapError(fmt.Errorf("list joined voice xp sessions: %w", err))
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return domain.ErrInvalidXPAdjustment
 	}
-	defer cursor.Close(ctx)
-	profiles := []domain.XPProfile{}
-	for cursor.Next(ctx) {
-		var document documents.XPProfileDocument
-		if err := cursor.Decode(&document); err != nil {
-			return nil, mhcatmongo.MapError(fmt.Errorf("decode joined voice xp session: %w", err))
+	unique := make(map[string]struct{}, len(activeUserIDs))
+	users := make([]string, 0, len(activeUserIDs))
+	for _, userID := range activeUserIDs {
+		if err := ctx.Err(); err != nil {
+			return err
 		}
-		profile := document.ToDomain().Normalize()
-		if profile.GuildID == "" || profile.UserID == "" {
+		userID = strings.TrimSpace(userID)
+		if userID == "" {
 			continue
 		}
-		profiles = append(profiles, profile)
+		if _, exists := unique[userID]; exists {
+			continue
+		}
+		unique[userID] = struct{}{}
+		users = append(users, userID)
 	}
-	if err := cursor.Err(); err != nil {
-		return nil, mhcatmongo.MapError(fmt.Errorf("iterate joined voice xp sessions: %w", err))
+	sort.Strings(users)
+	models := make([]drivermongo.WriteModel, 0, len(users)+1)
+	models = append(models, drivermongo.NewUpdateManyModel().
+		SetFilter(voiceXPJoinedSessionFilter(guildID)).
+		SetUpdate(bson.D{{Key: "$set", Value: bson.D{{Key: "leavejoin", Value: domain.VoiceXPSessionLeft}}}}))
+	for _, userID := range users {
+		models = append(models, drivermongo.NewUpdateOneModel().
+			SetFilter(xpProfileFilter(guildID, userID)).
+			SetUpdate(voiceXPSessionUpdate(guildID, userID, domain.VoiceXPSessionJoined)).
+			SetUpsert(true))
 	}
-	return profiles, ctx.Err()
+	if _, err := collection.BulkWrite(ctx, models, options.BulkWrite().SetOrdered(true)); err != nil {
+		return mhcatmongo.MapError(fmt.Errorf("reconcile voice xp sessions: %w", err))
+	}
+	return ctx.Err()
 }
 
 func deleteAdminXPProfile(ctx context.Context, collection *drivermongo.Collection, guildID string, userID string, missing error, label string) error {
@@ -650,8 +665,11 @@ func xpProfileFilter(guildID string, userID string) bson.D {
 	return bson.D{{Key: "guild", Value: strings.TrimSpace(guildID)}, {Key: "member", Value: strings.TrimSpace(userID)}}
 }
 
-func voiceXPJoinedSessionFilter() bson.D {
-	return bson.D{{Key: "leavejoin", Value: domain.VoiceXPSessionJoined}}
+func voiceXPJoinedSessionFilter(guildID string) bson.D {
+	return bson.D{
+		{Key: "guild", Value: strings.TrimSpace(guildID)},
+		{Key: "leavejoin", Value: domain.VoiceXPSessionJoined},
+	}
 }
 
 func xpProfileUpdate(profile domain.XPProfile, voice bool) bson.D {

@@ -1,6 +1,7 @@
 package xp
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/yorukot/MHCAT/MHCAT-REFACTOR/internal/core/ports"
@@ -75,8 +76,9 @@ type VoiceEventModule struct {
 	rewardRoles coreservice.VoiceRewardRoleService
 	coinRewards coreservice.VoiceCoinRewardService
 	worker      *VoiceXPWorker
-	shardID     int
-	shardCount  int
+	voiceStates ports.DiscordVoiceStateReader
+	coordinator *voiceXPGuildCoordinator
+	logger      *slog.Logger
 }
 
 func NewModule(repo ports.TextXPConfigRepository, messages ports.DiscordMessagePort, usage ports.UsageTracker) Module {
@@ -170,12 +172,19 @@ func (m TextEventModule) WithCoinRewards(repo ports.TextXPCoinRewardRepository) 
 
 func NewVoiceEventModule(repo ports.VoiceXPSessionRepository) VoiceEventModule {
 	module := VoiceEventModule{
-		service: coreservice.VoiceSessionService{Repository: repo},
+		service:     coreservice.VoiceSessionService{Repository: repo},
+		coordinator: newVoiceXPGuildCoordinator(),
+		logger:      slog.Default(),
 	}
 	if accrualRepo, ok := repo.(ports.VoiceXPAccrualRepository); ok {
 		module.accrual = coreservice.VoiceAccrualService{Repository: accrualRepo}
 	}
 	return module
+}
+
+func (m VoiceEventModule) WithVoiceStateReader(reader ports.DiscordVoiceStateReader) VoiceEventModule {
+	m.voiceStates = reader
+	return m
 }
 
 func (m VoiceEventModule) WithAccrual(repo ports.VoiceXPAccrualRepository, configs ports.VoiceXPConfigReader, messages ports.DiscordMessagePort) VoiceEventModule {
@@ -339,4 +348,7 @@ func (m VoiceEventModule) RegisterEventRoutes(dispatcher *events.Dispatcher) {
 		return
 	}
 	dispatcher.Register(events.TypeVoiceState, m.VoiceStateHandler())
+	if m.voiceStates != nil {
+		dispatcher.Register(events.TypeGuildAvailable, m.GuildAvailableHandler())
+	}
 }

@@ -435,6 +435,56 @@ func TestFindCachedChannelByIDDoesNotFallBackToREST(t *testing.T) {
 	}
 }
 
+func TestGuildVoiceStatesReadsGuildScopedCacheWithMemberMetadata(t *testing.T) {
+	state := dgo.NewState()
+	if err := state.GuildAdd(&dgo.Guild{
+		ID: "guild-1",
+		Members: []*dgo.Member{
+			{User: &dgo.User{ID: "user-1"}, Roles: []string{"role-1"}},
+			{User: &dgo.User{ID: "bot-1", Bot: true}, Roles: []string{"bot-role"}},
+		},
+		VoiceStates: []*dgo.VoiceState{
+			{GuildID: "guild-1", UserID: "user-1", ChannelID: "voice-1"},
+			{GuildID: "guild-1", UserID: "bot-1", ChannelID: "voice-2"},
+			nil,
+		},
+	}); err != nil {
+		t.Fatalf("seed guild state: %v", err)
+	}
+	client := SideEffectClient{Session: &Session{session: &dgo.Session{State: state}}}
+
+	voices, err := client.GuildVoiceStates(context.Background(), "guild-1")
+	if err != nil {
+		t.Fatalf("read guild voice states: %v", err)
+	}
+	if len(voices) != 2 {
+		t.Fatalf("voice states = %#v", voices)
+	}
+	if voices[0].UserID != "user-1" || voices[0].ChannelID != "voice-1" || voices[0].IsBot || len(voices[0].RoleIDs) != 1 || voices[0].RoleIDs[0] != "role-1" {
+		t.Fatalf("user voice state = %#v", voices[0])
+	}
+	if voices[1].UserID != "bot-1" || !voices[1].IsBot || len(voices[1].RoleIDs) != 1 || voices[1].RoleIDs[0] != "bot-role" {
+		t.Fatalf("bot voice state = %#v", voices[1])
+	}
+	if _, err := client.GuildVoiceStates(context.Background(), "missing-guild"); err == nil {
+		t.Fatal("expected missing guild cache error")
+	}
+}
+
+func TestGuildVoiceStatesFailsClosedWhenMemberMetadataIsMissing(t *testing.T) {
+	state := dgo.NewState()
+	if err := state.GuildAdd(&dgo.Guild{
+		ID:          "guild-1",
+		VoiceStates: []*dgo.VoiceState{{GuildID: "guild-1", UserID: "unknown", ChannelID: "voice-1"}},
+	}); err != nil {
+		t.Fatalf("seed guild state: %v", err)
+	}
+	client := SideEffectClient{Session: &Session{session: &dgo.Session{State: state}}}
+	if _, err := client.GuildVoiceStates(context.Background(), "guild-1"); err == nil {
+		t.Fatal("expected missing voice member metadata error")
+	}
+}
+
 func TestRoleStatsUsesLegacyGuildMemberCache(t *testing.T) {
 	state := dgo.NewState()
 	if err := state.GuildAdd(&dgo.Guild{

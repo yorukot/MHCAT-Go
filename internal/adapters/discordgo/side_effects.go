@@ -17,6 +17,77 @@ type SideEffectClient struct {
 	Session *Session
 }
 
+func (c SideEffectClient) GuildVoiceStates(ctx context.Context, guildID string) ([]ports.DiscordVoiceState, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	guildID = strings.TrimSpace(guildID)
+	if guildID == "" {
+		return nil, errors.New("discord guild id is required")
+	}
+	session, err := c.session()
+	if err != nil {
+		return nil, err
+	}
+	state := session.State
+	if state == nil {
+		return nil, errors.New("discord voice state cache is unavailable")
+	}
+
+	state.RLock()
+	defer state.RUnlock()
+	var guild *dgo.Guild
+	for _, candidate := range state.Guilds {
+		if candidate != nil && candidate.ID == guildID {
+			guild = candidate
+			break
+		}
+	}
+	if guild == nil || guild.Unavailable {
+		return nil, errors.New("discord voice state cache is missing guild")
+	}
+	members := make(map[string]*dgo.Member, len(guild.Members))
+	for _, member := range guild.Members {
+		if member != nil && member.User != nil && member.User.ID != "" {
+			members[member.User.ID] = member
+		}
+	}
+	voiceStates := make([]ports.DiscordVoiceState, 0, len(guild.VoiceStates))
+	for _, voice := range guild.VoiceStates {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if voice == nil {
+			continue
+		}
+		userID := strings.TrimSpace(voice.UserID)
+		member := voice.Member
+		if member == nil || member.User == nil {
+			member = members[userID]
+		}
+		if member == nil || member.User == nil {
+			return nil, fmt.Errorf("discord voice state cache is missing member %q", userID)
+		}
+		if userID == "" {
+			userID = strings.TrimSpace(member.User.ID)
+		}
+		if userID == "" {
+			return nil, errors.New("discord voice state cache contains an empty user id")
+		}
+		if memberID := strings.TrimSpace(member.User.ID); memberID != userID {
+			return nil, fmt.Errorf("discord voice state cache member mismatch for %q", userID)
+		}
+		voiceState := ports.DiscordVoiceState{
+			UserID:    userID,
+			ChannelID: strings.TrimSpace(voice.ChannelID),
+			IsBot:     member.User.Bot,
+			RoleIDs:   append([]string(nil), member.Roles...),
+		}
+		voiceStates = append(voiceStates, voiceState)
+	}
+	return voiceStates, ctx.Err()
+}
+
 func (c SideEffectClient) SendMessage(ctx context.Context, channelID string, msg ports.OutboundMessage) (ports.MessageRef, error) {
 	session, err := c.session()
 	if err != nil {

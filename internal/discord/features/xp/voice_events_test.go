@@ -73,9 +73,14 @@ func TestVoiceXPEventIgnoresBotSameChannelAndMissingPayload(t *testing.T) {
 
 func TestVoiceXPEventRegisteredOnlyWithRepository(t *testing.T) {
 	dispatcher := events.NewDispatcher(nil)
-	NewVoiceEventModule(fakemongo.NewXPAdminRepository()).RegisterEventRoutes(dispatcher)
+	NewVoiceEventModule(fakemongo.NewXPAdminRepository()).
+		WithVoiceStateReader(staticVoiceStateReader{}).
+		RegisterEventRoutes(dispatcher)
 	if !dispatcher.HasHandlers(events.TypeVoiceState) {
 		t.Fatal("expected voice XP event handler")
+	}
+	if !dispatcher.HasHandlers(events.TypeGuildAvailable) {
+		t.Fatal("expected voice XP guild snapshot handler")
 	}
 
 	empty := events.NewDispatcher(nil)
@@ -112,45 +117,136 @@ func TestVoiceXPEventStartsAndStopsRuntimeWorker(t *testing.T) {
 	}
 }
 
-func TestVoiceXPStartJoinedSessionsRestoresRuntimeWorkers(t *testing.T) {
+func TestVoiceXPGuildSnapshotRebuildsSessionsAndWorkers(t *testing.T) {
 	repo := fakemongo.NewXPAdminRepository()
-	repo.VoiceProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", LeaveJoin: domain.VoiceXPSessionJoined}
-	repo.VoiceProfiles["guild-1/user-2"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-2", LeaveJoin: domain.VoiceXPSessionLeft}
-	repo.VoiceProfiles["guild-2/user-3"] = domain.XPProfile{GuildID: "guild-2", UserID: "user-3", LeaveJoin: domain.VoiceXPSessionJoined}
-	module := NewVoiceEventModule(repo).WithRuntimeWorker(time.Hour, nil)
+	repo.VoiceProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 75, Level: 2, LeaveJoin: domain.VoiceXPSessionJoined}
+	repo.VoiceProfiles["guild-1/stale"] = domain.XPProfile{GuildID: "guild-1", UserID: "stale", LeaveJoin: domain.VoiceXPSessionJoined}
+	repo.VoiceProfiles["guild-2/user-1"] = domain.XPProfile{GuildID: "guild-2", UserID: "user-1", LeaveJoin: domain.VoiceXPSessionJoined}
+	reader := staticVoiceStateReader{states: map[string][]ports.DiscordVoiceState{
+		"guild-1": {
+			{UserID: "user-1", ChannelID: "voice-1", RoleIDs: []string{" role-2 ", "role-2"}},
+			{UserID: "user-4", ChannelID: "voice-2", RoleIDs: []string{"role-4"}},
+			{UserID: "bot-1", ChannelID: "voice-1", IsBot: true},
+			{UserID: "not-connected"},
+		},
+	}}
+	module := NewVoiceEventModule(repo).WithVoiceStateReader(reader).WithRuntimeWorker(time.Hour, nil)
 	t.Cleanup(func() { _ = module.StopRuntimeWorker(context.Background()) })
+	module.worker.Start("guild-1", "user-1", []string{"old-role"})
+	module.worker.Start("guild-1", "stale", nil)
+	module.worker.Start("guild-2", "user-1", nil)
+	module.worker.mu.Lock()
+	nextTick := module.worker.active[voiceXPWorkerKey("guild-1", "user-1")].nextTick
+	module.worker.mu.Unlock()
 
-	started, err := module.StartJoinedSessions(context.Background())
-	if err != nil {
-		t.Fatalf("start joined sessions: %v", err)
+	if err := module.GuildAvailableHandler()(context.Background(), events.Event{Type: events.TypeGuildAvailable, GuildID: "guild-1"}); err != nil {
+		t.Fatalf("reconcile guild snapshot: %v", err)
 	}
-	if started != 2 || module.worker.ActiveCount() != 2 {
-		t.Fatalf("started=%d active=%d", started, module.worker.ActiveCount())
+	if profile := repo.VoiceProfiles["guild-1/user-1"]; profile.LeaveJoin != domain.VoiceXPSessionJoined || profile.XP != 75 || profile.Level != 2 {
+		t.Fatalf("preserved active profile = %#v", profile)
 	}
-	started, err = module.StartJoinedSessions(context.Background())
-	if err != nil {
-		t.Fatalf("start joined sessions again: %v", err)
+	if profile := repo.VoiceProfiles["guild-1/stale"]; profile.LeaveJoin != domain.VoiceXPSessionLeft {
+		t.Fatalf("stale profile = %#v", profile)
 	}
-	if started != 0 || module.worker.ActiveCount() != 2 {
-		t.Fatalf("duplicate reconciliation started=%d active=%d", started, module.worker.ActiveCount())
+	if profile := repo.VoiceProfiles["guild-1/user-4"]; profile.LeaveJoin != domain.VoiceXPSessionJoined {
+		t.Fatalf("new active profile = %#v", profile)
+	}
+	if profile := repo.VoiceProfiles["guild-2/user-1"]; profile.LeaveJoin != domain.VoiceXPSessionJoined {
+		t.Fatalf("other guild profile = %#v", profile)
+	}
+	module.worker.mu.Lock()
+	active := module.worker.active
+	userOne := active[voiceXPWorkerKey("guild-1", "user-1")]
+	_, staleActive := active[voiceXPWorkerKey("guild-1", "stale")]
+	_, otherGuildActive := active[voiceXPWorkerKey("guild-2", "user-1")]
+	_, newActive := active[voiceXPWorkerKey("guild-1", "user-4")]
+	module.worker.mu.Unlock()
+	if userOne == nil || !userOne.nextTick.Equal(nextTick) || len(userOne.currentRoleIDs) != 1 || userOne.currentRoleIDs[0] != "role-2" {
+		t.Fatalf("existing worker = %#v", userOne)
+	}
+	if staleActive || !otherGuildActive || !newActive || module.worker.ActiveCount() != 3 {
+		t.Fatalf("workers stale=%t other=%t new=%t active=%d", staleActive, otherGuildActive, newActive, module.worker.ActiveCount())
 	}
 }
 
-func TestVoiceXPStartJoinedSessionsRestoresOnlyOwnedShard(t *testing.T) {
+func TestVoiceXPGuildSnapshotFailureStopsOnlyThatGuild(t *testing.T) {
+	failure := errors.New("cache failed")
 	repo := fakemongo.NewXPAdminRepository()
-	for shardID := 0; shardID < 3; shardID++ {
-		guildID := fmt.Sprintf("%d", uint64(shardID)<<22)
-		repo.VoiceProfiles[guildID+"/user"] = domain.XPProfile{GuildID: guildID, UserID: "user", LeaveJoin: domain.VoiceXPSessionJoined}
+	module := NewVoiceEventModule(repo).
+		WithVoiceStateReader(staticVoiceStateReader{err: failure}).
+		WithRuntimeWorker(time.Hour, nil)
+	t.Cleanup(func() { _ = module.StopRuntimeWorker(context.Background()) })
+	module.worker.Start("guild-1", "user-1", nil)
+	module.worker.Start("guild-2", "user-1", nil)
+
+	err := module.GuildAvailableHandler()(context.Background(), events.Event{Type: events.TypeGuildAvailable, GuildID: "guild-1"})
+	if !errors.Is(err, failure) {
+		t.Fatalf("snapshot error = %v", err)
 	}
-	module := NewVoiceEventModule(repo).WithRuntimeWorker(time.Hour, nil).WithShard(1, 3)
+	module.worker.mu.Lock()
+	_, failedGuildActive := module.worker.active[voiceXPWorkerKey("guild-1", "user-1")]
+	_, otherGuildActive := module.worker.active[voiceXPWorkerKey("guild-2", "user-1")]
+	module.worker.mu.Unlock()
+	if failedGuildActive || !otherGuildActive {
+		t.Fatalf("workers failed_guild=%t other_guild=%t", failedGuildActive, otherGuildActive)
+	}
+}
+
+func TestVoiceXPSnapshotConcurrencyIsBounded(t *testing.T) {
+	coordinator := newVoiceXPGuildCoordinator()
+	releases := make([]func(), 0, voiceXPReconcileConcurrency)
+	for range voiceXPReconcileConcurrency {
+		release, err := coordinator.acquireSnapshot(context.Background())
+		if err != nil {
+			t.Fatalf("acquire snapshot slot: %v", err)
+		}
+		releases = append(releases, release)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if _, err := coordinator.acquireSnapshot(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("fifth snapshot slot error = %v", err)
+	}
+	for _, release := range releases {
+		release()
+	}
+	release, err := coordinator.acquireSnapshot(context.Background())
+	if err != nil {
+		t.Fatalf("reacquire released snapshot slot: %v", err)
+	}
+	release()
+}
+
+func TestVoiceXPLeaveWriteFailureStillStopsWorker(t *testing.T) {
+	failure := errors.New("mongo failed")
+	repo := fakemongo.NewXPAdminRepository()
+	module := NewVoiceEventModule(repo).WithRuntimeWorker(time.Hour, nil)
+	t.Cleanup(func() { _ = module.StopRuntimeWorker(context.Background()) })
+	module.worker.Start("guild-1", "user-1", nil)
+	repo.Err = failure
+
+	err := module.VoiceStateHandler()(context.Background(), voiceXPEvent("", "voice-1"))
+	if !errors.Is(err, failure) {
+		t.Fatalf("leave error = %v", err)
+	}
+	if module.worker.ActiveCount() != 0 {
+		t.Fatalf("active workers = %d", module.worker.ActiveCount())
+	}
+}
+
+func TestVoiceXPJoinWriteFailureDoesNotStartWorker(t *testing.T) {
+	failure := errors.New("mongo failed")
+	repo := fakemongo.NewXPAdminRepository()
+	repo.Err = failure
+	module := NewVoiceEventModule(repo).WithRuntimeWorker(time.Hour, nil)
 	t.Cleanup(func() { _ = module.StopRuntimeWorker(context.Background()) })
 
-	started, err := module.StartJoinedSessions(context.Background())
-	if err != nil {
-		t.Fatalf("start joined sessions: %v", err)
+	err := module.VoiceStateHandler()(context.Background(), voiceXPEvent("voice-1", ""))
+	if !errors.Is(err, failure) {
+		t.Fatalf("join error = %v", err)
 	}
-	if started != 1 || module.worker.ActiveCount() != 1 {
-		t.Fatalf("started=%d active=%d", started, module.worker.ActiveCount())
+	if module.worker.ActiveCount() != 0 {
+		t.Fatalf("active workers = %d", module.worker.ActiveCount())
 	}
 }
 
@@ -257,6 +353,82 @@ func TestVoiceXPWorkerDoesNotCatchUpAfterSlowTick(t *testing.T) {
 	case <-started:
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("timed out waiting for the normally scheduled next tick")
+	}
+}
+
+func TestVoiceXPWorkerReconcileKeepsWorkerAfterStaleInflightTick(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var calls atomic.Int64
+	worker := NewVoiceXPWorker(time.Hour, func(context.Context, string, string, []string) (coreservice.VoiceAccrualResult, error) {
+		if calls.Add(1) == 1 {
+			close(started)
+			<-release
+			return coreservice.VoiceAccrualResult{}, nil
+		}
+		return coreservice.VoiceAccrualResult{Active: true}, nil
+	}, nil)
+	t.Cleanup(func() { _ = worker.StopAll(context.Background()) })
+	worker.Start("guild-1", "user-1", []string{"old-role"})
+	worker.mu.Lock()
+	worker.active[voiceXPWorkerKey("guild-1", "user-1")].nextTick = time.Now().Add(-time.Second)
+	worker.mu.Unlock()
+	runDone := make(chan struct{})
+	go func() {
+		worker.runDue(time.Now())
+		close(runDone)
+	}()
+	<-started
+	worker.ReconcileGuild("guild-1", []ports.DiscordVoiceState{{UserID: "user-1", ChannelID: "voice-1", RoleIDs: []string{"new-role"}}})
+	close(release)
+	<-runDone
+
+	worker.mu.Lock()
+	entry := worker.active[voiceXPWorkerKey("guild-1", "user-1")]
+	worker.mu.Unlock()
+	if entry == nil || len(entry.currentRoleIDs) != 1 || entry.currentRoleIDs[0] != "new-role" || time.Until(entry.nextTick) < 50*time.Minute {
+		t.Fatalf("reconciled worker = %#v", entry)
+	}
+}
+
+func TestVoiceXPSnapshotAndLiveEventAreSerializedPerGuild(t *testing.T) {
+	readerStarted := make(chan struct{})
+	releaseReader := make(chan struct{})
+	repo := fakemongo.NewXPAdminRepository()
+	reader := blockingVoiceStateReader{
+		started: readerStarted,
+		release: releaseReader,
+		states:  []ports.DiscordVoiceState{{UserID: "user-1", ChannelID: "voice-1"}},
+	}
+	module := NewVoiceEventModule(repo).WithVoiceStateReader(reader).WithRuntimeWorker(time.Hour, nil)
+	t.Cleanup(func() { _ = module.StopRuntimeWorker(context.Background()) })
+
+	snapshotDone := make(chan error, 1)
+	go func() {
+		snapshotDone <- module.GuildAvailableHandler()(context.Background(), events.Event{Type: events.TypeGuildAvailable, GuildID: "guild-1"})
+	}()
+	<-readerStarted
+	liveDone := make(chan error, 1)
+	go func() {
+		liveDone <- module.VoiceStateHandler()(context.Background(), voiceXPEvent("", "voice-1"))
+	}()
+	select {
+	case err := <-liveDone:
+		t.Fatalf("live event bypassed snapshot lock: %v", err)
+	case <-time.After(10 * time.Millisecond):
+	}
+	close(releaseReader)
+	if err := <-snapshotDone; err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	if err := <-liveDone; err != nil {
+		t.Fatalf("live leave: %v", err)
+	}
+	if profile := repo.VoiceProfiles["guild-1/user-1"]; profile.LeaveJoin != domain.VoiceXPSessionLeft {
+		t.Fatalf("final profile = %#v", profile)
+	}
+	if module.worker.ActiveCount() != 0 {
+		t.Fatalf("active workers = %d", module.worker.ActiveCount())
 	}
 }
 
@@ -385,6 +557,32 @@ func TestVoiceXPTickDMsOwnerWhenAnnouncementSendFails(t *testing.T) {
 	}
 }
 
+func TestVoiceXPTickRejectsAnnouncementChannelFromAnotherGuild(t *testing.T) {
+	repo := fakemongo.NewXPAdminRepository()
+	repo.VoiceProfiles["guild-1/user-1"] = domain.XPProfile{GuildID: "guild-1", UserID: "user-1", XP: 96, LeaveJoin: domain.VoiceXPSessionJoined}
+	configs := fakemongo.NewVoiceXPConfigRepository()
+	configs.Configs["guild-1"] = domain.VoiceXPConfig{GuildID: "guild-1", ChannelID: "level-channel"}
+	economy := fakemongo.NewEconomyRepository()
+	economy.PutConfig(domain.EconomyConfig{GuildID: "guild-1", XPMultiple: 3})
+	sideEffects := fakediscord.NewSideEffects()
+	sideEffects.Channels = []ports.ChannelRef{{GuildID: "guild-2", ChannelID: "level-channel", Name: "wrong guild"}}
+	module := NewVoiceEventModule(repo).
+		WithAccrual(repo, configs, sideEffects).
+		WithAnnouncementFallbacks(sideEffects, sideEffects, &fakebotinfo.DiscordInfoProvider{Guild: ports.DiscordGuildInfo{OwnerID: "owner-1"}}).
+		WithCoinRewards(economy)
+
+	result, err := module.TickVoiceXP(context.Background(), "guild-1", "user-1", nil)
+	if err != nil || !result.Leveled {
+		t.Fatalf("tick result=%#v err=%v", result, err)
+	}
+	if len(sideEffects.Sent) != 0 {
+		t.Fatalf("cross-guild messages = %#v", sideEffects.Sent)
+	}
+	if len(economy.Balances) != 0 {
+		t.Fatalf("cross-guild coin rewards = %#v", economy.Balances)
+	}
+}
+
 func voiceXPEvent(channelID string, beforeChannelID string) events.Event {
 	return events.Event{
 		Type:    events.TypeVoiceState,
@@ -411,4 +609,35 @@ func waitUntil(t *testing.T, timeout time.Duration, condition func() bool) {
 	if !condition() {
 		t.Fatal("condition was not met before timeout")
 	}
+}
+
+type staticVoiceStateReader struct {
+	states map[string][]ports.DiscordVoiceState
+	err    error
+}
+
+type blockingVoiceStateReader struct {
+	started chan<- struct{}
+	release <-chan struct{}
+	states  []ports.DiscordVoiceState
+}
+
+func (r blockingVoiceStateReader) GuildVoiceStates(ctx context.Context, _ string) ([]ports.DiscordVoiceState, error) {
+	close(r.started)
+	select {
+	case <-r.release:
+		return append([]ports.DiscordVoiceState(nil), r.states...), ctx.Err()
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func (r staticVoiceStateReader) GuildVoiceStates(ctx context.Context, guildID string) ([]ports.DiscordVoiceState, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if r.err != nil {
+		return nil, r.err
+	}
+	return append([]ports.DiscordVoiceState(nil), r.states[guildID]...), nil
 }
